@@ -32,7 +32,8 @@ const DEFAULTS = {
   text: { text: 'Double click to edit', style: 'body', align: 'left', colour: 'primary' },
   rule: { colour: 'primary', weight: 2 },
   fill: { colour: 'ground' },
-  slot: { label: 'Image', ratio: '3:2' },
+  // an image slot holds an id, never the bytes. See editor/images.js for why.
+  slot: { label: 'Image', image: null, fit: 'cover', focusX: 50, focusY: 50, caption: '' },
   mark: { colourway: 'primary', on: 'ground' },
   lockup: { lockup: 'horizontal', colourway: 'primary', on: 'ground' },
   construction: {}, clearSpace: {}, minimumSize: {},

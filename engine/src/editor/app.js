@@ -11,22 +11,205 @@
   const esc = R.esc;
 
   const KEY = 'handover:' + BUNDLE.brand;
+  const IMGKEY = KEY + ':images';
   let doc = null;
   try { const saved = localStorage.getItem(KEY); if (saved) doc = JSON.parse(saved); } catch (_) {}
   if (!doc || !doc.pages || !doc.pages.length) doc = window.HANDOVER_DOC;
+
+  // Images live beside the document, never in it, so undo clones a small object
+  // and a nudge does not rewrite a photograph. See editor/images.js.
+  const IM = window.HandoverImages;
+  let startImages = {};
+  try { startImages = JSON.parse(localStorage.getItem(IMGKEY) || '{}'); } catch (_) {}
+  const images = IM.store(Object.assign({}, window.HANDOVER_IMAGES || {}, startImages));
+  images.prune(doc);
+  const syncImages = () => { BUNDLE.images = images.all(); };
+  syncImages();
 
   const H = M.history(doc);
   let pageId = H.get().pages[0].id;
   let selection = [];
   let scale = 1;
   let editing = null;
+  let pickFor = null;
 
   const D = () => H.get();
   const page = () => M.findPage(D(), pageId) || D().pages[0];
   const blockById = (id) => page().blocks.find((b) => b.id === id);
   const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(D())); } catch (_) {} };
+  // Written only when the store changes, because it is the big one.
+  //
+  // It deliberately does not prune. Deleting a block and pressing undo has to
+  // bring the photograph back, and undo is a stack of past documents that this
+  // store cannot see. So the store only grows while a session is open, and the
+  // pruning happens at the two moments nothing can be undone into: when a
+  // document is opened, and when one is written out.
+  function persistImages() {
+    syncImages();
+    try { localStorage.setItem(IMGKEY, JSON.stringify(images.all())); }
+    catch (_) {
+      note(`There is no room left in this browser to hold ${images.count()} image${images.count() === 1 ? '' : 's'}. `
+        + 'They are still in this document, but save it now: they will not come back if you close the tab.', 'warn');
+    }
+  }
 
   function change(fn) { H.apply(fn); persist(); draw(); }
+
+  // ------------------------------------------------------------- notices
+  // The engine says what is wrong in words a designer uses, and the editor
+  // should not fall back to alert() for the same job.
+  function note(text, level) {
+    const box = $('#notes');
+    const n = el('div', 'note' + (level ? ' ' + level : ''), esc(text));
+    const x = el('button', 'nx', '&times;');
+    x.onclick = () => n.remove();
+    n.appendChild(x);
+    box.appendChild(n);
+    if (level !== 'warn') setTimeout(() => n.remove(), 5200);
+  }
+  const findings = (list) => { for (const f of list) note(`${f.what} ${f.how}`, 'warn'); };
+
+  // ------------------------------------------------------------- images
+  // A photograph off a phone is four thousand pixels wide and a slot is four
+  // hundred. Storing the original would fill the browser's quota with detail
+  // no page can show, so it is resampled once, on the way in, to twice the
+  // largest box on any page. Everything after that is small.
+  const MAXEDGE = 2400;
+
+  function readImage(file) {
+    return new Promise((resolve, reject) => {
+      if (!/^image\//.test(file.type)) {
+        return reject(new Error(`${file.name} is not an image. Drop a JPEG, a PNG, a WebP or an SVG.`));
+      }
+      const r = new FileReader();
+      r.onerror = () => reject(new Error(`${file.name} could not be read.`));
+      r.onload = () => {
+        const raw = String(r.result);
+        // vector art is resolution independent, so it is kept exactly as given
+        if (file.type === 'image/svg+xml') {
+          return resolve({ src: raw, w: 0, h: 0, vector: true, name: file.name });
+        }
+        const img = new Image();
+        img.onerror = () => reject(new Error(`${file.name} is not an image this browser can open.`));
+        img.onload = () => {
+          const long = Math.max(img.naturalWidth, img.naturalHeight);
+          const k = long > MAXEDGE ? MAXEDGE / long : 1;
+          if (k === 1 && raw.length < 900000) {
+            return resolve({ src: raw, w: img.naturalWidth, h: img.naturalHeight, name: file.name });
+          }
+          const c = document.createElement('canvas');
+          c.width = Math.round(img.naturalWidth * k);
+          c.height = Math.round(img.naturalHeight * k);
+          const g = c.getContext('2d');
+          g.drawImage(img, 0, 0, c.width, c.height);
+          // PNG keeps transparency, and a photograph does not need it
+          const clear = /png|webp|gif/.test(file.type);
+          resolve({ src: c.toDataURL(clear ? 'image/png' : 'image/jpeg', 0.86),
+            w: c.width, h: c.height, name: file.name });
+        };
+        img.src = raw;
+      };
+      r.readAsDataURL(file);
+    });
+  }
+
+  async function placeImage(file, blockId) {
+    let im;
+    try { im = await readImage(file); }
+    catch (e) { return note(e.message, 'warn'); }
+    const id = images.add(im.src, { w: im.w, h: im.h, name: im.name, vector: im.vector || false });
+    const b = blockById(blockId);
+    change((d) => M.ops.setProps(d, pageId, blockId, { image: id }));
+    persistImages();
+    draw();
+    if (b) findings(IM.check(images.get(id), { w: b.w, h: b.h }, im.name));
+  }
+
+  // ------------------------------------------- the mark on a photograph
+  // The one thing people actually get wrong with photography. Nobody misreads
+  // a brief; they put the mark on a bright sky at 1.1 to 1 and it disappears.
+  // That is arithmetic on the pixels underneath it, so the machine can do it.
+  const OVER = ['mark', 'lockup'];
+  let overlays = [];
+
+  // A grid of patches rather than one average, because a mark over a sky that
+  // is bright in one corner fails in that corner while the mean looks fine.
+  const GX = 12, GY = 8;
+  const sampler = document.createElement('canvas');
+  sampler.width = GX; sampler.height = GY;
+
+  function patchesOf(imgEl, src) {
+    const g = sampler.getContext('2d', { willReadFrequently: true });
+    g.clearRect(0, 0, GX, GY);
+    try { g.drawImage(imgEl, src.x, src.y, src.w, src.h, 0, 0, GX, GY); }
+    catch (_) { return null; }
+    let data;
+    try { data = g.getImageData(0, 0, GX, GY).data; }
+    catch (_) { return null; }        // a tainted canvas, which a data URI is not
+    const C = window.HandoverContrast, out = [];
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i + 3] < 8) continue;                    // transparent, nothing under
+      const l = 0.2126 * C.channel(data[i]) + 0.7152 * C.channel(data[i + 1]) + 0.0722 * C.channel(data[i + 2]);
+      const n = i / 4;
+      out.push({ luminance: l, col: n % GX, row: Math.floor(n / GX) });
+    }
+    return out.length ? out : null;
+  }
+
+  function checkOverlays() {
+    overlays = [];
+    const blocks = page().blocks;
+    const ways = Object.entries(BUNDLE.roles).map(([name, r]) => ({ name, hex: r.hex }));
+    for (let i = 0; i < blocks.length; i++) {
+      const under = blocks[i];
+      if (under.type !== 'slot' || !under.props.image) continue;
+      const im = images.get(under.props.image);
+      if (!im || im.vector || !im.w) continue;
+      const imgEl = sheet.querySelector(`.hb-block[data-id="${under.id}"] img`);
+      if (!imgEl || !imgEl.complete || !imgEl.naturalWidth) continue;
+      const geo = IM.sourceRect(im, under, under.props);
+      // only what is drawn on top of the photograph counts
+      for (let j = i + 1; j < blocks.length; j++) {
+        const over = blocks[j];
+        if (!OVER.includes(over.type)) continue;
+        // a block with a ground of its own is not on the photograph, it is on
+        // its own rectangle, and the contrast table already covers that pair
+        if (over.props.on && over.props.on !== 'none') continue;
+        const hit = IM.overlap(under, over);
+        if (!hit) continue;
+        const patches = patchesOf(imgEl, geo.toSource(hit));
+        if (!patches) continue;
+        const ink = R.colour(BUNDLE, over.props.colourway);
+        const v = IM.overlayVerdict(ink, patches, { what: over.type === 'lockup' ? 'lockup' : 'mark' });
+        if (!v || v.passes) continue;
+        const better = IM.bestColourway(ways.filter((w) => w.name !== over.props.colourway), patches);
+        if (better) {
+          v.finding.how = `Use the ${better.name} colourway here, which measures ${better.ratio}:1, `
+            + 'or move the mark to a quieter part of the picture.';
+          v.instead = better;
+        }
+        overlays.push({ id: over.id, x: over.x, y: over.y, w: over.w, h: over.h, verdict: v });
+      }
+    }
+    drawOverlayWarnings();
+  }
+
+  function drawOverlayWarnings() {
+    for (const n of overlay.querySelectorAll('.ovwarn')) n.remove();
+    for (const o of overlays) {
+      const n = el('div', 'ovwarn', `${o.verdict.ratio}:1 on the picture`);
+      n.style.cssText = `left:${o.x}px;top:${o.y + o.h}px`;
+      n.title = o.verdict.finding.what + ' ' + o.verdict.finding.how;
+      overlay.appendChild(n);
+    }
+  }
+  const overlayFor = (id) => overlays.find((o) => o.id === id);
+
+  let overTimer = null;
+  const scheduleOverlayCheck = () => {
+    clearTimeout(overTimer);
+    overTimer = setTimeout(() => { try { checkOverlays(); } catch (_) {} }, 140);
+  };
 
   // ------------------------------------------------------------- rendering
   const stage = $('#stage'), sheet = $('#sheet'), overlay = $('#overlay');
@@ -46,6 +229,8 @@
     sheet.innerHTML = p.blocks.map((b) => R.positioned(b, BUNDLE)).join('');
     sheet.style.background = BUNDLE.roles.ground.hex;
     drawPages(); drawOverlay(); drawPanel(); drawHistory();
+    for (const im of sheet.querySelectorAll('img')) im.addEventListener('load', scheduleOverlayCheck, { once: true });
+    scheduleOverlayCheck();
   }
 
   function drawOverlay() {
@@ -62,6 +247,7 @@
       }
       overlay.appendChild(box);
     }
+    drawOverlayWarnings();
   }
 
   function drawPages() {
@@ -88,6 +274,7 @@
   const opts = (list, cur) => list.map((o) => `<option value="${esc(o)}"${o === cur ? ' selected' : ''}>${esc(o)}</option>`).join('');
   const sel = (k, list, cur) => `<select data-prop="${k}">${opts(list, cur)}</select>`;
   const chk = (k, on) => `<input type="checkbox" data-prop="${k}"${on ? ' checked' : ''}>`;
+  const rng = (k, v) => `<input type="range" min="0" max="100" step="1" data-prop="${k}" data-num-prop="1" value="${Number(v) || 0}">`;
 
   // What a block is called to a designer. The type name is the code's business.
   const NAME = {
@@ -100,6 +287,8 @@
   const nameOf = (t) => NAME[t] || t;
 
   const COLOURS = () => [...Object.keys(BUNDLE.roles), ...Object.keys(BUNDLE.colours)];
+  // a block laid over a photograph needs no ground of its own
+  const GROUNDS = () => ['none', ...COLOURS()];
   const STYLES = () => ((BUNDLE.type || {}).scale || []).map((s) => s.name);
 
   const PROPS = {
@@ -109,10 +298,23 @@
       + field('Colour', sel('colour', COLOURS(), b.props.colour)),
     rule: (b) => field('Colour', sel('colour', COLOURS(), b.props.colour)) + field('Weight', `<input type="number" data-prop="weight" value="${b.props.weight}" min="1">`),
     fill: (b) => field('Colour', sel('colour', COLOURS(), b.props.colour)),
-    slot: (b) => field('Label', `<input data-prop="label" value="${esc(b.props.label)}">`) + field('Ratio', `<input data-prop="ratio" value="${esc(b.props.ratio)}">`),
-    mark: (b) => field('Colourway', sel('colourway', COLOURS(), b.props.colourway)) + field('On', sel('on', COLOURS(), b.props.on)),
+    slot: (b) => {
+      const im = b.props.image && images.get(b.props.image);
+      const head = im
+        ? `<p class="hint imeta">${esc(im.name || 'image')} · ${im.vector ? 'vector' : im.w + ' \u00d7 ' + im.h}</p>`
+        : `<p class="hint">Drop a file on the block, or choose one.</p>`;
+      return head
+        + `<div class="ord"><button id="pick">${im ? 'Replace image' : 'Choose image'}</button>`
+        + (im ? `<button id="clearimg">Remove</button>` : '') + `</div>`
+        + (im ? field('Fit', sel('fit', ['cover', 'contain'], b.props.fit))
+            + (b.props.fit !== 'contain' ? field('Focus across', rng('focusX', b.props.focusX))
+              + field('Focus down', rng('focusY', b.props.focusY)) : '') : '')
+        + field('Caption', `<input data-prop="caption" value="${esc(b.props.caption || '')}">`)
+        + field('Label', `<input data-prop="label" value="${esc(b.props.label)}">`);
+    },
+    mark: (b) => field('Colourway', sel('colourway', COLOURS(), b.props.colourway)) + field('On', sel('on', GROUNDS(), b.props.on)),
     lockup: (b) => field('Lockup', sel('lockup', BUNDLE.lockups, b.props.lockup))
-      + field('Colourway', sel('colourway', COLOURS(), b.props.colourway)) + field('On', sel('on', COLOURS(), b.props.on)),
+      + field('Colourway', sel('colourway', COLOURS(), b.props.colourway)) + field('On', sel('on', GROUNDS(), b.props.on)),
     construction: (b) => field('Ink', sel('colourway', COLOURS(), b.props.colourway || 'primary'))
       + field('On', sel('on', COLOURS(), b.props.on || 'ground')) + field('Lines', sel('line', COLOURS(), b.props.line || 'neutral')),
     minimumSize: (b) => field('Ink', sel('colourway', COLOURS(), b.props.colourway || 'primary')),
@@ -144,8 +346,10 @@
       rule: 'One decision, made once in the project, generating every instance after it. You choose which instance to show. To change the rule itself, edit the project rather than this block.',
       plain: '',
     };
+    const ov = overlayFor(b.id);
     box.innerHTML =
       `<div class="ph"><h3>${esc(nameOf(b.type))}</h3><span class="kind ${kind[0]}">${LABEL[kind]}</span></div>`
+      + (ov ? `<p class="hint bad">${esc(ov.verdict.finding.what)} ${esc(ov.verdict.finding.how)}</p>` : '')
       + (NOTE[kind] ? `<p class="hint">${NOTE[kind]}</p>` : '')
       + `<div class="grid4">${num('x', b.x)}${num('y', b.y)}${num('w', b.w)}${num('h', b.h)}</div>`
       + `<div class="labels"><span>X</span><span>Y</span><span>W</span><span>H</span></div>`
@@ -162,7 +366,8 @@
     box.querySelectorAll('[data-prop]').forEach((i) => {
       const ev = i.tagName === 'SELECT' || i.type === 'checkbox' ? 'change' : 'input';
       i.addEventListener(ev, () => {
-        const v = i.type === 'checkbox' ? i.checked : i.type === 'number' ? Number(i.value) : i.value;
+        const v = i.type === 'checkbox' ? i.checked
+          : (i.type === 'number' || i.dataset.numProp) ? Number(i.value) : i.value;
         change((d) => M.ops.setProps(d, pageId, b.id, { [i.dataset.prop]: v }));
       });
     });
@@ -170,6 +375,10 @@
       btn.onclick = () => change((d) => M.ops.reorder(d, pageId, b.id, isNaN(+btn.dataset.ord) ? btn.dataset.ord : +btn.dataset.ord));
     });
     const del = $('#del', box); if (del) del.onclick = removeSelected;
+    const pick = $('#pick', box);
+    if (pick) pick.onclick = () => { pickFor = b.id; $('#imgfile').click(); };
+    const clear = $('#clearimg', box);
+    if (clear) clear.onclick = () => { change((d) => M.ops.setProps(d, pageId, b.id, { image: null })); persistImages(); draw(); };
   }
 
   // ------------------------------------------------------------- editing
@@ -335,8 +544,13 @@
     change((d) => { M.ops.removePage(d, gone); });
     pageId = D().pages[0].id; selection = []; draw();
   };
-  $('#save').onclick = () => download(`${BUNDLE.brand.toLowerCase()}-document.json`,
-    JSON.stringify(D(), null, 2), 'application/json');
+  // One file to hand around, with the images the document uses inside it. A
+  // bare document still opens, which is what the server writes.
+  $('#save').onclick = () => {
+    const used = IM.forDoc(D(), images.all());
+    const out = Object.keys(used).length ? Object.assign({}, D(), { images: used }) : D();
+    download(`${BUNDLE.brand.toLowerCase()}-document.json`, JSON.stringify(out, null, 2), 'application/json');
+  };
   // Publish uses the same module the server uses, so what comes out of this
   // button and what comes out of the command line are the same bytes.
   const download = (name, text, mime) => {
@@ -345,9 +559,41 @@
     a.download = name; a.click(); URL.revokeObjectURL(a.href);
   };
   $('#publish').onclick = () => {
-    const html = window.HandoverPublish.publish(D(), BUNDLE, { title: 'Guidelines' });
+    const html = window.HandoverPublish.publish(D(),
+      Object.assign({}, BUNDLE, { images: IM.forDoc(D(), images.all()) }), { title: 'Guidelines' });
     download(`${BUNDLE.brand.toLowerCase()}-guidelines.html`, html, 'text/html');
   };
+  // Dropping a file on a slot is the gesture people try first, so it is the one
+  // that has to work. The whole canvas listens, and the slot under the pointer
+  // is the target.
+  const slotUnder = (e) => {
+    const el2 = document.elementFromPoint(e.clientX, e.clientY);
+    const blk = el2 && el2.closest && el2.closest('.hb-block[data-type="slot"]');
+    return blk ? blk.dataset.id : null;
+  };
+  const mark = (id) => {
+    for (const n of sheet.querySelectorAll('.drop')) n.classList.remove('drop');
+    if (id) { const n = sheet.querySelector(`.hb-block[data-id="${id}"]`); if (n) n.classList.add('drop'); }
+  };
+  $('#canvas').addEventListener('dragover', (e) => {
+    if (![...e.dataTransfer.types].includes('Files')) return;
+    e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; mark(slotUnder(e));
+  });
+  $('#canvas').addEventListener('dragleave', () => mark(null));
+  $('#canvas').addEventListener('drop', (e) => {
+    const files = [...(e.dataTransfer.files || [])];
+    if (!files.length) return;
+    e.preventDefault();
+    const id = slotUnder(e); mark(null);
+    if (!id) return note('Drop an image on an image slot. Add one from the left if there is none on this page.', 'warn');
+    placeImage(files[0], id);
+  });
+  $('#imgfile').onchange = (e) => {
+    const f = e.target.files[0];
+    if (f && pickFor) placeImage(f, pickFor);
+    pickFor = null; e.target.value = '';
+  };
+
   $('#open').onclick = () => $('#file').click();
   $('#file').onchange = (e) => {
     const f = e.target.files[0]; if (!f) return;
@@ -356,7 +602,11 @@
       try {
         const next = JSON.parse(r.result);
         if (!next || !Array.isArray(next.pages) || !next.pages.length) throw new Error('that file has no pages in it');
-        H.reset(next); pageId = D().pages[0].id; selection = []; persist(); draw(); fit();
+        const withImages = next.images || {};
+        delete next.images;                       // the document holds layout, never bytes
+        images.reset(withImages); images.prune(next);
+        H.reset(next); pageId = D().pages[0].id; selection = [];
+        persist(); persistImages(); draw(); fit();
       } catch (err) { alert('That document could not be opened. ' + err.message); }
     };
     r.readAsText(f);
@@ -372,7 +622,8 @@
   window.addEventListener('resize', fit);
   drawInsert(); draw(); fit();
   window.__handover = { get doc() { return D(); }, get selection() { return selection; },
-    publish: () => window.HandoverPublish.publish(D(), BUNDLE, { title: 'Guidelines', builtAt: 'test' }),
+    publish: () => window.HandoverPublish.publish(D(),
+      Object.assign({}, BUNDLE, { images: IM.forDoc(D(), images.all()) }), { title: 'Guidelines', builtAt: 'test' }),
     load: (d) => { H.reset(d); pageId = D().pages[0].id; selection = []; draw(); fit(); },
     select: (i) => { selection = [page().blocks[i].id]; drawOverlay(); drawPanel(); },
     setPage: (i) => { pageId = D().pages[i].id; selection = []; draw(); } };

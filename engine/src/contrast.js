@@ -1,7 +1,14 @@
-'use strict';
 // WCAG 2.2 contrast, computed rather than eyeballed. The guidelines document
 // reports failures as failures, because a table that only ever says pass is a
 // table nobody trusts.
+//
+// UMD, because the editor checks a mark against the pixels of a photograph and
+// there must not be a second copy of this arithmetic to disagree with.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.HandoverContrast = factory();
+}(typeof self !== 'undefined' ? self : this, function () {
+'use strict';
 const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 
 const channel = (c) => {
@@ -53,4 +60,13 @@ function cmyk(hex) {
   return [f(r), f(g), f(b), Math.round(k * 100)];
 }
 
-module.exports = { ratio, verdict, luminance, matrix, rgb, cmyk };
+// Luminance straight off pixels, for the case where the background is a
+// photograph rather than a swatch.
+function ratioOfLuminance(la, lb) {
+  const [hi, lo] = la > lb ? [la, lb] : [lb, la];
+  return Math.round(((hi + 0.05) / (lo + 0.05)) * 100) / 100;
+}
+const channelOf = channel;
+
+return { ratio, verdict, luminance, matrix, rgb, cmyk, ratioOfLuminance, channel: channelOf };
+}));

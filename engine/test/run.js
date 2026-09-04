@@ -630,6 +630,146 @@ test('the editor and the exported document use the same renderer', () => {
     'the editor inlines a different renderer than the one on disk');
 });
 
+console.log('\nimage slots');
+const IM = require('../src/editor/images');
+// a 4x4 red PNG and a 2x2 one, enough to be real data URIs without a fixture
+const PNG_A = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAFElEQVR4nGP8z8DAwMDAwMBEHAEAJgUCAWy2CBcAAAAASUVORK5CYII=';
+const PNG_B = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFUlEQVR4nGP8//8/AzJgYkAD5AsAAJ4EAxwJZDIAAAAASUVORK5CYII=';
+
+test('an image is keyed by its content, so the same one twice is stored once', () => {
+  const st = IM.store();
+  const a = st.add(PNG_A, { w: 4, h: 4 });
+  const b = st.add(PNG_A, { w: 4, h: 4 });
+  assert.strictEqual(a, b);
+  assert.strictEqual(st.count(), 1);
+  assert.notStrictEqual(st.add(PNG_B, { w: 2, h: 2 }), a);
+  assert.strictEqual(st.count(), 2);
+});
+test('anything that is not an image is refused', () => {
+  const st = IM.store();
+  assert.throws(() => st.add('data:text/html,<b>hi</b>'), /not an image/);
+  assert.throws(() => st.add('/photos/beach.jpg'), /not an image/);
+});
+test('the document holds an id and never the bytes', () => {
+  const st = IM.store();
+  const id = st.add(PNG_A, { w: 4, h: 4, name: 'beach.jpg' });
+  const d = EM.emptyDoc('Meridian');
+  d.pages[0].blocks.push(EM.makeBlock('slot', { props: { image: id } }));
+  const json = JSON.stringify(d);
+  assert.ok(!/data:image/.test(json), 'a photograph got into the document, which undo clones sixty deep');
+  assert.ok(json.includes(id));
+  assert.deepStrictEqual([...IM.used(d)], [id]);
+});
+test('only the images a document uses travel with it', () => {
+  const st = IM.store();
+  const kept = st.add(PNG_A, { w: 4, h: 4 }), dropped = st.add(PNG_B, { w: 2, h: 2 });
+  const d = EM.emptyDoc('Meridian');
+  d.pages[0].blocks.push(EM.makeBlock('slot', { props: { image: kept } }));
+  const out = IM.forDoc(d, st.all());
+  assert.deepStrictEqual(Object.keys(out), [kept]);
+  st.prune(d);
+  assert.strictEqual(st.count(), 1);
+  assert.ok(!st.has(dropped), 'an image nothing points at stayed in the store forever');
+});
+test('an image too small for its box is a warning, with both numbers', () => {
+  const f = IM.check({ w: 600, h: 400 }, { w: 420, h: 280 }, 'beach.jpg');
+  assert.strictEqual(f.length, 1);
+  assert.strictEqual(f[0].level, 'warning');
+  assert.ok(f[0].what.includes('600 by 400') && f[0].what.includes('840 by 560'),
+    'the finding does not say what it has and what it wants');
+  assert.deepStrictEqual(IM.check({ w: 1600, h: 1000 }, { w: 420, h: 280 }), []);
+  assert.deepStrictEqual(IM.check({ vector: true, w: 0, h: 0 }, { w: 999, h: 999 }), [],
+    'vector art was measured for resolution it does not have');
+});
+
+console.log('\na mark on a photograph');
+test('cover fills the box and crops, contain fits inside it', () => {
+  const im = { w: 1600, h: 1000 }, box = { w: 420, h: 280 };
+  const cover = IM.sourceRect(im, box, { fit: 'cover', focusX: 50, focusY: 50 });
+  assert.strictEqual(Math.round(cover.scale * 10000), 2800);      // 280/1000, the larger
+  assert.ok(cover.drawnW > box.w, 'cover did not overflow the box');
+  const contain = IM.sourceRect(im, box, { fit: 'contain' });
+  assert.strictEqual(Math.round(contain.scale * 10000), 2625);    // 420/1600, the smaller
+  assert.ok(contain.drawnH < box.h);
+});
+test('the focal point decides which part of the picture is kept', () => {
+  const im = { w: 1600, h: 1000 }, box = { w: 420, h: 280 };
+  const left = IM.sourceRect(im, box, { fit: 'cover', focusX: 0, focusY: 50 });
+  const right = IM.sourceRect(im, box, { fit: 'cover', focusX: 100, focusY: 50 });
+  assert.strictEqual(left.toSource({ x: 0, y: 0, w: 1, h: 1 }).x, 0, 'focus left did not start at the left edge');
+  assert.ok(right.toSource({ x: 0, y: 0, w: 1, h: 1 }).x > 90, 'focus right kept the left of the picture');
+});
+test('a rectangle on the page maps back to a rectangle in the photograph', () => {
+  const geo = IM.sourceRect({ w: 1600, h: 1000 }, { w: 400, h: 250 }, { fit: 'cover', focusX: 50, focusY: 50 });
+  const whole = geo.toSource({ x: 0, y: 0, w: 400, h: 250 });
+  assert.strictEqual(Math.round(whole.w), 1600);
+  assert.strictEqual(Math.round(whole.h), 1000);
+});
+test('two blocks that do not touch have nothing to say to each other', () => {
+  assert.strictEqual(IM.overlap({ x: 0, y: 0, w: 10, h: 10 }, { x: 50, y: 50, w: 10, h: 10 }), null);
+  assert.deepStrictEqual(IM.overlap({ x: 100, y: 100, w: 400, h: 300 }, { x: 300, y: 200, w: 200, h: 200 }),
+    { x: 200, y: 100, w: 200, h: 200 });
+});
+test('the worst patch decides, not the average', () => {
+  // a picture that is dark almost everywhere and blown out in one corner
+  const dark = { luminance: 0.02 }, blown = { luminance: 0.95 };
+  const patches = [dark, dark, dark, dark, dark, dark, dark, blown];
+  const v = IM.overlayVerdict('#0A2A33', patches, {});
+  assert.ok(!v.passes, 'a mark that vanishes in one corner was passed on the average');
+  assert.ok(v.mean > v.ratio, 'the average was reported instead of the worst part');
+  assert.ok(v.finding.what.includes(String(v.ratio)));
+  assert.ok(/lightest part/.test(v.finding.what));
+});
+test('a mark that holds everywhere raises nothing', () => {
+  const v = IM.overlayVerdict('#0A2A33', [{ luminance: 0.8 }, { luminance: 0.9 }], {});
+  assert.ok(v.passes);
+  assert.ok(!v.finding);
+  assert.ok(v.ratio >= IM.NONTEXT);
+});
+test('when the mark fails, the colourway that would work is named', () => {
+  const patches = [{ luminance: 0.02 }, { luminance: 0.05 }];
+  const ways = Object.entries(bu.roles).map(([name, r]) => ({ name, hex: r.hex }));
+  const better = IM.bestColourway(ways, patches);
+  assert.ok(better, 'nothing was suggested for a mark on a dark picture');
+  assert.ok(better.ratio >= IM.NONTEXT);
+  assert.strictEqual(better.hex, bu.roles[better.name].hex);
+  // and nothing is suggested when nothing would work
+  assert.strictEqual(IM.bestColourway([{ name: 'x', hex: '#808080' }], [{ luminance: 0.21 }]), null);
+});
+
+console.log('\ndrawing an image slot');
+const withImage = (props) => {
+  const st = IM.store();
+  const id = st.add(PNG_A, { w: 1600, h: 1000, name: 'beach.jpg' });
+  const b = EM.makeBlock('slot', { props: Object.assign({ image: id }, props) });
+  return { html: ER.block(b, Object.assign({}, bu, { images: st.all() })), id, b };
+};
+test('an empty slot asks for a file, and a filled one shows it', () => {
+  assert.ok(ER.block(EM.makeBlock('slot'), bu).includes('drop an image here'));
+  assert.ok(withImage().html.includes('<img src="data:image/png'));
+});
+test('fit and the focal point reach the markup', () => {
+  assert.ok(withImage({ fit: 'contain' }).html.includes('object-fit:contain'));
+  const h = withImage({ fit: 'cover', focusX: 20, focusY: 80 }).html;
+  assert.ok(h.includes('object-fit:cover') && h.includes('object-position:20% 80%'));
+});
+test('a caption makes it a figure, and is set in the brand\'s own caption style', () => {
+  const h = withImage({ caption: 'Coastal light' }).html;
+  assert.ok(h.includes('<figure') && h.includes('<figcaption'));
+  assert.ok(h.includes('Coastal light'));
+  assert.ok(!withImage().html.includes('<figcaption'), 'an uncaptioned image drew an empty caption');
+});
+test('a caption is escaped rather than injected', () => {
+  const h = withImage({ caption: '<img src=x onerror=alert(1)>' }).html;
+  assert.ok(!/onerror=alert/.test(h.replace(/&lt;[^&]*/g, '')), 'markup in a caption was not escaped');
+  assert.ok(h.includes('&lt;img'));
+});
+test('a block laid on a photograph can have no ground of its own', () => {
+  assert.strictEqual(ER.colour(bu, 'none'), 'transparent');
+  const h = ER.block(EM.makeBlock('mark', { props: { colourway: 'primary', on: 'none' } }), bu);
+  assert.ok(h.includes('background:transparent'), 'a mark over a picture still painted a rectangle behind itself');
+});
+
 console.log('\npublishing');
 const { publish } = require('../src/editor/publish');
 const pubDoc = starterDoc(bu);
@@ -673,6 +813,58 @@ test('the published page closes its own script tag', () => {
   assert.ok(!html.includes('<\\/script>'), 'the escape leaked into the output');
   const opens = (html.match(/<script/g) || []).length, closes = (html.match(/<\/script>/g) || []).length;
   assert.strictEqual(opens, closes, 'unbalanced script tags');
+});
+test('a photograph reaches the published page, and only the ones in use', () => {
+  const st = IM.store();
+  const used = st.add(PNG_A, { w: 1600, h: 1000, name: 'beach.jpg' });
+  const orphan = st.add(PNG_B, { w: 2, h: 2 });
+  const d = EM.emptyDoc('Meridian');
+  d.pages[0].blocks.push(EM.makeBlock('slot', { props: { image: used, caption: 'Coastal light' } }));
+  const html = publish(d, Object.assign({}, bu, { images: IM.forDoc(d, st.all()) }), { builtAt: 'fixed' });
+  assert.ok(html.includes(PNG_A), 'the photograph did not reach the page');
+  assert.ok(!html.includes(PNG_B), `an image nothing points at was carried into the page anyway`);
+  assert.ok(html.includes('Coastal light'));
+});
+test('a saved document carries its images beside itself, never inside a block', () => {
+  const st = IM.store();
+  const id = st.add(PNG_A, { w: 1600, h: 1000, name: 'beach.jpg' });
+  const d = EM.emptyDoc('Meridian');
+  d.pages[0].blocks.push(EM.makeBlock('slot', { props: { image: id } }));
+  // exactly the shape the Save button writes and the publish command reads
+  const file = Object.assign({}, d, { images: IM.forDoc(d, st.all()) });
+  const reopened = JSON.parse(JSON.stringify(file));
+  const images = reopened.images; delete reopened.images;
+  assert.ok(!/data:image/.test(JSON.stringify(reopened.pages)), 'bytes were stored in a block');
+  const html = publish(reopened, Object.assign({}, bu, { images }), { builtAt: 'fixed' });
+  assert.ok(html.includes('<img src="data:image/png'), 'the round trip lost the photograph');
+});
+test('the publish command takes a document with photographs in it', () => {
+  const cp = require('child_process');
+  const st = IM.store();
+  const id = st.add(PNG_A, { w: 1600, h: 1000, name: 'beach.jpg' });
+  const d = EM.emptyDoc('Meridian');
+  d.pages[0].blocks.push(EM.makeBlock('slot', { props: { image: id, caption: 'Coastal light' } }));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-img-'));
+  const docPath = path.join(dir, 'document.json'), out = path.join(dir, 'page.html');
+  fs.writeFileSync(docPath, JSON.stringify(Object.assign({}, d, { images: IM.forDoc(d, st.all()) })));
+  const r = cp.spawnSync(process.execPath,
+    [path.join(__dirname, '..', 'src', 'cli.js'), 'publish', PROJECT, docPath, '-o', out],
+    { encoding: 'utf8' });
+  assert.strictEqual(r.status, 0, r.stderr || 'publish exited non-zero');
+  assert.ok(/1 image came with the document/.test(r.stdout), 'the command did not notice the photograph');
+  const html = fs.readFileSync(out, 'utf8');
+  assert.ok(html.includes(PNG_A), 'the published page has no photograph in it');
+  assert.ok(html.includes('Coastal light'));
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+test('the editor loads contrast before the images that need it', () => {
+  const html = editorHtml(project, m, []);
+  const at = (needle) => html.indexOf(needle);
+  assert.ok(at('HandoverContrast') > -1, 'contrast is not inlined, so nothing can measure a photograph');
+  assert.ok(at('root.HandoverContrast = factory') < at('root.HandoverImages = factory'),
+    'images loads before contrast, so HandoverContrast is undefined when it is read');
+  assert.ok(at('root.HandoverImages = factory') < at('root.HandoverRender = factory'),
+    'the renderer loads before the image store');
 });
 test('inlining publish into the editor does not close the editor script early', () => {
   // Only a closing tag ends a script block, so that is the one to count. An

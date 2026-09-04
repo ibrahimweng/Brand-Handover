@@ -73,6 +73,9 @@ function bundle(project, measured, files = []) {
       motion: rules.motion,
     },
     patternTiles, patternRefused,
+    // Photographs a document uses, keyed by content. Empty from a build: they
+    // arrive when somebody drops one in, and travel with the saved document.
+    images: {},
     colours, roles,
     type: project.tokens.type || {},
     measured: {

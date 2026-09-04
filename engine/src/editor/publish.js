@@ -48,6 +48,10 @@ html,body{margin:0;background:var(--shell);color:var(--ink);font-family:ui-sans-
 .hb-slot{width:100%;height:100%;border:1.5px dashed rgba(128,128,128,.45);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:rgba(128,128,128,.85)}
 .hb-slot b{font-family:ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:500}
 .hb-slot span{font-family:ui-monospace,Menlo,monospace;font-size:10px;opacity:.75}
+.hb-img{width:100%;height:100%;margin:0;display:flex;flex-direction:column;overflow:hidden}
+.hb-img-f{flex:1;min-height:0;overflow:hidden}
+.hb-img figcaption,figure.hb-img>figcaption{flex:none;padding-top:7px}
+.hb-img img{background:rgba(128,128,128,.12)}
 .hb-missing{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#3A2422;color:#E8695F;font-family:ui-monospace,Menlo,monospace;font-size:11px;text-align:center;padding:8px}
 .hb-sizes{display:flex;gap:14px;align-items:flex-end;width:100%;height:100%}
 .hb-sizes figure{margin:0;flex:1;text-align:center}

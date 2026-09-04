@@ -373,7 +373,8 @@ and there is some of it in all nine.
 Phases 0 to 3 are in `engine/`, together with the parts of phase 5 that turned
 out to be cheap once the renderer was shared. What is running: the normaliser,
 the measuring engine, the packager, both documents, the canvas editor,
-publishing, and all three kinds of block. 136 files from one master, 103 tests.
+publishing, all three kinds of block, and image slots. 136 files from one
+master, 124 tests.
 
 Three things the plan had wrong, found by building rather than by thinking.
 
@@ -396,6 +397,19 @@ like it worked: it read an arc's radius as a coordinate, and it never saw paint
 that shapes inherit from a group, which is how every drawing tool exports. Both
 passed a casual look. Both were found by writing a fixture that looked like a
 real export rather than like a test.
+
+**The mark on a photograph is worth more than the image slot around it.** This
+plan called it out in one line and then filed it under photography. Building it
+took an afternoon and it is the only part of the editor that catches a mistake
+a working designer actually makes: the mark on a bright sky at 1.1 to 1. It
+also needed the block to stop painting its own ground, which nobody would have
+noticed until the check confidently measured pixels the reader never sees.
+
+The cost of images sat somewhere the plan never looked: undo. Sixty whole
+documents cloned per session is fine until one of them holds a photograph. The
+bytes had to live beside the document, and then pruning had to be moved off the
+edit path entirely, because deleting a block and pressing undo has to bring the
+picture back.
 
 ---
 

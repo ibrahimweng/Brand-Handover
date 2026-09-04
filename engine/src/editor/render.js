@@ -12,9 +12,11 @@
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const r3 = (n) => Math.round(n * 1000) / 1000;
 
-  // a colour name, a role name, or a literal hex all resolve here
+  // a colour name, a role name, or a literal hex all resolve here.
+  // "none" is the case that matters over a photograph: a mark laid on a picture
+  // has to sit on the picture, not on a rectangle of its own.
   function colour(bundle, key) {
-    if (!key) return 'transparent';
+    if (!key || key === 'none') return 'transparent';
     if (/^#/.test(key)) return key;
     if (bundle.roles && bundle.roles[key]) return bundle.roles[key].hex;
     if (bundle.colours && bundle.colours[key]) return bundle.colours[key].hex;
@@ -92,7 +94,21 @@
     text: (b, bu) => `<div class="hb-text" style="${typeStyle(bu, b.props.style)}color:${colour(bu, b.props.colour)};text-align:${b.props.align};width:100%;height:100%;overflow:hidden">${esc(b.props.text).replace(/\n/g, '<br>')}</div>`,
     rule: (b, bu) => `<div style="width:100%;height:${b.props.weight}px;background:${colour(bu, b.props.colour)}"></div>`,
     fill: (b, bu) => `<div style="width:100%;height:100%;background:${colour(bu, b.props.colour)}"></div>`,
-    slot: (b) => `<div class="hb-slot"><b>${esc(b.props.label)}</b><span>${esc(b.props.ratio)} · drop an image here</span></div>`,
+    // An image slot holds an id. The bytes come off the bundle, which is how
+    // the same renderer draws it in the editor and on a published page.
+    slot: (b, bu) => {
+      const im = (bu.images || {})[b.props.image];
+      if (!im) {
+        return `<div class="hb-slot"><b>${esc(b.props.label)}</b><span>drop an image here</span></div>`;
+      }
+      const fit = b.props.fit === 'contain' ? 'contain' : 'cover';
+      const pos = `${Number(b.props.focusX) || 0}% ${Number(b.props.focusY) || 0}%`;
+      const img = `<img src="${esc(im.src)}" alt="${esc(b.props.caption || b.props.label || '')}"`
+        + ` style="width:100%;height:100%;object-fit:${fit};object-position:${pos};display:block">`;
+      if (!b.props.caption) return `<div class="hb-img">${img}</div>`;
+      return `<figure class="hb-img"><div class="hb-img-f">${img}</div>`
+        + `<figcaption style="${typeStyle(bu, 'Caption')}color:${colour(bu, 'primary')}">${esc(b.props.caption)}</figcaption></figure>`;
+    },
 
     mark: (b, bu) => `<div style="width:100%;height:100%;background:${colour(bu, b.props.on)};display:flex;align-items:center;justify-content:center">
       ${fitSvg(bu.marks[cwName(bu, b.props.colourway)] || Object.values(bu.marks)[0], 14)}</div>`,

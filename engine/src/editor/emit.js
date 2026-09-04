@@ -82,10 +82,25 @@ h4{margin:0 0 8px;font-size:10px;letter-spacing:.13em;text-transform:uppercase;c
 #zoom{font-family:var(--mono);font-size:11px;color:var(--dim);min-width:42px;text-align:right}
 .keys{margin-top:18px;padding-top:14px;border-top:1px solid var(--line);font-family:var(--mono);font-size:10px;line-height:1.9;color:var(--dim)}
 .keys b{color:var(--ink);font-weight:400}
+#notes{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;z-index:20;pointer-events:none;max-width:640px}
+.note{pointer-events:auto;background:var(--pane);border:1px solid var(--line);border-left:2px solid var(--sel);border-radius:5px;
+  padding:9px 30px 9px 12px;font-size:12px;line-height:1.5;position:relative;box-shadow:0 6px 22px rgba(0,0,0,.4)}
+.note.warn{border-left-color:#E2C86A}
+.nx{position:absolute;top:5px;right:6px;background:none;border:none;color:var(--dim);cursor:pointer;font-size:15px;line-height:1;padding:2px 4px}
+.imeta{font-family:var(--mono);font-size:10.5px}
+.hint.bad{color:#E2C86A;border-left:2px solid #E2C86A;padding-left:9px}
+.ovwarn{position:absolute;transform:translateY(4px);background:#E2C86A;color:#231F09;font-family:var(--mono);
+  font-size:9px;letter-spacing:.05em;padding:2px 6px;border-radius:3px;white-space:nowrap;pointer-events:auto;cursor:help}
+.f input[type=range]{padding:0;height:20px;accent-color:var(--sel);background:none;border:none}
 /* blocks */
 .hb-slot{width:100%;height:100%;border:1.5px dashed rgba(128,128,128,.45);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:rgba(128,128,128,.85)}
 .hb-slot b{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:500}
 .hb-slot span{font-family:var(--mono);font-size:10px;opacity:.75}
+.hb-block[data-type=slot].drop .hb-slot{border-color:var(--sel);border-style:solid;color:var(--sel)}
+.hb-img{width:100%;height:100%;margin:0;display:flex;flex-direction:column;overflow:hidden}
+.hb-img-f{flex:1;min-height:0;overflow:hidden}
+.hb-img figcaption,figure.hb-img>figcaption{flex:none;padding-top:7px}
+.hb-img img{background:rgba(128,128,128,.12)}
 .hb-missing{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#3A2422;color:#E8695F;font-family:var(--mono);font-size:11px;text-align:center;padding:8px}
 .hb-sizes{display:flex;gap:14px;align-items:flex-end;width:100%;height:100%}
 .hb-sizes figure{margin:0;flex:1;text-align:center}
@@ -140,17 +155,22 @@ ${fontLink(bu.type)}
       <b>double click</b> edit text<br>
       <b>arrows</b> nudge · <b>shift</b> ×4<br>
       <b>cmd Z</b> undo · <b>cmd D</b> duplicate<br>
-      <b>delete</b> remove block
+      <b>delete</b> remove block<br>
+      <b>drop a file</b> on an image slot
     </div>
   </div>
-  <div id="canvas"><div id="stage"><div id="sheet"></div><div id="overlay"></div></div></div>
+  <div id="canvas"><div id="stage"><div id="sheet"></div><div id="overlay"></div></div><div id="notes"></div></div>
   <div class="side"><h4>Properties</h4><div id="panel"></div></div>
 </div>
 <input type="file" id="file" accept="application/json" hidden>
+<input type="file" id="imgfile" accept="image/*" hidden>
+<script>${read('../contrast.js')}</script>
 <script>${read('model.js')}</script>
+<script>${read('images.js')}</script>
 <script>${read('render.js')}</script>
 <script>${read('publish.js')}</script>
-<script>window.HANDOVER_BUNDLE=${JSON.stringify(bu)};window.HANDOVER_DOC=${JSON.stringify(doc)};</script>
+<script>window.HANDOVER_BUNDLE=${JSON.stringify(bu)};window.HANDOVER_DOC=${JSON.stringify(doc)};
+window.HANDOVER_IMAGES=${JSON.stringify(bu.images || {})};</script>
 <script>${read('app.js')}</script>
 </body></html>`;
 }

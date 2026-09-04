@@ -9,7 +9,7 @@ around it.
 
     cd engine
     npm install
-    npm test                                            # 103 checks
+    npm test                                            # 124 checks
     node src/cli.js check   test/fixtures/messy-illustrator.svg --tokens projects/meridian/project.json
     node src/cli.js check   my-icon.svg --icon projects/meridian/project.json
     node src/cli.js measure projects/meridian/project.json
@@ -201,7 +201,8 @@ Blocks come in three kinds, and the properties panel says which one you have
 selected.
 
 **Plain blocks** are text, a rule, a fill and an image slot. Ordinary furniture,
-and yours to arrange.
+and yours to arrange. The image slot is the one with anything to say, and it is
+below.
 
 **Derived blocks** draw themselves from the project: the mark, any lockup, the
 construction drawing, clear space, minimum size, the palette, the contrast
@@ -348,12 +349,71 @@ icon stroke goes 1.8 → 2.8, the live area 21.8 → 22.8, and an icon drawn to 
 old rule becomes a blocker. A test asserts exactly that, because a rule that
 remembers an old master is not a rule.
 
+### Image slots
+
+Drop a file on a slot, or choose one from the panel. Then fit (cover or
+contain), a focal point, and a caption set in the brand's own caption style.
+The image is resampled once on the way in, to a long edge of 2400, because a
+photograph off a phone is four thousand pixels wide and no page here can show
+more than a fraction of that.
+
+**The bytes live beside the document, never in it**, and that is the whole
+design rather than a detail. Undo is a stack of whole documents cloned sixty
+deep, and the editor writes the document to localStorage on every nudge. A
+photograph inlined into a block would be cloned sixty times and rewritten on
+every arrow key. So a block holds an id, the bytes live in a store keyed by
+content, and nothing that happens on the canvas touches them. A test asserts
+that no `data:` string ever appears inside a document.
+
+Which leaves one trap, and it is the reason the store does not prune eagerly.
+Delete a block and press undo: the photograph has to come back, and undo is a
+stack of past documents the store cannot see. So the store only grows while a
+session is open, and pruning happens at the two moments nothing can be undone
+into — when a document is opened, and when one is written out. Save JSON writes
+one file with the images the document uses inside it, and `handover publish`
+reads that same file.
+
+Two things get checked, both in the same voice as the rest of the engine.
+
+**An image too small for its box.** Two pixels for one is the working standard,
+so a 420 wide block wants 840. A 600 px photograph in it is reported with both
+numbers, because "it looks a bit soft" is not something anyone acts on.
+
+**The mark on a photograph.** This is the one from the plan:
+
+> Nobody misreads a photographic brief. They put the mark on a bright sky at
+> 1.1 to 1, and that is arithmetic on the pixels underneath it.
+
+So the editor does the arithmetic. When a mark or a lockup with no ground of
+its own sits over an image, the pixels under its footprint are sampled through
+the same object-fit maths the browser uses, in a grid of patches rather than as
+one average — a mark over a sky that is bright in one corner fails in that
+corner while the mean looks fine. The worst patch is what gets reported, at
+3:1, which is the WCAG figure for a shape rather than for words.
+
+    1.06:1 on the picture
+    The mark measures 1.06:1 against the lightest part of the photograph
+    under it. Use the ground colourway here, which measures 13.64:1, or move
+    the mark to a quieter part of the picture.
+
+It names the colourway that would work by measuring every one of them against
+the same pixels. Switch to it and the warning goes.
+
+Two things this needed that were not obvious. A mark block used to paint its
+own ground, so a mark over a photograph was really a mark on a rectangle on a
+photograph and the check was measuring pixels nobody sees; `on` now takes
+**none**. And `src/contrast.js` became UMD, because the alternative was a second
+copy of the WCAG arithmetic in the browser to disagree with the first.
+
 ### What the editor does not do yet
 
-- **Image slots are placeholders.** Dropping a file in is not wired up.
 - **The icon grid draws a demonstration glyph**, not your icon set. Icons are
   checked one at a time through the CLI; a set is not yet held in the project.
 - **One page size.** 1280 by 720 for everything, print sizes included.
+- **Images are per document, not per project.** A photograph dropped into one
+  document is not offered in the next one.
+- **No duotone or scrim.** The photography treatment from the specimen is a
+  rule block waiting to be built; today a slot shows the file as given.
 
 ## What it does not do yet
 
@@ -382,6 +442,7 @@ remembers an old master is not a rule.
     src/pattern.js    seamless tiles cut from the shape you marked
     src/documents/    blocks.js, chrome.js, index.js (manual), deck.js
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
+    src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package
     src/build.js      write the package, brand.json and the read me
     src/cli.js        check, measure, build, edit and publish

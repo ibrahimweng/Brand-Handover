@@ -123,6 +123,14 @@ async function main(argv) {
       try { document = JSON.parse(fs.readFileSync(docPath, 'utf8')); }
       catch (e) { console.error(`could not read the document at ${docPath}: ${e.message}`); return 1; }
       if (!document.pages || !document.pages.length) { console.error('that document has no pages in it'); return 1; }
+      // a saved document carries the images it uses; the document itself stays
+      // layout only, so they are lifted onto the bundle rather than left in it
+      if (document.images) {
+        bu.images = document.images;
+        delete document.images;
+        const n = Object.keys(bu.images).length;
+        console.log(`  ${n} image${n === 1 ? '' : 's'} came with the document`);
+      }
     } else {
       document = starterDoc(bu);
       console.log('  no document given, so publishing the one this project generates');
