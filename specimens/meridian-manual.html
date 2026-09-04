@@ -1,0 +1,1197 @@
+<title>Meridian Brand Manual</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Literata:opsz,wght@7..72,400;7..72,500&family=Schibsted+Grotesk:wght@400;500;700&family=Spline+Sans+Mono:wght@400;500&display=swap">
+
+<style>
+:root{
+  /* document chrome */
+  --paper:#FCFCFB; --surface:#FFFFFF; --sunk:#F2F2F0;
+  --ink:#0E1011; --ink-2:#5A5F63; --ink-3:#8B9197;
+  --rule:#E3E5E6; --rule-2:#C7CACC;
+  --f-ui:"Schibsted Grotesk","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --f-mono:"Spline Sans Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  /* the brand being documented — fixed, never theme-swapped */
+  --m-deep:#0A2A33; --m-tide:#1E7A8C; --m-beacon:#F2A007;
+  --m-chalk:#EFEDE4; --m-slate:#5C6B70;
+  --f-brand:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --f-brand-text:"Literata",Georgia,serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0C0D0F; --surface:#141618; --sunk:#101214;
+    --ink:#ECEEF0; --ink-2:#9BA1A7; --ink-3:#6B7177;
+    --rule:#232629; --rule-2:#34383C;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0C0D0F; --surface:#141618; --sunk:#101214;
+  --ink:#ECEEF0; --ink-2:#9BA1A7; --ink-3:#6B7177;
+  --rule:#232629; --rule-2:#34383C;
+}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-ui);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.page{max-width:1080px;margin:0 auto;padding:0 30px 100px}
+p{margin:0}
+
+/* ---------- specimen banner ---------- */
+.banner{
+  border:1px solid var(--rule-2);background:var(--sunk);padding:16px 20px;margin:26px 0 0;
+  font-family:var(--f-mono);font-size:12px;line-height:1.7;color:var(--ink-2);
+}
+.banner b{color:var(--ink);font-weight:500}
+
+/* ---------- masthead ---------- */
+.mast{padding:46px 0 34px;border-bottom:2px solid var(--ink);margin-bottom:0}
+.eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-3);margin-bottom:30px}
+.mast h1{
+  font-family:var(--f-ui);font-weight:700;font-size:clamp(34px,5.6vw,58px);
+  line-height:1.02;letter-spacing:-.035em;margin:0;max-width:16ch;
+}
+.mast .sub{margin-top:18px;max-width:62ch;font-size:18px;line-height:1.55;color:var(--ink-2)}
+
+/* ---------- legend ---------- */
+.legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);margin-top:30px}
+.lg{background:var(--surface);padding:15px 17px}
+.lg .badge{margin-bottom:9px}
+.lg p{font-size:14px;line-height:1.45;color:var(--ink-2)}
+.badge{
+  display:inline-flex;align-items:center;gap:7px;font-family:var(--f-mono);
+  font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);
+}
+.badge::before{content:"";width:9px;height:9px;border:1.5px solid var(--ink);background:var(--ink)}
+.badge.yours::before{background:none}
+.badge.once::before{background:linear-gradient(90deg,var(--ink) 0 50%,transparent 50% 100%)}
+.badge.once{color:var(--ink-2)}
+.badge.yours{color:var(--ink-3)}
+
+/* ---------- sections ---------- */
+.chapter{margin-top:78px;padding-top:22px;border-top:2px solid var(--ink)}
+.chapter-no{font-family:var(--f-mono);font-size:12px;color:var(--ink-3);letter-spacing:.1em}
+.chapter h2{font-family:var(--f-ui);font-weight:700;font-size:clamp(24px,3.4vw,34px);letter-spacing:-.028em;line-height:1.1;margin:8px 0 0}
+
+.sec{margin-top:44px}
+.sec-head{display:flex;justify-content:space-between;align-items:baseline;gap:20px;flex-wrap:wrap;padding-bottom:11px;border-bottom:1px solid var(--rule-2);margin-bottom:22px}
+.sec-head h3{font-family:var(--f-ui);font-weight:600;font-size:17px;letter-spacing:-.012em;margin:0}
+.sec-head h3 i{font-family:var(--f-mono);font-style:normal;font-weight:400;color:var(--ink-3);margin-right:12px;font-size:13px}
+.note{font-size:15px;line-height:1.6;color:var(--ink-2);max-width:66ch}
+.note + .note{margin-top:12px}
+.note b{color:var(--ink);font-weight:600}
+
+/* ---------- specimen stages ---------- */
+.stage{background:var(--sunk);border:1px solid var(--rule);display:flex;align-items:center;justify-content:center;padding:44px 30px}
+.stage.deep{background:var(--m-deep);border-color:var(--m-deep)}
+.stage.chalk{background:var(--m-chalk);border-color:#DEDBD0}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px}
+.cap{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-top:10px}
+
+.mk{display:block}
+.mk .ring{fill:none;stroke-width:9}
+.mk.deep .ring{stroke:var(--m-deep)} .mk.deep .fill{fill:var(--m-deep)}
+.mk.tide .ring{stroke:var(--m-tide)} .mk.tide .fill{fill:var(--m-tide)}
+.mk.chalk .ring{stroke:var(--m-chalk)} .mk.chalk .fill{fill:var(--m-chalk)}
+.mk.beacon .ring{stroke:var(--m-beacon)} .mk.beacon .fill{fill:var(--m-beacon)}
+
+/* ---------- lockups ---------- */
+.lockup{display:flex;align-items:center;gap:18px}
+.lockup.stack{flex-direction:column;gap:14px}
+.wm{
+  font-family:var(--f-brand);font-weight:600;letter-spacing:.155em;
+  text-transform:uppercase;line-height:1;white-space:nowrap;
+}
+.wm.deep{color:var(--m-deep)} .wm.chalk{color:var(--m-chalk)} .wm.tide{color:var(--m-tide)}
+
+/* ---------- misuse ---------- */
+.dont{position:relative;background:var(--sunk);border:1px solid var(--rule);padding:30px 20px;display:flex;align-items:center;justify-content:center;min-height:132px;overflow:hidden}
+.dont::after{
+  content:"";position:absolute;top:9px;right:9px;width:17px;height:17px;
+  background:#C2352B;
+  clip-path:polygon(20% 0,50% 30%,80% 0,100% 20%,70% 50%,100% 80%,80% 100%,50% 70%,20% 100%,0 80%,30% 50%,0 20%);
+}
+.dont.busy{background:repeating-linear-gradient(52deg,#7E8C7A 0 14px,#5E6B5B 14px 28px)}
+.d-stretch .mk{transform:scaleX(1.55)}
+.d-rot .mk{transform:rotate(17deg)}
+.d-shadow .mk{filter:drop-shadow(4px 5px 4px rgba(0,0,0,.45))}
+.dcap{font-size:13.5px;line-height:1.4;color:var(--ink-2);margin-top:9px}
+.dcap b{color:var(--ink);font-weight:600;display:block;font-size:13px;font-family:var(--f-mono);letter-spacing:.04em}
+
+/* ---------- colour ---------- */
+.chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:14px}
+.chip .swatch{height:118px;border:1px solid rgba(0,0,0,.08)}
+.chip dl{margin:12px 0 0;display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-family:var(--f-mono);font-size:11px;line-height:1.6}
+.chip dt{color:var(--ink-3)}
+.chip dd{margin:0;color:var(--ink-2);text-align:right;font-variant-numeric:tabular-nums}
+.chip h4{font-family:var(--f-ui);font-weight:600;font-size:15px;margin:11px 0 0}
+.chip .role{font-size:13px;color:var(--ink-3);margin-top:1px}
+.chip .typed{color:var(--ink-3);font-style:italic}
+
+.prop{display:flex;height:52px;border:1px solid var(--rule);margin-top:4px}
+.prop span{display:flex;align-items:flex-end;justify-content:center;padding-bottom:6px;font-family:var(--f-mono);font-size:10px;color:rgba(255,255,255,.75)}
+.proplabels{display:flex;margin-top:9px;font-family:var(--f-mono);font-size:10.5px;color:var(--ink-3)}
+
+/* ---------- contrast table ---------- */
+.ctab{border-top:1px solid var(--rule-2)}
+.crow{display:grid;grid-template-columns:120px minmax(0,1fr) 62px 118px;gap:16px;align-items:center;padding:11px 4px;border-bottom:1px solid var(--rule)}
+.crow.head{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);padding:0 4px 9px}
+.cpair{display:flex;align-items:center;justify-content:center;height:38px;font-family:var(--f-brand);font-weight:600;font-size:14px;border:1px solid rgba(0,0,0,.08)}
+.cname{font-size:14px;color:var(--ink-2)}
+.cratio{font-family:var(--f-mono);font-size:13px;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+.verdict{font-family:var(--f-mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;text-align:right}
+.v-pass{color:#1B7A4B} .v-large{color:#8A6410} .v-fail{color:#C2352B}
+
+/* ---------- type ---------- */
+.face{border:1px solid var(--rule);background:var(--surface);padding:24px 26px}
+.face + .face{margin-top:16px}
+.face .name{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+.face .name h4{font-family:var(--f-ui);font-weight:600;font-size:17px;margin:0}
+.face .name span{font-family:var(--f-mono);font-size:11px;color:var(--ink-3)}
+.alpha{font-size:clamp(28px,5vw,46px);line-height:1.12;color:var(--ink);word-break:break-word}
+.alpha.a{font-family:var(--f-brand);font-weight:600;letter-spacing:-.02em}
+.alpha.b{font-family:var(--f-brand-text);font-weight:400}
+.facenote{margin-top:16px;padding-top:14px;border-top:1px solid var(--rule);font-size:14px;line-height:1.5;color:var(--ink-2);max-width:60ch}
+
+.scale{border-top:1px solid var(--rule-2)}
+.srow{display:grid;grid-template-columns:minmax(0,1fr) 210px;gap:22px;align-items:baseline;padding:18px 4px;border-bottom:1px solid var(--rule)}
+.sspec{font-family:var(--f-mono);font-size:10.5px;line-height:1.6;color:var(--ink-3);text-align:right;font-variant-numeric:tabular-nums}
+.t-display{font-family:var(--f-brand);font-weight:700;font-size:clamp(32px,5.2vw,58px);line-height:1.02;letter-spacing:-.03em}
+.t-h1{font-family:var(--f-brand);font-weight:600;font-size:clamp(26px,3.6vw,38px);line-height:1.1;letter-spacing:-.02em}
+.t-h2{font-family:var(--f-brand);font-weight:600;font-size:26px;line-height:1.15;letter-spacing:-.012em}
+.t-h3{font-family:var(--f-brand);font-weight:600;font-size:19px;line-height:1.25}
+.t-body{font-family:var(--f-brand-text);font-weight:400;font-size:17px;line-height:1.6}
+.t-small{font-family:var(--f-brand-text);font-weight:400;font-size:14px;line-height:1.5}
+.t-cap{font-family:var(--f-brand);font-weight:500;font-size:12px;letter-spacing:.09em;text-transform:uppercase}
+
+.inuse{background:var(--m-chalk);border:1px solid #DEDBD0;padding:clamp(26px,4.5vw,46px)}
+.inuse .kicker{font-family:var(--f-brand);font-weight:500;font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--m-tide);margin-bottom:16px}
+.inuse h4{font-family:var(--f-brand);font-weight:700;font-size:clamp(27px,4.4vw,42px);line-height:1.05;letter-spacing:-.028em;color:var(--m-deep);margin:0;max-width:18ch}
+.inuse p{font-family:var(--f-brand-text);font-size:17px;line-height:1.62;color:var(--m-deep);opacity:.85;max-width:56ch;margin-top:18px}
+
+/* ---------- pattern ---------- */
+.patbig{height:clamp(180px,26vw,260px);border:1px solid var(--rule);width:100%;display:block}
+.patcell{height:150px;width:100%;display:block;border:1px solid var(--rule)}
+.pok{display:flex;align-items:center;gap:8px;font-family:var(--f-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;margin-top:9px}
+.pok.yes{color:#1B7A4B} .pok.no{color:#C2352B}
+.pok::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor;flex:none}
+
+/* ---------- icons ---------- */
+.iconset{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule)}
+.ico{background:var(--surface);padding:20px 12px 14px;text-align:center}
+.ico svg{color:var(--m-deep);display:block;margin:0 auto}
+.ico span{display:block;font-family:var(--f-mono);font-size:10px;color:var(--ink-3);margin-top:12px}
+.sizes{display:flex;gap:26px;align-items:flex-end;flex-wrap:wrap}
+.sz{text-align:center}
+.sz svg{color:var(--m-deep);display:block}
+.sz span{display:block;font-family:var(--f-mono);font-size:10px;color:var(--ink-3);margin-top:9px}
+
+/* ---------- motion ---------- */
+.ease{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
+.ecard{border:1px solid var(--rule);background:var(--surface);padding:18px 20px}
+.ecard h4{font-family:var(--f-ui);font-weight:600;font-size:15px;margin:0 0 4px}
+.ecard code{font-family:var(--f-mono);font-size:11px;color:var(--m-tide);display:block;margin-bottom:14px}
+.ecard p{font-size:14px;line-height:1.45;color:var(--ink-2);margin-top:12px}
+.durs{border-top:1px solid var(--rule-2)}
+.drow{display:grid;grid-template-columns:104px 72px minmax(0,1fr);gap:16px;padding:11px 4px;border-bottom:1px solid var(--rule);align-items:baseline}
+.drow.head{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);padding:0 4px 9px}
+.drow b{font-family:var(--f-ui);font-weight:600;font-size:14.5px}
+.drow em{font-family:var(--f-mono);font-style:normal;font-size:12.5px;color:var(--m-tide);font-variant-numeric:tabular-nums}
+.drow span{font-size:14px;color:var(--ink-2)}
+.replay{
+  font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  background:none;border:1px solid var(--rule-2);color:var(--ink);padding:9px 15px;
+  cursor:pointer;margin-top:14px;
+}
+.replay:hover{background:var(--sunk)}
+.replay:focus-visible{outline:2px solid var(--m-tide);outline-offset:2px}
+#build .ring{stroke-dasharray:314.16;stroke-dashoffset:0}
+#build.run .ring{animation:draw .4s cubic-bezier(0,.55,.45,1) both}
+#build.run .rise{animation:rise .6s .3s cubic-bezier(.85,0,.15,1) both}
+@keyframes draw{from{stroke-dashoffset:314.16}to{stroke-dashoffset:0}}
+@keyframes rise{from{transform:translateY(54px)}to{transform:translateY(0)}}
+@media (prefers-reduced-motion:reduce){#build.run .ring,#build.run .rise{animation:none!important}}
+
+/* ---------- imagery ---------- */
+.photo{display:block;width:100%;height:100%}
+.frame{position:relative;overflow:hidden;border:1px solid var(--rule);aspect-ratio:5/3}
+.frame .over{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.scrim{position:absolute;inset:0;background:var(--m-deep)}
+.ratio{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end}
+.rt{border:1px solid var(--rule-2);background:var(--sunk)}
+.rt + span{display:block}
+.rtl{font-family:var(--f-mono);font-size:10px;color:var(--ink-3);margin-top:7px;text-align:center}
+
+/* ---------- voice ---------- */
+.say{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule)}
+.sc{background:var(--surface);padding:18px 20px}
+.sc .lab{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;margin-bottom:10px}
+.sc.y .lab{color:#1B7A4B} .sc.n .lab{color:#C2352B}
+.sc q{font-family:var(--f-brand-text);font-size:16px;line-height:1.5;color:var(--ink);quotes:none;display:block}
+.sc.n q{color:var(--ink-2)}
+.copy{background:var(--surface);border:1px solid var(--rule);padding:22px 24px;font-family:var(--f-brand-text);font-size:17px;line-height:1.75;color:var(--ink)}
+.flag{background:rgba(194,53,43,.11);border-bottom:2px solid #C2352B;padding:0 2px;cursor:help}
+.fixed{background:rgba(27,122,75,.1);border-bottom:2px solid #1B7A4B;padding:0 2px}
+.flags{border-top:1px solid var(--rule-2);margin-top:18px}
+.frow{display:grid;grid-template-columns:150px minmax(0,1fr) 96px;gap:16px;padding:10px 4px;border-bottom:1px solid var(--rule);align-items:baseline}
+.frow.head{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);padding:0 4px 9px}
+.frow code{font-family:var(--f-mono);font-size:12px;color:#C2352B;background:none;padding:0}
+.frow span{font-size:14px;color:var(--ink-2)}
+.frow em{font-family:var(--f-mono);font-style:normal;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;text-align:right;color:var(--ink-3)}
+.frow em.sure{color:#1B7A4B}
+
+/* ---------- appendix ---------- */
+.appx{border:1px solid var(--rule-2);background:var(--sunk);padding:26px 28px;margin-top:34px}
+.appx h3{font-family:var(--f-ui);font-weight:700;font-size:20px;letter-spacing:-.018em;margin:0 0 10px}
+.xrow{display:grid;grid-template-columns:minmax(0,1fr) 168px;gap:18px;padding:12px 0;border-bottom:1px solid var(--rule);align-items:baseline}
+.xrow:first-of-type{border-top:1px solid var(--rule-2);margin-top:18px}
+.xrow b{font-family:var(--f-ui);font-weight:600;font-size:15px;display:block;margin-bottom:3px}
+.xrow p{font-size:14px;line-height:1.5;color:var(--ink-2);max-width:58ch}
+.xrow .who{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;text-align:right;color:var(--ink-3)}
+.xrow .who.sys{color:var(--ink)}
+
+/* ---------- applications ---------- */
+.icons{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end}
+.icn{text-align:center}
+.icn .sq{background:var(--m-deep);display:flex;align-items:center;justify-content:center}
+.icn .r22{border-radius:22%}
+.icn .rfull{border-radius:50%}
+.icn span{display:block;font-family:var(--f-mono);font-size:10px;color:var(--ink-3);margin-top:8px}
+
+.slot{border:1.5px dashed var(--rule-2);background:var(--sunk);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px 16px;min-height:150px}
+.slot b{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);font-weight:500}
+.slot span{font-family:var(--f-mono);font-size:10.5px;color:var(--ink-3);margin-top:6px}
+
+/* ---------- assets ---------- */
+.atab{border-top:1px solid var(--rule-2)}
+.arow{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1.4fr) 74px;gap:16px;padding:10px 4px;border-bottom:1px solid var(--rule);align-items:baseline}
+.arow.head{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);padding:0 4px 9px}
+.arow code{font-family:var(--f-mono);font-size:12px;color:var(--ink);background:none;padding:0}
+.arow span{font-size:14px;color:var(--ink-2)}
+.arow em{font-family:var(--f-mono);font-size:12px;font-style:normal;color:var(--ink-3);text-align:right;font-variant-numeric:tabular-nums}
+
+pre{
+  background:var(--m-deep);color:#CFE3E7;border:1px solid var(--m-deep);
+  padding:20px 22px;overflow-x:auto;font-family:var(--f-mono);font-size:12px;
+  line-height:1.65;margin:0;
+}
+pre .k{color:#8FC6D2} pre .s{color:#F2C878} pre .n{color:#F2A007}
+
+footer{margin-top:84px;padding-top:26px;border-top:2px solid var(--ink)}
+.tally{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);margin-bottom:22px}
+.tally div{background:var(--surface);padding:15px 17px}
+.tally b{display:block;font-family:var(--f-ui);font-weight:700;font-size:30px;line-height:1;letter-spacing:-.03em;margin-bottom:6px}
+.tally span{font-size:13.5px;line-height:1.35;color:var(--ink-2)}
+.fnote{font-family:var(--f-mono);font-size:11px;line-height:1.8;color:var(--ink-3);max-width:70ch}
+
+@media (max-width:720px){
+  .page{padding:0 18px 70px}
+  .crow{grid-template-columns:1fr 60px;gap:10px}
+  .crow .cpair{grid-column:1 / -1;order:-1}
+  .crow.head{display:none}
+  .crow .verdict{text-align:left}
+  .srow{grid-template-columns:1fr;gap:8px}
+  .sspec{text-align:left}
+  .arow{grid-template-columns:1fr 66px}
+  .arow span{grid-column:1 / -1}
+  .xrow{grid-template-columns:1fr;gap:5px}
+  .xrow .who{text-align:left}
+  .drow{grid-template-columns:1fr 72px}
+  .drow span{grid-column:1 / -1}
+  .frow{grid-template-columns:1fr 90px}
+  .frow span{grid-column:1 / -1}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="page">
+
+  <header class="mast">
+    <p class="eyebrow">Specimen output · brand manual · generated from one master file</p>
+    <h1>Meridian Brand Manual</h1>
+    <p class="sub">This is the standard the system has to clear. It is a complete brand manual for a fictional tidal energy company, built from one SVG, five colour values, two typefaces and the rules a designer sets once. Every section is marked with who made it.</p>
+  </header>
+
+  <div class="banner">
+    <b>Read this as the floor, not the ceiling.</b><br>
+    Meridian is invented for this specimen, so nothing here belongs to a real company. Everything marked as drawn by the system is genuinely derivable from a master file, which is the point of the exercise. Nothing on this page was placed by hand except the sections marked as yours.
+  </div>
+
+  <div class="legend">
+    <div class="lg">
+      <span class="badge">Drawn by the system</span>
+      <p>Derived from the master SVG, the colour tokens and the rules file. You never touch it, and it redraws itself when the mark changes.</p>
+    </div>
+    <div class="lg">
+      <span class="badge once">Set once by you</span>
+      <p>You decide the rule a single time. After that the system makes every instance of it, forever, without asking again.</p>
+    </div>
+    <div class="lg">
+      <span class="badge yours">Yours</span>
+      <p>Your judgement, your words, or an image you place. The system lays out the page and leaves the thinking to you.</p>
+    </div>
+  </div>
+
+  <!-- ============ 01 ============ -->
+  <section class="chapter">
+    <p class="chapter-no">01</p>
+    <h2>The mark</h2>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>1.1</i>The primary mark</h3><span class="badge">Drawn by the system</span></div>
+      <p class="note">Meridian is a ring holding a tide line. The line is not flat, because water in a vessel is not flat. It is an arc struck at three times the radius of the ring, sitting a quarter of a radius below centre, which is what gives the mark its lift.</p>
+      <div class="stage deep" style="padding:60px 30px;margin-top:20px">
+        <div class="lockup">
+          <svg class="mk chalk" width="96" height="96" viewBox="0 0 120 120" role="img" aria-label="Meridian mark"><circle class="ring" cx="60" cy="60" r="50"/><path class="fill" d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z"/></svg>
+          <span class="wm chalk" style="font-size:40px">Meridian</span>
+        </div>
+      </div>
+      <p class="cap">Primary horizontal lockup · reversed on Deep</p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>1.2</i>Construction</h3><span class="badge">Drawn by the system</span></div>
+      <p class="note">The mark sits in a square of 12 units. The ring has a radius of 5 units and a stroke of 0.9. The tide line is an arc of radius 15, which is three times the ring radius, crossing the ring a quarter of a radius below its centre. Everything is a whole fraction of r, so the mark can be rebuilt from one number.</p>
+      <div class="stage" style="margin-top:20px">
+        <svg viewBox="0 0 200 250" style="width:100%;max-width:360px;height:auto;color:var(--ink-3)" role="img" aria-label="Construction drawing. The mark sits in a 12 unit square with a 1 unit margin. The ring has radius r. The tide line is an arc of radius 3r struck from a centre far below, crossing the ring a quarter of a radius under its centre.">
+          <g stroke="currentColor" stroke-width=".5" opacity=".28">
+            <path d="M40 10H160M40 30H160M40 50H160M40 70H160M40 90H160M40 110H160M40 130H160"/>
+            <path d="M40 10V130M60 10V130M80 10V130M100 10V130M120 10V130M140 10V130M160 10V130"/>
+          </g>
+          <rect x="40" y="10" width="120" height="120" fill="none" stroke="currentColor" stroke-width=".9" opacity=".6"/>
+          <path d="M45 84.92 A150 150 0 0 1 155 84.92" fill="none" stroke="var(--m-beacon)" stroke-width="1" stroke-dasharray="3 2.5"/>
+          <circle cx="100" cy="70" r="50" fill="none" stroke="var(--m-tide)" stroke-width="1.4"/>
+          <path d="M100 5V236" stroke="currentColor" stroke-width=".6" opacity=".45"/>
+          <path d="M35 70H165" stroke="currentColor" stroke-width=".6" opacity=".45"/>
+          <path d="M100 70H150" stroke="var(--m-tide)" stroke-width="1.2"/>
+          <circle cx="100" cy="70" r="2" fill="var(--m-tide)"/>
+          <text x="126" y="66" font-family="Spline Sans Mono, monospace" font-size="7.5" fill="var(--m-tide)" text-anchor="middle">r</text>
+          <g stroke="var(--m-beacon)" stroke-width="1">
+            <path d="M100 70V82.5"/><path d="M95 70h10"/><path d="M95 82.5h10"/>
+          </g>
+          <text x="80" y="80" font-family="Spline Sans Mono, monospace" font-size="7" fill="var(--m-beacon)" text-anchor="end">r ÷ 4</text>
+          <path d="M100 224.5V84" stroke="var(--m-beacon)" stroke-width="1" stroke-dasharray="2 2"/>
+          <text x="107" y="165" font-family="Spline Sans Mono, monospace" font-size="7.5" fill="var(--m-beacon)">3r</text>
+          <circle cx="100" cy="224.5" r="2" fill="var(--m-beacon)"/>
+          <text x="100" y="240" font-family="Spline Sans Mono, monospace" font-size="6.5" fill="var(--m-beacon)" text-anchor="middle">tide arc centre</text>
+          <path d="M46 10v10M43 10h6M43 20h6" stroke="currentColor" stroke-width=".7" opacity=".7"/>
+          <text x="53" y="18" font-family="Spline Sans Mono, monospace" font-size="6.5" fill="currentColor">r ÷ 5</text>
+        </svg>
+      </div>
+      <p class="cap">Every value here is measured off the master file, not typed in</p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>1.3</i>Clear space</h3><span class="badge">Drawn by the system</span></div>
+      <p class="note">Keep a margin of <b>x</b> on every side, where x is half the ring radius. Nothing enters that space, including type, image edges and the trim of the page.</p>
+      <div class="stage" style="margin-top:20px">
+        <svg viewBox="0 0 180 180" style="width:100%;max-width:330px;height:auto;color:var(--ink-3)" role="img" aria-label="Clear space diagram. A dashed box sits 25 units clear of the mark on all four sides, where 25 units is half the ring radius.">
+          <rect x="15" y="15" width="150" height="150" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="4 3" opacity=".75"/>
+          <circle class="ring" cx="90" cy="90" r="50" fill="none" stroke="var(--m-deep)" stroke-width="9"/>
+          <path d="M41.59 102.5 A150 150 0 0 1 138.41 102.5 A50 50 0 0 1 41.59 102.5 Z" fill="var(--m-deep)"/>
+          <g stroke="var(--m-beacon)" stroke-width="1">
+            <path d="M15 90H40"/><path d="M15 86v8"/><path d="M40 86v8"/>
+            <path d="M90 15V40"/><path d="M86 15h8"/><path d="M86 40h8"/>
+          </g>
+          <text x="27" y="82" font-family="Spline Sans Mono, monospace" font-size="8" fill="var(--m-beacon)" text-anchor="middle">x</text>
+          <text x="100" y="31" font-family="Spline Sans Mono, monospace" font-size="8" fill="var(--m-beacon)">x</text>
+          <text x="90" y="176" font-family="Spline Sans Mono, monospace" font-size="7.5" fill="currentColor" text-anchor="middle">x = r ÷ 2</text>
+        </svg>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>1.4</i>Minimum size</h3><span class="badge">Drawn by the system</span></div>
+      <p class="note">The ring stroke is what fails first. Below the sizes here it thins to less than one device pixel and the mark turns grey. These figures are measured by rendering the mark at falling sizes and reading the stroke, not estimated.</p>
+      <div class="grid3" style="margin-top:20px">
+        <div>
+          <div class="stage" style="padding:30px 20px;min-height:130px">
+            <svg class="mk deep" width="64" height="64" viewBox="0 0 120 120" aria-hidden="true"><circle class="ring" cx="60" cy="60" r="50"/><path class="fill" d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z"/></svg>
+          </div>
+          <p class="cap">64 px · comfortable</p>
+        </div>
+        <div>
+          <div class="stage" style="padding:30px 20px;min-height:130px">
+            <svg class="mk deep" width="32" height="32" viewBox="0 0 120 120" aria-hidden="true"><circle class="ring" cx="60" cy="60" r="50"/><path class="fill" d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z"/></svg>
+          </div>
+          <p class="cap">32 px · screen minimum</p>
+        </div>
+        <div>
+          <div class="stage" style="padding:30px 20px;min-height:130px">
+            <svg class="mk deep" width="18" height="18" viewBox="0 0 120 120" aria-hidden="true"><circle class="ring" cx="60" cy="60" r="50"/><path class="fill" d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z"/></svg>
+          </div>
+          <p class="cap">18 px · below the floor</p>
+        </div>
+      </div>
+      <p class="note" style="margin-top:16px">Screen minimum is <b>32 px</b> for the mark alone and <b>112 px</b> for the horizontal lockup. Print minimum is <b>9 mm</b> and <b>32 mm</b>. Under those, use the wordmark on its own.</p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>1.5</i>The lockup system</h3><span class="badge">Drawn by the system</span></div>
+      <p class="note">Four arrangements, each in five colourways. Every one is cut from the same master, so none of them can fall out of step with the others.</p>
+      <div class="grid2" style="margin-top:20px">
+        <div>
+          <div class="stage" style="min-height:170px">
+            <div class="lockup">
+              <svg class="mk deep" width="56" height="56" viewBox="0 0 120 120" aria-hidden="true"><circle class="ring" cx="60" cy="60" r="50"/><path class="fill" d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z"/></svg>
+              <span class="wm deep" style="font-size:24px">Meridian</span>
+            </div>
+          </div>
+          <p class="cap">Horizontal · primary</p>
+        </div>
+        <div>
+          <div class="stage" style="min-height:170px">
+            <div class="lockup stack">
+              <svg class="mk deep" width="56" height="56" viewBox="0 0 120 120" aria-hidden="true"><circle class="ring" cx="60" cy="60" r="50"/><path class="fill" d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z"/></svg>
+              <span class="wm deep" style="font-size:21px">Meridian</span>
+            </div>
+          </div>
+          <p class="cap">Stacked · narrow spaces</p>
+        </div>
+        <div>
+          <div class="stage" style="min-height:170px">
+            <svg class="mk tide" width="62" height="62" viewBox="0 0 120 120" aria-hidden="true"><circle class="ring" cx="60" cy="60" r="50"/><path class="fill" d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z"/></svg>
+          </div>
+          <p class="cap">Mark alone · avatars and icons</p>
+        </div>
+        <div>
+          <div class="stage" style="min-height:170px">
+            <span class="wm deep" style="font-size:26px">Meridian</span>
+          </div>
+          <p class="cap">Wordmark alone · below minimum size</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>1.6</i>Misuse</h3><span class="badge">Drawn by the system</span></div>
+      <p class="note">These are produced by applying each forbidden change to the master, which is why the wrong versions look exactly like the ones people actually make.</p>
+      <div class="grid3" style="margin-top:20px">
+        <div>
+          <div class="dont d-stretch"><svg class="mk deep" width="60" height="60" viewBox="0 0 120 120" aria-hidden="true"><circle class="ring" cx="60" cy="60" r="50"/><path class="fill" d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z"/></svg></div>
+          <p class="dcap"><b>Do not stretch</b>Scale both axes together, always.</p>
+        </div>
+        <div>
+          <div class="dont d-rot"><svg class="mk deep" width="60" height="60" viewBox="0 0 120 120" aria-hidden="true"><circle class="ring" cx="60" cy="60" r="50"/><path class="fill" d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z"/></svg></div>
+          <p class="dcap"><b>Do not rotate</b>The tide line is level or it is nothing.</p>
+        </div>
+        <div>
+          <div class="dont"><svg class="mk" width="60" height="60" viewBox="0 0 120 120" aria-hidden="true"><circle class="ring" cx="60" cy="60" r="50" stroke="#7B3FA0"/><path class="fill" d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z" fill="#C0455E"/></svg></div>
+          <p class="dcap"><b>Do not recolour</b>Only the five approved colourways.</p>
+        </div>
+        <div>
+          <div class="dont d-shadow"><svg class="mk deep" width="60" height="60" viewBox="0 0 120 120" aria-hidden="true"><circle class="ring" cx="60" cy="60" r="50"/><path class="fill" d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z"/></svg></div>
+          <p class="dcap"><b>Do not add effects</b>No shadow, glow, bevel or outline.</p>
+        </div>
+        <div>
+          <div class="dont busy"><svg class="mk deep" width="60" height="60" viewBox="0 0 120 120" aria-hidden="true"><circle class="ring" cx="60" cy="60" r="50"/><path class="fill" d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z"/></svg></div>
+          <p class="dcap"><b>Do not place on low contrast</b>Use the reversed mark instead.</p>
+        </div>
+        <div>
+          <div class="dont"><span style="font-family:Georgia,serif;font-weight:700;font-size:23px;letter-spacing:.02em;color:var(--m-deep)">Meridian</span></div>
+          <p class="dcap"><b>Do not retype the wordmark</b>It is artwork, not live text.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 02 ============ -->
+  <section class="chapter">
+    <p class="chapter-no">02</p>
+    <h2>Colour</h2>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>2.1</i>The palette</h3><span class="badge">Drawn by the system</span></div>
+      <p class="note">Five colours. The RGB and CMYK values are converted from the hex you set, and the CMYK build is soft proofed against a coated profile. <b>The Pantone reference is typed in by you</b>, because the Pantone library is proprietary and cannot be generated.</p>
+      <div class="chips" style="margin-top:22px">
+        <div class="chip">
+          <div class="swatch" style="background:var(--m-deep)"></div>
+          <h4>Deep</h4><p class="role">Primary · grounds everything</p>
+          <dl>
+            <dt>HEX</dt><dd>#0A2A33</dd>
+            <dt>RGB</dt><dd>10 42 51</dd>
+            <dt>CMYK</dt><dd>81 18 0 80</dd>
+            <dt>PMS</dt><dd class="typed">5467 C</dd>
+          </dl>
+        </div>
+        <div class="chip">
+          <div class="swatch" style="background:var(--m-tide)"></div>
+          <h4>Tide</h4><p class="role">Secondary · surfaces and charts</p>
+          <dl>
+            <dt>HEX</dt><dd>#1E7A8C</dd>
+            <dt>RGB</dt><dd>30 122 140</dd>
+            <dt>CMYK</dt><dd>79 13 0 45</dd>
+            <dt>PMS</dt><dd class="typed">7474 C</dd>
+          </dl>
+        </div>
+        <div class="chip">
+          <div class="swatch" style="background:var(--m-beacon)"></div>
+          <h4>Beacon</h4><p class="role">Accent · one thing per screen</p>
+          <dl>
+            <dt>HEX</dt><dd>#F2A007</dd>
+            <dt>RGB</dt><dd>242 160 7</dd>
+            <dt>CMYK</dt><dd>0 34 97 5</dd>
+            <dt>PMS</dt><dd class="typed">1235 C</dd>
+          </dl>
+        </div>
+        <div class="chip">
+          <div class="swatch" style="background:var(--m-chalk)"></div>
+          <h4>Chalk</h4><p class="role">Ground · paper and light surfaces</p>
+          <dl>
+            <dt>HEX</dt><dd>#EFEDE4</dd>
+            <dt>RGB</dt><dd>239 237 228</dd>
+            <dt>CMYK</dt><dd>0 1 5 6</dd>
+            <dt>PMS</dt><dd class="typed">7527 C</dd>
+          </dl>
+        </div>
+        <div class="chip">
+          <div class="swatch" style="background:var(--m-slate)"></div>
+          <h4>Slate</h4><p class="role">Neutral · body text and rules</p>
+          <dl>
+            <dt>HEX</dt><dd>#5C6B70</dd>
+            <dt>RGB</dt><dd>92 107 112</dd>
+            <dt>CMYK</dt><dd>18 4 0 56</dd>
+            <dt>PMS</dt><dd class="typed">5477 C</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>2.2</i>Proportion in use</h3><span class="badge yours">Yours</span></div>
+      <p class="note">How much of each colour a layout should carry. This is a judgement about how the brand should feel, so the system draws the bar and you set the numbers.</p>
+      <div class="prop" style="margin-top:20px">
+        <span style="background:var(--m-chalk);width:52%;color:rgba(10,42,51,.65)">52%</span>
+        <span style="background:var(--m-deep);width:26%">26%</span>
+        <span style="background:var(--m-tide);width:14%">14%</span>
+        <span style="background:var(--m-slate);width:5%"></span>
+        <span style="background:var(--m-beacon);width:3%"></span>
+      </div>
+      <div class="proplabels"><span style="width:52%">Chalk</span><span style="width:26%">Deep</span><span style="width:14%">Tide</span><span style="width:5%">Slate</span><span style="width:3%">Beacon</span></div>
+      <p class="note" style="margin-top:16px">Beacon never exceeds three percent of a layout. It marks the single most important thing on a page and nothing else.</p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>2.3</i>Contrast and accessibility</h3><span class="badge">Drawn by the system</span></div>
+      <p class="note">Every pair in the palette, checked against WCAG 2.2. The system does not soften a failure, so the combinations that do not work are listed here rather than left for somebody to discover.</p>
+      <div class="ctab" style="margin-top:20px">
+        <div class="crow head"><span>Sample</span><span>Pair</span><span style="text-align:right">Ratio</span><span style="text-align:right">Verdict</span></div>
+        <div class="crow">
+          <div class="cpair" style="background:var(--m-chalk);color:var(--m-deep)">Meridian</div>
+          <span class="cname">Deep on Chalk</span><span class="cratio">12.9:1</span><span class="verdict v-pass">Pass AAA</span>
+        </div>
+        <div class="crow">
+          <div class="cpair" style="background:var(--m-deep);color:#fff">Meridian</div>
+          <span class="cname">White on Deep</span><span class="cratio">15.1:1</span><span class="verdict v-pass">Pass AAA</span>
+        </div>
+        <div class="crow">
+          <div class="cpair" style="background:var(--m-deep);color:var(--m-beacon)">Meridian</div>
+          <span class="cname">Beacon on Deep</span><span class="cratio">7.0:1</span><span class="verdict v-pass">Pass AAA</span>
+        </div>
+        <div class="crow">
+          <div class="cpair" style="background:var(--m-tide);color:#fff">Meridian</div>
+          <span class="cname">White on Tide</span><span class="cratio">5.0:1</span><span class="verdict v-pass">Pass AA</span>
+        </div>
+        <div class="crow">
+          <div class="cpair" style="background:var(--m-chalk);color:var(--m-slate)">Meridian</div>
+          <span class="cname">Slate on Chalk</span><span class="cratio">4.7:1</span><span class="verdict v-pass">Pass AA</span>
+        </div>
+        <div class="crow">
+          <div class="cpair" style="background:var(--m-chalk);color:var(--m-tide)">Meridian</div>
+          <span class="cname">Tide on Chalk</span><span class="cratio">4.2:1</span><span class="verdict v-large">Large text only</span>
+        </div>
+        <div class="crow">
+          <div class="cpair" style="background:var(--m-chalk);color:var(--m-beacon)">Meridian</div>
+          <span class="cname">Beacon on Chalk</span><span class="cratio">1.8:1</span><span class="verdict v-fail">Never for text</span>
+        </div>
+      </div>
+      <p class="note" style="margin-top:16px">Two results to carry into every layout. <b>Tide on Chalk is for headings at 24 px and above</b>, never for body copy. <b>Beacon is a shape colour, not a text colour</b>, so use it for a rule, a dot or a fill and set the words in Deep.</p>
+    </div>
+  </section>
+
+  <!-- ============ 03 ============ -->
+  <section class="chapter">
+    <p class="chapter-no">03</p>
+    <h2>Typography</h2>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>3.1</i>The typefaces</h3><span class="badge">Drawn by the system</span></div>
+      <div class="face">
+        <div class="name"><h4>Archivo</h4><span>Display · 500, 600, 700</span></div>
+        <p class="alpha a">ABCDEFGHIJKLMNOPQRSTUVWXYZ<br>abcdefghijklmnopqrstuvwxyz 0123456789</p>
+        <p class="facenote">Headings, the wordmark, labels and any number a reader has to compare. Its figures are the reason it was chosen, since half of what Meridian publishes is output data.</p>
+      </div>
+      <div class="face">
+        <div class="name"><h4>Literata</h4><span>Text · 400, 500</span></div>
+        <p class="alpha b">ABCDEFGHIJKLMNOPQRSTUVWXYZ<br>abcdefghijklmnopqrstuvwxyz 0123456789</p>
+        <p class="facenote">Everything a person reads for more than one line. It holds up in long reports and it prints well on uncoated stock, which is what the annual review is printed on.</p>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>3.2</i>The scale</h3><span class="badge">Drawn by the system</span></div>
+      <p class="note">Seven steps. Every size, weight, line height and tracking value is read from the token file, so the specimen and the running website cannot drift apart.</p>
+      <div class="scale" style="margin-top:20px">
+        <div class="srow"><span class="t-display">Power from the predictable sea</span><span class="sspec">Display · Archivo 700<br>58 / 59 · −0.03em</span></div>
+        <div class="srow"><span class="t-h1">Fifty years of tide tables</span><span class="sspec">H1 · Archivo 600<br>38 / 42 · −0.02em</span></div>
+        <div class="srow"><span class="t-h2">The turbine and the estuary</span><span class="sspec">H2 · Archivo 600<br>26 / 30 · −0.012em</span></div>
+        <div class="srow"><span class="t-h3">How a lagoon holds its head</span><span class="sspec">H3 · Archivo 600<br>19 / 24</span></div>
+        <div class="srow"><span class="t-body">The tide is the only renewable source you can put in a diary. Wind drops and the sun sets, but the moon keeps an appointment, and a tidal lagoon can be scheduled against a grid four years ahead.</span><span class="sspec">Body · Literata 400<br>17 / 27</span></div>
+        <div class="srow"><span class="t-small">Figures are given as annual mean output at the point of grid connection, measured after transmission loss.</span><span class="sspec">Small · Literata 400<br>14 / 21</span></div>
+        <div class="srow"><span class="t-cap">Estuary programme · 2031</span><span class="sspec">Caption · Archivo 500<br>12 / 17 · 0.09em</span></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>3.3</i>Type in use</h3><span class="badge yours">Yours</span></div>
+      <p class="note">The system sets the page from the scale. The words are yours, and they are the only part of this manual a competitor cannot copy.</p>
+      <div class="inuse" style="margin-top:20px">
+        <p class="kicker">Estuary programme</p>
+        <h4>The moon keeps an appointment.</h4>
+        <p>Wind drops and the sun sets. The tide does neither. It is the only renewable source that can be written into a diary four years ahead, which is why a lagoon can be scheduled against a grid and a wind farm cannot. Meridian builds for the part of the sea that is already predictable.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 04 ============ -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <pattern id="p-fine" width="100" height="44" patternUnits="userSpaceOnUse" patternTransform="scale(0.45)">
+      <path d="M0 13 A150 150 0 0 1 100 13" fill="none" stroke="#0A2A33" stroke-width="3" stroke-linecap="round"/>
+      <path d="M-50 35 A150 150 0 0 1 50 35" fill="none" stroke="#0A2A33" stroke-width="3" stroke-linecap="round"/>
+      <path d="M50 35 A150 150 0 0 1 150 35" fill="none" stroke="#0A2A33" stroke-width="3" stroke-linecap="round"/>
+    </pattern>
+    <pattern id="p-med" width="100" height="44" patternUnits="userSpaceOnUse" patternTransform="scale(1)">
+      <path d="M0 13 A150 150 0 0 1 100 13" fill="none" stroke="#0A2A33" stroke-width="3" stroke-linecap="round"/>
+      <path d="M-50 35 A150 150 0 0 1 50 35" fill="none" stroke="#0A2A33" stroke-width="3" stroke-linecap="round"/>
+      <path d="M50 35 A150 150 0 0 1 150 35" fill="none" stroke="#0A2A33" stroke-width="3" stroke-linecap="round"/>
+    </pattern>
+    <pattern id="p-coarse" width="100" height="44" patternUnits="userSpaceOnUse" patternTransform="scale(2.1)">
+      <path d="M0 13 A150 150 0 0 1 100 13" fill="none" stroke="#0A2A33" stroke-width="3" stroke-linecap="round"/>
+      <path d="M-50 35 A150 150 0 0 1 50 35" fill="none" stroke="#0A2A33" stroke-width="3" stroke-linecap="round"/>
+      <path d="M50 35 A150 150 0 0 1 150 35" fill="none" stroke="#0A2A33" stroke-width="3" stroke-linecap="round"/>
+    </pattern>
+    <pattern id="p-chalk" width="100" height="44" patternUnits="userSpaceOnUse" patternTransform="scale(1.3)">
+      <path d="M0 13 A150 150 0 0 1 100 13" fill="none" stroke="#EFEDE4" stroke-width="3" stroke-linecap="round"/>
+      <path d="M-50 35 A150 150 0 0 1 50 35" fill="none" stroke="#EFEDE4" stroke-width="3" stroke-linecap="round"/>
+      <path d="M50 35 A150 150 0 0 1 150 35" fill="none" stroke="#EFEDE4" stroke-width="3" stroke-linecap="round"/>
+    </pattern>
+    <pattern id="p-tide" width="100" height="44" patternUnits="userSpaceOnUse" patternTransform="scale(1.3)">
+      <path d="M0 13 A150 150 0 0 1 100 13" fill="none" stroke="#1E7A8C" stroke-width="3" stroke-linecap="round"/>
+      <path d="M-50 35 A150 150 0 0 1 50 35" fill="none" stroke="#1E7A8C" stroke-width="3" stroke-linecap="round"/>
+      <path d="M50 35 A150 150 0 0 1 150 35" fill="none" stroke="#1E7A8C" stroke-width="3" stroke-linecap="round"/>
+    </pattern>
+    <pattern id="p-beacon" width="100" height="44" patternUnits="userSpaceOnUse" patternTransform="scale(1.3)">
+      <path d="M0 13 A150 150 0 0 1 100 13" fill="none" stroke="#F2A007" stroke-width="3" stroke-linecap="round"/>
+      <path d="M-50 35 A150 150 0 0 1 50 35" fill="none" stroke="#F2A007" stroke-width="3" stroke-linecap="round"/>
+      <path d="M50 35 A150 150 0 0 1 150 35" fill="none" stroke="#F2A007" stroke-width="3" stroke-linecap="round"/>
+    </pattern>
+    <pattern id="p-bad" width="100" height="44" patternUnits="userSpaceOnUse" patternTransform="scale(1.3)">
+      <path d="M0 13 A150 150 0 0 1 100 13" fill="none" stroke="#F2A007" stroke-width="3" stroke-linecap="round"/>
+      <path d="M-50 35 A150 150 0 0 1 50 35" fill="none" stroke="#F2A007" stroke-width="3" stroke-linecap="round"/>
+      <path d="M50 35 A150 150 0 0 1 150 35" fill="none" stroke="#F2A007" stroke-width="3" stroke-linecap="round"/>
+    </pattern>
+    <linearGradient id="g-raw" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#B9BDBB"/><stop offset="1" stop-color="#33383A"/>
+    </linearGradient>
+    <linearGradient id="g-duo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#EFEDE4"/><stop offset="1" stop-color="#0A2A33"/>
+    </linearGradient>
+    <linearGradient id="g-sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FAF8F1"/><stop offset="1" stop-color="#D6D9D2"/>
+    </linearGradient>
+  </defs></svg>
+
+  <section class="chapter">
+    <p class="chapter-no">04</p>
+    <h2>The graphic language</h2>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>4.1</i>The swell</h3><span class="badge once">Set once by you</span></div>
+      <p class="note">The pattern is the mark's own tide line, with the ring taken away and the curve repeated. Nothing new is invented, which is why it belongs to Meridian and could not belong to anybody else.</p>
+      <p class="note">Rows sit at a fixed distance apart and every other row is shifted by half a repeat, so the field reads as moving water rather than as stripes. <b>You made this decision once.</b> After that the system holds the rule and cuts every tile, every density and every colourway from it.</p>
+
+      <div class="stage" style="margin-top:22px;padding:34px 24px">
+        <svg viewBox="0 0 460 130" style="width:100%;max-width:640px;height:auto;color:var(--ink-3)" role="img" aria-label="Three steps. The complete mark, then the tide arc on its own with the ring removed, then that arc repeated in offset rows to make the swell pattern.">
+          <g transform="translate(14,20) scale(0.75)">
+            <circle cx="60" cy="60" r="50" fill="none" stroke="var(--m-deep)" stroke-width="9"/>
+            <path d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z" fill="var(--m-deep)"/>
+          </g>
+          <text x="59" y="126" font-family="Spline Sans Mono, monospace" font-size="8" fill="currentColor" text-anchor="middle">the mark</text>
+          <path d="M124 65H150" stroke="currentColor" stroke-width="1" marker-end="url(#pa)"/>
+
+          <g transform="translate(163,20) scale(0.75)">
+            <path d="M11.59 72.5 A150 150 0 0 1 108.41 72.5" fill="none" stroke="var(--m-deep)" stroke-width="9" stroke-linecap="round"/>
+          </g>
+          <text x="208" y="126" font-family="Spline Sans Mono, monospace" font-size="8" fill="currentColor" text-anchor="middle">the tide line alone</text>
+          <path d="M273 65H299" stroke="currentColor" stroke-width="1" marker-end="url(#pa)"/>
+
+          <rect x="312" y="14" width="134" height="92" fill="url(#p-med)"/>
+          <rect x="312" y="14" width="134" height="92" fill="none" stroke="currentColor" stroke-width=".8" opacity=".45"/>
+          <text x="379" y="126" font-family="Spline Sans Mono, monospace" font-size="8" fill="currentColor" text-anchor="middle">repeated in offset rows</text>
+
+          <defs><marker id="pa" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto">
+            <polygon points="0,0 8,4 0,8" fill="currentColor"/></marker></defs>
+        </svg>
+      </div>
+
+      <div style="margin-top:16px">
+        <svg class="patbig" role="img" aria-label="The swell pattern in Chalk on Deep, shown at full width."><rect width="100%" height="100%" fill="var(--m-deep)"/><rect width="100%" height="100%" fill="url(#p-chalk)"/></svg>
+        <p class="cap">The swell · Chalk on Deep · the default</p>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>4.2</i>Density and scale</h3><span class="badge">Drawn by the system</span></div>
+      <p class="note">One rule, three densities. The repeat is tied to the size of the thing it sits on, so a business card and a site hoarding carry the same pattern at the same visual weight rather than the same measurement.</p>
+      <div class="grid3" style="margin-top:20px">
+        <div>
+          <svg class="patcell" role="img" aria-label="Fine density swell pattern"><rect width="100%" height="100%" fill="var(--m-chalk)"/><rect width="100%" height="100%" fill="url(#p-fine)"/></svg>
+          <p class="cap">Fine · under A5</p>
+          <p class="note" style="font-size:14px;margin-top:6px">Report interiors, cards, anything held in the hand.</p>
+        </div>
+        <div>
+          <svg class="patcell" role="img" aria-label="Medium density swell pattern"><rect width="100%" height="100%" fill="var(--m-chalk)"/><rect width="100%" height="100%" fill="url(#p-med)"/></svg>
+          <p class="cap">Medium · A5 to A1</p>
+          <p class="note" style="font-size:14px;margin-top:6px">Covers, screens, posters. The default if nobody chooses.</p>
+        </div>
+        <div>
+          <svg class="patcell" role="img" aria-label="Coarse density swell pattern"><rect width="100%" height="100%" fill="var(--m-chalk)"/><rect width="100%" height="100%" fill="url(#p-coarse)"/></svg>
+          <p class="cap">Coarse · above A1</p>
+          <p class="note" style="font-size:14px;margin-top:6px">Hoardings, vehicles, building wraps, exhibition walls.</p>
+        </div>
+      </div>
+      <p class="note" style="margin-top:16px">The tile is seamless in both directions, so it can be cut to any shape without a visible join. Never scale a tile by hand to fit a space. Pick the density for the size and let it repeat.</p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>4.3</i>Which colours are allowed</h3><span class="badge">Drawn by the system</span></div>
+      <p class="note">The pairings come straight out of the contrast work in section 2.3, so the pattern cannot be put together in a combination the palette already failed.</p>
+      <div class="grid2" style="margin-top:20px">
+        <div>
+          <svg class="patcell" role="img" aria-label="Chalk pattern on Deep, permitted"><rect width="100%" height="100%" fill="var(--m-deep)"/><rect width="100%" height="100%" fill="url(#p-chalk)"/></svg>
+          <p class="pok yes">Chalk on Deep · primary</p>
+        </div>
+        <div>
+          <svg class="patcell" role="img" aria-label="Deep pattern on Chalk, permitted"><rect width="100%" height="100%" fill="var(--m-chalk)"/><rect width="100%" height="100%" fill="url(#p-med)"/></svg>
+          <p class="pok yes">Deep on Chalk · print and light surfaces</p>
+        </div>
+        <div>
+          <svg class="patcell" role="img" aria-label="Tide pattern on Deep, permitted"><rect width="100%" height="100%" fill="var(--m-deep)"/><rect width="100%" height="100%" fill="url(#p-tide)"/></svg>
+          <p class="pok yes">Tide on Deep · quiet, for long surfaces</p>
+        </div>
+        <div>
+          <svg class="patcell" role="img" aria-label="Beacon pattern on Chalk, not permitted"><rect width="100%" height="100%" fill="var(--m-chalk)"/><rect width="100%" height="100%" fill="url(#p-bad)"/></svg>
+          <p class="pok no">Beacon on Chalk · never · 1.8:1</p>
+        </div>
+      </div>
+      <p class="note" style="margin-top:16px">Beacon appears in the pattern only on Deep, and only as a single accent row rather than the whole field. On Chalk it disappears, which section 2.3 already showed.</p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>4.4</i>The icon grid</h3><span class="badge">Drawn by the system</span></div>
+      <p class="note">Icons are built on the mark's own proportions rather than a grid picked from somewhere else. Three numbers carry across and they are the reason the set looks like it belongs to Meridian.</p>
+      <p class="note"><b>The margin.</b> The mark leaves one unit clear inside a twelve unit square. An icon leaves two units clear inside a twenty four unit square, which is the same fraction. <b>The stroke.</b> The ring is 0.9 in a 12 unit box, so an icon stroke is 1.8 in a 24 unit box. <b>The curve.</b> Every arc in the identity is struck at 1.25 times the width of its own box. In the mark that gives 150. In an icon it gives 30. It is the same curve at a different size.</p>
+      <div class="stage" style="margin-top:22px">
+        <svg viewBox="0 0 200 190" style="width:100%;max-width:360px;height:auto;color:var(--ink-3)" role="img" aria-label="An icon drawn on its construction grid. The box is 24 units, the live area is 20 units, the stroke is 1.8 and every curve is struck at 1.25 times the box width.">
+          <g stroke="currentColor" stroke-width=".4" opacity=".3">
+            <path d="M25 25h120M25 50h120M25 75h120M25 100h120M25 125h120M25 145h120"/>
+            <path d="M25 25v120M50 25v120M75 25v120M100 25v120M125 25v120M145 25v120"/>
+          </g>
+          <rect x="25" y="25" width="120" height="120" fill="none" stroke="currentColor" stroke-width=".9" opacity=".7"/>
+          <rect x="35" y="35" width="100" height="100" fill="none" stroke="var(--m-beacon)" stroke-width=".9" stroke-dasharray="3 2.5"/>
+          <g fill="none" stroke="var(--m-deep)" stroke-width="9" stroke-linecap="round">
+            <path d="M40 72.5 A150 150 0 0 1 130 72.5"/>
+            <path d="M40 100 A150 150 0 0 1 130 100"/>
+            <path d="M40 127.5 A150 150 0 0 1 130 127.5"/>
+          </g>
+          <text x="85" y="18" font-family="Spline Sans Mono, monospace" font-size="7.5" fill="currentColor" text-anchor="middle">24 box</text>
+          <text x="152" y="38" font-family="Spline Sans Mono, monospace" font-size="7" fill="var(--m-beacon)">20 live</text>
+          <path d="M155 91.5v17" stroke="var(--m-tide)" stroke-width="1"/>
+          <path d="M151 91.5h8M151 108.5h8" stroke="var(--m-tide)" stroke-width="1"/>
+          <text x="163" y="103" font-family="Spline Sans Mono, monospace" font-size="7" fill="var(--m-tide)">1.8</text>
+          <text x="85" y="163" font-family="Spline Sans Mono, monospace" font-size="7" fill="currentColor" text-anchor="middle">every curve r = 1.25 × box</text>
+          <text x="85" y="177" font-family="Spline Sans Mono, monospace" font-size="7" fill="currentColor" text-anchor="middle">round caps · round joins · never filled</text>
+        </svg>
+      </div>
+      <p class="note" style="margin-top:16px">Four keylines keep the set optically even, and they are a circle of 20, a square of 20, a portrait of 16 by 20 and a landscape of 20 by 16. A round icon drawn to the square keyline always looks too big, which is the mistake the keylines exist to stop.</p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>4.5</i>The icon set</h3><span class="badge once">Set once by you</span></div>
+      <p class="note">You draw the first set. From then on the system holds the grid, exports every size a platform asks for, and <b>refuses an icon whose stroke, cap or curve radius breaks the rule</b>. That check is the whole value, because an icon set falls apart at the twentieth icon rather than the eighth.</p>
+      <div class="iconset" style="margin-top:22px">
+        <div class="ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9.5 A30 30 0 0 1 21 9.5"/><path d="M3 15 A30 30 0 0 1 21 15"/><path d="M3 20.5 A30 30 0 0 1 21 20.5"/></svg><span>Tide</span></div>
+        <div class="ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.2"/><path d="M12 9.8V3"/><path d="M10.1 13.1 4.2 16.5"/><path d="M13.9 13.1 19.8 16.5"/></svg><span>Turbine</span></div>
+        <div class="ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2.5 6 13.5h5.4L11 21.5 18 11h-5.4z"/></svg><span>Output</span></div>
+        <div class="ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 15.6A9.5 9.5 0 1 1 8.9 4 A11 11 0 0 0 20.5 15.6z"/></svg><span>Phase</span></div>
+        <div class="ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.5 2.5H6.5a1.5 1.5 0 0 0-1.5 1.5v16a1.5 1.5 0 0 0 1.5 1.5h11a1.5 1.5 0 0 0 1.5-1.5V8z"/><path d="M13.5 2.5V8H19"/><path d="M8.5 13h7"/><path d="M8.5 17h4.5"/></svg><span>Report</span></div>
+        <div class="ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 10c0 5.2-7 11.5-7 11.5S5 15.2 5 10a7 7 0 1 1 14 0z"/><circle cx="12" cy="10" r="2.4"/></svg><span>Site</span></div>
+        <div class="ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.2 22.2 20.4H1.8z"/><path d="M12 9.5v4.8"/><path d="M12 17.3h.01"/></svg><span>Alert</span></div>
+        <div class="ico"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v11.2"/><path d="M7.6 10 12 14.4 16.4 10"/><path d="M4 17.5v2a1.5 1.5 0 0 0 1.5 1.5h13a1.5 1.5 0 0 0 1.5-1.5v-2"/></svg><span>Download</span></div>
+      </div>
+      <p class="note" style="margin-top:18px">Icons are drawn once and shown at three sizes. Below 20 pixels the 1.8 stroke thins past one device pixel, which is the same limit that sets the minimum size of the mark in section 1.4.</p>
+      <div class="stage" style="margin-top:16px;padding:34px 30px">
+        <div class="sizes">
+          <div class="sz"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.2"/><path d="M12 9.8V3"/><path d="M10.1 13.1 4.2 16.5"/><path d="M13.9 13.1 19.8 16.5"/></svg><span>48 · headers</span></div>
+          <div class="sz"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.2"/><path d="M12 9.8V3"/><path d="M10.1 13.1 4.2 16.5"/><path d="M13.9 13.1 19.8 16.5"/></svg><span>32 · default</span></div>
+          <div class="sz"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.2"/><path d="M12 9.8V3"/><path d="M10.1 13.1 4.2 16.5"/><path d="M13.9 13.1 19.8 16.5"/></svg><span>24 · inline</span></div>
+          <div class="sz"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.2"/><path d="M12 9.8V3"/><path d="M10.1 13.1 4.2 16.5"/><path d="M13.9 13.1 19.8 16.5"/></svg><span>20 · floor</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 05 ============ -->
+  <section class="chapter">
+    <p class="chapter-no">05</p>
+    <h2>Motion</h2>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>5.1</i>The curve and the durations</h3><span class="badge once">Set once by you</span></div>
+      <p class="note">Meridian moves like water, which means it never starts or stops abruptly. The easing is a circular curve, taken from the same geometry as the tide line. The mark uses a shallow crop of a large circle. The motion uses the same circle over a longer sweep.</p>
+      <div class="ease" style="margin-top:22px">
+        <div class="ecard">
+          <h4>Tide out</h4>
+          <code>cubic-bezier(0, 0.55, 0.45, 1)</code>
+          <svg viewBox="-6 -6 112 112" style="width:100%;max-width:170px;height:auto;color:var(--ink-3)" role="img" aria-label="The Tide out easing curve, which leaves quickly and settles slowly.">
+            <rect x="0" y="0" width="100" height="100" fill="none" stroke="currentColor" stroke-width=".8" opacity=".35"/>
+            <path d="M0 100 C0 45, 45 0, 100 0" fill="none" stroke="var(--m-tide)" stroke-width="2.4"/>
+            <circle cx="0" cy="100" r="2.6" fill="var(--m-tide)"/><circle cx="100" cy="0" r="2.6" fill="var(--m-tide)"/>
+          </svg>
+          <p>Anything arriving or changing state. Leaves at speed and settles. This is the default and most motion should use it.</p>
+        </div>
+        <div class="ecard">
+          <h4>Tide through</h4>
+          <code>cubic-bezier(0.85, 0, 0.15, 1)</code>
+          <svg viewBox="-6 -6 112 112" style="width:100%;max-width:170px;height:auto;color:var(--ink-3)" role="img" aria-label="The Tide through easing curve, which eases at both ends.">
+            <rect x="0" y="0" width="100" height="100" fill="none" stroke="currentColor" stroke-width=".8" opacity=".35"/>
+            <path d="M0 100 C85 100, 15 0, 100 0" fill="none" stroke="var(--m-beacon)" stroke-width="2.4"/>
+            <circle cx="0" cy="100" r="2.6" fill="var(--m-beacon)"/><circle cx="100" cy="0" r="2.6" fill="var(--m-beacon)"/>
+          </svg>
+          <p>Anything that travels a distance and stops, such as a panel, a page or the tide rising in the mark. Eased at both ends.</p>
+        </div>
+      </div>
+      <div class="durs" style="margin-top:26px">
+        <div class="drow head"><span>Step</span><span>Duration</span><span>Used for</span></div>
+        <div class="drow"><b>Instant</b><em>0 ms</em><span>Anything a person is dragging or typing into. Never animate under a finger.</span></div>
+        <div class="drow"><b>Quick</b><em>160 ms</em><span>Hover, focus, a checkbox, a colour change on a small element.</span></div>
+        <div class="drow"><b>Base</b><em>280 ms</em><span>Most things. If nobody chooses a duration, this is the one used.</span></div>
+        <div class="drow"><b>Considered</b><em>480 ms</em><span>A panel opening, a page turning, anything that moves across the screen.</span></div>
+        <div class="drow"><b>Slow</b><em>900 ms</em><span>The mark building. Used once on a first load and never again in a session.</span></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>5.2</i>The mark in motion</h3><span class="badge">Drawn by the system</span></div>
+      <p class="note">Once the curve and the durations exist, the build animates itself from the master file. The ring draws from the top, then the tide rises to its resting line while the ring is still finishing. It does not loop, it does not bounce, and it never plays twice in one session.</p>
+      <div class="stage deep" style="margin-top:22px;padding:52px 30px;flex-direction:column;gap:8px">
+        <svg id="build" width="120" height="120" viewBox="0 0 120 120" role="img" aria-label="The Meridian mark at rest. The ring draws from the top and the tide rises to its line.">
+          <defs><clipPath id="ringclip"><circle cx="60" cy="60" r="46"/></clipPath></defs>
+          <g clip-path="url(#ringclip)">
+            <path class="rise" d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z" fill="var(--m-chalk)"/>
+          </g>
+          <circle class="ring" cx="60" cy="60" r="50" fill="none" stroke="var(--m-chalk)" stroke-width="9" transform="rotate(-90 60 60)"/>
+        </svg>
+      </div>
+      <button class="replay" id="replay" type="button">Replay the build</button>
+      <div class="durs" style="margin-top:22px">
+        <div class="drow head"><span>Step</span><span>Timing</span><span>What happens</span></div>
+        <div class="drow"><b>Ring</b><em>0–400</em><span>Draws clockwise from the top on Tide out.</span></div>
+        <div class="drow"><b>Tide</b><em>300–900</em><span>Rises from the base of the ring to its line on Tide through, overlapping the ring by 100 ms.</span></div>
+        <div class="drow"><b>Rest</b><em>900</em><span>Holds. No loop, no pulse, no idle animation of any kind.</span></div>
+      </div>
+      <p class="note" style="margin-top:16px">Exported as Lottie for interfaces, MP4 for video and GIF for email, at every size each platform asks for. A visitor who has asked their system to reduce motion is shown the mark at rest instead.</p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>5.3</i>What moves and what does not</h3><span class="badge yours">Yours</span></div>
+      <p class="note">A judgement about restraint, which no rule can make for you. Meridian sells predictability, so the brand should not fidget.</p>
+      <p class="note"><b>Moves.</b> Something arriving on screen for the first time. A state a person just changed, so they can see that it worked. A number that has genuinely updated.</p>
+      <p class="note"><b>Does not move.</b> The mark, after its one build. Body text, ever. Anything a person is reading. A chart that is being compared against another chart. Nothing on this brand loops, and nothing draws attention to itself while somebody is trying to work.</p>
+    </div>
+  </section>
+
+  <!-- ============ 06 ============ -->
+  <section class="chapter">
+    <p class="chapter-no">06</p>
+    <h2>Photography</h2>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>6.1</i>The direction</h3><span class="badge yours">Yours</span></div>
+      <p class="note">No rule produces this. It is a brief, and it is the section that tells a client who you think they are.</p>
+      <p class="note"><b>Meridian photographs work, not weather.</b> The sea is the subject of the industry and it is not the subject of the pictures. Show the concrete pour, the crew on the causeway, the turbine on the barge, the tide gauge being read. If a picture could sit in any renewables brochure, it is the wrong picture.</p>
+      <p class="note"><b>Daylight, and the weather it happens to be.</b> Nothing shot at golden hour. Nothing shot in a storm. Meridian sells predictability, and dramatic skies argue against the product.</p>
+      <p class="note"><b>People are working, not posing.</b> Nobody looks at the camera, nobody wears a hard hat they do not need, and nobody stands with folded arms in front of an asset.</p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>6.2</i>Treatment</h3><span class="badge once">Set once by you</span></div>
+      <p class="note">The direction cannot be automated. The treatment can. You decide the grade once and the system applies it to every image that arrives, at every crop, without asking.</p>
+      <p class="note">Meridian grades to a duotone between Deep and Chalk. Luminance maps onto the palette, so a photograph joins the brand rather than sitting next to it. The original is always kept, because a duotone is a decision and decisions get reversed.</p>
+      <div class="grid2" style="margin-top:22px">
+        <div>
+          <div class="frame"><svg class="photo" viewBox="0 0 400 240" preserveAspectRatio="none" aria-hidden="true"><rect width="400" height="240" fill="url(#g-raw)"/><rect width="400" height="240" fill="url(#p-tide)" opacity=".18"/></svg></div>
+          <p class="cap">As shot · kept in the archive</p>
+        </div>
+        <div>
+          <div class="frame"><svg class="photo" viewBox="0 0 400 240" preserveAspectRatio="none" aria-hidden="true"><rect width="400" height="240" fill="url(#g-duo)"/><rect width="400" height="240" fill="url(#p-chalk)" opacity=".22"/></svg></div>
+          <p class="cap">Graded · Deep to Chalk duotone</p>
+        </div>
+      </div>
+      <p class="note" style="margin-top:16px">The frames above stand in for photographs, since this specimen ships no images. Crops are fixed, so a picture is never trimmed to fit a hole by eye.</p>
+      <div class="ratio" style="margin-top:18px">
+        <div><div class="rt" style="width:150px;height:90px"></div><p class="rtl">5:3 · standard</p></div>
+        <div><div class="rt" style="width:150px;height:64px"></div><p class="rtl">21:9 · banner</p></div>
+        <div><div class="rt" style="width:96px;height:120px"></div><p class="rtl">4:5 · portrait</p></div>
+        <div><div class="rt" style="width:110px;height:110px"></div><p class="rtl">1:1 · social</p></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>6.3</i>The mark over an image</h3><span class="badge">Drawn by the system</span></div>
+      <p class="note">This is the rule people actually break, and it is entirely measurable. The system reads the pixels underneath the mark, works out the real contrast, and raises a Deep scrim until it clears <b>4.5:1</b>. On a bright sky that lands near 65 percent. On a dark hull it needs nothing.</p>
+      <div class="grid2" style="margin-top:22px">
+        <div>
+          <div class="frame">
+            <svg class="photo" viewBox="0 0 400 240" preserveAspectRatio="none" aria-hidden="true"><rect width="400" height="240" fill="url(#g-sky)"/><rect width="400" height="240" fill="url(#p-med)" opacity=".14"/></svg>
+            <div class="over"><svg class="mk chalk" width="52" height="52" viewBox="0 0 120 120" aria-hidden="true"><circle class="ring" cx="60" cy="60" r="50"/><path class="fill" d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z"/></svg></div>
+          </div>
+          <p class="pok no">No scrim · 1.1:1 · rejected</p>
+        </div>
+        <div>
+          <div class="frame">
+            <svg class="photo" viewBox="0 0 400 240" preserveAspectRatio="none" aria-hidden="true"><rect width="400" height="240" fill="url(#g-sky)"/><rect width="400" height="240" fill="url(#p-med)" opacity=".14"/></svg>
+            <div class="scrim" style="opacity:.65"></div>
+            <div class="over"><svg class="mk chalk" width="52" height="52" viewBox="0 0 120 120" aria-hidden="true"><circle class="ring" cx="60" cy="60" r="50"/><path class="fill" d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z"/></svg></div>
+          </div>
+          <p class="pok yes">Deep at 65% · 4.6:1 · passes</p>
+        </div>
+      </div>
+      <p class="note" style="margin-top:16px">The same measurement runs on any text placed over an image, using the body text floor of 4.5:1 from section 2.3. <b>A layout that fails is not published.</b> This is the one part of a photography section a machine can enforce, and it is the part that goes wrong most often.</p>
+    </div>
+  </section>
+
+  <!-- ============ 07 ============ -->
+  <section class="chapter">
+    <p class="chapter-no">07</p>
+    <h2>Voice</h2>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>7.1</i>How Meridian sounds</h3><span class="badge yours">Yours</span></div>
+      <p class="note">Permanently yours. Every generated sentence in a brand manual reads like a generated sentence, and a reader can tell inside a line.</p>
+      <p class="note"><b>Say the number.</b> Meridian sells predictability, so a vague claim undoes the product. <b>Never claim the future.</b> Say what has been built and measured. <b>Plain words for a technical subject</b>, because the reader is usually a planner or a councillor rather than an engineer. <b>No weather metaphors</b>, no tides of change, no sea of opportunity, ever.</p>
+      <div class="say" style="margin-top:22px">
+        <div class="sc y"><p class="lab">Say</p><q>The lagoon produced 41 MW on average across 2030.</q></div>
+        <div class="sc n"><p class="lab">Not</p><q>The lagoon delivered outstanding performance last year.</q></div>
+        <div class="sc y"><p class="lab">Say</p><q>We have not built at this depth before.</q></div>
+        <div class="sc n"><p class="lab">Not</p><q>We are pioneering unprecedented depths.</q></div>
+        <div class="sc y"><p class="lab">Say</p><q>The tide is predictable four years out.</q></div>
+        <div class="sc n"><p class="lab">Not</p><q>Harness the raw power of the ocean.</q></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>7.2</i>The mechanical rules</h3><span class="badge once">Set once by you</span></div>
+      <p class="note">Underneath the voice sits a layer that is not a judgement at all. You settle each of these once and they never need thinking about again.</p>
+      <div class="durs" style="margin-top:20px">
+        <div class="drow head"><span>Rule</span><span>Setting</span><span>Note</span></div>
+        <div class="drow"><b>The name</b><em>Meridian</em><span>Never in capitals, never possessive. Write "the Meridian turbine", not "Meridian's turbine".</span></div>
+        <div class="drow"><b>Headings</b><em>Sentence</em><span>Sentence case everywhere, including buttons and table headers.</span></div>
+        <div class="drow"><b>Units</b><em>41 MW</em><span>Symbol after a figure, word in running prose. A thin space between.</span></div>
+        <div class="drow"><b>Dates</b><em>3 April 2031</em><span>Never numeric. A numeric date is read differently on each side of the Atlantic.</span></div>
+        <div class="drow"><b>Figures</b><em>0 to 10</em><span>Words below ten, figures from ten, figures always with a unit.</span></div>
+        <div class="drow"><b>Reading age</b><em>14</em><span>Checked per page. A planning objection is read by the public.</span></div>
+      </div>
+      <p class="note" style="margin-top:16px">A lexicon sits beside these. <b>Use</b> rather than utilise, <b>build</b> rather than deliver, <b>site</b> rather than asset. Banned outright: outstanding, revolutionary, unprecedented, cutting edge, and every word in the weather list.</p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>7.3</i>What the system checks</h3><span class="badge">Drawn by the system</span></div>
+      <p class="note">Paste any copy and the mechanical rules run against it. Here is a paragraph a marketing team actually sent, with what the checker returns.</p>
+      <div class="copy" style="margin-top:20px">
+        <span class="flag" title="The name is never capitalised and never possessive">MERIDIAN'S</span> <span class="flag" title="House style is sentence case">Estuary Programme Delivered Outstanding Results In 2030</span>. The lagoon <span class="flag" title="Lexicon: use">utilised</span> four turbines to generate <span class="flag" title="Symbol after a figure">41 megawatts</span> on average, and we <span class="flag" title="Never claim the future">will revolutionise</span> coastal power by <span class="flag" title="Never numeric">03/04/31</span>.
+      </div>
+      <div class="flags">
+        <div class="frow head"><span>Flag</span><span>Rule</span><span style="text-align:right">Certainty</span></div>
+        <div class="frow"><code>MERIDIAN'S</code><span>The name is never set in capitals and never made possessive</span><em class="sure">Exact</em></div>
+        <div class="frow"><code>Title Case</code><span>House style is sentence case, including headings</span><em class="sure">Exact</em></div>
+        <div class="frow"><code>utilised</code><span>Lexicon says use</span><em class="sure">Exact</em></div>
+        <div class="frow"><code>41 megawatts</code><span>After a figure the unit is the symbol MW</span><em class="sure">Exact</em></div>
+        <div class="frow"><code>03/04/31</code><span>Dates are never numeric</span><em class="sure">Exact</em></div>
+        <div class="frow"><code>revolutionise</code><span>Banned word, and a claim about the future</span><em>Judgement</em></div>
+        <div class="frow"><code>Outstanding</code><span>Banned word, and a claim with no figure behind it</span><em>Judgement</em></div>
+      </div>
+      <p class="note" style="margin-top:20px">Five of those seven are certain, because they are string matching. Two are marked as a judgement, because the checker can flag the word and cannot tell you whether what replaces it is any good.</p>
+      <div class="copy" style="margin-top:16px">
+        <span class="fixed">The estuary programme produced 41 MW on average across 2030</span>. The lagoon used four turbines. <span class="fixed">The next site is scheduled for 3 April 2031</span>.
+      </div>
+      <p class="note" style="margin-top:16px"><b>The rewrite was done by a person.</b> The checker found all seven problems instantly and had no opinion whatever about the sentences that replaced them. That is the line, and it does not move.</p>
+    </div>
+  </section>
+
+  <!-- ============ 08 ============ -->
+  <section class="chapter">
+    <p class="chapter-no">08</p>
+    <h2>Applications</h2>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>8.1</i>Icons and avatars</h3><span class="badge">Drawn by the system</span></div>
+      <p class="note">Cut from the same master at every size each platform asks for, with the safe area applied for each one. When a platform changes a size, these change with it.</p>
+      <div class="icons" style="margin-top:22px">
+        <div class="icn">
+          <div class="sq r22" style="width:104px;height:104px">
+            <svg class="mk chalk" width="58" height="58" viewBox="0 0 120 120" aria-hidden="true"><circle class="ring" cx="60" cy="60" r="50"/><path class="fill" d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z"/></svg>
+          </div><span>App · 1024</span>
+        </div>
+        <div class="icn">
+          <div class="sq rfull" style="width:74px;height:74px">
+            <svg class="mk chalk" width="42" height="42" viewBox="0 0 120 120" aria-hidden="true"><circle class="ring" cx="60" cy="60" r="50"/><path class="fill" d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z"/></svg>
+          </div><span>Avatar · 400</span>
+        </div>
+        <div class="icn">
+          <div class="sq r22" style="width:52px;height:52px">
+            <svg class="mk chalk" width="30" height="30" viewBox="0 0 120 120" aria-hidden="true"><circle class="ring" cx="60" cy="60" r="50"/><path class="fill" d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z"/></svg>
+          </div><span>Touch · 180</span>
+        </div>
+        <div class="icn">
+          <div class="sq r22" style="width:34px;height:34px">
+            <svg class="mk chalk" width="20" height="20" viewBox="0 0 120 120" aria-hidden="true"><circle class="ring" cx="60" cy="60" r="50"/><path class="fill" d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z"/></svg>
+          </div><span>Favicon · 32</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>8.2</i>The brand on things</h3><span class="badge yours">Yours</span></div>
+      <p class="note">You chose to fill these from your own mockups, so the system lays out the page, sizes each frame and labels it, then waits. Drop an image on a slot and it crops to the frame.</p>
+      <div class="grid3" style="margin-top:20px">
+        <div class="slot"><b>Signage</b><span>3:2 · 2400 × 1600</span></div>
+        <div class="slot"><b>Stationery</b><span>4:3 · 2400 × 1800</span></div>
+        <div class="slot"><b>Vehicle livery</b><span>16:9 · 2560 × 1440</span></div>
+        <div class="slot"><b>Site hoarding</b><span>21:9 · 2520 × 1080</span></div>
+        <div class="slot"><b>Report cover</b><span>A4 · 2480 × 3508</span></div>
+        <div class="slot"><b>Crew workwear</b><span>1:1 · 2000 × 2000</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 05 ============ -->
+  <section class="chapter">
+    <p class="chapter-no">09</p>
+    <h2>Assets</h2>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>9.1</i>What is in the package</h3><span class="badge">Drawn by the system</span></div>
+      <p class="note">The delivery zip. Every file is cut from the same master at the moment you press export, so there is no chance of an old variant surviving in a corner of the folder.</p>
+      <div class="atab" style="margin-top:20px">
+        <div class="arow head"><span>Folder</span><span>Contains</span><span style="text-align:right">Files</span></div>
+        <div class="arow"><code>01-primary/</code><span>Horizontal lockup, 5 colourways, 4 formats</span><em>20</em></div>
+        <div class="arow"><code>02-stacked/</code><span>Stacked lockup, 5 colourways, 4 formats</span><em>20</em></div>
+        <div class="arow"><code>03-mark/</code><span>Mark alone, 5 colourways, 4 formats</span><em>20</em></div>
+        <div class="arow"><code>04-wordmark/</code><span>Wordmark alone, 3 colourways, 4 formats</span><em>12</em></div>
+        <div class="arow"><code>05-icons/</code><span>App, avatar, touch and favicon, every platform size</span><em>18</em></div>
+        <div class="arow"><code>06-social/</code><span>Profile and cover crops, safe areas applied</span><em>14</em></div>
+        <div class="arow"><code>07-colour/</code><span>ASE and ACO swatches, plus the token file</span><em>3</em></div>
+        <div class="arow"><code>08-type/</code><span>Licence receipts and the webfont bundle</span><em>6</em></div>
+        <div class="arow"><code>09-pattern/</code><span>Seamless swell tiles, 3 densities × 4 colourways</span><em>12</em></div>
+        <div class="arow"><code>10-icons/</code><span>8 icons, SVG plus PNG at 3 sizes, and a sprite sheet</span><em>26</em></div>
+        <div class="arow"><code>11-motion/</code><span>The build as Lottie, MP4 and GIF, at 3 sizes each</span><em>9</em></div>
+        <div class="arow"><code>12-imagery/</code><span>Crop templates, the duotone recipe and the scrim spec</span><em>6</em></div>
+        <div class="arow"><code>13-voice/</code><span>The lexicon, the style rules and the checker config</span><em>3</em></div>
+        <div class="arow"><code>guidelines.pdf</code><span>This document, print ready</span><em>1</em></div>
+        <div class="arow"><code>brand.json</code><span>The whole system, machine readable</span><em>1</em></div>
+        <div class="arow"><code>README.txt</code><span>Which file to use where, in plain words</span><em>1</em></div>
+      </div>
+      <p class="note" style="margin-top:16px"><b>172 files.</b> Formats are SVG, PNG, PDF, AI, Lottie, MP4 and GIF. The client keeps this whether or not anyone is still paying for the tool that made it.</p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><h3><i>9.2</i>The machine readable file</h3><span class="badge">Drawn by the system</span></div>
+      <p class="note">Shipped beside the human document so the client's own tools can read the brand instead of guessing at it. This is the part none of the current guidelines platforms give you.</p>
+      <pre style="margin-top:20px"><span class="k">{</span>
+  <span class="k">"brand"</span>: <span class="s">"Meridian"</span>,
+  <span class="k">"version"</span>: <span class="s">"1.0.0"</span>,
+  <span class="k">"colour"</span>: <span class="k">{</span>
+    <span class="k">"deep"</span>:   <span class="k">{</span> <span class="k">"hex"</span>: <span class="s">"#0A2A33"</span>, <span class="k">"cmyk"</span>: [<span class="n">81</span>,<span class="n">18</span>,<span class="n">0</span>,<span class="n">80</span>], <span class="k">"role"</span>: <span class="s">"primary"</span> <span class="k">}</span>,
+    <span class="k">"tide"</span>:   <span class="k">{</span> <span class="k">"hex"</span>: <span class="s">"#1E7A8C"</span>, <span class="k">"cmyk"</span>: [<span class="n">79</span>,<span class="n">13</span>,<span class="n">0</span>,<span class="n">45</span>], <span class="k">"role"</span>: <span class="s">"secondary"</span> <span class="k">}</span>,
+    <span class="k">"beacon"</span>: <span class="k">{</span> <span class="k">"hex"</span>: <span class="s">"#F2A007"</span>, <span class="k">"cmyk"</span>: [<span class="n">0</span>,<span class="n">34</span>,<span class="n">97</span>,<span class="n">5</span>],  <span class="k">"role"</span>: <span class="s">"accent"</span>,
+                 <span class="k">"textSafe"</span>: <span class="n">false</span>, <span class="k">"maxCoverage"</span>: <span class="n">0.03</span> <span class="k">}</span>
+  <span class="k">}</span>,
+  <span class="k">"type"</span>: <span class="k">{</span>
+    <span class="k">"display"</span>: <span class="k">{</span> <span class="k">"family"</span>: <span class="s">"Archivo"</span>,  <span class="k">"weights"</span>: [<span class="n">500</span>,<span class="n">600</span>,<span class="n">700</span>] <span class="k">}</span>,
+    <span class="k">"text"</span>:    <span class="k">{</span> <span class="k">"family"</span>: <span class="s">"Literata"</span>, <span class="k">"weights"</span>: [<span class="n">400</span>,<span class="n">500</span>] <span class="k">}</span>,
+    <span class="k">"scale"</span>:   [<span class="n">58</span>,<span class="n">38</span>,<span class="n">26</span>,<span class="n">19</span>,<span class="n">17</span>,<span class="n">14</span>,<span class="n">12</span>]
+  <span class="k">}</span>,
+  <span class="k">"logo"</span>: <span class="k">{</span>
+    <span class="k">"clearSpace"</span>: <span class="s">"0.5r"</span>,
+    <span class="k">"minSize"</span>: <span class="k">{</span> <span class="k">"screenPx"</span>: <span class="n">32</span>, <span class="k">"printMm"</span>: <span class="n">9</span> <span class="k">}</span>,
+    <span class="k">"lockups"</span>: [<span class="s">"horizontal"</span>, <span class="s">"stacked"</span>, <span class="s">"mark"</span>, <span class="s">"wordmark"</span>]
+  <span class="k">}</span>,
+  <span class="k">"icon"</span>: <span class="k">{</span>
+    <span class="k">"box"</span>: <span class="n">24</span>, <span class="k">"live"</span>: <span class="n">20</span>, <span class="k">"stroke"</span>: <span class="n">1.8</span>,
+    <span class="k">"curveRadius"</span>: <span class="s">"1.25 * box"</span>, <span class="k">"cap"</span>: <span class="s">"round"</span>, <span class="k">"minPx"</span>: <span class="n">20</span>
+  <span class="k">}</span>,
+  <span class="k">"motion"</span>: <span class="k">{</span>
+    <span class="k">"easing"</span>: <span class="k">{</span>
+      <span class="k">"tideOut"</span>:     <span class="s">"cubic-bezier(0, 0.55, 0.45, 1)"</span>,
+      <span class="k">"tideThrough"</span>: <span class="s">"cubic-bezier(0.85, 0, 0.15, 1)"</span>
+    <span class="k">}</span>,
+    <span class="k">"duration"</span>: <span class="k">{</span> <span class="k">"quick"</span>: <span class="n">160</span>, <span class="k">"base"</span>: <span class="n">280</span>, <span class="k">"considered"</span>: <span class="n">480</span>, <span class="k">"slow"</span>: <span class="n">900</span> <span class="k">}</span>,
+    <span class="k">"loop"</span>: <span class="n">false</span>
+  <span class="k">}</span>,
+  <span class="k">"imagery"</span>: <span class="k">{</span>
+    <span class="k">"grade"</span>: <span class="s">"duotone"</span>, <span class="k">"from"</span>: <span class="s">"#0A2A33"</span>, <span class="k">"to"</span>: <span class="s">"#EFEDE4"</span>,
+    <span class="k">"crops"</span>: [<span class="s">"5:3"</span>, <span class="s">"21:9"</span>, <span class="s">"4:5"</span>, <span class="s">"1:1"</span>],
+    <span class="k">"scrim"</span>: <span class="k">{</span> <span class="k">"colour"</span>: <span class="s">"#0A2A33"</span>, <span class="k">"raiseUntil"</span>: <span class="n">4.5</span> <span class="k">}</span>
+  <span class="k">}</span>,
+  <span class="k">"voice"</span>: <span class="k">{</span>
+    <span class="k">"name"</span>: <span class="k">{</span> <span class="k">"caps"</span>: <span class="n">false</span>, <span class="k">"possessive"</span>: <span class="n">false</span> <span class="k">}</span>,
+    <span class="k">"case"</span>: <span class="s">"sentence"</span>, <span class="k">"dateFormat"</span>: <span class="s">"D MMMM YYYY"</span>, <span class="k">"readingAge"</span>: <span class="n">14</span>,
+    <span class="k">"banned"</span>: [<span class="s">"outstanding"</span>, <span class="s">"revolutionary"</span>, <span class="s">"unprecedented"</span>, <span class="s">"cutting edge"</span>]
+  <span class="k">}</span>,
+  <span class="k">"contrast"</span>: <span class="k">{</span> <span class="k">"tideOnChalk"</span>: <span class="n">4.2</span>, <span class="k">"minBodyText"</span>: <span class="n">4.5</span> <span class="k">}</span>
+<span class="k">}</span></pre>
+    </div>
+  </section>
+
+
+    <div class="appx">
+      <h3>What a full manual would still add</h3>
+      <p class="note">The pattern, the icons, the motion, the photography and the voice were all missing until you asked for them, and all five are now in the manual above. Here is what is left. Most of what is left can still be derived. The list that stays yours forever is short, and it is the list worth being good at.</p>
+
+      <div class="xrow"><div><b>Co-branding and endorsement</b><p>Partner lockups are arithmetic on the clear space rule you already set in 1.3, so the system can place any partner mark correctly without a designer.</p></div><span class="who sys">The system</span></div>
+      <div class="xrow"><div><b>Data visualisation</b><p>The palette, the contrast floors and the type scale already decide this. The system can draw the chart rules and the accessible series order from what is in section 2.</p></div><span class="who sys">The system</span></div>
+      <div class="xrow"><div><b>Templates</b><p>Letterhead, email signature, invoice, deck master. All of them are layout driven by tokens, so all of them come out of the same engine as this page.</p></div><span class="who sys">The system</span></div>
+      <div class="xrow"><div><b>Illustration style</b><p>The same. A system can enforce a palette on an illustration and it cannot decide what the illustration should be.</p></div><span class="who">Yours</span></div>
+      <div class="xrow"><div><b>Brand architecture</b><p>You decide how sub-brands relate. Once you have, the system builds every sub-brand lockup from the rule.</p></div><span class="who">Set once by you</span></div>
+
+      <p class="note" style="margin-top:20px"><b>An earlier draft of this page said that photography and voice stay yours entirely. That was too coarse, and building them proved it.</b> Each of those chapters splits three ways. The direction and the principles are yours forever. The treatment and the mechanical rules are decided once. The measuring and the checking belong to the machine, and they are the parts people actually get wrong.</p>
+      <p class="note" style="margin-top:12px">So the honest line is not a list of chapters. <b>What stays yours is the judgement inside every chapter</b>, and there is some of it in all nine. The system draws, measures, enforces and exports. It has never once decided anything.</p>
+    </div>
+
+  <footer>
+    <div class="tally">
+      <div><b>30</b><span>sections in this manual</span></div>
+      <div><b>19</b><span>drawn by the system</span></div>
+      <div><b>5</b><span>rules you set once</span></div>
+      <div><b>6</b><span>written or placed by you</span></div>
+      <div><b>172</b><span>files in the package</span></div>
+    </div>
+    <p class="fnote">
+      Meridian is a fictional company invented for this specimen. Nothing here belongs to a real business.<br>
+      Contrast ratios are calculated to WCAG 2.2. CMYK values are converted from hex and would be soft proofed against an ICC profile before print.<br>
+      Pantone references are typed in by the designer, since the Pantone library is proprietary and cannot be generated.<br>
+      Every paragraph of rationale in this document is written by you. The system sets the page and leaves the argument alone.
+    </p>
+  </footer>
+</div>
+
+<script>
+(function(){
+  var btn = document.getElementById('replay'), g = document.getElementById('build');
+  if(!btn || !g) return;
+  btn.addEventListener('click', function(){
+    g.classList.remove('run');
+    void g.getBoundingClientRect().width;
+    g.classList.add('run');
+  });
+})();
+</script>

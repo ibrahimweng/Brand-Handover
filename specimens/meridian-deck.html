@@ -1,0 +1,781 @@
+<title>Meridian Brand System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Literata:opsz,wght@7..72,400;7..72,500&family=Spline+Sans+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --deep:#0A2A33; --tide:#1E7A8C; --beacon:#F2A007; --chalk:#EFEDE4; --slate:#5C6B70;
+  --f:"Archivo","Helvetica Neue",Arial,sans-serif; --ft:"Literata",Georgia,serif;
+  --fm:"Spline Sans Mono",ui-monospace,Menlo,monospace;
+  --shell:#141618; --shell-ink:#EDEEEA; --shell-dim:#7C838A; --shell-rule:#2A2E31;
+}
+:root[data-theme="light"]{--shell:#E8E8E4;--shell-ink:#14171A;--shell-dim:#6B7278;--shell-rule:#CFD0CB}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--shell:#E8E8E4;--shell-ink:#14171A;--shell-dim:#6B7278;--shell-rule:#CFD0CB}}
+*{box-sizing:border-box}
+body{background:var(--shell);color:var(--shell-ink);font-family:var(--f);margin:0;-webkit-font-smoothing:antialiased}
+.wrap{min-height:100vh;display:flex;flex-direction:column;gap:14px;padding:16px clamp(14px,3vw,28px) 20px;align-items:center;justify-content:center}
+.topbar,.ctrl{width:min(100%,calc((100vh - 132px) * 16 / 9))}
+.topbar{display:flex;justify-content:space-between;gap:16px;font-family:var(--fm);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--shell-dim)}
+.topbar b{color:var(--shell-ink);font-weight:500}
+.stage{width:min(100%,calc((100vh - 132px) * 16 / 9));aspect-ratio:16/9;position:relative;overflow:hidden;container-type:size;background:var(--deep);box-shadow:0 2px 26px rgba(0,0,0,.28)}
+.slide{position:absolute;inset:0;display:none;padding:5.6cqw 6.6cqw;flex-direction:column;justify-content:center;color:var(--chalk);background:var(--deep)}
+.slide.on{display:flex}
+.slide.light{background:var(--chalk);color:var(--deep)}
+.slide.chalkbg{background:var(--chalk);color:var(--deep)}
+.slide.div{justify-content:center;background:#08222A}
+
+h1{font-weight:700;font-size:7.2cqw;line-height:1;letter-spacing:-.035em;margin:0;max-width:15ch}
+h2{font-weight:700;font-size:4.9cqw;line-height:1.05;letter-spacing:-.028em;margin:0;max-width:21ch}
+p{margin:0}
+.eye{font-family:var(--fm);font-size:1.45cqw;letter-spacing:.16em;text-transform:uppercase;opacity:.6;margin-bottom:2.2cqw}
+.lede{font-family:var(--ft);font-size:2.25cqw;line-height:1.5;margin-top:2.2cqw;max-width:44ch;opacity:.88}
+.lede b,.sm b{font-weight:600;opacity:1}
+.sm{font-family:var(--ft);font-size:1.75cqw;line-height:1.52;opacity:.78;max-width:56ch}
+.cap{font-family:var(--fm);font-size:1.3cqw;letter-spacing:.1em;text-transform:uppercase;opacity:.55;margin-top:1.2cqw}
+.num{position:absolute;right:2.8cqw;bottom:2.2cqw;font-family:var(--fm);font-size:1.25cqw;opacity:.35;letter-spacing:.1em}
+.fill{width:100%;height:auto;display:block}
+.dx{font-family:"Spline Sans Mono",monospace;font-size:7.5px}
+
+.bdg{display:inline-flex;align-items:center;gap:.7cqw;font-family:var(--fm);font-size:1.3cqw;letter-spacing:.13em;text-transform:uppercase;opacity:.7}
+.bdg::before{content:"";width:1cqw;height:1cqw;border:.15cqw solid currentColor;background:currentColor}
+.bdg.once::before{background:linear-gradient(90deg,currentColor 0 50%,transparent 50% 100%)}
+.bdg.yours::before{background:none}
+
+.mk{width:1em;height:1em;display:block}
+.wm{font-weight:600;letter-spacing:.155em;text-transform:uppercase;line-height:1;white-space:nowrap}
+.lock{display:flex;align-items:center;gap:2cqw}
+.lock .mk{width:5.2cqw;height:5.2cqw}.lock .wm{font-size:3.1cqw}
+.lock.sm2 .mk{width:3.6cqw;height:3.6cqw}.lock.sm2 .wm{font-size:2.1cqw}
+.lock.stack{flex-direction:column;gap:1.2cqw}
+.hero{display:flex;align-items:center;justify-content:center;gap:3.4cqw}
+.hero .mk.big{width:13cqw;height:13cqw}.hero .wm.huge{font-size:8cqw}
+.s64{width:4.6cqw!important;height:4.6cqw!important}.s32{width:2.4cqw!important;height:2.4cqw!important}
+.s54{width:4cqw!important;height:4cqw!important}.s44{width:3.4cqw!important;height:3.4cqw!important}
+.s34{width:3.6cqw!important;height:3.6cqw!important}.s24{width:2.5cqw!important;height:2.5cqw!important}
+.s18{width:1.9cqw!important;height:1.9cqw!important}
+.tideC{color:var(--tide)}.chalkC{color:var(--chalk)}
+
+.chno{font-family:var(--fm);font-size:1.5cqw;letter-spacing:.2em;color:var(--beacon);margin-bottom:1.6cqw}
+.chname{font-size:7cqw;letter-spacing:-.035em}
+.sublist{list-style:none;padding:0;margin:3cqw 0 0;display:flex;gap:3cqw;flex-wrap:wrap;font-family:var(--ft);font-size:1.8cqw;opacity:.6}
+.cts{display:grid;grid-template-columns:repeat(3,1fr);gap:2cqw 3cqw;margin-top:3cqw}
+.cts div{display:flex;gap:1.4cqw;align-items:baseline;border-top:.12cqw solid rgba(10,42,51,.2);padding-top:1.2cqw}
+.cts b{font-family:var(--fm);font-size:1.4cqw;opacity:.5;font-weight:400}
+.cts span{font-size:2.2cqw;font-weight:600;letter-spacing:-.015em}
+
+.two{display:grid;grid-template-columns:1fr 1fr;gap:4.6cqw;align-items:center}
+.two.wide{grid-template-columns:1.02fr 1fr}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:2cqw}
+.four{display:grid;grid-template-columns:repeat(4,1fr);gap:1.6cqw}
+.six{display:grid;grid-template-columns:repeat(6,1fr);gap:1.2cqw}
+.cell{text-align:center}
+.cell .lock{justify-content:center;min-height:7cqw;align-items:center}
+.cell .cap{margin-top:1cqw}
+.dont .dwrap{background:rgba(239,237,228,.07);display:flex;align-items:center;justify-content:center;padding:1.6cqw;min-height:7.4cqw;overflow:hidden}
+.dont.busy .dwrap{background:repeating-linear-gradient(52deg,#7E8C7A 0 8px,#5E6B5B 8px 16px)}
+
+.rowset{margin-top:2.4cqw;border-top:.1cqw solid rgba(239,237,228,.2)}
+.light .rowset,.chalkbg .rowset{border-color:rgba(10,42,51,.18)}
+.r{display:flex;justify-content:space-between;align-items:baseline;gap:2cqw;padding:1.25cqw 0;border-bottom:.1cqw solid rgba(239,237,228,.13)}
+.r>div{min-width:0}
+.r>.cap{margin:0;flex:none;white-space:nowrap}
+.light .r,.chalkbg .r{border-color:rgba(10,42,51,.11)}
+.r b{font-weight:600;font-size:2.1cqw;letter-spacing:-.01em}
+.r span{font-family:var(--ft);font-size:1.6cqw;opacity:.7;display:block;margin-top:.4cqw}
+
+.chips{display:grid;grid-template-columns:repeat(5,1fr);gap:1.6cqw}
+.chip .sw{height:9cqw;border:1px solid rgba(0,0,0,.08)}
+.chip b{display:block;font-weight:600;font-size:2cqw;margin-top:1.1cqw}
+.chip span{display:block;font-family:var(--fm);font-size:1.2cqw;opacity:.6;margin-top:.3cqw}
+.chip .role{font-family:var(--ft);opacity:.5}
+.prop{display:flex;height:7cqw}
+.prop span{display:flex;align-items:flex-end;justify-content:center;padding-bottom:.7cqw;font-family:var(--fm);font-size:1.2cqw;color:rgba(255,255,255,.8)}
+.plab{display:flex;margin-top:.9cqw;font-family:var(--fm);font-size:1.15cqw;opacity:.55}
+
+.ctab{border-top:.1cqw solid rgba(10,42,51,.2)}
+.ctr{display:grid;grid-template-columns:11cqw 1fr 7cqw 12cqw;gap:2cqw;align-items:center;padding:.9cqw 0;border-bottom:.1cqw solid rgba(10,42,51,.11)}
+.cp{display:flex;align-items:center;justify-content:center;height:3.4cqw;font-weight:600;font-size:1.4cqw;border:1px solid rgba(0,0,0,.08)}
+.ctr span{font-family:var(--ft);font-size:1.7cqw;opacity:.75}
+.ctr em{font-family:var(--fm);font-style:normal;font-size:1.4cqw;text-align:right}
+.ctr i{font-family:var(--fm);font-style:normal;font-size:1.15cqw;letter-spacing:.06em;text-transform:uppercase;text-align:right}
+.v-ok{color:#1B7A4B}.v-warn{color:#8A6410}.v-bad{color:#C2352B}
+
+.faces{display:grid;grid-template-columns:1fr 1fr;gap:4cqw}
+.alpha{font-size:2.7cqw;line-height:1.2;margin:0}
+.alpha.a{font-weight:600;letter-spacing:-.02em}
+.alpha.b{font-family:var(--ft);font-weight:400}
+.scale{border-top:.1cqw solid rgba(10,42,51,.2)}
+.sr{display:grid;grid-template-columns:1fr 13cqw;gap:2cqw;align-items:baseline;padding:1.2cqw 0;border-bottom:.1cqw solid rgba(10,42,51,.11)}
+.sr em{font-family:var(--fm);font-style:normal;font-size:1.15cqw;opacity:.5;text-align:right}
+.t-d{font-weight:700;font-size:4.4cqw;letter-spacing:-.03em;line-height:1.05}
+.t-1{font-weight:600;font-size:3cqw;letter-spacing:-.02em}
+.t-2{font-weight:600;font-size:2.2cqw}
+.t-b{font-family:var(--ft);font-size:1.7cqw;line-height:1.5}
+
+.iconrow{display:grid;grid-template-columns:repeat(8,1fr);gap:2cqw;place-items:center}
+.durs{border-top:.1cqw solid rgba(239,237,228,.2)}
+.dr{display:grid;grid-template-columns:8cqw 5cqw 1fr;gap:1.6cqw;align-items:baseline;padding:.9cqw 0;border-bottom:.1cqw solid rgba(239,237,228,.13)}
+.dr b{font-weight:600;font-size:1.7cqw}
+.dr em{font-family:var(--fm);font-style:normal;font-size:1.4cqw;color:var(--tide)}
+.dr span{font-family:var(--ft);font-size:1.5cqw;opacity:.65}
+.replay{font-family:var(--fm);font-size:1.25cqw;letter-spacing:.1em;text-transform:uppercase;background:none;border:.1cqw solid currentColor;color:inherit;padding:1cqw 1.8cqw;cursor:pointer;margin-top:2.4cqw;opacity:.75}
+.replay:hover{opacity:1}
+.replay:focus-visible{outline:2px solid var(--tide);outline-offset:2px}
+#build .ring{stroke-dasharray:314.16;stroke-dashoffset:0}
+#build.run .ring{animation:draw .4s cubic-bezier(0,.55,.45,1) both}
+#build.run .rise{animation:rise .6s .3s cubic-bezier(.85,0,.15,1) both}
+@keyframes draw{from{stroke-dashoffset:314.16}to{stroke-dashoffset:0}}
+@keyframes rise{from{transform:translateY(54px)}to{transform:translateY(0)}}
+
+.frame{position:relative;overflow:hidden;aspect-ratio:200/130}
+.frame .over{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.frame .scrim{position:absolute;inset:0;background:var(--deep);opacity:.65}
+.pok{display:flex;align-items:center;gap:.7cqw;font-family:var(--fm);font-size:1.15cqw;letter-spacing:.07em;text-transform:uppercase;margin-top:1cqw}
+.pok::before{content:"";width:.8cqw;height:.8cqw;border-radius:50%;background:currentColor}
+.pok.yes{color:#4FBF87}.pok.no{color:#E8695F}
+
+.says{display:grid;grid-template-columns:1fr 1fr;gap:1.6cqw}
+.sy,.sn{padding:1.6cqw 1.8cqw;border:.1cqw solid rgba(10,42,51,.16)}
+.l{font-family:var(--fm);font-size:1.15cqw;letter-spacing:.11em;text-transform:uppercase;margin-bottom:.8cqw}
+.sy .l{color:#1B7A4B}.sn .l{color:#C2352B}
+.says q{font-family:var(--ft);font-size:1.75cqw;line-height:1.45;quotes:none;display:block}
+.sn q{opacity:.65}
+.copy{font-family:var(--ft);font-size:1.9cqw;line-height:1.75;border:.1cqw solid rgba(10,42,51,.16);padding:1.8cqw 2cqw}
+.fl{background:rgba(194,53,43,.12);border-bottom:.18cqw solid #C2352B}
+.copy.fix{background:rgba(27,122,75,.08);border-color:rgba(27,122,75,.35)}
+
+.icons2{display:flex;gap:2.2cqw;align-items:flex-end}
+.icons2 .sq{background:var(--chalk);display:flex;align-items:center;justify-content:center;color:var(--deep)}
+.light .icons2 .sq{background:var(--deep);color:var(--chalk)}
+.r22{border-radius:22%}.rf{border-radius:50%}
+.icons2 .cap{text-align:center;margin-top:.8cqw}
+.slots{display:grid;grid-template-columns:1fr 1fr;gap:1.2cqw}
+.slot{border:.12cqw dashed rgba(239,237,228,.3);padding:1.4cqw;text-align:center}
+.slot b{display:block;font-family:var(--fm);font-size:1.15cqw;letter-spacing:.08em;text-transform:uppercase;font-weight:500;opacity:.8}
+.slot span{font-family:var(--fm);font-size:1.05cqw;opacity:.45}
+
+.atab{border-top:.1cqw solid rgba(10,42,51,.2)}
+.ar{display:flex;justify-content:space-between;padding:.85cqw 0;border-bottom:.1cqw solid rgba(10,42,51,.11);font-family:var(--fm);font-size:1.4cqw}
+.ar em{font-style:normal;opacity:.5}
+pre{background:#08222A;color:#CFE3E7;padding:2cqw 2.2cqw;overflow-x:auto;font-family:var(--fm);font-size:1.25cqw;line-height:1.7;margin:0}
+pre .k{color:#8FC6D2}pre .s{color:#F2C878}pre .n{color:#F2A007}
+
+.tally{display:grid;grid-template-columns:repeat(4,1fr);gap:2.4cqw;margin-top:3.2cqw}
+.tc b{display:block;font-weight:700;font-size:5.6cqw;line-height:1;letter-spacing:-.04em}
+.tc span{display:block;font-family:var(--ft);font-size:1.5cqw;opacity:.7;margin-top:.8cqw;line-height:1.3}
+.tc.hi b{color:var(--tide)}
+
+.ctrl{display:flex;align-items:center;gap:12px}
+.btn{font-family:var(--fm);font-size:11px;letter-spacing:.09em;text-transform:uppercase;background:none;border:1px solid var(--shell-rule);color:var(--shell-ink);padding:9px 14px;cursor:pointer}
+.btn:hover:not(:disabled){background:rgba(128,128,128,.13)}
+.btn:disabled{opacity:.35;cursor:default}
+.btn:focus-visible,.dot:focus-visible{outline:2px solid var(--tide);outline-offset:2px}
+.dots{display:flex;gap:3px;flex:1;flex-wrap:wrap}
+.dot{height:3px;background:var(--shell-rule);border:none;padding:0;cursor:pointer;flex:1;min-width:6px}
+.dot.on{background:var(--tide)}
+.hint{font-family:var(--fm);font-size:10px;color:var(--shell-dim);letter-spacing:.08em;white-space:nowrap}
+
+/* ---- imported from part two ---- */
+.cob{display:flex;align-items:center;gap:2.2cqw}
+.cob .bar{width:.22cqw;height:4.6cqw;background:currentColor;opacity:.5}
+.cob .mk{width:5.2cqw;height:5.2cqw}
+.cob .wm{font-size:3.1cqw}
+.partner{font-weight:700;font-size:2.3cqw;letter-spacing:.02em}
+.rel{display:flex;flex-direction:column;gap:3.2cqw;margin-top:1cqw}
+.rel .lab{font-family:var(--fm);font-size:1.25cqw;letter-spacing:.14em;text-transform:uppercase;opacity:.55;margin-bottom:1cqw}
+.rel .cob .mk{width:4.2cqw;height:4.2cqw}
+.rel .cob .wm{font-size:2.5cqw}
+.arch{display:flex;flex-direction:column;gap:2.2cqw;margin-top:2cqw}
+.arw{display:grid;grid-template-columns:11cqw 1fr;gap:2.4cqw;align-items:center}
+.arw .n{font-family:var(--fm);font-size:1.3cqw;letter-spacing:.11em;text-transform:uppercase;opacity:.55}
+.arw.pick .n{opacity:1;color:var(--beacon)}
+.arw .d{font-family:var(--ft);font-size:1.7cqw;opacity:.75}
+.arw.pick .d{opacity:1}
+.paper{background:#FDFCF8;color:var(--deep);padding:3.2cqw;aspect-ratio:1/1.414;display:flex;flex-direction:column;box-shadow:0 1cqw 3cqw rgba(0,0,0,.28)}
+.paper .top{display:flex;align-items:center;gap:1.4cqw}
+.paper .top .mk{width:3.4cqw;height:3.4cqw}
+.paper .top .wm{font-size:1.9cqw}
+.paper .body{flex:1;margin-top:3cqw;font-family:var(--ft);font-size:1.15cqw;line-height:1.7;opacity:.75}
+.paper .ln{height:.14cqw;background:var(--deep);opacity:.14;margin:.9cqw 0}
+.paper .foot{font-family:var(--fm);font-size:.95cqw;opacity:.5;letter-spacing:.06em}
+.cx{font-family:var(--fm);font-size:11px;fill:var(--chalk);opacity:.6}
+.cpk{font-family:var(--fm);font-size:13px;fill:var(--beacon);font-weight:500}
+.ck{font-family:var(--fm);font-size:11px;fill:var(--chalk);opacity:.45}
+@media (max-width:640px){.hint{display:none}.two,.faces,.says{grid-template-columns:1fr;gap:2.4cqw}.tally,.cts{grid-template-columns:repeat(2,1fr)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><pattern id="p-fine" width="100" height="44" patternUnits="userSpaceOnUse" patternTransform="scale(0.45)"><path d="M0 13 A150 150 0 0 1 100 13" fill="none" stroke="#0A2A33" stroke-width="3" stroke-linecap="round"/><path d="M-50 35 A150 150 0 0 1 50 35" fill="none" stroke="#0A2A33" stroke-width="3" stroke-linecap="round"/><path d="M50 35 A150 150 0 0 1 150 35" fill="none" stroke="#0A2A33" stroke-width="3" stroke-linecap="round"/></pattern><pattern id="p-med" width="100" height="44" patternUnits="userSpaceOnUse" patternTransform="scale(1)"><path d="M0 13 A150 150 0 0 1 100 13" fill="none" stroke="#0A2A33" stroke-width="3" stroke-linecap="round"/><path d="M-50 35 A150 150 0 0 1 50 35" fill="none" stroke="#0A2A33" stroke-width="3" stroke-linecap="round"/><path d="M50 35 A150 150 0 0 1 150 35" fill="none" stroke="#0A2A33" stroke-width="3" stroke-linecap="round"/></pattern><pattern id="p-coarse" width="100" height="44" patternUnits="userSpaceOnUse" patternTransform="scale(2.1)"><path d="M0 13 A150 150 0 0 1 100 13" fill="none" stroke="#0A2A33" stroke-width="3" stroke-linecap="round"/><path d="M-50 35 A150 150 0 0 1 50 35" fill="none" stroke="#0A2A33" stroke-width="3" stroke-linecap="round"/><path d="M50 35 A150 150 0 0 1 150 35" fill="none" stroke="#0A2A33" stroke-width="3" stroke-linecap="round"/></pattern><pattern id="p-chalk" width="100" height="44" patternUnits="userSpaceOnUse" patternTransform="scale(1.15)"><path d="M0 13 A150 150 0 0 1 100 13" fill="none" stroke="#EFEDE4" stroke-width="3" stroke-linecap="round"/><path d="M-50 35 A150 150 0 0 1 50 35" fill="none" stroke="#EFEDE4" stroke-width="3" stroke-linecap="round"/><path d="M50 35 A150 150 0 0 1 150 35" fill="none" stroke="#EFEDE4" stroke-width="3" stroke-linecap="round"/></pattern><linearGradient id="g-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FAF8F1"/><stop offset="1" stop-color="#D6D9D2"/></linearGradient></defs></svg>
+
+<div class="wrap">
+  <div class="topbar"><span>Meridian · the complete brand system</span><span><b id="ttl"></b></span></div>
+  <div class="stage" id="stage" role="region" aria-roledescription="carousel" aria-label="Meridian brand manual, presented as slides">
+    <section aria-label="Slide 1, Title" class="slide"><div class="lock" style="margin-bottom:4cqw"><svg viewBox="0 0 120 120" class="mk " aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="9"/><path d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z" fill="currentColor"/></svg><span class="wm">Meridian</span></div><h1>The brand</h1><p class="lede">Power from the predictable sea. Eleven chapters and thirty five sections, all of them read from one file.</p><p class="cap" style="margin-top:4cqw">Specimen · fictional company · the complete system</p><span class="num">01</span></section>
+
+    <section aria-label="Slide 2, Contents" class="slide light"><p class="eye">Contents</p><h2>Eleven chapters</h2><div class="cts"><div><b>01</b><span>The mark</span></div><div><b>02</b><span>The mark with others</span></div><div><b>03</b><span>Colour</span></div><div><b>04</b><span>Typography</span></div><div><b>05</b><span>Graphic language</span></div><div><b>06</b><span>Motion</span></div><div><b>07</b><span>Imagery</span></div><div><b>08</b><span>Voice</span></div><div><b>09</b><span>Data and charts</span></div><div><b>10</b><span>Applications and templates</span></div><div><b>11</b><span>Assets</span></div></div><p class="sm" style="margin-top:2.6cqw">This deck is not the manual reflowed. The manual is looked things up in. This is presented, so it keeps the argument and drops the reference detail.</p><span class="num">02</span></section>
+
+    <section aria-label="Slide 3, 01 · The mark" class="slide div"><p class="chno">01</p><h2 class="chname">The mark</h2><ul class="sublist"><li>Construction</li><li>Clear space and size</li><li>The lockup system</li><li>Misuse</li></ul><span class="num">03</span></section>
+
+    <section class="slide " aria-label="Slide 4, The mark">
+  <div class="hero"><svg viewBox="0 0 120 120" class="mk big" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="9"/><path d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z" fill="currentColor"/></svg><span class="wm huge">Meridian</span></div>
+  <p class="cap" style="text-align:center;margin-top:5cqw">A ring holding a tide line · the line is an arc of 3r, a quarter of a radius below centre</p><span class="num">04</span></section>
+
+    <section class="slide " aria-label="Slide 5, Construction">
+  <div class="two wide">
+    <div><span class="bdg">The system</span><h2 style="margin-top:2cqw">Everything is a fraction of r</h2>
+      <p class="lede">A 12 unit square, a ring of radius 5, a stroke of 0.9. The tide line is an arc of 3r crossing a quarter of a radius below the centre.</p>
+      <p class="sm" style="margin-top:2cqw">Store one number and the whole mark rebuilds. Store four and they drift apart.</p></div>
+    <div><svg viewBox="0 0 200 250" class="fill" role="img" aria-label="Construction drawing of the mark on its grid, showing r and the 3r tide arc.">
+      <g stroke="var(--chalk)" stroke-width=".5" opacity=".22"><path d="M40 10H160M40 30H160M40 50H160M40 70H160M40 90H160M40 110H160M40 130H160"/><path d="M40 10V130M60 10V130M80 10V130M100 10V130M120 10V130M140 10V130M160 10V130"/></g>
+      <rect x="40" y="10" width="120" height="120" fill="none" stroke="var(--chalk)" stroke-width=".9" opacity=".5"/>
+      <path d="M45 84.92 A150 150 0 0 1 155 84.92" fill="none" stroke="var(--beacon)" stroke-width="1" stroke-dasharray="3 2.5"/>
+      <circle cx="100" cy="70" r="50" fill="none" stroke="var(--tide)" stroke-width="1.6"/>
+      <path d="M100 5V236" stroke="var(--chalk)" stroke-width=".6" opacity=".35"/><path d="M35 70H165" stroke="var(--chalk)" stroke-width=".6" opacity=".35"/>
+      <path d="M100 70H150" stroke="var(--tide)" stroke-width="1.4"/><circle cx="100" cy="70" r="2.2" fill="var(--tide)"/>
+      <text x="126" y="65" class="dx" fill="var(--tide)" text-anchor="middle">r</text>
+      <path d="M100 224.5V84" stroke="var(--beacon)" stroke-width="1" stroke-dasharray="2 2"/>
+      <text x="108" y="165" class="dx" fill="var(--beacon)">3r</text><circle cx="100" cy="224.5" r="2.2" fill="var(--beacon)"/>
+      <text x="100" y="243" class="dx" fill="var(--beacon)" text-anchor="middle">tide arc centre</text>
+    </svg></div>
+  </div><span class="num">05</span></section>
+
+    <section class="slide " aria-label="Slide 6, Clear space and size">
+  <div class="two">
+    <div><span class="bdg">The system</span><h2 style="margin-top:2cqw">Clear space and the floor</h2>
+      <p class="lede">Keep <b>x</b> clear on every side, where x is half the ring radius.</p>
+      <p class="sm" style="margin-top:2cqw">The ring stroke is what fails first. <b>32 px on screen, 9 mm in print.</b> Measured by rendering at falling sizes and reading the stroke, not estimated.</p></div>
+    <div style="display:flex;align-items:center;gap:4cqw;justify-content:center">
+      <svg viewBox="0 0 180 180" style="width:44%;height:auto" role="img" aria-label="Clear space of x on all four sides.">
+        <rect x="15" y="15" width="150" height="150" fill="none" stroke="var(--chalk)" stroke-width="1.1" stroke-dasharray="4 3" opacity=".5"/>
+        <circle cx="90" cy="90" r="50" fill="none" stroke="var(--chalk)" stroke-width="9"/>
+        <path d="M41.59 102.5 A150 150 0 0 1 138.41 102.5 A50 50 0 0 1 41.59 102.5 Z" fill="var(--chalk)"/>
+        <g stroke="var(--beacon)" stroke-width="1.2"><path d="M15 90H40"/><path d="M15 85v10"/><path d="M40 85v10"/></g>
+        <text x="27" y="81" class="dx" fill="var(--beacon)" text-anchor="middle">x</text>
+      </svg>
+      <div style="display:flex;flex-direction:column;gap:2.4cqw;align-items:center">
+        <svg viewBox="0 0 120 120" class="mk s64" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="9"/><path d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z" fill="currentColor"/></svg><span class="cap" style="margin:0">64</span><svg viewBox="0 0 120 120" class="mk s32" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="9"/><path d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z" fill="currentColor"/></svg><span class="cap" style="margin:0">32 · floor</span>
+      </div>
+    </div>
+  </div><span class="num">06</span></section>
+
+    <section class="slide " aria-label="Slide 7, The lockup system">
+  <span class="bdg">The system</span><h2 style="margin-top:2cqw">Four arrangements, five colourways</h2>
+  <div class="four" style="margin-top:3.4cqw">
+    <div class="cell"><div class="lock sm2"><svg viewBox="0 0 120 120" class="mk " aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="9"/><path d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z" fill="currentColor"/></svg><span class="wm">Meridian</span></div><p class="cap">Horizontal</p></div>
+    <div class="cell"><div class="lock sm2 stack"><svg viewBox="0 0 120 120" class="mk " aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="9"/><path d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z" fill="currentColor"/></svg><span class="wm">Meridian</span></div><p class="cap">Stacked</p></div>
+    <div class="cell"><div class="lock sm2"><svg viewBox="0 0 120 120" class="mk tideC" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="9"/><path d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z" fill="currentColor"/></svg></div><p class="cap">Mark alone</p></div>
+    <div class="cell"><div class="lock sm2"><span class="wm">Meridian</span></div><p class="cap">Wordmark alone</p></div>
+  </div>
+  <p class="sm" style="margin-top:3cqw">All twenty cut from one master, so none of them can fall out of step with the others.</p><span class="num">07</span></section>
+
+    <section class="slide " aria-label="Slide 8, Misuse">
+  <span class="bdg">The system</span><h2 style="margin-top:2cqw">Six ways it breaks</h2>
+  <p class="sm" style="margin-top:1.4cqw">Made by applying each forbidden change to the master, which is why they look like the mistakes people actually make.</p>
+  <div class="six" style="margin-top:2.6cqw">
+    <div class="cell dont"><div class="dwrap" style="transform:scaleX(1.5)"><svg viewBox="0 0 120 120" class="mk s54" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="9"/><path d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z" fill="currentColor"/></svg></div><p class="cap">Do not stretch</p></div>
+    <div class="cell dont"><div class="dwrap" style="transform:rotate(17deg)"><svg viewBox="0 0 120 120" class="mk s54" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="9"/><path d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z" fill="currentColor"/></svg></div><p class="cap">Do not rotate</p></div>
+    <div class="cell dont"><div class="dwrap" style="color:#C0455E"><svg viewBox="0 0 120 120" class="mk s54" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="9"/><path d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z" fill="currentColor"/></svg></div><p class="cap">Do not recolour</p></div>
+    <div class="cell dont"><div class="dwrap" style="filter:drop-shadow(3px 4px 4px rgba(0,0,0,.5))"><svg viewBox="0 0 120 120" class="mk s54" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="9"/><path d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z" fill="currentColor"/></svg></div><p class="cap">Do not add effects</p></div>
+    <div class="cell dont busy"><div class="dwrap"><svg viewBox="0 0 120 120" class="mk s54" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="9"/><path d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z" fill="currentColor"/></svg></div><p class="cap">Not on low contrast</p></div>
+    <div class="cell dont"><div class="dwrap"><span style="font-family:Georgia,serif;font-weight:700;font-size:2.1cqw">Meridian</span></div><p class="cap">Do not retype it</p></div>
+  </div><span class="num">08</span></section>
+
+    <section aria-label="Slide 9, 02 · The mark with others" class="slide div"><p class="chno">02</p><h2 class="chname">The mark with others</h2><ul class="sublist"><li>Co-branding</li><li>Endorsement</li><li>Brand architecture</li></ul><span class="num">09</span></section>
+
+    <section class="slide" aria-label="Slide 10, Co-branding · the rule">
+      <div class="two wide">
+        <div>
+          <span class="bdg">The system</span>
+          <h2 style="margin-top:2cqw">Two marks, one rule</h2>
+          <p class="lede">The divider is arithmetic on the clear space you already set in 1.3. The gap either side is <b>x</b>, the rule is the cap height of the wordmark, and nothing here is a judgement.</p>
+          <p class="sm" style="margin-top:2cqw">The partner mark is scaled to <b>matched optical area</b>, never matched height. A wide wordmark and a compact monogram set to the same height look nothing alike, and that is the mistake this rule exists to stop.</p>
+        </div>
+        <div>
+          <svg viewBox="0 0 340 150" class="fill" role="img" aria-label="Meridian mark, a gap of x, a vertical hairline the height of the cap, another gap of x, then the partner mark.">
+            <g fill="none" stroke="var(--chalk)" stroke-width="7"><circle cx="46" cy="70" r="39"/></g>
+            <path d="M8 79.75 A117 117 0 0 1 84 79.75 A39 39 0 0 1 8 79.75 Z" fill="var(--chalk)"/>
+            <line x1="170" y1="47" x2="170" y2="93" stroke="var(--chalk)" stroke-width="1.6" opacity=".55"/>
+            <text x="228" y="80" font-family="Archivo, sans-serif" font-weight="700" font-size="21" fill="var(--chalk)" text-anchor="middle" letter-spacing="1">PARTNER</text>
+            <g stroke="var(--beacon)" stroke-width="1.2">
+              <path d="M96 122h64M96 118v8M160 118v8"/>
+              <path d="M180 122h64M180 118v8M244 118v8"/>
+            </g>
+            <text x="128" y="140" font-family="Spline Sans Mono, monospace" font-size="10" fill="var(--beacon)" text-anchor="middle">x</text>
+            <text x="212" y="140" font-family="Spline Sans Mono, monospace" font-size="10" fill="var(--beacon)" text-anchor="middle">x</text>
+            <text x="170" y="34" font-family="Spline Sans Mono, monospace" font-size="9" fill="var(--chalk)" opacity=".5" text-anchor="middle">cap height</text>
+          </svg>
+        </div>
+      </div>
+      
+    <span class="num">10</span></section>
+
+    <section class="slide light" aria-label="Slide 11, Co-branding · relationships">
+      <div class="two">
+        <div>
+          <span class="bdg">The system</span>
+          <h2 style="margin-top:2cqw">Three relationships</h2>
+          <p class="lede">You tell it which of the three a partner is. It sets the weight, the label and the order without another decision.</p>
+        </div>
+        <div class="rel">
+          <div><p class="lab">Joint venture · equal</p><div class="cob"><svg viewBox="0 0 120 120" class="mk" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="9"/><path d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z" fill="currentColor"/></svg><span class="wm">Meridian</span><span class="bar"></span><span class="partner">PARTNER</span></div></div>
+          <div><p class="lab">Endorsed · Meridian recedes</p><div class="cob"><span class="partner" style="font-size:2.9cqw">PARTNER</span><span class="bar"></span><span style="font-family:var(--ft);font-size:1.5cqw;opacity:.7">in partnership with<br><b style="font-family:var(--f);font-weight:600;letter-spacing:.12em">MERIDIAN</b></span></div></div>
+          <div><p class="lab">Supported · partner recedes</p><div class="cob"><svg viewBox="0 0 120 120" class="mk" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="9"/><path d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z" fill="currentColor"/></svg><span class="wm">Meridian</span><span class="bar"></span><span style="font-family:var(--ft);font-size:1.5cqw;opacity:.7">supported by<br><b style="font-family:var(--f);font-weight:700;letter-spacing:.04em">PARTNER</b></span></div></div>
+        </div>
+      </div>
+      
+    <span class="num">11</span></section>
+
+    <section class="slide light" aria-label="Slide 12, Architecture · the model">
+      <span class="bdg once">Set once</span>
+      <h2 style="margin-top:2cqw">Pick a model, once</h2>
+      <p class="lede">Three ways a group of brands can relate. This is a strategic decision and it is made a single time.</p>
+      <div class="arch">
+        <div class="arw"><span class="n">House of brands</span><span class="d">Each brand stands alone. Meridian is invisible on the product.</span></div>
+        <div class="arw"><span class="n">Endorsed</span><span class="d">Sub-brands lead, with a Meridian endorsement line beneath.</span></div>
+        <div class="arw pick"><span class="n">Monolithic ✓</span><span class="d">One mark, plain descriptors. Chosen, because Meridian sells one promise and splitting it would weaken all three.</span></div>
+      </div>
+      
+    <span class="num">12</span></section>
+
+    <section class="slide" aria-label="Slide 13, Architecture · lockups">
+      <div class="two wide">
+        <div>
+          <span class="bdg">The system</span>
+          <h2 style="margin-top:2cqw">Then every lockup follows</h2>
+          <p class="lede">The descriptor is the Caption step from 3.2, set at the wordmark's tracking, aligned to its left edge and spaced by <b>x ÷ 2</b>.</p>
+          <p class="sm" style="margin-top:2cqw">A new division needs one word typed into the project. It never needs a designer, and it can never come out inconsistent with the other three.</p>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3.2cqw">
+          <div class="lock"><svg viewBox="0 0 120 120" class="mk" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="9"/><path d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z" fill="currentColor"/></svg><div><span class="wm" style="display:block">Meridian</span><span style="font-family:var(--f);font-weight:500;font-size:1.35cqw;letter-spacing:.14em;text-transform:uppercase;opacity:.62;display:block;margin-top:.7cqw">Estuary</span></div></div>
+          <div class="lock"><svg viewBox="0 0 120 120" class="mk" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="9"/><path d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z" fill="currentColor"/></svg><div><span class="wm" style="display:block">Meridian</span><span style="font-family:var(--f);font-weight:500;font-size:1.35cqw;letter-spacing:.14em;text-transform:uppercase;opacity:.62;display:block;margin-top:.7cqw">Offshore</span></div></div>
+          <div class="lock"><svg viewBox="0 0 120 120" class="mk" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="9"/><path d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z" fill="currentColor"/></svg><div><span class="wm" style="display:block">Meridian</span><span style="font-family:var(--f);font-weight:500;font-size:1.35cqw;letter-spacing:.14em;text-transform:uppercase;opacity:.62;display:block;margin-top:.7cqw">Grid</span></div></div>
+        </div>
+      </div>
+      
+    <span class="num">13</span></section>
+
+    <section aria-label="Slide 14, 03 · Colour" class="slide div"><p class="chno">03</p><h2 class="chname">Colour</h2><ul class="sublist"><li>The palette</li><li>Proportion in use</li><li>Contrast and accessibility</li></ul><span class="num">14</span></section>
+
+    <section class="slide light" aria-label="Slide 15, The palette">
+  <span class="bdg">The system</span><h2 style="margin-top:2cqw">Five colours</h2>
+  <div class="chips" style="margin-top:3cqw"><div class="chip"><div class="sw" style="background:#0A2A33"></div><b>Deep</b><span>#0A2A33</span><span class="role">Primary</span></div><div class="chip"><div class="sw" style="background:#1E7A8C"></div><b>Tide</b><span>#1E7A8C</span><span class="role">Secondary</span></div><div class="chip"><div class="sw" style="background:#F2A007"></div><b>Beacon</b><span>#F2A007</span><span class="role">Accent</span></div><div class="chip"><div class="sw" style="background:#EFEDE4"></div><b>Chalk</b><span>#EFEDE4</span><span class="role">Ground</span></div><div class="chip"><div class="sw" style="background:#5C6B70"></div><b>Slate</b><span>#5C6B70</span><span class="role">Neutral</span></div></div>
+  <p class="sm" style="margin-top:3cqw">RGB and CMYK are converted from the hex and soft proofed. <b>The Pantone reference is typed in by you</b>, because that library is proprietary and cannot be generated.</p><span class="num">15</span></section>
+
+    <section class="slide light" aria-label="Slide 16, Proportion">
+  <div class="two">
+    <div><span class="bdg yours">Yours</span><h2 style="margin-top:2cqw">How much of each</h2>
+      <p class="lede">A judgement about how the brand should feel, so the system draws the bar and you set the numbers.</p>
+      <p class="sm" style="margin-top:2cqw"><b>Beacon never exceeds three percent of a layout.</b> It marks the single most important thing on a page and nothing else.</p></div>
+    <div>
+      <div class="prop">
+        <span style="background:#EFEDE4;width:52%;color:rgba(10,42,51,.7)">52</span>
+        <span style="background:#0A2A33;width:26%">26</span>
+        <span style="background:#1E7A8C;width:14%">14</span>
+        <span style="background:#5C6B70;width:5%"></span>
+        <span style="background:#F2A007;width:3%"></span>
+      </div>
+      <div class="plab"><span style="width:52%">Chalk</span><span style="width:26%">Deep</span><span style="width:14%">Tide</span><span style="width:5%">Slate</span><span style="width:3%">Beacon</span></div>
+    </div>
+  </div><span class="num">16</span></section>
+
+    <section class="slide light" aria-label="Slide 17, Contrast">
+  <span class="bdg">The system</span><h2 style="margin-top:2cqw">The palette, checked</h2>
+  <p class="sm" style="margin-top:1.4cqw">It does not soften a failure. The pairs that do not work are listed rather than left for somebody to find.</p>
+  <div class="ctab" style="margin-top:2.4cqw"><div class="ctr"><div class="cp" style="background:#EFEDE4;color:#0A2A33">Meridian</div><span>Deep on Chalk</span><em>12.9:1</em><i class="v-ok">Pass AAA</i></div><div class="ctr"><div class="cp" style="background:#0A2A33;color:#FFFFFF">Meridian</div><span>White on Deep</span><em>15.1:1</em><i class="v-ok">Pass AAA</i></div><div class="ctr"><div class="cp" style="background:#EFEDE4;color:#5C6B70">Meridian</div><span>Slate on Chalk</span><em>4.7:1</em><i class="v-ok">Pass AA</i></div><div class="ctr"><div class="cp" style="background:#EFEDE4;color:#1E7A8C">Meridian</div><span>Tide on Chalk</span><em>4.2:1</em><i class="v-warn">Large text only</i></div><div class="ctr"><div class="cp" style="background:#EFEDE4;color:#F2A007">Meridian</div><span>Beacon on Chalk</span><em>1.8:1</em><i class="v-bad">Never for text</i></div></div>
+  <p class="sm" style="margin-top:2.4cqw"><b>Tide on Chalk is for headings at 24 px and up.</b> <b>Beacon is a shape colour, not a text colour.</b> Both rules came out of the arithmetic, not out of taste.</p><span class="num">17</span></section>
+
+    <section aria-label="Slide 18, 04 · Typography" class="slide div"><p class="chno">04</p><h2 class="chname">Typography</h2><ul class="sublist"><li>The typefaces</li><li>The scale</li><li>Type in use</li></ul><span class="num">18</span></section>
+
+    <section class="slide light" aria-label="Slide 19, The typefaces">
+  <span class="bdg">The system</span><h2 style="margin-top:2cqw">Two faces, two jobs</h2>
+  <div class="faces" style="margin-top:3cqw">
+    <div><p class="cap" style="margin:0 0 1.2cqw">Archivo · display · 500 600 700</p>
+      <p class="alpha a">ABCDEFGHIJKLM<br>abcdefghijklm 0123456789</p>
+      <p class="sm" style="margin-top:1.4cqw">Headings, the wordmark and any number a reader has to compare. Its figures are why it was chosen.</p></div>
+    <div><p class="cap" style="margin:0 0 1.2cqw">Literata · text · 400 500</p>
+      <p class="alpha b">ABCDEFGHIJKLM<br>abcdefghijklm 0123456789</p>
+      <p class="sm" style="margin-top:1.4cqw">Anything read for more than a line. It holds up in long reports and prints well on uncoated stock.</p></div>
+  </div><span class="num">19</span></section>
+
+    <section class="slide light" aria-label="Slide 20, The scale">
+  <span class="bdg">The system</span><h2 style="margin-top:2cqw">Seven steps</h2>
+  <div class="scale" style="margin-top:2.4cqw">
+    <div class="sr"><span class="t-d">Power from the predictable sea</span><em>Display · 58 / 59</em></div>
+    <div class="sr"><span class="t-1">Fifty years of tide tables</span><em>H1 · 38 / 42</em></div>
+    <div class="sr"><span class="t-2">The turbine and the estuary</span><em>H2 · 26 / 30</em></div>
+    <div class="sr"><span class="t-b">The tide is the only renewable source you can put in a diary.</span><em>Body · 17 / 27</em></div>
+  </div>
+  <p class="sm" style="margin-top:2.4cqw">Every size, weight, line height and tracking value is read from the token file, so the specimen and the running website cannot drift apart.</p><span class="num">20</span></section>
+
+    <section class="slide chalkbg" aria-label="Slide 21, Type in use">
+  <p class="eye" style="color:var(--tide);opacity:1">Estuary programme</p>
+  <h2 style="font-size:6cqw;max-width:17ch">The moon keeps an appointment.</h2>
+  <p class="lede" style="max-width:52ch;font-size:2.4cqw">Wind drops and the sun sets. The tide does neither. It is the only renewable source that can be written into a diary four years ahead, which is why a lagoon can be scheduled against a grid and a wind farm cannot.</p>
+  <p class="cap" style="margin-top:3.4cqw"><span class="bdg yours" style="opacity:.7">Yours</span> · the system sets the page, the words are the part nobody can copy</p><span class="num">21</span></section>
+
+    <section aria-label="Slide 22, 05 · Graphic language" class="slide div"><p class="chno">05</p><h2 class="chname">Graphic language</h2><ul class="sublist"><li>The swell</li><li>Density and colour</li><li>The icon grid</li><li>The icon set</li></ul><span class="num">22</span></section>
+
+    <section class="slide " aria-label="Slide 23, The swell">
+  <div class="two wide">
+    <div><span class="bdg once">Set once</span><h2 style="margin-top:2cqw">The swell</h2>
+      <p class="lede">The mark's own tide line, with the ring taken away and the curve repeated in offset rows.</p>
+      <p class="sm" style="margin-top:2cqw">Nothing new is invented, which is why it belongs to Meridian and could not belong to anybody else. <b>You decided this once.</b> The system cuts every tile, density and colourway from it.</p></div>
+    <div><svg viewBox="0 0 300 190" class="fill" role="img" aria-label="The swell pattern, three densities.">
+      <rect width="300" height="190" fill="url(#p-chalk)"/></svg>
+      <p class="cap">Chalk on Deep · medium</p></div>
+  </div><span class="num">23</span></section>
+
+    <section class="slide light" aria-label="Slide 24, Density">
+  <span class="bdg">The system</span><h2 style="margin-top:2cqw">One rule, three densities</h2>
+  <p class="sm" style="margin-top:1.4cqw">The repeat is tied to the size of the thing it sits on, so a card and a hoarding carry the same visual weight rather than the same measurement.</p>
+  <div class="three" style="margin-top:2.6cqw">
+    <div class="cell"><svg viewBox="0 0 200 120" class="fill" aria-hidden="true"><rect width="200" height="120" fill="#EFEDE4"/><rect width="200" height="120" fill="url(#p-fine)"/></svg><p class="cap">Fine · under A5</p></div>
+    <div class="cell"><svg viewBox="0 0 200 120" class="fill" aria-hidden="true"><rect width="200" height="120" fill="#EFEDE4"/><rect width="200" height="120" fill="url(#p-med)"/></svg><p class="cap">Medium · A5 to A1</p></div>
+    <div class="cell"><svg viewBox="0 0 200 120" class="fill" aria-hidden="true"><rect width="200" height="120" fill="#EFEDE4"/><rect width="200" height="120" fill="url(#p-coarse)"/></svg><p class="cap">Coarse · above A1</p></div>
+  </div>
+  <p class="sm" style="margin-top:2.4cqw">Seamless in both directions, so it cuts to any shape without a join. <b>Beacon appears only on Deep</b>, because on Chalk it measures 1.8:1.</p><span class="num">24</span></section>
+
+    <section class="slide " aria-label="Slide 25, The icon grid">
+  <div class="two wide">
+    <div><span class="bdg">The system</span><h2 style="margin-top:2cqw">Icons inherit the mark</h2>
+      <p class="lede">Three numbers carry across, and they are why the set looks like it belongs here.</p>
+      <div class="rowset" style="margin-top:2cqw">
+        <div class="r"><div><b>The margin</b><span>1 in 12 for the mark, 2 in 24 for an icon. Same fraction.</span></div></div>
+        <div class="r"><div><b>The stroke</b><span>0.9 in a 12 box becomes 1.8 in a 24 box.</span></div></div>
+        <div class="r"><div><b>The curve</b><span>1.25 times the box, everywhere. In the mark that is 150. In an icon it is 30.</span></div></div>
+      </div></div>
+    <div><svg viewBox="0 0 200 175" class="fill" role="img" aria-label="An icon on its 24 unit grid with the live area and stroke marked.">
+      <g stroke="var(--chalk)" stroke-width=".4" opacity=".22"><path d="M25 25h120M25 50h120M25 75h120M25 100h120M25 125h120M25 145h120"/><path d="M25 25v120M50 25v120M75 25v120M100 25v120M125 25v120M145 25v120"/></g>
+      <rect x="25" y="25" width="120" height="120" fill="none" stroke="var(--chalk)" stroke-width=".9" opacity=".55"/>
+      <rect x="35" y="35" width="100" height="100" fill="none" stroke="var(--beacon)" stroke-width=".9" stroke-dasharray="3 2.5"/>
+      <g fill="none" stroke="var(--chalk)" stroke-width="9" stroke-linecap="round"><path d="M40 72.5 A150 150 0 0 1 130 72.5"/><path d="M40 100 A150 150 0 0 1 130 100"/><path d="M40 127.5 A150 150 0 0 1 130 127.5"/></g>
+      <text x="85" y="18" class="dx" fill="var(--chalk)" text-anchor="middle" opacity=".6">24 box</text>
+      <text x="152" y="38" class="dx" fill="var(--beacon)">20 live</text>
+      <text x="85" y="163" class="dx" fill="var(--chalk)" text-anchor="middle" opacity=".6">every curve r = 1.25 × box</text>
+    </svg></div>
+  </div><span class="num">25</span></section>
+
+    <section class="slide light" aria-label="Slide 26, The icon set">
+  <span class="bdg once">Set once</span><h2 style="margin-top:2cqw">You draw them. It keeps them.</h2>
+  <div class="iconrow" style="margin-top:3.4cqw"><div><svg viewBox="0 0 24 24" style="width:3.2cqw;height:3.2cqw" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9.5 A30 30 0 0 1 21 9.5"/><path d="M3 15 A30 30 0 0 1 21 15"/><path d="M3 20.5 A30 30 0 0 1 21 20.5"/></svg></div><div><svg viewBox="0 0 24 24" style="width:3.2cqw;height:3.2cqw" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.2"/><path d="M12 9.8V3"/><path d="M10.1 13.1 4.2 16.5"/><path d="M13.9 13.1 19.8 16.5"/></svg></div><div><svg viewBox="0 0 24 24" style="width:3.2cqw;height:3.2cqw" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2.5 6 13.5h5.4L11 21.5 18 11h-5.4z"/></svg></div><div><svg viewBox="0 0 24 24" style="width:3.2cqw;height:3.2cqw" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 15.6A9.5 9.5 0 1 1 8.9 4 A11 11 0 0 0 20.5 15.6z"/></svg></div><div><svg viewBox="0 0 24 24" style="width:3.2cqw;height:3.2cqw" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.5 2.5H6.5a1.5 1.5 0 0 0-1.5 1.5v16a1.5 1.5 0 0 0 1.5 1.5h11a1.5 1.5 0 0 0 1.5-1.5V8z"/><path d="M13.5 2.5V8H19"/><path d="M8.5 13h7"/><path d="M8.5 17h4.5"/></svg></div><div><svg viewBox="0 0 24 24" style="width:3.2cqw;height:3.2cqw" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 10c0 5.2-7 11.5-7 11.5S5 15.2 5 10a7 7 0 1 1 14 0z"/><circle cx="12" cy="10" r="2.4"/></svg></div><div><svg viewBox="0 0 24 24" style="width:3.2cqw;height:3.2cqw" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.2 22.2 20.4H1.8z"/><path d="M12 9.5v4.8"/><path d="M12 17.3h.01"/></svg></div><div><svg viewBox="0 0 24 24" style="width:3.2cqw;height:3.2cqw" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v11.2"/><path d="M7.6 10 12 14.4 16.4 10"/><path d="M4 17.5v2a1.5 1.5 0 0 0 1.5 1.5h13a1.5 1.5 0 0 0 1.5-1.5v-2"/></svg></div></div>
+  <p class="sm" style="margin-top:3.4cqw">The system exports every size a platform asks for, and <b>refuses an icon whose stroke, cap or curve radius breaks the rule</b>. That refusal is the whole value, because a set falls apart at the twentieth icon rather than the eighth.</p><span class="num">26</span></section>
+
+    <section aria-label="Slide 27, 06 · Motion" class="slide div"><p class="chno">06</p><h2 class="chname">Motion</h2><ul class="sublist"><li>The curve and the durations</li><li>The mark in motion</li></ul><span class="num">27</span></section>
+
+    <section class="slide " aria-label="Slide 28, Motion curves">
+  <div class="two">
+    <div><span class="bdg once">Set once</span><h2 style="margin-top:2cqw">It moves like water</h2>
+      <p class="lede">Never starting or stopping abruptly. A circular curve, from the same geometry as the tide line taken over a longer sweep.</p>
+      <div class="durs" style="margin-top:2.4cqw">
+        <div class="dr"><b>Quick</b><em>160</em><span>hover, focus</span></div>
+        <div class="dr"><b>Base</b><em>280</em><span>most things</span></div>
+        <div class="dr"><b>Considered</b><em>480</em><span>panels, pages</span></div>
+        <div class="dr"><b>Slow</b><em>900</em><span>the mark, once</span></div>
+      </div></div>
+    <div class="two" style="gap:3cqw">
+      <div><svg viewBox="-8 -8 116 116" class="fill" role="img" aria-label="Tide out easing curve"><rect width="100" height="100" fill="none" stroke="var(--chalk)" stroke-width=".9" opacity=".28"/><path d="M0 100 C0 45, 45 0, 100 0" fill="none" stroke="var(--tide)" stroke-width="3"/></svg>
+        <p class="cap">Tide out · arrivals</p></div>
+      <div><svg viewBox="-8 -8 116 116" class="fill" role="img" aria-label="Tide through easing curve"><rect width="100" height="100" fill="none" stroke="var(--chalk)" stroke-width=".9" opacity=".28"/><path d="M0 100 C85 100, 15 0, 100 0" fill="none" stroke="var(--beacon)" stroke-width="3"/></svg>
+        <p class="cap">Tide through · travel</p></div>
+    </div>
+  </div><span class="num">28</span></section>
+
+    <section class="slide " aria-label="Slide 29, The mark in motion">
+  <div class="two">
+    <div><span class="bdg">The system</span><h2 style="margin-top:2cqw">The build</h2>
+      <p class="lede">The ring draws from the top, then the tide rises to its line while the ring is still finishing.</p>
+      <p class="sm" style="margin-top:2cqw"><b>It does not loop and it never plays twice in a session.</b> Meridian sells predictability, so the brand does not fidget.</p>
+      <button class="replay" id="replay" type="button">Replay</button></div>
+    <div style="display:flex;align-items:center;justify-content:center">
+      <svg id="build" viewBox="0 0 120 120" style="width:44%;height:auto" role="img" aria-label="The Meridian mark at rest. Press replay to see the ring draw and the tide rise.">
+        <defs><clipPath id="rc"><circle cx="60" cy="60" r="46"/></clipPath></defs>
+        <g clip-path="url(#rc)"><path class="rise" d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z" fill="var(--chalk)"/></g>
+        <circle class="ring" cx="60" cy="60" r="50" fill="none" stroke="var(--chalk)" stroke-width="9" transform="rotate(-90 60 60)"/>
+      </svg>
+    </div>
+  </div><span class="num">29</span></section>
+
+    <section aria-label="Slide 30, 07 · Imagery" class="slide div"><p class="chno">07</p><h2 class="chname">Imagery</h2><ul class="sublist"><li>Photographic direction</li><li>The scrim rule</li><li>Illustration</li></ul><span class="num">30</span></section>
+
+    <section class="slide " aria-label="Slide 31, Photographic direction">
+  <span class="bdg yours">Yours</span><h2 style="margin-top:2cqw">Work, not weather</h2>
+  <div class="rowset" style="margin-top:2.6cqw">
+    <div class="r"><div><b>The sea is the industry, not the subject</b><span>The concrete pour, the crew on the causeway, the tide gauge being read. If a picture could sit in any renewables brochure, it is the wrong picture.</span></div></div>
+    <div class="r"><div><b>Daylight, and whatever weather it is</b><span>Nothing at golden hour, nothing in a storm. Meridian sells predictability and a dramatic sky argues against the product.</span></div></div>
+    <div class="r"><div><b>People are working, not posing</b><span>Nobody looks at the camera and nobody wears a hard hat they do not need.</span></div></div>
+  </div>
+  <p class="sm" style="margin-top:2.6cqw">No rule produces this. It is a brief, and it is the section that tells a client who you think they are.</p><span class="num">31</span></section>
+
+    <section class="slide " aria-label="Slide 32, The scrim rule">
+  <div class="two wide">
+    <div><span class="bdg">The system</span><h2 style="margin-top:2cqw">The part that is arithmetic</h2>
+      <p class="lede">The direction cannot be automated. The measuring can, and it is the thing people actually get wrong.</p>
+      <p class="sm" style="margin-top:2cqw">The system reads the pixels under the mark, works out the real contrast and raises a Deep scrim until it clears <b>4.5:1</b>. On a bright sky that lands near 65 percent. <b>A layout that fails is not published.</b></p></div>
+    <div class="two" style="gap:2.4cqw">
+      <div><div class="frame"><svg viewBox="0 0 200 130" class="fill" aria-hidden="true"><rect width="200" height="130" fill="url(#g-sky)"/><rect width="200" height="130" fill="url(#p-med)" opacity=".14"/></svg><div class="over"><svg viewBox="0 0 120 120" class="mk s44 chalkC" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="9"/><path d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z" fill="currentColor"/></svg></div></div><p class="pok no">1.1:1 · rejected</p></div>
+      <div><div class="frame"><svg viewBox="0 0 200 130" class="fill" aria-hidden="true"><rect width="200" height="130" fill="url(#g-sky)"/><rect width="200" height="130" fill="url(#p-med)" opacity=".14"/></svg><div class="scrim"></div><div class="over"><svg viewBox="0 0 120 120" class="mk s44 chalkC" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="9"/><path d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z" fill="currentColor"/></svg></div></div><p class="pok yes">4.6:1 · passes</p></div>
+    </div>
+  </div><span class="num">32</span></section>
+
+    <section class="slide" aria-label="Slide 33, Illustration">
+      <div class="two">
+        <div>
+          <span class="bdg yours">Yours</span>
+          <h2 style="margin-top:2cqw">Illustration is a taste</h2>
+          <p class="lede">No rule decides what to draw. A system can hold every constraint around an illustration and still have nothing to say about the picture inside them.</p>
+        </div>
+        <div>
+          <p class="cap" style="margin:0 0 1.4cqw">What it still enforces</p>
+          <div class="rowset" style="margin-top:0">
+            <div class="r"><div><b>The palette</b><span>Only the five, in the approved pairings.</span></div></div>
+            <div class="r"><div><b>The stroke</b><span>1.8 at icon scale, held proportionally at any size.</span></div></div>
+            <div class="r"><div><b>The curve</b><span>1.25 times the box, the same ratio as the mark.</span></div></div>
+            <div class="r"><div><b>The crop and the export</b><span>Every ratio and size, cut automatically.</span></div></div>
+          </div>
+          <p class="sm" style="margin-top:2.2cqw">Which is a real amount of help, and none of it is the drawing.</p>
+        </div>
+      </div>
+      
+    <span class="num">33</span></section>
+
+    <section aria-label="Slide 34, 08 · Voice" class="slide div"><p class="chno">08</p><h2 class="chname">Voice</h2><ul class="sublist"><li>How Meridian sounds</li><li>What the system checks</li></ul><span class="num">34</span></section>
+
+    <section class="slide light" aria-label="Slide 35, How it sounds">
+  <span class="bdg yours">Yours</span><h2 style="margin-top:2cqw">Say the number</h2>
+  <p class="sm" style="margin-top:1.4cqw">Meridian sells predictability, so a vague claim undoes the product. Never claim the future. No weather metaphors, ever.</p>
+  <div class="says" style="margin-top:2.6cqw">
+    <div class="sy"><p class="l">Say</p><q>The lagoon produced 41 MW on average across 2030.</q></div>
+    <div class="sn"><p class="l">Not</p><q>The lagoon delivered outstanding performance last year.</q></div>
+    <div class="sy"><p class="l">Say</p><q>We have not built at this depth before.</q></div>
+    <div class="sn"><p class="l">Not</p><q>We are pioneering unprecedented depths.</q></div>
+  </div><span class="num">35</span></section>
+
+    <section class="slide light" aria-label="Slide 36, The checker">
+  <span class="bdg">The system</span><h2 style="margin-top:2cqw">Seven flags, five of them certain</h2>
+  <div class="copy" style="margin-top:2.4cqw">
+    <span class="fl">MERIDIAN&#39;S</span> <span class="fl">Estuary Programme Delivered Outstanding Results In 2030</span>. The lagoon <span class="fl">utilised</span> four turbines to generate <span class="fl">41 megawatts</span> on average, and we <span class="fl">will revolutionise</span> coastal power by <span class="fl">03/04/31</span>.
+  </div>
+  <p class="sm" style="margin-top:2.4cqw">The name, the case, the lexicon, the unit and the date format are <b>exact</b>, because they are string matching. Two flags are marked as a <b>judgement</b>, because the checker can find the word and cannot tell you whether what replaces it is any good.</p>
+  <div class="copy fix" style="margin-top:1.8cqw">The estuary programme produced 41 MW on average across 2030. The next site is scheduled for 3 April 2031.</div>
+  <p class="cap" style="margin-top:1.6cqw">The rewrite was done by a person</p><span class="num">36</span></section>
+
+    <section aria-label="Slide 37, 09 · Data and charts" class="slide div"><p class="chno">09</p><h2 class="chname">Data and charts</h2><ul class="sublist"><li>Three series, then stop</li><li>The rules applied</li></ul><span class="num">37</span></section>
+
+    <section class="slide" aria-label="Slide 38, Data viz · the rule">
+      <span class="bdg">The system</span>
+      <h2 style="margin-top:2cqw">Three series, then stop</h2>
+      <p class="lede">A five colour palette does not make six chart series. Inventing a sixth hue is where brand systems go wrong, so the rule refuses instead.</p>
+      <div class="rowset" style="margin-top:2.4cqw">
+        <div class="r"><div><b>Tide carries the data</b><span>One series, and the default for any single measure.</span></div><span class="cap" style="margin:0">#1E7A8C</span></div>
+        <div class="r"><div><b>Slate carries the comparison</b><span>Last year, the forecast, the benchmark. Always recessive.</span></div><span class="cap" style="margin:0">#5C6B70</span></div>
+        <div class="r"><div><b>Beacon marks one value</b><span>The peak, the breach, the thing being discussed. Never a series.</span></div><span class="cap" style="margin:0">#F2A007</span></div>
+      </div>
+      <p class="sm" style="margin-top:2.6cqw"><b>Past three series, facet into small multiples.</b> Labels are set in Deep or Slate and never in the series colour, which follows from the contrast work in 2.3 rather than from taste.</p>
+      
+    <span class="num">38</span></section>
+
+    <section class="slide" aria-label="Slide 39, Data viz · applied">
+      <div class="two wide">
+        <div>
+          <span class="bdg">The system</span>
+          <h2 style="margin-top:2cqw">The rules, applied</h2>
+          <p class="lede">One series in Tide. November in Beacon because it is the value being discussed. The mean as a hairline, and every label in Chalk rather than in the series colour.</p>
+          <p class="sm" style="margin-top:2cqw">Nobody chose these colours for this chart. They came out of section 2 with the contrast already checked.</p>
+        </div>
+        <div>
+          <svg viewBox="0 0 620 250" class="fill" role="img" aria-label="Bar chart of monthly mean output for the lagoon in 2030. Twelve months, peaking at 47 megawatts in November, with a mean of 41 megawatts.">
+            <line x1="46" y1="20" x2="600" y2="20" stroke="var(--chalk)" stroke-width=".8" opacity=".16"/>
+            <line x1="46" y1="120" x2="600" y2="120" stroke="var(--chalk)" stroke-width=".8" opacity=".16"/>
+            <line x1="46" y1="220" x2="600" y2="220" stroke="var(--chalk)" stroke-width="1" opacity=".45"/>
+            <text x="38" y="24" class="ck" text-anchor="end">50</text>
+            <text x="38" y="124" class="ck" text-anchor="end">25</text>
+            <text x="38" y="224" class="ck" text-anchor="end">0</text>
+            <rect x="52.5" y="48.0" width="33.2" height="172.0" fill="var(--tide)" rx="2"/>
+          <text x="69.1" y="238" class="cx" text-anchor="middle">J</text>
+          <rect x="98.7" y="60.0" width="33.2" height="160.0" fill="var(--tide)" rx="2"/>
+          <text x="115.2" y="238" class="cx" text-anchor="middle">F</text>
+          <rect x="144.8" y="36.0" width="33.2" height="184.0" fill="var(--tide)" rx="2"/>
+          <text x="161.4" y="238" class="cx" text-anchor="middle">M</text>
+          <rect x="191.0" y="52.0" width="33.2" height="168.0" fill="var(--tide)" rx="2"/>
+          <text x="207.6" y="238" class="cx" text-anchor="middle">A</text>
+          <rect x="237.2" y="68.0" width="33.2" height="152.0" fill="var(--tide)" rx="2"/>
+          <text x="253.8" y="238" class="cx" text-anchor="middle">M</text>
+          <rect x="283.3" y="80.0" width="33.2" height="140.0" fill="var(--tide)" rx="2"/>
+          <text x="299.9" y="238" class="cx" text-anchor="middle">J</text>
+          <rect x="329.5" y="84.0" width="33.2" height="136.0" fill="var(--tide)" rx="2"/>
+          <text x="346.1" y="238" class="cx" text-anchor="middle">J</text>
+          <rect x="375.7" y="76.0" width="33.2" height="144.0" fill="var(--tide)" rx="2"/>
+          <text x="392.2" y="238" class="cx" text-anchor="middle">A</text>
+          <rect x="421.8" y="56.0" width="33.2" height="164.0" fill="var(--tide)" rx="2"/>
+          <text x="438.4" y="238" class="cx" text-anchor="middle">S</text>
+          <rect x="468.0" y="40.0" width="33.2" height="180.0" fill="var(--tide)" rx="2"/>
+          <text x="484.6" y="238" class="cx" text-anchor="middle">O</text>
+          <rect x="514.2" y="32.0" width="33.2" height="188.0" fill="var(--beacon)" rx="2"/>
+          <text x="530.8" y="238" class="cx" text-anchor="middle">N</text>
+          <rect x="560.3" y="40.0" width="33.2" height="180.0" fill="var(--tide)" rx="2"/>
+          <text x="576.9" y="238" class="cx" text-anchor="middle">D</text>
+          <line x1="46" y1="56.0" x2="600" y2="56.0" stroke="var(--chalk)" stroke-width="1.2" stroke-dasharray="5 4" opacity=".65"/>
+          <line x1="46" y1="9" x2="66" y2="9" stroke="var(--chalk)" stroke-width="1.2" stroke-dasharray="5 4" opacity=".65"/><text x="72" y="13" class="cx">mean 41 MW</text>
+          <text x="530.8" y="27.0" class="cpk" text-anchor="middle">47</text>
+          </svg>
+          <p class="cap">Lagoon output 2030 · monthly mean · MW</p>
+        </div>
+      </div>
+      
+    <span class="num">39</span></section>
+
+    <section aria-label="Slide 40, 10 · Applications and templates" class="slide div"><p class="chno">10</p><h2 class="chname">Applications and templates</h2><ul class="sublist"><li>Icons and avatars</li><li>The brand on things</li><li>Templates</li></ul><span class="num">40</span></section>
+
+    <section class="slide " aria-label="Slide 41, Applications">
+  <div class="two">
+    <div><span class="bdg">The system</span><h2 style="margin-top:2cqw">Cut at every size</h2>
+      <p class="lede">App icons, avatars, touch icons and favicons, with each platform's safe area applied. When a platform changes a size, these change with it.</p>
+      <div class="icons2" style="margin-top:2.6cqw">
+        <div><div class="sq r22" style="width:6.4cqw;height:6.4cqw"><svg viewBox="0 0 120 120" class="mk s34 chalkC" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="9"/><path d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z" fill="currentColor"/></svg></div><span class="cap">1024</span></div>
+        <div><div class="sq rf" style="width:4.6cqw;height:4.6cqw"><svg viewBox="0 0 120 120" class="mk s24 chalkC" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="9"/><path d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z" fill="currentColor"/></svg></div><span class="cap">400</span></div>
+        <div><div class="sq r22" style="width:3.4cqw;height:3.4cqw"><svg viewBox="0 0 120 120" class="mk s18 chalkC" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="9"/><path d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z" fill="currentColor"/></svg></div><span class="cap">180</span></div>
+      </div></div>
+    <div><span class="bdg yours">Yours</span><h2 style="margin-top:2cqw;font-size:3.4cqw">The brand on things</h2>
+      <p class="sm" style="margin-top:1.6cqw">You fill these from your own mockups. The system sizes each frame, labels it, and crops what you drop in.</p>
+      <div class="slots" style="margin-top:2cqw">
+        <div class="slot"><b>Signage</b><span>3:2</span></div><div class="slot"><b>Stationery</b><span>4:3</span></div>
+        <div class="slot"><b>Livery</b><span>16:9</span></div><div class="slot"><b>Hoarding</b><span>21:9</span></div>
+      </div></div>
+  </div><span class="num">41</span></section>
+
+    <section class="slide light" aria-label="Slide 42, Templates · the set">
+      <span class="bdg">The system</span>
+      <h2 style="margin-top:2cqw">Templates are just layout</h2>
+      <p class="lede">Every one of these is the type scale, the palette and the clear space rule arranged on a page. They come out of the same engine that made the manual.</p>
+      <div class="rowset" style="margin-top:2cqw">
+        <div class="r"><div><b>Letterhead and continuation sheet</b></div><span class="cap" style="margin:0">A4 · print + PDF</span></div>
+        <div class="r"><div><b>Email signature</b></div><span class="cap" style="margin:0">HTML · 3 variants</span></div>
+        <div class="r"><div><b>Invoice and statement</b></div><span class="cap" style="margin:0">A4 · tokenised</span></div>
+        <div class="r"><div><b>Deck master and title slides</b></div><span class="cap" style="margin:0">16:9 · 12 layouts</span></div>
+        <div class="r"><div><b>Report cover and running head</b></div><span class="cap" style="margin:0">A4 · print</span></div>
+        <div class="r"><div><b>Business card</b></div><span class="cap" style="margin:0">85 × 55 mm</span></div>
+      </div>
+      
+    <span class="num">42</span></section>
+
+    <section class="slide pale" aria-label="Slide 43, Templates · letterhead">
+      <div class="two">
+        <div>
+          <span class="bdg">The system</span>
+          <h2 style="margin-top:2cqw">One of them, drawn</h2>
+          <p class="lede">The mark sits at its clear space from the trim. The address is the Small step from 3.2. The rule at the foot is the swell at fine density.</p>
+          <p class="sm" style="margin-top:2cqw">Change the mark and this page is correct again without anybody opening it.</p>
+        </div>
+        <div style="display:flex;justify-content:center">
+          <div class="paper" style="width:74%">
+            <div class="top" style="color:var(--deep)"><svg viewBox="0 0 120 120" class="mk" aria-hidden="true"><circle cx="60" cy="60" r="50" fill="none" stroke="currentColor" stroke-width="9"/><path d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z" fill="currentColor"/></svg><span class="wm">Meridian</span></div>
+            <div class="body">
+              <p style="margin:0 0 1.4cqw">3 April 2031</p>
+              <div class="ln"></div><div class="ln"></div><div class="ln" style="width:82%"></div>
+              <div class="ln" style="margin-top:2cqw"></div><div class="ln"></div><div class="ln"></div><div class="ln" style="width:64%"></div>
+              <div class="ln" style="margin-top:2cqw"></div><div class="ln" style="width:74%"></div>
+            </div>
+            <svg viewBox="0 0 300 16" style="width:100%;height:auto;margin-bottom:1.4cqw" aria-hidden="true">
+              <g fill="none" stroke="#0A2A33" stroke-width="1.1" opacity=".3" stroke-linecap="round">
+                <path d="M0 11 A150 150 0 0 1 100 11"/><path d="M100 11 A150 150 0 0 1 200 11"/><path d="M200 11 A150 150 0 0 1 300 11"/>
+              </g>
+            </svg>
+            <p class="foot">Meridian · Estuary House · Cardiff</p>
+          </div>
+        </div>
+      </div>
+      
+    <span class="num">43</span></section>
+
+    <section aria-label="Slide 44, 11 · Assets" class="slide div"><p class="chno">11</p><h2 class="chname">Assets</h2><ul class="sublist"><li>What is in the package</li><li>The machine readable file</li></ul><span class="num">44</span></section>
+
+    <section class="slide light" aria-label="Slide 45, The package">
+  <div class="two wide">
+    <div><span class="bdg">The system</span><h2 style="margin-top:2cqw">172 files</h2>
+      <p class="lede">Every one cut from the same master at the moment you press export, so no old variant survives in a corner of the folder.</p>
+      <p class="sm" style="margin-top:2cqw"><b>The client keeps this whether or not anyone is still paying for the tool that made it.</b> That is the answer to every complaint about lock in.</p></div>
+    <div class="atab">
+      <div class="ar"><code>01-primary/</code><em>20</em></div><div class="ar"><code>03-mark/</code><em>20</em></div>
+      <div class="ar"><code>05-icons/</code><em>18</em></div><div class="ar"><code>09-pattern/</code><em>12</em></div>
+      <div class="ar"><code>10-icons/</code><em>26</em></div><div class="ar"><code>11-motion/</code><em>9</em></div>
+      <div class="ar"><code>guidelines.pdf</code><em>1</em></div><div class="ar"><code>brand.json</code><em>1</em></div>
+    </div>
+  </div><span class="num">45</span></section>
+
+    <section class="slide " aria-label="Slide 46, brand.json">
+  <span class="bdg">The system</span><h2 style="margin-top:2cqw">Readable by machines too</h2>
+  <p class="sm" style="margin-top:1.4cqw">Shipped beside the human document so the client's own tools can read the brand instead of guessing at it. None of the current guidelines platforms give you this.</p>
+  <pre style="margin-top:2.2cqw"><span class="k">{</span>
+  <span class="k">"colour"</span>: <span class="k">{</span> <span class="k">"beacon"</span>: <span class="k">{</span> <span class="k">"hex"</span>: <span class="s">"#F2A007"</span>, <span class="k">"textSafe"</span>: <span class="n">false</span>, <span class="k">"maxCoverage"</span>: <span class="n">0.03</span> <span class="k">}</span> <span class="k">}</span>,
+  <span class="k">"logo"</span>:  <span class="k">{</span> <span class="k">"clearSpace"</span>: <span class="s">"0.5r"</span>, <span class="k">"minSize"</span>: <span class="k">{</span> <span class="k">"screenPx"</span>: <span class="n">32</span> <span class="k">}</span> <span class="k">}</span>,
+  <span class="k">"icon"</span>:  <span class="k">{</span> <span class="k">"box"</span>: <span class="n">24</span>, <span class="k">"stroke"</span>: <span class="n">1.8</span>, <span class="k">"curveRadius"</span>: <span class="s">"1.25 * box"</span> <span class="k">}</span>,
+  <span class="k">"motion"</span>:<span class="k">{</span> <span class="k">"tideOut"</span>: <span class="s">"cubic-bezier(0, 0.55, 0.45, 1)"</span>, <span class="k">"loop"</span>: <span class="n">false</span> <span class="k">}</span>,
+  <span class="k">"voice"</span>: <span class="k">{</span> <span class="k">"case"</span>: <span class="s">"sentence"</span>, <span class="k">"banned"</span>: [<span class="s">"outstanding"</span>, <span class="s">"unprecedented"</span>] <span class="k">}</span>
+<span class="k">}</span></pre><span class="num">46</span></section>
+
+    <section class="slide light" aria-label="Slide 47, Two documents">
+  <span class="bdg">The point</span><h2 style="margin-top:2cqw">Same project, two documents</h2>
+  <p class="lede">This deck and the manual are not the same file in two shapes. They read the same project and they do different jobs.</p>
+  <div class="two" style="margin-top:3cqw">
+    <div class="rowset" style="margin-top:0"><div class="r"><div><b>The manual</b><span>Looked things up in. Every value, every diagram, every edge case. Nobody reads it start to finish.</span></div></div></div>
+    <div class="rowset" style="margin-top:0"><div class="r"><div><b>This deck</b><span>Presented. One idea a slide, the argument kept and the reference detail dropped.</span></div></div></div>
+  </div>
+  <p class="sm" style="margin-top:2.6cqw">Change the mark tonight and both are correct in the morning, because neither of them holds a copy of it.</p><span class="num">47</span></section>
+
+    <section class="slide light" aria-label="Slide 48, The tally">
+  <p class="eye">Part one and part two</p><h2>Thirty five sections</h2>
+  <div class="tally">
+    <div class="tc"><b>35</b><span>sections across both documents</span></div>
+    <div class="tc hi"><b>22</b><span>drawn by the system</span></div>
+    <div class="tc"><b>6</b><span>rules you set once</span></div>
+    <div class="tc"><b>7</b><span>written or placed by you</span></div>
+  </div>
+  <p class="sm" style="margin-top:3.4cqw">Two thirds of a brand system is drawn rather than decided.</p><span class="num">48</span></section>
+
+    <section class="slide " aria-label="Slide 49, Close">
+  <h2 style="font-size:4.6cqw;max-width:25ch">The system draws, measures, enforces and exports.</h2>
+  <h2 style="font-size:4.6cqw;max-width:25ch;color:var(--beacon);margin-top:1.4cqw">It has never once decided anything.</h2>
+  <p class="sm" style="margin-top:3.4cqw">What stays yours is not a list of chapters. It is the judgement inside every one of them.</p><span class="num">49</span></section>
+  </div>
+  <div class="ctrl">
+    <button class="btn" id="prev" type="button">← Prev</button>
+    <div class="dots" id="dots" role="tablist" aria-label="Slides"></div>
+    <button class="btn" id="next" type="button">Next →</button>
+    <span class="hint">Arrow keys</span>
+  </div>
+</div>
+
+<script>
+(function(){
+  var slides=[].slice.call(document.querySelectorAll('.slide')), titles=["Title", "Contents", "01 \u00b7 The mark", "The mark", "Construction", "Clear space and size", "The lockup system", "Misuse", "02 \u00b7 The mark with others", "Co-branding \u00b7 the rule", "Co-branding \u00b7 relationships", "Architecture \u00b7 the model", "Architecture \u00b7 lockups", "03 \u00b7 Colour", "The palette", "Proportion", "Contrast", "04 \u00b7 Typography", "The typefaces", "The scale", "Type in use", "05 \u00b7 Graphic language", "The swell", "Density", "The icon grid", "The icon set", "06 \u00b7 Motion", "Motion curves", "The mark in motion", "07 \u00b7 Imagery", "Photographic direction", "The scrim rule", "Illustration", "08 \u00b7 Voice", "How it sounds", "The checker", "09 \u00b7 Data and charts", "Data viz \u00b7 the rule", "Data viz \u00b7 applied", "10 \u00b7 Applications and templates", "Applications", "Templates \u00b7 the set", "Templates \u00b7 letterhead", "11 \u00b7 Assets", "The package", "brand.json", "Two documents", "The tally", "Close"];
+  var i=0,dots=document.getElementById('dots'),prev=document.getElementById('prev'),
+      next=document.getElementById('next'),ttl=document.getElementById('ttl');
+  slides.forEach(function(_,n){
+    var b=document.createElement('button');
+    b.className='dot'+(n===0?' on':''); b.type='button'; b.setAttribute('role','tab');
+    b.setAttribute('aria-label','Slide '+(n+1)+', '+titles[n]);
+    b.addEventListener('click',function(){go(n);}); dots.appendChild(b);
+  });
+  var de=[].slice.call(dots.children);
+  function go(n){
+    i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach(function(s,k){s.classList.toggle('on',k===i);});
+    de.forEach(function(d,k){d.classList.toggle('on',k===i);d.setAttribute('aria-selected',k===i);});
+    prev.disabled=(i===0); next.disabled=(i===slides.length-1);
+    ttl.textContent=(i+1)+' / '+slides.length+'  ·  '+titles[i];
+  }
+  prev.addEventListener('click',function(){go(i-1);});
+  next.addEventListener('click',function(){go(i+1);});
+  document.addEventListener('keydown',function(e){
+    if(e.key==='ArrowRight'||e.key==='PageDown'){go(i+1);e.preventDefault();}
+    if(e.key==='ArrowLeft'||e.key==='PageUp'){go(i-1);e.preventDefault();}
+    if(e.key==='Home'){go(0);e.preventDefault();}
+    if(e.key==='End'){go(slides.length-1);e.preventDefault();}
+  });
+  var rb=document.getElementById('replay'),bg=document.getElementById('build');
+  if(rb&&bg) rb.addEventListener('click',function(){
+    bg.classList.remove('run'); void bg.getBoundingClientRect().width; bg.classList.add('run');
+  });
+  go(0);
+})();
+</script>
