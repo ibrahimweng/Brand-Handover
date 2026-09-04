@@ -13,6 +13,8 @@ handover — derives a whole logo package from one master mark
   handover measure <project.json>          print what the master measures, write nothing
   handover check <artwork.svg>             report what is wrong with an export
   handover edit <project.json> [-o f]      write a self contained canvas editor
+  handover publish <project.json> <doc.json> [-o f]
+                                           publish an edited document as a page
 
 Both documents and every file come out of the same project, so a change to the
 master shows up in all of them at once.
@@ -83,6 +85,30 @@ async function main(argv) {
     fs.writeFileSync(target, html);
     console.log(`  wrote ${path.relative(process.cwd(), target)} (${(html.length / 1024).toFixed(0)} KB)`);
     console.log('  open it in a browser. No server and no build step: everything is inlined.');
+    return 0;
+  }
+
+  if (cmd === 'publish') {
+    const { measure } = require('./variants');
+    const { bundle, starterDoc } = require('./editor/bundle');
+    const { publish } = require('./editor/publish');
+    const docPath = argv[2] && !argv[2].startsWith('-') ? argv[2] : null;
+    const bu = bundle(project, measure(project), []);
+    let document;
+    if (docPath) {
+      try { document = JSON.parse(fs.readFileSync(docPath, 'utf8')); }
+      catch (e) { console.error(`could not read the document at ${docPath}: ${e.message}`); return 1; }
+      if (!document.pages || !document.pages.length) { console.error('that document has no pages in it'); return 1; }
+    } else {
+      document = starterDoc(bu);
+      console.log('  no document given, so publishing the one this project generates');
+    }
+    const oi3 = argv.indexOf('-o');
+    const target = path.resolve(oi3 > -1 && argv[oi3 + 1] ? argv[oi3 + 1] : 'published.html');
+    const html = publish(document, bu, { title: 'Guidelines' });
+    fs.writeFileSync(target, html);
+    console.log(`  published ${document.pages.length} page${document.pages.length === 1 ? '' : 's'} to ${path.relative(process.cwd(), target)} (${(html.length / 1024).toFixed(0)} KB)`);
+    console.log(`  every measurement in it was read off the master just now, not stored in the document`);
     return 0;
   }
 

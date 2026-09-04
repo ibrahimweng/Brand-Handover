@@ -14,8 +14,9 @@ around it.
     node src/cli.js measure projects/meridian/project.json
     node src/cli.js build   projects/meridian/project.json -o out
     node src/cli.js edit    projects/meridian/project.json -o editor.html
+    node src/cli.js publish projects/meridian/project.json out/document.json -o page.html
 
-The Meridian example writes 119 files in about four seconds, including both documents and the editor.
+The Meridian example writes 121 files in about four seconds, including both documents, the editor, the document it opens with, and that document published.
 
 ## What it measures
 
@@ -219,10 +220,40 @@ canvas, and this is where it gets paid.
 disagree about what a document is. Every change goes through `ops`, which is why
 undo is a stack of whole documents and no operation has to know undo exists.
 
+### Publishing, and why the loop is now closed
+
+The editor has **Open**, **Save JSON** and **Publish**. Publish writes a
+standalone page: the pages at their real size, a print stylesheet sized to the
+page so Cmd+P gives an exact PDF, and no dependency on the editor at all.
+
+`src/editor/publish.js` is the same UMD arrangement as the renderer, so the
+Publish button in the browser and `handover publish` on the server run the same
+code. That is tested by publishing an identical document in both places and
+comparing: **byte identical**.
+
+The loop it closes is this. A document holds layout and words. It holds no
+measurements at all, which a test checks by looking for them in the JSON. Every
+number comes from the bundle at publish time. So:
+
+    handover publish project.json document.json -o a.html
+    (thicken the ring in mark.svg from 9 to 14)
+    handover publish project.json document.json -o b.html
+
+    ink box     109 → 114
+    min size    32 px → 21 px
+
+Same document, same layout, new numbers. A block somebody nudged to `x: 40`
+is still at 40. Edit the mark at eleven at night and every page is right by
+morning without anyone reopening the editor, which is the thing the whole
+project was for.
+
+One trap, now covered by a test. `publish.js` contains a `</script>` in the page
+it generates. Inlined into the editor that closed the editor's own script block
+early and took the rest of the file with it, so it is escaped in the source. The
+test refuses a raw closing tag in any file that gets inlined.
+
 ### What the editor does not do yet
 
-- **Nothing is published from it.** Edits live in localStorage and Save writes a
-  JSON file. Turning a document back into `guidelines.html` is the next piece.
 - **Image slots are placeholders.** Dropping a file in is not wired up.
 - **No rule blocks.** The pattern, the icon grid and the motion curve are the
   third kind of block from the specimen and none of them is built.
@@ -251,7 +282,7 @@ undo is a stack of whole documents and no operation has to know undo exists.
     src/pdf.js        true vector PDF, and the .ai that is the same bytes
     src/export.js     icons, favicons, social crops and the zip
     src/documents/    blocks.js, chrome.js, index.js (manual), deck.js
-    src/editor/       model.js, render.js, app.js, bundle.js, emit.js
+    src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/naming.js     one naming rule for the whole package
     src/build.js      write the package, brand.json and the read me
     src/cli.js        check, measure and build

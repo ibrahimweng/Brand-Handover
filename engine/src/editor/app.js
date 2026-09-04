@@ -309,10 +309,34 @@
     change((d) => { M.ops.removePage(d, gone); });
     pageId = D().pages[0].id; selection = []; draw();
   };
-  $('#save').onclick = () => {
-    const blob = new Blob([JSON.stringify(D(), null, 2)], { type: 'application/json' });
-    const a = el('a'); a.href = URL.createObjectURL(blob); a.download = `${BUNDLE.brand.toLowerCase()}-document.json`; a.click();
+  $('#save').onclick = () => download(`${BUNDLE.brand.toLowerCase()}-document.json`,
+    JSON.stringify(D(), null, 2), 'application/json');
+  // Publish uses the same module the server uses, so what comes out of this
+  // button and what comes out of the command line are the same bytes.
+  const download = (name, text, mime) => {
+    const a = el('a');
+    a.href = URL.createObjectURL(new Blob([text], { type: mime }));
+    a.download = name; a.click(); URL.revokeObjectURL(a.href);
   };
+  $('#publish').onclick = () => {
+    const html = window.HandoverPublish.publish(D(), BUNDLE, { title: 'Guidelines' });
+    download(`${BUNDLE.brand.toLowerCase()}-guidelines.html`, html, 'text/html');
+  };
+  $('#open').onclick = () => $('#file').click();
+  $('#file').onchange = (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const next = JSON.parse(r.result);
+        if (!next || !Array.isArray(next.pages) || !next.pages.length) throw new Error('that file has no pages in it');
+        H.reset(next); pageId = D().pages[0].id; selection = []; persist(); draw(); fit();
+      } catch (err) { alert('That document could not be opened. ' + err.message); }
+    };
+    r.readAsText(f);
+    e.target.value = '';
+  };
+
   $('#reset').onclick = () => {
     if (!confirm('Throw away your edits and start from the document this project generated?')) return;
     H.reset(window.HANDOVER_DOC); pageId = D().pages[0].id; selection = []; persist(); draw();
@@ -322,6 +346,8 @@
   window.addEventListener('resize', fit);
   drawInsert(); draw(); fit();
   window.__handover = { get doc() { return D(); }, get selection() { return selection; },
+    publish: () => window.HandoverPublish.publish(D(), BUNDLE, { title: 'Guidelines', builtAt: 'test' }),
+    load: (d) => { H.reset(d); pageId = D().pages[0].id; selection = []; draw(); fit(); },
     select: (i) => { selection = [page().blocks[i].id]; drawOverlay(); drawPanel(); },
     setPage: (i) => { pageId = D().pages[i].id; selection = []; draw(); } };
 })();

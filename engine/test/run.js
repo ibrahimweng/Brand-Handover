@@ -110,7 +110,7 @@ test('the file count is exactly what the rules ask for', () => {
     + (r.faviconSizes || []).length + ((r.faviconSizes || []).length ? 1 : 0)  // favicons plus the .ico
     + Object.keys(r.social || {}).length                    // social crops
     + 2                                                     // brand.json and README.txt
-    + (r.documents === false ? 0 : 3)                       // the manual, the deck and the editor
+    + (r.documents === false ? 0 : 5)                       // manual, deck, editor, document.json, published.html
     + (r.zip === false ? 0 : 1);                            // the package itself
   assert.strictEqual(result.written.length, expected, `expected ${expected} files, got ${result.written.length}`);
 });
@@ -416,6 +416,74 @@ test('the editor and the exported document use the same renderer', () => {
   const html = editorHtml(project, m, []);
   assert.ok(html.includes(fs.readFileSync(path2, 'utf8').slice(200, 400)),
     'the editor inlines a different renderer than the one on disk');
+});
+
+console.log('\npublishing');
+const { publish } = require('../src/editor/publish');
+const pubDoc = starterDoc(bu);
+test('a published page holds every page of the document', () => {
+  const html = publish(pubDoc, bu, {});
+  const count = (html.match(/class="hp-page"/g) || []).length;
+  assert.strictEqual(count, pubDoc.pages.length);
+});
+test('the document stores layout, never a measurement', () => {
+  const json = JSON.stringify(pubDoc);
+  for (const n of [String(m.markInk.w), String(m.clearSpace), String(m.minimumSize.screenPx)]) {
+    assert.ok(!json.includes(`:${n},`) && !json.includes(`:${n}}`),
+      `the document has ${n} baked into it, so it would go stale`);
+  }
+});
+test('the same document republished after a change to the master says the new numbers', async () => {
+  const before = publish(pubDoc, bu, { builtAt: 'fixed' });
+  const thickSrc = project.assets.mark.source.replace('stroke-width="9"', 'stroke-width="14"');
+  const altered = Object.assign({}, project, {
+    assets: Object.assign({}, project.assets, { mark: Object.assign({}, project.assets.mark, { source: thickSrc }) }),
+  });
+  const m2 = measure(altered);
+  const after = publish(pubDoc, bundle(altered, m2, []), { builtAt: 'fixed' });
+  assert.notStrictEqual(m2.minimumSize.screenPx, m.minimumSize.screenPx, 'the master did not actually change');
+  assert.ok(before.includes(`${m.minimumSize.screenPx} px · the floor`), 'the first publish is wrong');
+  assert.ok(after.includes(`${m2.minimumSize.screenPx} px · the floor`), 'the republish did not pick up the change');
+  assert.ok(!after.includes(`${m.minimumSize.screenPx} px · the floor`), 'the old figure survived the republish');
+});
+test('a moved block stays moved when the master changes', async () => {
+  const moved = EM.clone(pubDoc);
+  moved.pages[1].blocks[1].x = 40;
+  const thickSrc = project.assets.mark.source.replace('stroke-width="9"', 'stroke-width="14"');
+  const altered = Object.assign({}, project, {
+    assets: Object.assign({}, project.assets, { mark: Object.assign({}, project.assets.mark, { source: thickSrc }) }),
+  });
+  const after = publish(moved, bundle(altered, measure(altered), []), {});
+  assert.ok(after.includes('left:40px'), 'the layout moved when only the artwork should have');
+});
+test('the published page closes its own script tag', () => {
+  const html = publish(pubDoc, bu, {});
+  assert.ok(!html.includes('<\\/script>'), 'the escape leaked into the output');
+  const opens = (html.match(/<script/g) || []).length, closes = (html.match(/<\/script>/g) || []).length;
+  assert.strictEqual(opens, closes, 'unbalanced script tags');
+});
+test('inlining publish into the editor does not close the editor script early', () => {
+  // Only a closing tag ends a script block, so that is the one to count. An
+  // opening tag inside an inlined string is harmless; a closing one truncates
+  // the editor and takes everything after it.
+  for (const f of ['model', 'render', 'publish', 'app']) {
+    const src = fs.readFileSync(require.resolve(`../src/editor/${f}`), 'utf8');
+    assert.ok(!/[^\\]<\/script>/.test(src),
+      `${f}.js has a raw closing script tag, which would truncate the editor when inlined`);
+  }
+  const html = editorHtml(project, m, []);
+  assert.ok(html.includes('HandoverPublish'), 'publish is not in the editor');
+  // model, render, publish, the bundle, then the app
+  const blocks = (fs.readFileSync(require.resolve('../src/editor/emit'), 'utf8').match(/<script>/g) || []).length;
+  assert.strictEqual((html.match(/<\/script>/g) || []).length, blocks,
+    'the editor does not close exactly the script blocks it opens');
+  // the app is inlined last, so if anything truncated it this would be missing
+  assert.ok(html.includes('window.__handover'), 'the editor was cut short before the app loaded');
+});
+test('text is escaped on the published page too', () => {
+  const d = EM.clone(pubDoc);
+  d.pages[0].blocks[2].props.text = '<script>alert(1)<\/script>';
+  assert.ok(!publish(d, bu, {}).includes('<script>alert(1)'), 'a text block injected markup into the published page');
 });
 
 console.log('\nregenerating from a changed master');

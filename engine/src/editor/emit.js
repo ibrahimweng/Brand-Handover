@@ -121,7 +121,9 @@ ${fontLink(bu.type)}
     <span class="sp"></span>
     <label class="ver">grid <select id="grid"><option>4</option><option selected>8</option><option>16</option><option value="0">off</option></select></label>
     <span id="zoom">100%</span>
+    <button id="open">Open</button>
     <button id="save">Save JSON</button>
+    <button id="publish">Publish</button>
     <button id="reset">Reset</button>
   </div>
   <div class="rail">
@@ -140,8 +142,10 @@ ${fontLink(bu.type)}
   <div id="canvas"><div id="stage"><div id="sheet"></div><div id="overlay"></div></div></div>
   <div class="side"><h4>Properties</h4><div id="panel"></div></div>
 </div>
+<input type="file" id="file" accept="application/json" hidden>
 <script>${read('model.js')}</script>
 <script>${read('render.js')}</script>
+<script>${read('publish.js')}</script>
 <script>window.HANDOVER_BUNDLE=${JSON.stringify(bu)};window.HANDOVER_DOC=${JSON.stringify(doc)};</script>
 <script>${read('app.js')}</script>
 </body></html>`;

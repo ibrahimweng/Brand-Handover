@@ -121,7 +121,13 @@ async function build(project, outDir, { log = () => {} } = {}) {
     write('guidelines.html', docs.guidelines(ctx));
     write('deck.html', deck(ctx));
     const { editorHtml } = require('./editor/emit');
+    const { bundle: mkBundle, starterDoc } = require('./editor/bundle');
+    const { publish } = require('./editor/publish');
+    const bu = mkBundle(project, measured, written.slice());
+    const document = starterDoc(bu);
     write('editor.html', editorHtml(project, measured, written.slice()));
+    write('document.json', JSON.stringify(document, null, 2));
+    write('published.html', publish(document, bu, { title: 'Guidelines' }));
   }
 
   // ---- one zip the client keeps, whoever is paying for what ----
