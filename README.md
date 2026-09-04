@@ -58,9 +58,9 @@ Everything sits on one SVG parser, and all of it is MIT or Apache 2.0.
 - Headless Chrome is the single layout engine, so the canvas editor, the
   published guidelines page and the printed PDF are the same HTML and cannot
   drift apart.
-- `Typst` is a later path for a printed piece laid out in the editor. It is not
-  needed for the logo assets: those are written here in ink directly, so the
-  PDFs are DeviceCMYK already.
+- `Typst` compiles a printed piece laid out in the editor. It is not needed for
+  the logo assets: those are written here in ink directly, so the PDFs are
+  DeviceCMYK already.
 
 Nothing here needs a paid API. Two optional models, for depth maps and cutouts,
 run locally.
@@ -71,7 +71,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 136 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 181 tests.
+of it. 202 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -112,6 +112,17 @@ formula knows about. Where a build has not been given the engine says so rather
 than inventing four numbers, and it checks total ink coverage and rich black
 before anything goes near a press.
 
-Still to do: Typst, for a printed piece laid out in the editor rather than for
-the assets, and a run on a real identity job — which is the next checkpoint and
-matters more than any further feature.
+A piece laid out on the canvas can go to a press. `handover print` writes it as
+Typst and compiles it: real page size, bleed and crop marks, every declared
+colour as ink and nothing in RGB. The mark is redrawn from its own path data
+rather than embedded, because Typst places an SVG as vector but paints it in
+RGB, and an RGB mark on a CMYK page is the uncontrolled conversion the whole
+print path exists to prevent.
+
+That makes two emitters in a project whose argument is that there is one, so it
+has a check rather than an assurance: the redrawn artwork is compared with the
+SVG renderer shape for shape, and the printed page with the published page area
+by area.
+
+Still to do: a run on a real identity job. That is the whole of what is left,
+and it matters more than any feature.

@@ -1042,6 +1042,198 @@ test('the manual will not present a guess as a fact', () => {
   assert.ok(/tide.*no build yet/s.test(docs.guidelines(ctx)), 'a missing build is not called out by name');
 });
 
+console.log('\npath translation');
+const PA = require('../src/paths');
+const at = (segs, i) => segs[i];
+
+test('every kind of command comes out as move, line or cubic', () => {
+  const segs = PA.parse('M10 10 H50 V50 L10 50 Z');
+  assert.deepStrictEqual(segs.map((s) => s.op), ['move', 'line', 'line', 'line', 'close']);
+  assert.deepStrictEqual(at(segs, 1).to, [50, 10]);
+  assert.deepStrictEqual(at(segs, 2).to, [50, 50]);
+});
+test('relative commands accumulate and close resets the pen', () => {
+  const segs = PA.parse('m10 10 l20 0 l0 20 z l5 5');
+  assert.deepStrictEqual(segs.map((s) => s.op), ['move', 'line', 'line', 'close', 'line']);
+  assert.deepStrictEqual(segs[2].to, [30, 30]);
+  assert.deepStrictEqual(segs[4].to, [15, 15], 'the pen did not go back to the start of the subpath');
+});
+test('a move followed by loose numbers continues as a line', () => {
+  assert.deepStrictEqual(PA.parse('M0 0 10 0 10 10').map((s) => s.op), ['move', 'line', 'line']);
+});
+test('a quadratic becomes exactly the same curve as a cubic', () => {
+  // both evaluated at the midpoint, where any error would show
+  const p0 = [0, 0], q = [10, 0], p1 = [10, 10];
+  const [c1, c2, to] = PA.quadToCubic(p0, q, p1);
+  const quad = (t) => [0, 1].map((i) =>
+    (1 - t) * (1 - t) * p0[i] + 2 * (1 - t) * t * q[i] + t * t * p1[i]);
+  const cubic = (t) => [0, 1].map((i) =>
+    Math.pow(1 - t, 3) * p0[i] + 3 * Math.pow(1 - t, 2) * t * c1[i]
+    + 3 * (1 - t) * t * t * c2[i] + t * t * t * to[i]);
+  for (const t of [0.25, 0.5, 0.75]) {
+    const a = quad(t), b = cubic(t);
+    assert.ok(Math.abs(a[0] - b[0]) < 1e-9 && Math.abs(a[1] - b[1]) < 1e-9, `they part company at t=${t}`);
+  }
+});
+test('a shorthand curve reflects the last control point', () => {
+  const segs = PA.parse('M0 0 C5 0 10 5 10 10 S20 20 20 10');
+  assert.deepStrictEqual(segs[2].c1, [10, 15], 'the reflection is wrong');
+  // and with no cubic before it, the control point is the current point
+  assert.deepStrictEqual(PA.parse('M5 5 S20 20 20 10')[1].c1, [5, 5]);
+});
+test('an arc is cut into quarter turns and lands where it should', () => {
+  // a half circle of radius 50, from the top of the mark's ring
+  const cubics = PA.arcToCubics([60, 10], 50, 50, 0, 1, 0, [60, 110]);
+  assert.strictEqual(cubics.length, 2, 'a half turn should be two pieces');
+  const end = cubics[cubics.length - 1][2];
+  assert.ok(Math.abs(end[0] - 60) < 0.01 && Math.abs(end[1] - 110) < 0.01, `it ended at ${end}`);
+  // and every control point stays within the circle's bounding box, give or take
+  for (const [c1, c2] of cubics) {
+    for (const p of [c1, c2]) {
+      assert.ok(p[0] > 5 && p[0] < 115 && p[1] > 5 && p[1] < 115, `a control point escaped: ${p}`);
+    }
+  }
+});
+test('radii too small for the endpoints are scaled up rather than refused', () => {
+  const c = PA.arcToCubics([0, 0], 1, 1, 0, 0, 1, [100, 0]);
+  assert.ok(c.length >= 1);
+  const end = c[c.length - 1][2];
+  assert.ok(Math.abs(end[0] - 100) < 0.01, 'the arc did not reach its endpoint');
+});
+test('an arc that goes nowhere draws nothing surprising', () => {
+  assert.deepStrictEqual(PA.arcToCubics([5, 5], 10, 10, 0, 0, 1, [5, 5]), [[[5, 5], [5, 5], [5, 5]]]);
+  assert.deepStrictEqual(PA.arcToCubics([0, 0], 0, 10, 0, 0, 1, [9, 9]), [[[9, 9], [9, 9], [9, 9]]]);
+});
+
+test('a group transform is composed, not ignored', () => {
+  // regression: a lockup keeps its parts in transformed groups, and paths
+  // scraped out without them drew on top of each other
+  const m = PA.parseTransform('translate(-5.5 -5.5) scale(1)');
+  assert.deepStrictEqual(PA.applyTo(m, [60, 10]), [54.5, 4.5]);
+  const both = PA.multiply(PA.parseTransform('translate(100 0)'), PA.parseTransform('scale(2)'));
+  assert.deepStrictEqual(PA.applyTo(both, [10, 10]), [120, 20], 'the order of composition is wrong');
+});
+test('every transform the artwork can carry is understood', () => {
+  assert.deepStrictEqual(PA.applyTo(PA.parseTransform('matrix(2 0 0 2 5 5)'), [1, 1]), [7, 7]);
+  const r = PA.applyTo(PA.parseTransform('rotate(90)'), [1, 0]);
+  assert.ok(Math.abs(r[0]) < 1e-9 && Math.abs(r[1] - 1) < 1e-9, `rotate(90) gave ${r}`);
+  const rc = PA.applyTo(PA.parseTransform('rotate(180 5 5)'), [0, 0]);
+  assert.ok(Math.abs(rc[0] - 10) < 1e-9 && Math.abs(rc[1] - 10) < 1e-9, `rotate about a centre gave ${rc}`);
+  assert.strictEqual(PA.scaleOf(PA.parseTransform('scale(3)')), 3);
+});
+test('a translated shape keeps its shape', () => {
+  const segs = PA.parse('M0 0 C5 0 10 5 10 10');
+  const moved = PA.transformSegs(segs, PA.parseTransform('translate(10 20)'));
+  assert.deepStrictEqual(moved[1].c1, [15, 20]);
+  assert.deepStrictEqual(moved[1].to, [20, 30]);
+  assert.strictEqual(PA.transformSegs([{ op: 'close' }], PA.parseTransform('scale(2)'))[0].op, 'close');
+});
+test('the smaller vocabulary says the same drawing', () => {
+  const d = 'M60 10a50 50 0 1 0 0 100 50 50 0 1 0 0-100z';
+  const again = PA.toPathData(PA.parse(d));
+  assert.ok(/^M60 10C/.test(again), again.slice(0, 20));
+  assert.ok(again.endsWith('Z'));
+  // and it survives a second pass unchanged, which a lossy translation would not
+  assert.strictEqual(PA.toPathData(PA.parse(again)), again);
+});
+
+console.log('\na printed piece');
+const TY = require('../src/typst');
+
+function piece(build) {
+  const d = EM.emptyDoc('Meridian');
+  EM.ops.setPageSize(d, null, 'a4');
+  build(d, d.pages[0], EM.sheet('a4'));
+  return TY.emit(d, bu, {});
+}
+
+test('a printed piece is not a manual, and says what it left out', () => {
+  const r = piece((d, p, sh) => {
+    p.blocks.push(EM.makeBlock('fill', { x: 0, y: 0, w: sh.w, h: sh.h }, sh));
+    p.blocks.push(EM.makeBlock('contrast', {}, sh));
+    p.blocks.push(EM.makeBlock('minimumSize', {}, sh));
+  });
+  assert.deepStrictEqual(r.refused.map((x) => x.type).sort(), ['contrast', 'minimumSize']);
+  assert.ok(!/contrast/.test(r.source), 'a refused block was half drawn anyway');
+});
+test('a declared colour is written as ink, and nothing else is', () => {
+  const r = piece((d, p, sh) => {
+    p.blocks.push(EM.makeBlock('fill', { x: 0, y: 0, w: sh.w, h: sh.h, props: { colour: 'primary' } }, sh));
+  });
+  assert.ok(r.source.includes('cmyk(88%, 58%, 45%, 72%)'), 'the declared build did not reach the page');
+  assert.ok(!/rgb\(/.test(r.source), 'a screen colour reached a printed piece');
+  assert.deepStrictEqual(r.screenColours, []);
+});
+test('a colour with no build is written as screen colour and reported', () => {
+  const thin = Object.assign({}, bu, { colours: Object.assign({}, bu.colours,
+    { deep: Object.assign({}, bu.colours.deep, { cmyk: null }) }) });
+  delete thin.__ink;
+  const d = EM.emptyDoc('Meridian');
+  EM.ops.setPageSize(d, null, 'a4');
+  d.pages[0].blocks.push(EM.makeBlock('fill', { props: { colour: 'primary' } }, EM.sheet('a4')));
+  const r = TY.emit(d, thin, {});
+  assert.ok(/rgb\("#0A2A33"\)/.test(r.source), 'it should fall back rather than invent a build');
+  assert.deepStrictEqual(r.screenColours, ['#0A2A33'], 'the fallback was not reported');
+});
+test('the mark is redrawn as curves, not embedded', () => {
+  const r = piece((d, p, sh) => {
+    p.blocks.push(EM.makeBlock('lockup', { x: 70, y: 300, w: 654, h: 180,
+      props: { lockup: 'horizontal', colourway: 'ground', on: 'none' } }, sh));
+  });
+  assert.ok(/curve\.move/.test(r.source) && /curve\.cubic/.test(r.source), 'no curves were emitted');
+  assert.ok(!/image\(/.test(r.source), 'the artwork was embedded, which would arrive in RGB');
+  // both parts of the lockup, each in the colourway's ink
+  assert.ok((r.source.match(/#place\(dx: 0pt, dy: 0pt, curve\(/g) || []).length >= 2, 'only one shape was drawn');
+  assert.ok(r.source.includes('cmyk(3%, 3%, 8%, 0%)'), 'the chalk colourway was not written as ink');
+});
+test('copy is a string, so markup in it stays what it says', () => {
+  // regression: a markup block reads *stars* as bold and _underscores_ as
+  // italic, so a line would print styled differently from the canvas
+  const r = piece((d, p, sh) => {
+    p.blocks.push(EM.makeBlock('text', { x: 40, y: 40, w: 600, h: 100,
+      props: { text: 'Rates from *2019*, "up" 12%\nand _rising_', style: 'Body', colour: 'primary' } }, sh));
+  });
+  assert.ok(r.source.includes('"Rates from *2019*, \\"up\\" 12%\\nand _rising_"'),
+    `the copy was not emitted verbatim:\n${r.source.split('\n').find((l) => /Rates/.test(l))}`);
+  assert.ok(!/\[Rates/.test(r.source), 'the copy went into a markup block');
+});
+test('the page is the media box, and the blocks are offset into it', () => {
+  const plain = piece((d, p, sh) => p.blocks.push(EM.makeBlock('fill', { x: 0, y: 0, w: 100, h: 100 }, sh)));
+  assert.ok(plain.source.includes('width: 595.5pt, height: 842.25pt'), 'an A4 page is not 595.5 by 842.25 pt');
+
+  const d = EM.emptyDoc('Meridian');
+  EM.ops.setPageSize(d, null, 'a4');
+  EM.ops.setBleed(d, 3);
+  d.pages[0].blocks.push(EM.makeBlock('fill', { x: 100, y: 100, w: 100, h: 100 }, EM.sheet('a4')));
+  const bled = TY.emit(d, bu, {});
+  assert.ok(/width: 640.5pt, height: 886.5pt/.test(bled.source), 'the page did not grow for the bleed and marks');
+  // 100 px in, plus the 30 and 29.5 px the media box adds on each side
+  assert.ok(/dx: 97.5pt, dy: 97.125pt/.test(bled.source), 'the block was not offset into the media box');
+});
+test('a block against an edge bleeds in print too', () => {
+  const d = EM.emptyDoc('Meridian');
+  EM.ops.setPageSize(d, null, 'a4');
+  EM.ops.setBleed(d, 3);
+  const sh = EM.sheet('a4');
+  d.pages[0].blocks.push(EM.makeBlock('fill', { x: 0, y: 0, w: sh.w, h: sh.h }, sh));
+  const r = TY.emit(d, bu, {});
+  assert.ok(/width: 612.51pt/.test(r.source), 'the full-bleed field was not painted past the trim');
+});
+test('crop marks are drawn in the piece as well', () => {
+  const d = EM.emptyDoc('Meridian');
+  EM.ops.setPageSize(d, null, 'a4');
+  EM.ops.setBleed(d, 3);
+  const r = TY.emit(d, bu, {});
+  assert.strictEqual((r.source.match(/cmyk\(0%, 0%, 0%, 100%\)/g) || []).length, 8, 'there should be eight marks');
+});
+test('the fonts a piece needs are named', () => {
+  const r = piece((d, p, sh) => {
+    p.blocks.push(EM.makeBlock('text', { props: { style: 'H1', text: 'x' } }, sh));
+    p.blocks.push(EM.makeBlock('text', { props: { style: 'Body', text: 'y' } }, sh));
+  });
+  assert.deepStrictEqual(r.fonts.sort(), ['Archivo', 'Literata']);
+});
+
 console.log('\nbleed, trim and crop marks');
 const PRN = require('../src/print');
 const pxOfCss = (css) => css.split(' ').map((v) => {

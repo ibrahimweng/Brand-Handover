@@ -9,12 +9,14 @@ around it.
 
     cd engine
     npm install
-    npm test                                            # 181 checks
+    npm test                                            # 202 checks
     node test/print-check.mjs                           # prints, and measures the paper
     node test/treatment-check.mjs                       # renders, and reads the pixels back
+    node test/typst-check.mjs                           # the printed piece against the published page
     node src/cli.js check   test/fixtures/messy-illustrator.svg --tokens projects/meridian/project.json
     node src/cli.js check   my-icon.svg --icon projects/meridian/project.json
     node src/cli.js check   projects/meridian/project.json --print
+    node src/cli.js print   projects/meridian/project.json out/document.json -o print
     node src/cli.js measure projects/meridian/project.json
     node src/cli.js build   projects/meridian/project.json -o out
     node src/cli.js edit    projects/meridian/project.json -o editor.html
@@ -202,6 +204,78 @@ The manual and the editor both mark a guess with a question mark and say which
 colour it is, since a chip that shows given and guessed the same way is exactly
 how a guess ends up on a press.
 
+### A printed piece, through Typst
+
+The last thing left over. The logo assets go to a press and are already in ink.
+The documents go through Chrome and are RGB, which is right for what they are.
+What was missing is a piece laid out **on the canvas** that is going to a press:
+a poster, a cover, a card.
+
+    handover print project.json document.json -o print --fonts ~/fonts
+
+writes a `.typ` file and, if a `typst` binary is about, compiles it. Every page
+comes out at its real size, with bleed and crop marks if the document has them,
+and **every declared colour as ink**:
+
+    colour ops: ["0.03 0.03 0.08 0 k", "0.88 0.58 0.45 0.72 k", ...]
+    any RGB? false
+
+**Typst places an SVG as vector but paints it in RGB.** That was the finding
+that shaped the whole thing: an embedded mark would arrive on a CMYK page in a
+different colour space, and the press would convert it however it liked — the
+exact uncontrolled conversion the print path exists to prevent. So the mark is
+not embedded. It is **redrawn from the same path data the canvas uses**, as
+Typst curves, in declared ink.
+
+`src/paths.js` does the translating: arcs and quadratics have no equivalent in
+Typst's `curve`, so they are converted to cubics, and group transforms are
+composed rather than ignored — a lockup keeps its parts in transformed groups,
+and paths scraped out without them draw on top of each other.
+
+### Two emitters, and the check that they agree
+
+This is the second emitter in a project whose whole argument is that there is
+one. That risk is real and it gets a check rather than an assurance.
+`test/typst-check.mjs` compares three things:
+
+    ok  the mark redraws to the same shape
+        2 paths, 2 of 2720000 pixels differ at an edge, worst 16, 0 structural
+    ok  the wordmark redraws to the same shape
+        1 path, 237 of 318000 pixels differ at an edge, worst 64, 0 structural
+    ok  the printed page matches the published page
+        576 areas, mean 0.59 of 255, worst 9.0  (the whole page previews 5.7
+        off, which is the ink build differing from the screen colour, as it should)
+    ok  the printed piece is entirely in ink
+        4 distinct colours, 0 of them screen colours
+
+A pixel solid in one render and empty in the other is a shape error; everything
+else is a curve's edge being antialiased by two different rasterisers. The page
+comparison deliberately ignores absolute brightness, because a declared build
+and the hex beside it are **different colours on purpose** — what is being asked
+is whether the same thing is in the same place.
+
+Two things hold the drift down besides the check. The emitter handles a
+deliberately small set of blocks — fill, rule, text, mark, lockup, slot,
+pattern — and **refuses the rest by name** rather than half-drawing them:
+
+    left out, because a printed piece is not a manual: 1 construction,
+    1 clearSpace, 1 minimumSize, 1 palette, 1 contrast, 1 photography,
+    1 iconGrid, 1 motion
+
+And copy is emitted as a Typst **string**, not a markup block. A markup block
+reads `*stars*` as bold and `_underscores_` as italic, so a line of copy would
+come out of the press styled differently from the same line on the canvas. That
+is drift in its purest form, and it was in the first version.
+
+### What it will tell you
+
+- **Which fonts it needs**, and that Typst substituted when it could not find
+  them. A substituted font in a printed piece is not a small problem.
+- **Any colour with no declared build**, written as screen colour and named, with
+  a pointer at `check --print`.
+- **A photograph**, placed as given. A press converts those itself, which is
+  normal and correct: nobody specifies a photograph in ink percentages.
+
 ### A correction to the plan
 
 The plan said Typst would be the print path, because Chrome writes RGB and a
@@ -210,9 +284,8 @@ press are the **logo assets**, and those are generated here with jsPDF rather
 than by Chrome, so they can be written in ink directly. Chrome only prints the
 documents, and nobody sends a brand manual to a four-colour press.
 
-So Typst is not needed for the thing that mattered. It would be needed for a
-printed piece laid out **in the editor** — a brochure or a poster — because that
-does go through Chrome. That is the case still open.
+So Typst was not needed for the thing that mattered. It was needed for a
+printed piece laid out **in the editor**, which is the section above.
 
 ### What this is not
 
@@ -710,6 +783,8 @@ correction that can only be made once the browser has laid the new size out.
     src/photography.js  the duotone, the scrim, and what a treated pixel becomes
     src/print.js      trim, bleed and media boxes, and the marks between them
     src/cmyk.js       declared ink, total coverage, rich black, and the refusals
+    src/paths.js      svg path data reduced to move, line and cubic
+    src/typst.js      a printed piece, in ink, for Typst to compile
     src/pattern.js    seamless tiles cut from the shape you marked
     src/documents/    blocks.js, chrome.js, index.js (manual), deck.js
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js

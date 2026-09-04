@@ -19,12 +19,24 @@ handover — derives a whole logo package from one master mark
   handover edit <project.json> [-o f]      write a self contained canvas editor
   handover publish <project.json> <doc.json> [-o f]
                                            publish an edited document as a page
+  handover print <project.json> [doc.json] [-o dir] [--fonts dir]
+                                           a printed piece, in ink, through Typst
 
 Both documents and every file come out of the same project, so a change to the
 master shows up in all of them at once.
 
 Every number in the output is read off the artwork. None of it is typed in.
 `;
+
+// the first typst on PATH, without shelling out to a shell
+function which(name) {
+  for (const dir of String(process.env.PATH || '').split(path.delimiter)) {
+    if (!dir) continue;
+    const p = path.join(dir, name);
+    try { fs.accessSync(p, fs.constants.X_OK); return p; } catch (_) { /* keep looking */ }
+  }
+  return null;
+}
 
 async function main(argv) {
   const [cmd, file] = argv;
@@ -168,6 +180,70 @@ async function main(argv) {
     fs.writeFileSync(target, html);
     console.log(`  published ${document.pages.length} page${document.pages.length === 1 ? '' : 's'} to ${path.relative(process.cwd(), target)} (${(html.length / 1024).toFixed(0)} KB)`);
     console.log(`  every measurement in it was read off the master just now, not stored in the document`);
+    return 0;
+  }
+
+  // a printed piece, as Typst source and, if a typst binary is about, as a PDF
+  if (cmd === 'print') {
+    const { measure } = require('./variants');
+    const { bundle, starterDoc } = require('./editor/bundle');
+    const typst = require('./typst');
+    const bu = bundle(project, measure(project), []);
+    const docPath = argv[2] && !argv[2].startsWith('-') ? argv[2] : null;
+    let document;
+    if (docPath) {
+      try { document = JSON.parse(fs.readFileSync(docPath, 'utf8')); }
+      catch (e) { console.error(`could not read the document at ${docPath}: ${e.message}`); return 1; }
+      if (!document.pages || !document.pages.length) { console.error('that document has no pages in it'); return 1; }
+      if (document.images) { bu.images = document.images; delete document.images; }
+    } else {
+      document = starterDoc(bu);
+      console.log('  no document given, so using the one this project generates');
+    }
+
+    const oi = argv.indexOf('-o');
+    const dir = path.resolve(oi > -1 && argv[oi + 1] ? argv[oi + 1] : 'print');
+    fs.mkdirSync(dir, { recursive: true });
+    const out = typst.emit(document, bu, {});
+    const stem = project.brand.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    fs.writeFileSync(path.join(dir, `${stem}.typ`), out.source);
+    for (const [name, bytes] of Object.entries(out.files)) fs.writeFileSync(path.join(dir, name), bytes);
+
+    console.log(`  wrote ${stem}.typ${Object.keys(out.files).length ? ` and ${Object.keys(out.files).length} image file(s)` : ''} to ${path.relative(process.cwd(), dir)}`);
+    if (out.fonts.length) console.log(`  needs the fonts: ${out.fonts.join(', ')}. Pass --fonts <dir> so Typst can find them.`);
+    if (out.screenColours.length) {
+      console.log(`  ${out.screenColours.length} colour(s) had no declared build and are written as screen colour: ${out.screenColours.join(', ')}`);
+      console.log(`  run "handover check ${path.basename(file)} --print" before sending this anywhere.`);
+    }
+    if (out.rasterColour) console.log('  a photograph is placed as given; a press converts those itself, which is normal.');
+    if (out.refused.length) {
+      const by = {};
+      for (const r of out.refused) by[r.type] = (by[r.type] || 0) + 1;
+      console.log(`  left out, because a printed piece is not a manual: `
+        + Object.entries(by).map(([t, n]) => `${n} ${t}`).join(', '));
+    }
+
+    const fi = argv.indexOf('--fonts');
+    const fontPath = fi > -1 ? argv[fi + 1] : null;
+    const ti = argv.indexOf('--typst');
+    const bin = ti > -1 ? argv[ti + 1] : which('typst');
+    if (!bin) {
+      console.log('\n  No typst binary found, so nothing was compiled. Install Typst and run:');
+      console.log(`    typst compile ${fontPath ? `--font-path ${fontPath} ` : ''}${path.relative(process.cwd(), path.join(dir, stem + '.typ'))}`);
+      return 0;
+    }
+    const args = ['compile'];
+    if (fontPath) args.push('--font-path', fontPath);
+    args.push(path.join(dir, `${stem}.typ`), path.join(dir, `${stem}.pdf`));
+    const r = require('child_process').spawnSync(bin, args, { encoding: 'utf8' });
+    const warnings = (r.stderr || '').match(/unknown font family: (\S+)/g) || [];
+    if (warnings.length) {
+      console.log(`  Typst could not find ${[...new Set(warnings.map((w) => w.split(': ')[1]))].join(', ')}`
+        + ' and substituted. Pass --fonts <dir> with the real files before printing.');
+    }
+    if (r.status !== 0) { console.error((r.stderr || 'typst failed').trim()); return 1; }
+    const bytes = fs.statSync(path.join(dir, `${stem}.pdf`)).size;
+    console.log(`  compiled ${stem}.pdf (${(bytes / 1024).toFixed(0)} KB), every declared colour in ink`);
     return 0;
   }
 

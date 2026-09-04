@@ -374,8 +374,8 @@ Phases 0 to 3 are in `engine/`, together with the parts of phase 5 that turned
 out to be cheap once the renderer was shared. What is running: the normaliser,
 the measuring engine, the packager, both documents, the canvas editor,
 publishing, all three kinds of block, image slots, page sizes and the
-photography treatment, print work with bleed, and CMYK. 136 files from one
-master, 181 tests.
+photography treatment, print work with bleed, CMYK, and a printed piece through
+Typst. 136 files from one master, 202 tests.
 
 Three things the plan had wrong, found by building rather than by thinking.
 
@@ -422,6 +422,26 @@ as markup a browser paints and once as arithmetic the editor reasons with, and
 the two must agree. So there is a check that renders through the real filter and
 reads the pixels back. It caught a flat scrim painting solid while the numbers
 assumed 42% on its first run.
+
+**The second emitter finally had to be built, and it needed a check rather than
+a promise.** Everything in this plan rests on there being one layout engine.
+Typst is a second one, and the argument for it is narrow but real: a piece laid
+out on the canvas that is going to a press cannot go through Chrome, because
+Chrome writes RGB. Building it turned up the finding that shaped it — Typst
+places an SVG as vector but paints it in RGB, so the mark could not simply be
+embedded, and had to be redrawn from its own path data.
+
+Redrawing artwork by a second route is exactly the drift this project has spent
+its length designing against, so the answer was not to be careful. It was to
+make the disagreement measurable: the redrawn mark is rendered beside the
+original and compared shape for shape, and the printed page is compared with
+the published page area by area, ignoring absolute brightness because a
+declared ink build and the hex beside it are different colours on purpose. Two
+things also hold it down by construction. The emitter takes a deliberately
+small set of blocks and refuses the rest by name, so nothing is ever half
+drawn. And copy goes out as a string rather than as markup, because Typst
+markup reads asterisks as bold — which would have printed a line of copy
+differently from the same line on the canvas, and is drift in its purest form.
 
 **The Typst plan was the wrong shape, and building the CMYK path showed why.**
 This plan said Typst was needed because Chrome writes RGB and a printer wants
