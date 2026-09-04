@@ -12,6 +12,7 @@ handover — derives a whole logo package from one master mark
   handover build <project.json> [-o out]   write the package
   handover measure <project.json>          print what the master measures, write nothing
   handover check <artwork.svg>             report what is wrong with an export
+  handover edit <project.json> [-o f]      write a self contained canvas editor
 
 Both documents and every file come out of the same project, so a change to the
 master shows up in all of them at once.
@@ -70,6 +71,18 @@ async function main(argv) {
     console.log(`  smallest use  ${m.minimumSize.screenPx} px on screen, ${m.minimumSize.printMm} mm in print`);
     console.log(`                ${m.minimumSize.basis}`);
     console.log(`  colour slots  ${m.slots.join(', ') || 'none found'}`);
+    return 0;
+  }
+
+  if (cmd === 'edit') {
+    const { editorHtml } = require('./editor/emit');
+    const { measure } = require('./variants');
+    const oi2 = argv.indexOf('-o');
+    const target = path.resolve(oi2 > -1 && argv[oi2 + 1] ? argv[oi2 + 1] : 'editor.html');
+    const html = editorHtml(project, measure(project), []);
+    fs.writeFileSync(target, html);
+    console.log(`  wrote ${path.relative(process.cwd(), target)} (${(html.length / 1024).toFixed(0)} KB)`);
+    console.log('  open it in a browser. No server and no build step: everything is inlined.');
     return 0;
   }
 

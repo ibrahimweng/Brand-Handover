@@ -13,8 +13,9 @@ around it.
     node src/cli.js check   test/fixtures/messy-illustrator.svg --tokens projects/meridian/project.json
     node src/cli.js measure projects/meridian/project.json
     node src/cli.js build   projects/meridian/project.json -o out
+    node src/cli.js edit    projects/meridian/project.json -o editor.html
 
-The Meridian example writes 118 files in about five seconds, including both documents.
+The Meridian example writes 119 files in about four seconds, including both documents and the editor.
 
 ## What it measures
 
@@ -170,6 +171,63 @@ This is the whole point, and it is checked in the suite. Thicken the ring in
 `brand.json`, `guidelines.html` and `deck.html` all say the new numbers, because
 none of them holds a copy of the old ones.
 
+## The canvas editor
+
+`editor.html` is a single self-contained file. Open it in a browser and it
+works: no server, no build step, no script fetched from anywhere. The project
+bundle, the model and the renderer are all inlined, which a test enforces.
+
+It is page layout, not illustration. Fixed page sizes, a grid, and a known set
+of blocks. **There is no pen tool on purpose**, because vector drawing belongs
+in Illustrator and the mark arrives here finished. Holding that line is what
+turns an eight week job into something usable.
+
+    drag              move, snapped to the grid
+    alt drag          ignore the grid
+    shift click       multi select, or drag a marquee
+    double click      edit text where it sits
+    arrows            nudge, shift for four steps
+    cmd Z / shift Z   undo and redo, sixty deep
+    cmd D             duplicate
+    cmd A             select everything on the page
+    delete            remove
+
+Blocks come in two kinds, and the properties panel says which one you have
+selected.
+
+**Plain blocks** are text, a rule, a fill and an image slot. Ordinary furniture,
+and yours to arrange.
+
+**Derived blocks** draw themselves from the project: the mark, any lockup, the
+construction drawing, clear space, minimum size, the palette, the contrast
+table, the type specimen and the asset index. You set where one sits and what it
+is painted in, and nothing else. Change the master and every one of them
+redraws. A colour chip row in Figma is six rectangles somebody has to update by
+hand. Here it is one block that is always current, and that difference is the
+reason this is worth building rather than making a nice template.
+
+### One renderer
+
+`src/editor/render.js` is pure string building against a precomputed bundle. It
+needs no DOM, no native module and no measuring at draw time, so **the same file
+runs in the editor and on the server**. A test asserts the editor inlines the
+renderer that is on disk, so the canvas and the published page cannot drift
+apart. That was the whole argument for editing real DOM rather than drawing to a
+canvas, and this is where it gets paid.
+
+`src/editor/model.js` is the same: one file, UMD, so Node and the browser cannot
+disagree about what a document is. Every change goes through `ops`, which is why
+undo is a stack of whole documents and no operation has to know undo exists.
+
+### What the editor does not do yet
+
+- **Nothing is published from it.** Edits live in localStorage and Save writes a
+  JSON file. Turning a document back into `guidelines.html` is the next piece.
+- **Image slots are placeholders.** Dropping a file in is not wired up.
+- **No rule blocks.** The pattern, the icon grid and the motion curve are the
+  third kind of block from the specimen and none of them is built.
+- **One page size.** 1280 by 720 for everything, print sizes included.
+
 ## What it does not do yet
 
 - **CMYK output.** The conversion on the page is arithmetic from hex. Real print
@@ -193,6 +251,7 @@ none of them holds a copy of the old ones.
     src/pdf.js        true vector PDF, and the .ai that is the same bytes
     src/export.js     icons, favicons, social crops and the zip
     src/documents/    blocks.js, chrome.js, index.js (manual), deck.js
+    src/editor/       model.js, render.js, app.js, bundle.js, emit.js
     src/naming.js     one naming rule for the whole package
     src/build.js      write the package, brand.json and the read me
     src/cli.js        check, measure and build

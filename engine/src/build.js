@@ -120,6 +120,8 @@ async function build(project, outDir, { log = () => {} } = {}) {
     const ctx = docs.context(project, measured, written.slice(), brandJson);
     write('guidelines.html', docs.guidelines(ctx));
     write('deck.html', deck(ctx));
+    const { editorHtml } = require('./editor/emit');
+    write('editor.html', editorHtml(project, measured, written.slice()));
   }
 
   // ---- one zip the client keeps, whoever is paying for what ----

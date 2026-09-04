@@ -110,7 +110,7 @@ test('the file count is exactly what the rules ask for', () => {
     + (r.faviconSizes || []).length + ((r.faviconSizes || []).length ? 1 : 0)  // favicons plus the .ico
     + Object.keys(r.social || {}).length                    // social crops
     + 2                                                     // brand.json and README.txt
-    + (r.documents === false ? 0 : 2)                       // the manual and the deck
+    + (r.documents === false ? 0 : 3)                       // the manual, the deck and the editor
     + (r.zip === false ? 0 : 1);                            // the package itself
   assert.strictEqual(result.written.length, expected, `expected ${expected} files, got ${result.written.length}`);
 });
@@ -303,6 +303,119 @@ test('a diagram draws in the ink colour it is given', () => {
   const ctx = docs.context(project, m, [], {});
   assert.ok(blocks.clearSpace(ctx, { ink: '#FF0000' }).includes('#FF0000'),
     'the block ignored the ink colour, so it would vanish on a dark slide');
+});
+
+// ----------------------------------------------------------------- editor
+const EM = require('../src/editor/model');
+const ER = require('../src/editor/render');
+const { bundle, starterDoc } = require('../src/editor/bundle');
+const { editorHtml } = require('../src/editor/emit');
+const bu = bundle(project, m, [{ path: '01-horizontal/a.svg', bytes: 1 }, { path: 'brand.json', bytes: 2 }]);
+
+console.log('\nthe document model');
+test('every block type has a size and a default', () => {
+  for (const t of EM.KINDS) {
+    assert.ok(EM.SIZES[t], `${t} has no default size`);
+    assert.ok(EM.DEFAULTS[t], `${t} has no default props`);
+  }
+});
+test('a block is either plain or derived, never both', () => {
+  const overlap = EM.PLAIN.filter((t) => EM.DERIVED.includes(t));
+  assert.deepStrictEqual(overlap, []);
+  assert.strictEqual(EM.kindOf('text'), 'plain');
+  assert.strictEqual(EM.kindOf('contrast'), 'derived');
+});
+test('an unknown block type is refused', () => {
+  assert.throws(() => EM.makeBlock('pen'), /there is no block called/);
+});
+test('moving snaps to the grid, and alt-dragging (grid 0) does not', () => {
+  const h = EM.history(EM.emptyDoc());
+  const pid = h.get().pages[0].id;
+  let id; h.apply((d) => { id = EM.ops.addBlock(d, pid, 'text', { x: 0, y: 0 }); });
+  h.apply((d) => EM.ops.moveBlocks(d, pid, [id], 7, 11, 8));
+  assert.deepStrictEqual([h.get().pages[0].blocks[0].x, h.get().pages[0].blocks[0].y], [8, 8]);
+  h.apply((d) => EM.ops.moveBlocks(d, pid, [id], 3, 3, 0));
+  assert.deepStrictEqual([h.get().pages[0].blocks[0].x, h.get().pages[0].blocks[0].y], [11, 11]);
+});
+test('undo and redo walk the whole history', () => {
+  const h = EM.history(EM.emptyDoc());
+  const pid = h.get().pages[0].id;
+  for (const t of ['text', 'rule', 'mark']) h.apply((d) => EM.ops.addBlock(d, pid, t));
+  assert.strictEqual(h.get().pages[0].blocks.length, 3);
+  h.undo(); h.undo();
+  assert.strictEqual(h.get().pages[0].blocks.length, 1);
+  h.redo();
+  assert.strictEqual(h.get().pages[0].blocks.length, 2);
+  assert.ok(h.canUndo() && h.canRedo());
+});
+test('a new change clears the redo branch', () => {
+  const h = EM.history(EM.emptyDoc());
+  const pid = h.get().pages[0].id;
+  h.apply((d) => EM.ops.addBlock(d, pid, 'text'));
+  h.undo();
+  h.apply((d) => EM.ops.addBlock(d, pid, 'rule'));
+  assert.strictEqual(h.canRedo(), false, 'redo should not survive a new edit');
+});
+test('a resize never collapses a block to nothing', () => {
+  const h = EM.history(EM.emptyDoc());
+  const pid = h.get().pages[0].id;
+  let id; h.apply((d) => { id = EM.ops.addBlock(d, pid, 'fill'); });
+  h.apply((d) => EM.ops.resizeBlock(d, pid, id, { x: 0, y: 0, w: -50, h: -50 }, 8));
+  const b = h.get().pages[0].blocks[0];
+  assert.ok(b.w >= 8 && b.h >= 8, 'a block collapsed to zero');
+});
+test('the last page cannot be deleted', () => {
+  const d = EM.emptyDoc();
+  assert.throws(() => EM.ops.removePage(d, d.pages[0].id), /at least one page/);
+});
+
+console.log('\nthe renderer');
+test('every block type renders without a DOM', () => {
+  for (const t of EM.KINDS) {
+    const html = ER.block(EM.makeBlock(t), bu);
+    assert.ok(html && !html.includes('hb-missing'), `${t} did not render`);
+  }
+});
+test('derived blocks show the measured numbers', () => {
+  assert.ok(ER.block(EM.makeBlock('construction'), bu).includes(String(m.markInk.w)));
+  assert.ok(ER.block(EM.makeBlock('clearSpace'), bu).includes(String(m.clearSpace)));
+  assert.ok(ER.block(EM.makeBlock('minimumSize'), bu).includes(String(m.minimumSize.screenPx)));
+});
+test('a block draws in the colour it is told to', () => {
+  const b = EM.makeBlock('mark', { props: { colourway: 'tide', on: 'ground' } });
+  assert.ok(ER.block(b, bu).includes('#1E7A8C'), 'the tide colourway was ignored');
+});
+test('colour names, role names and raw hex all resolve', () => {
+  assert.strictEqual(ER.colour(bu, 'primary'), '#0A2A33');
+  assert.strictEqual(ER.colour(bu, 'beacon'), '#F2A007');
+  assert.strictEqual(ER.colour(bu, '#ABCDEF'), '#ABCDEF');
+});
+test('text is escaped rather than injected', () => {
+  const b = EM.makeBlock('text', { props: { text: '<img src=x onerror=alert(1)>' } });
+  const html = ER.block(b, bu);
+  assert.ok(!html.includes('<img'), 'markup in a text block was not escaped');
+  assert.ok(html.includes('&lt;img'));
+});
+
+console.log('\nthe editor');
+test('the starter document opens on something worth looking at', () => {
+  const d = starterDoc(bu);
+  assert.ok(d.pages.length >= 3, 'a beginner should not meet a blank page');
+  assert.ok(d.pages.every((p) => p.blocks.length > 0), 'every starter page should have content');
+});
+test('the editor is self contained, with no fetch at load', () => {
+  const html = editorHtml(project, m, []);
+  assert.ok(html.includes('HANDOVER_BUNDLE'), 'the bundle is not inlined');
+  assert.ok(html.includes('HandoverModel'), 'the model is not inlined');
+  assert.ok(html.includes('HandoverRender'), 'the renderer is not inlined');
+  const remote = (html.match(/<script[^>]+src=/g) || []);
+  assert.deepStrictEqual(remote, [], 'the editor pulls a script from somewhere');
+});
+test('the editor and the exported document use the same renderer', () => {
+  const path2 = require.resolve('../src/editor/render');
+  const html = editorHtml(project, m, []);
+  assert.ok(html.includes(fs.readFileSync(path2, 'utf8').slice(200, 400)),
+    'the editor inlines a different renderer than the one on disk');
 });
 
 console.log('\nregenerating from a changed master');
