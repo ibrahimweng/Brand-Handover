@@ -10,29 +10,59 @@
       "deep": {
         "hex": "#0A2A33",
         "role": "primary",
-        "pantone": "5467 C"
+        "pantone": "5467 C",
+        "cmyk": [
+          88,
+          58,
+          45,
+          72
+        ]
       },
       "tide": {
         "hex": "#1E7A8C",
         "role": "secondary",
-        "pantone": "7474 C"
+        "pantone": "7474 C",
+        "cmyk": [
+          83,
+          34,
+          27,
+          3
+        ]
       },
       "beacon": {
         "hex": "#F2A007",
         "role": "accent",
         "textSafe": false,
         "maxCoverage": 0.03,
-        "pantone": "1235 C"
+        "pantone": "1235 C",
+        "cmyk": [
+          0,
+          41,
+          96,
+          0
+        ]
       },
       "chalk": {
         "hex": "#EFEDE4",
         "role": "ground",
-        "pantone": "7527 C"
+        "pantone": "7527 C",
+        "cmyk": [
+          3,
+          3,
+          8,
+          0
+        ]
       },
       "slate": {
         "hex": "#5C6B70",
         "role": "neutral",
-        "pantone": "5477 C"
+        "pantone": "5477 C",
+        "cmyk": [
+          64,
+          44,
+          40,
+          10
+        ]
       }
     },
     "type": {
@@ -217,7 +247,8 @@
         "w": 1200,
         "h": 630
       }
-    }
+    },
+    "stock": "coated"
   },
   "content": {
     "positioning": "Power from the predictable sea.",

@@ -58,8 +58,9 @@ Everything sits on one SVG parser, and all of it is MIT or Apache 2.0.
 - Headless Chrome is the single layout engine, so the canvas editor, the
   published guidelines page and the printed PDF are the same HTML and cannot
   drift apart.
-- `Typst` is the later print path, because Chrome writes RGB only and a printer
-  wants CMYK.
+- `Typst` is a later path for a printed piece laid out in the editor. It is not
+  needed for the logo assets: those are written here in ink directly, so the
+  PDFs are DeviceCMYK already.
 
 Nothing here needs a paid API. Two optional models, for depth maps and cutouts,
 run locally.
@@ -70,7 +71,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 136 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 168 tests.
+of it. 181 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -104,5 +105,13 @@ edge is painted out past the trim for you, because asking a designer to draw a
 block at minus eleven pixels is how it gets forgotten on the one page that
 matters.
 
-Still to do: the CMYK print path through Typst, and a run on a real identity job
-— which is the next checkpoint and matters more than any further feature.
+The logo PDFs are genuinely CMYK. Not converted at the end: the operators in
+the file are the declared ink builds, because a hex code describes light
+leaving a screen and what it becomes in ink depends on a press and a paper no
+formula knows about. Where a build has not been given the engine says so rather
+than inventing four numbers, and it checks total ink coverage and rich black
+before anything goes near a press.
+
+Still to do: Typst, for a printed piece laid out in the editor rather than for
+the assets, and a run on a real identity job — which is the next checkpoint and
+matters more than any further feature.

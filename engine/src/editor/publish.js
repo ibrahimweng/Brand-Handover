@@ -70,6 +70,7 @@ html,body{margin:0;background:var(--shell);color:var(--ink);font-family:ui-sans-
 .hb-chips b{display:block;font-size:13px;margin-top:7px}
 .hb-chips span{display:block;font-family:ui-monospace,Menlo,monospace;font-size:9.5px;opacity:.6}
 .hb-chips .pms{font-style:italic}
+.hb-chips .guess{color:#8A6410;font-style:italic}
 .hb-ctab{width:100%;height:100%;font-size:12px}
 .hb-ctab .r{display:grid;grid-template-columns:40px 1fr 54px 96px;gap:10px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(128,128,128,.22)}
 .hb-ctab .cp{display:flex;align-items:center;justify-content:center;height:26px;font-weight:600;font-size:11px}

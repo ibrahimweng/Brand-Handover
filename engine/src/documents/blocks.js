@@ -104,14 +104,23 @@ function misuse(ctx) {
 
 // ---------------------------------------------------------------- colour
 function palette(ctx) {
+  // CMYK is either given or guessed, and a chip that shows both the same way
+  // is how a guess ends up on a press. See src/cmyk.js.
+  const ink = require('../cmyk').byName(require('../cmyk').table(ctx.colours));
+  const guessed = Object.keys(ctx.colours).filter((n) => !ink[n].declared);
   return `<div class="chips">` + Object.entries(ctx.colours).map(([name, t]) => {
-    const rgbv = contrast.rgb(t.hex).join(' '), c = contrast.cmyk(t.hex).join(' ');
+    const rgbv = contrast.rgb(t.hex).join(' '), k = ink[name];
     return `<div class="chip"><div class="sw" style="background:${t.hex}"></div>
       <b>${esc(name)}</b><span class="role">${esc(t.role || '')}</span>
-      <dl><dt>HEX</dt><dd>${t.hex}</dd><dt>RGB</dt><dd>${rgbv}</dd><dt>CMYK</dt><dd>${c}</dd>
+      <dl><dt>HEX</dt><dd>${t.hex}</dd><dt>RGB</dt><dd>${rgbv}</dd>
+      <dt>CMYK</dt><dd class="${k.declared ? 'typed' : 'guess'}">${k.values.join(' ')}${k.declared ? '' : ' ?'}</dd>
       ${t.pantone ? `<dt>PMS</dt><dd class="typed">${esc(t.pantone)}</dd>` : ''}</dl></div>`;
-  }).join('') + `</div>${Object.values(ctx.colours).some((c) => c.pantone)
-    ? `<p class="note">RGB and CMYK are converted from the hex. <b>The Pantone reference is typed in by you</b>, because that library is proprietary and cannot be generated.</p>` : ''}`;
+  }).join('') + `</div>`
+    + `<p class="note">RGB is converted from the hex. <b>CMYK and Pantone are typed in by you</b>, because what a colour becomes in ink depends on the press and the paper, and no formula knows which paper.`
+    + (guessed.length
+      ? ` <b>${esc(guessed.join(', '))} ${guessed.length === 1 ? 'has' : 'have'} no build yet</b>, so the numbers shown for ${guessed.length === 1 ? 'it' : 'them'} are converted from the screen colour and marked with a question mark. Do not send ${guessed.length === 1 ? 'it' : 'them'} to a press.`
+      : ` Every colour here has one.`)
+    + `</p>`;
 }
 
 function contrastTable(ctx) {

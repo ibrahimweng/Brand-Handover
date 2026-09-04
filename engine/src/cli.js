@@ -14,6 +14,8 @@ handover — derives a whole logo package from one master mark
   handover check <artwork.svg>             report what is wrong with an export
   handover check <icon.svg> --icon <project.json>
                                            check an icon against the grid rule
+  handover check <project.json> --print [--stock coated|uncoated|newsprint]
+                                           check the palette before it goes to a press
   handover edit <project.json> [-o f]      write a self contained canvas editor
   handover publish <project.json> <doc.json> [-o f]
                                            publish an edited document as a page
@@ -28,6 +30,31 @@ async function main(argv) {
   const [cmd, file] = argv;
   if (!cmd || cmd === '-h' || cmd === '--help') { console.log(USAGE.trim()); return 0; }
   if (!file) { console.error('Which project file? Pass a path to project.json.'); return 1; }
+
+  // everything that has to be true before a file goes to a press
+  if (cmd === 'check' && argv.includes('--print')) {
+    let proj;
+    try { proj = projectLoader.load(file); }
+    catch (e) { console.error(e.message); return 1; }
+    const cmyk = require('./cmyk');
+    const { format } = require('./report');
+    const si = argv.indexOf('--stock');
+    const stock = (si > -1 && argv[si + 1]) || proj.rules.stock || 'coated';
+    if (!cmyk.TAC[stock]) {
+      console.error(`no ink limit known for "${stock}". Try ${Object.keys(cmyk.TAC).join(', ')}.`);
+      return 1;
+    }
+    const table = cmyk.table(proj.tokens.colour || {});
+    console.log(`  ${stock} stock, which takes ${cmyk.TAC[stock]} percent ink\n`);
+    for (const c of table) {
+      console.log(`  ${c.name.padEnd(10)} ${c.label.padEnd(16)} ${(c.coverage + '%').padEnd(6)}`
+        + `${c.declared ? 'given' : 'worked out, do not send this'}${c.pantone ? '   ' + c.pantone : ''}`);
+    }
+    console.log('');
+    const found = cmyk.check(table, { stock, forPress: true });
+    console.log(format(found, { name: `${proj.brand} for print` }));
+    return found.some((f) => f.level === 'blocker') ? 1 : 0;
+  }
 
   // an icon is checked against the rule the project already holds
   if (cmd === 'check' && argv.includes('--icon')) {

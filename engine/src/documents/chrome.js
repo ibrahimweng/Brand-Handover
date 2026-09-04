@@ -53,6 +53,7 @@ figure{margin:0}figcaption{font-family:var(--mono);font-size:10.5px;letter-spaci
 .chip dl{margin:10px 0 0;display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-family:var(--mono);font-size:11px}
 .chip dt{color:var(--ink-3)}.chip dd{margin:0;text-align:right;color:var(--ink-2);font-variant-numeric:tabular-nums}
 .chip .typed{font-style:italic;color:var(--ink-3)}
+.chip .guess{color:#8A6410;font-style:italic}
 .ctab{border-top:1px solid var(--rule-2)}
 .ctr{display:grid;grid-template-columns:64px minmax(0,1fr) 66px 128px;gap:16px;align-items:center;padding:10px 4px;border-bottom:1px solid var(--rule)}
 .ctr.head{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);padding:0 4px 9px}

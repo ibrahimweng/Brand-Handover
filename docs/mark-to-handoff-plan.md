@@ -374,8 +374,8 @@ Phases 0 to 3 are in `engine/`, together with the parts of phase 5 that turned
 out to be cheap once the renderer was shared. What is running: the normaliser,
 the measuring engine, the packager, both documents, the canvas editor,
 publishing, all three kinds of block, image slots, page sizes and the
-photography treatment, and print work with bleed. 136 files from one master,
-168 tests.
+photography treatment, print work with bleed, and CMYK. 136 files from one
+master, 181 tests.
 
 Three things the plan had wrong, found by building rather than by thinking.
 
@@ -422,6 +422,26 @@ as markup a browser paints and once as arithmetic the editor reasons with, and
 the two must agree. So there is a check that renders through the real filter and
 reads the pixels back. It caught a flat scrim painting solid while the numbers
 assumed 42% on its first run.
+
+**The Typst plan was the wrong shape, and building the CMYK path showed why.**
+This plan said Typst was needed because Chrome writes RGB and a printer wants
+CMYK. True as far as it goes, and it points at the wrong file. What actually
+goes to a press is the logo assets, and those are generated here with jsPDF
+rather than by Chrome, so they can be written in ink directly and they now are:
+the operators in the file are `k` and `K` with the declared builds. Chrome only
+prints the documents, and nobody sends a brand manual to a four-colour press.
+Typst is still wanted, but for a narrower thing than the plan claimed: a
+printed piece laid out in the editor.
+
+The harder half was not the file format. It was deciding that **CMYK is a
+decision and not a conversion**, and then holding that line through the
+interface. Every naive hex-to-CMYK formula is arithmetic on numbers that mean
+something else, and this engine shipped one. The fix was not a better formula.
+It was carrying the designer's own builds, refusing to send a guess to a press,
+and marking a guess with a question mark everywhere it appears, because a chip
+that shows given and guessed the same way is exactly how a guess ends up
+printed. The machine's half is the arithmetic nobody enjoys: total ink
+coverage, and rich black.
 
 **Bleed is where "derive it" stopped being a preference and became the only
 option.** The correct thing to hand a printer needs artwork painted outside the

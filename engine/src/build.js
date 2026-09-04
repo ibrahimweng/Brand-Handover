@@ -23,6 +23,14 @@ async function build(project, outDir, { log = () => {} } = {}) {
     written.push({ path: rel, bytes: data.length });
   };
 
+  // Print colour. Declared builds only: a hex code describes light leaving a
+  // screen, and what it becomes in ink depends on a press and a paper that no
+  // formula knows about.
+  const cmyk = require('./cmyk');
+  const inkTable = cmyk.table(project.tokens.colour || {});
+  const ink = cmyk.inkMap(inkTable);
+  const inkFindings = cmyk.check(inkTable, { stock: rules.stock, forPress: false });
+  for (const f of inkFindings) warnings.push(`${f.what} ${f.how}`);
   for (const lockup of rules.lockups) {
     for (const colourway of rules.colourways) {
       const v = buildVariant({
@@ -41,7 +49,9 @@ async function build(project, outDir, { log = () => {} } = {}) {
         for (const w of rules.pngWidths) write(`${dir}/${base}-${w}.png`, geo.renderPng(v.svg, w));
       }
       if (rules.formats.includes('pdf') || rules.formats.includes('ai')) {
-        const pdf = await exp.toPdf(v.svg);
+        // the file that actually goes to a press, so it goes in ink where the
+        // project says what the ink is. See src/cmyk.js.
+        const pdf = await exp.toPdf(v.svg, { ink });
         if (rules.formats.includes('pdf')) write(`${dir}/${base}.pdf`, pdf);
         // an .ai file is a PDF wrapper, so the same bytes open in Illustrator
         if (rules.formats.includes('ai')) write(`${dir}/${base}.ai`, pdf);
@@ -99,6 +109,13 @@ async function build(project, outDir, { log = () => {} } = {}) {
     brand: project.brand,
     version: project.version,
     colour: project.tokens.colour || {},
+    print: {
+      stock: rules.stock || 'coated',
+      totalInkLimit: cmyk.TAC[rules.stock] || cmyk.TAC.coated,
+      colour: inkTable.map((c) => ({ name: c.name, hex: c.hex, cmyk: c.values, coverage: c.coverage,
+        pantone: c.pantone, declared: c.declared, source: c.source })),
+      pdfColourSpace: inkTable.every((c) => c.declared) ? 'DeviceCMYK' : 'DeviceRGB for anything not declared',
+    },
     logo: {
       clearSpace: `${rules.clearSpaceRatio} * inkHeight`,
       clearSpaceUnits: measured.clearSpace,

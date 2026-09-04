@@ -12,7 +12,10 @@ function bundle(project, measured, files = []) {
   const cols = project.tokens.colour || {};
   const colours = {};
   for (const [name, c] of Object.entries(cols)) {
-    colours[name] = Object.assign({}, c, { rgb: contrast.rgb(c.hex), cmyk: contrast.cmyk(c.hex) });
+    // a declared build if there is one, and a flag saying which it is
+    const declared = require('../cmyk').parse(c.cmyk);
+    colours[name] = Object.assign({}, c, { rgb: contrast.rgb(c.hex),
+      cmyk: declared || contrast.cmyk(c.hex), cmykDeclared: !!declared });
   }
   const byRole = (role, fallback) => {
     const hit = Object.entries(cols).find(([, c]) => c.role === role);

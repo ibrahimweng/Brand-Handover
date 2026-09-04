@@ -912,6 +912,136 @@ test('a document that mixes sizes prints each page at its own', () => {
   assert.ok(html.includes('A4 portrait'), 'a mixed document does not say which page is which size');
 });
 
+console.log('\nprint colour');
+const K = require('../src/cmyk');
+const zlib = require('zlib');
+
+// the colour operators a PDF actually contains, out of its compressed streams
+function pdfColourOps(buf) {
+  const s = buf.toString('latin1'), out = [];
+  const re = /stream\r?\n/g;
+  let m;
+  while ((m = re.exec(s))) {
+    const start = m.index + m[0].length, end = s.indexOf('endstream', start);
+    if (end < 0) continue;
+    const raw = Buffer.from(s.slice(start, end), 'latin1');
+    let text;
+    try { text = zlib.inflateSync(raw).toString('latin1'); } catch (e) { text = raw.toString('latin1'); }
+    for (const q of text.matchAll(/[\d.]+ [\d.]+ [\d.]+ [\d.]+ [kK]|[\d.]+ [\d.]+ [\d.]+ (?:rg|RG)/g)) out.push(q[0]);
+  }
+  return out;
+}
+
+test('a declared build is carried, and an undeclared one is marked as a guess', () => {
+  const t = K.table({ a: { hex: '#0A2A33', cmyk: [88, 58, 45, 72] }, b: { hex: '#1E7A8C' } });
+  const [a, b] = t;
+  assert.strictEqual(a.declared, true);
+  assert.deepStrictEqual(a.values, [88, 58, 45, 72]);
+  assert.strictEqual(a.coverage, 263);
+  assert.strictEqual(b.declared, false);
+  assert.ok(/not to be sent to a press/.test(b.source), b.source);
+});
+test('a build that is not four numbers between nought and a hundred is not a build', () => {
+  assert.strictEqual(K.parse([88, 58, 45]), null);
+  assert.strictEqual(K.parse([88, 58, 45, 120]), null);
+  assert.strictEqual(K.parse('88 58 45 72'), null);
+  assert.strictEqual(K.parse(undefined), null);
+  assert.deepStrictEqual(K.parse([88.4, 58, 45, 72]), [88, 58, 45, 72]);
+});
+test('too much ink is a blocker, with the number to take out', () => {
+  const t = K.table({ heavy: { hex: '#101010', cmyk: [80, 70, 70, 95] } });
+  const f = K.check(t, { stock: 'coated' });
+  const blocker = f.find((x) => x.level === 'blocker');
+  assert.ok(blocker, 'a 315 percent build was allowed onto coated stock');
+  assert.ok(blocker.what.includes('315%') && blocker.what.includes('300%'), blocker.what);
+  assert.ok(blocker.how.includes('15%'), 'it does not say how much to take out');
+  // and the same build is fine on a stock that takes more, which nothing does
+  assert.strictEqual(K.check(t, { stock: 'newsprint' }).filter((x) => x.level === 'blocker').length, 1);
+});
+test('a plain black is worth a word, because it prints as grey', () => {
+  const f = K.check(K.table({ ink: { hex: '#000000', cmyk: [0, 0, 0, 100] } }), {});
+  assert.strictEqual(f.length, 1);
+  assert.strictEqual(f[0].level, 'warning');
+  assert.ok(/plain black/.test(f[0].what));
+  assert.ok(/60\/40\/40\/100/.test(f[0].how), 'no rich black is suggested');
+  // a rich black passes
+  assert.deepStrictEqual(K.check(K.table({ ink: { hex: '#000000', cmyk: [60, 40, 40, 100] } }), {}), []);
+});
+test('a missing build is a blocker for press and a warning otherwise', () => {
+  const t = K.table({ a: { hex: '#1E7A8C' } });
+  assert.strictEqual(K.check(t, { forPress: true })[0].level, 'blocker');
+  assert.strictEqual(K.check(t, {})[0].level, 'warning');
+  assert.ok(/no formula knows which paper/.test(K.check(t, {})[0].why));
+});
+test('a guess is never checked, because there is nothing to check', () => {
+  // 79/13/0/45 for tide is what the naive formula gives; it must not be
+  // reported as a rich-black or coverage problem as though somebody chose it
+  const t = K.table({ black: { hex: '#000000' } });
+  const f = K.check(t, {});
+  assert.strictEqual(f.length, 1, 'a guessed build was audited as though it were a decision');
+  assert.ok(/no CMYK/.test(f[0].what));
+});
+
+test('the ink map holds declared colours only', () => {
+  const map = K.inkMap(K.table({ a: { hex: '#0A2A33', cmyk: [88, 58, 45, 72] }, b: { hex: '#1E7A8C' } }));
+  assert.strictEqual(map.size, 1);
+  assert.deepStrictEqual(map.get('10,42,51'), [0.88, 0.58, 0.45, 0.72]);
+  assert.strictEqual(map.get('30,122,140'), undefined, 'a guess was put in the map');
+});
+test('a colour is recognised however the setter was called', () => {
+  const { triple } = require('../src/pdf');
+  assert.strictEqual(triple([10, 42, 51]), '10,42,51');
+  assert.strictEqual(triple(['#0A2A33']), '10,42,51');
+  assert.strictEqual(triple(['0a2a33']), '10,42,51');
+  assert.strictEqual(triple([10.4, 42.2, 50.8]), '10,42,51');
+  assert.strictEqual(triple([0.88, 0.58, 0.45, 0.72]), null, 'a CMYK call was read as RGB');
+  assert.strictEqual(triple(['rebeccapurple']), null);
+});
+
+test('the PDFs in the package are in ink, not in screen light', async () => {
+  const pdf = fs.readFileSync(path.join(out, '01-horizontal', 'meridian-horizontal-deep.pdf'));
+  const ops = pdfColourOps(pdf);
+  assert.ok(ops.length, 'no colour operators at all');
+  assert.ok(ops.every((o) => /[kK]$/.test(o)), `a screen colour reached the print file: ${ops.join(', ')}`);
+  assert.ok(ops.some((o) => o.startsWith('0.88 0.58 0.45 0.72')), `the declared build is not what was written: ${ops.join(', ')}`);
+});
+test('an undeclared colour stays RGB rather than being invented', async () => {
+  const { toPdf } = require('../src/pdf');
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><rect width="40" height="40" fill="#1E7A8C"/></svg>';
+  const ink = K.inkMap(K.table({ tide: { hex: '#1E7A8C' } }));
+  const ops = pdfColourOps(await toPdf(svg, { ink }));
+  assert.ok(ops.every((o) => /(rg|RG)$/.test(o)), `a guess was written as ink: ${ops.join(', ')}`);
+});
+test('the .ai file is the same bytes as the CMYK pdf', () => {
+  const a = fs.readFileSync(path.join(out, '03-mark', 'meridian-mark-deep.pdf'));
+  const b = fs.readFileSync(path.join(out, '03-mark', 'meridian-mark-deep.ai'));
+  assert.ok(a.equals(b));
+  assert.ok(pdfColourOps(a).every((o) => /[kK]$/.test(o)), 'the .ai is not in ink either');
+});
+test('brand.json says which numbers were given and which were worked out', () => {
+  const bj = JSON.parse(fs.readFileSync(path.join(out, 'brand.json'), 'utf8'));
+  assert.strictEqual(bj.print.stock, 'coated');
+  assert.strictEqual(bj.print.totalInkLimit, 300);
+  assert.strictEqual(bj.print.pdfColourSpace, 'DeviceCMYK');
+  const deep = bj.print.colour.find((c) => c.name === 'deep');
+  assert.strictEqual(deep.declared, true);
+  assert.deepStrictEqual(deep.cmyk, [88, 58, 45, 72]);
+  assert.strictEqual(deep.coverage, 263);
+  assert.ok(bj.print.colour.every((c) => c.source), 'a colour does not say where its build came from');
+});
+test('the manual will not present a guess as a fact', () => {
+  const html = fs.readFileSync(path.join(out, 'guidelines.html'), 'utf8');
+  assert.ok(/CMYK and Pantone are typed in by you/.test(html), 'the manual still claims CMYK is converted');
+  assert.ok(/Every colour here has one/.test(html), 'Meridian declares every build, so it should say so');
+  // and with one missing it says which
+  const docs = require('../src/documents');
+  const thin = Object.assign({}, project, { tokens: Object.assign({}, project.tokens,
+    { colour: Object.assign({}, project.tokens.colour,
+      { tide: { hex: '#1E7A8C', role: 'secondary' } }) }) });
+  const ctx = docs.context(thin, m, [], {});
+  assert.ok(/tide.*no build yet/s.test(docs.guidelines(ctx)), 'a missing build is not called out by name');
+});
+
 console.log('\nbleed, trim and crop marks');
 const PRN = require('../src/print');
 const pxOfCss = (css) => css.split(' ').map((v) => {

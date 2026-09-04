@@ -147,9 +147,12 @@
          <figcaption>${s} px · ${cap[i]}</figcaption></figure>`).join('')}</div>`;
     },
 
+    // a guessed CMYK is marked, because a chip that shows given and guessed the
+    // same way is how a guess ends up on a press
     palette: (b, bu) => `<div class="hb-chips">${Object.entries(bu.colours).map(([n, c]) =>
       `<div><div class="sw" style="background:${c.hex}"></div><b>${esc(n)}</b>
-       <span>${c.hex}</span><span>${(c.rgb || []).join(' ')}</span><span>${(c.cmyk || []).join(' ')}</span>
+       <span>${c.hex}</span><span>${(c.rgb || []).join(' ')}</span>
+       <span class="${c.cmykDeclared ? '' : 'guess'}">${(c.cmyk || []).join(' ')}${c.cmykDeclared ? '' : ' ?'}</span>
        ${c.pantone ? `<span class="pms">${esc(c.pantone)}</span>` : ''}</div>`).join('')}</div>`,
 
     contrast: (b, bu) => {

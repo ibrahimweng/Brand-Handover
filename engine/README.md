@@ -9,11 +9,12 @@ around it.
 
     cd engine
     npm install
-    npm test                                            # 168 checks
+    npm test                                            # 181 checks
     node test/print-check.mjs                           # prints, and measures the paper
     node test/treatment-check.mjs                       # renders, and reads the pixels back
     node src/cli.js check   test/fixtures/messy-illustrator.svg --tokens projects/meridian/project.json
     node src/cli.js check   my-icon.svg --icon projects/meridian/project.json
+    node src/cli.js check   projects/meridian/project.json --print
     node src/cli.js measure projects/meridian/project.json
     node src/cli.js build   projects/meridian/project.json -o out
     node src/cli.js edit    projects/meridian/project.json -o editor.html
@@ -145,6 +146,90 @@ the DOM as it loads, so it must be required **after** they exist. And its UMD
 wrapper then takes the browser branch, which looks for a global called `jspdf`
 rather than requiring it, so that has to be handed over too. All three are
 commented in the file.
+
+## Print colour
+
+**CMYK is a decision, not a conversion.** Every naive hex-to-CMYK formula,
+including the one this engine ships in `contrast.js`, is arithmetic on numbers
+that mean something else: sRGB describes light leaving a screen, and CMYK
+describes ink sitting on a particular paper under a particular press. Nothing in
+a hex code knows which paper. So a brand's builds come from the designer or
+their printer, the project carries them, and where they have not been given the
+engine says so rather than inventing four numbers that will print a different
+colour to the one everybody signed off.
+
+    "deep": { "hex": "#0A2A33", "pantone": "5467 C", "cmyk": [88, 58, 45, 72] }
+
+**The PDFs in the package are then genuinely DeviceCMYK.** Not converted at the
+end, not a claim in a read-me: the operators in the file are `k` and `K`, with
+the declared values.
+
+    $ node -e '...pull the operators out of 01-horizontal/...-deep.pdf'
+    ["0.88 0.58 0.45 0.72 K", "0.88 0.58 0.45 0.72 k"]
+
+svg2pdf reads the hex out of the artwork and hands jsPDF three numbers, which
+become a DeviceRGB operator. `src/pdf.js` wraps the two colour setters, and
+where the project has declared what a colour is in ink, answers that call with
+four numbers instead. Done by wrapping rather than by rewriting the finished
+stream, because the stream is compressed and svg2pdf is entitled to call those
+setters however it likes. **A colour with no declared build falls through
+untouched and stays RGB**, which is the honest outcome.
+
+### What gets checked
+
+`handover check project.json --print` is the pre-press pass.
+
+**Total ink coverage.** Ink laid over ink has to dry, and past the limit for the
+stock it does not: the sheet offsets onto the next one in the stack and the job
+is reprinted at somebody's cost. Coated takes 300%, uncoated 260, newsprint 240.
+
+    ✗ slate lays down 310% ink, and coated stock takes 300%.
+      → Take 10% out of the build, usually from cyan.
+
+**Rich black.** 100 K alone is a thin, washed-out dark grey over anything larger
+than a word, because one pass of black ink does not cover. Print work backs it
+up with the other three and keeps the plain build for small text, where a rich
+black goes fuzzy if the plates are a hair out of register.
+
+    ! deep is 0/0/0/100, which is a plain black.
+      → Back it up to about 240% total, for instance 60/40/40/100.
+
+**A build that was never given.** A blocker for press, a warning otherwise. A
+guessed build is never audited for coverage or blackness, because there is
+nothing there to audit: nobody chose those numbers.
+
+The manual and the editor both mark a guess with a question mark and say which
+colour it is, since a chip that shows given and guessed the same way is exactly
+how a guess ends up on a press.
+
+### A correction to the plan
+
+The plan said Typst would be the print path, because Chrome writes RGB and a
+printer wants CMYK. That was the wrong shape of answer. The files that go to a
+press are the **logo assets**, and those are generated here with jsPDF rather
+than by Chrome, so they can be written in ink directly. Chrome only prints the
+documents, and nobody sends a brand manual to a four-colour press.
+
+So Typst is not needed for the thing that mattered. It would be needed for a
+printed piece laid out **in the editor** — a brochure or a poster — because that
+does go through Chrome. That is the case still open.
+
+### What this is not
+
+- **Not PDF/X.** A valid DeviceCMYK PDF, with no OutputIntent and no embedded
+  ICC profile. For a logo asset with specified builds that is the right file:
+  the values are absolute ink percentages and the press uses them as given. A
+  job demanding PDF/X-1a compliance needs the profile embedded, which is a
+  licensing question before it is a code one.
+- **No ICC conversion.** Nothing here transforms sRGB into a press profile,
+  because doing that properly needs a colour management module and a profile
+  for the actual press. The engine's position is that the transform is the
+  printer's job and the numbers are the designer's.
+- **No spot plates.** A Pantone reference is carried as text. Making it a real
+  `/Separation` colour space with its own plate is a different PDF than jsPDF
+  will write.
+- **Documents print RGB.** `guidelines.html` and `deck.html` through Chrome are
+  RGB, which is correct for what they are.
 
 ## The two documents
 
@@ -602,8 +687,6 @@ correction that can only be made once the browser has laid the new size out.
 
 ## What it does not do yet
 
-- **CMYK output.** The conversion on the page is arithmetic from hex. Real print
-  work soft proofs through an ICC profile, and that is the Typst path in the plan.
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.
 - **Open path detection.** A path that is filled but never closed renders
   differently in some tools, and that is not checked.
@@ -626,6 +709,7 @@ correction that can only be made once the browser has laid the new size out.
     src/system.js     the rules: icon grid off the mark, pattern, motion
     src/photography.js  the duotone, the scrim, and what a treated pixel becomes
     src/print.js      trim, bleed and media boxes, and the marks between them
+    src/cmyk.js       declared ink, total coverage, rich black, and the refusals
     src/pattern.js    seamless tiles cut from the shape you marked
     src/documents/    blocks.js, chrome.js, index.js (manual), deck.js
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
