@@ -59,7 +59,12 @@ function load(file) {
     asset.slots = n.slots;
   }
 
-  return { brand: raw.brand, version: raw.version || '0.0.0', dir, tokens, assets, rules, report };
+  // system and content are carried through untouched. They were being dropped
+  // here, which meant every rule override in a project file was read as absent
+  // and the defaults quietly won. Nothing complained, because a default is a
+  // perfectly good answer right up until somebody wanted a different one.
+  return { brand: raw.brand, version: raw.version || '0.0.0', dir, tokens, assets, rules,
+    system: raw.system || {}, content: raw.content || {}, report };
 }
 
 module.exports = { load, DEFAULTS };

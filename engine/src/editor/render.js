@@ -3,9 +3,9 @@
    and no measuring at draw time. Everything expensive already happened in the
    engine; this only lays it out. */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory();
-  else root.HandoverRender = factory();
-}(typeof self !== 'undefined' ? self : this, function () {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('../photography'));
+  else root.HandoverRender = factory(root.HandoverPhotography);
+}(typeof self !== 'undefined' ? self : this, function (PH) {
   'use strict';
 
   const esc = (s) => String(s == null ? '' : s)
@@ -103,10 +103,24 @@
       }
       const fit = b.props.fit === 'contain' ? 'contain' : 'cover';
       const pos = `${Number(b.props.focusX) || 0}% ${Number(b.props.focusY) || 0}%`;
+
+      // The brand's photography treatment, applied by rule rather than baked
+      // into the file. Every treated image carries its own filter, because a
+      // block that needs something from the host page is not a block.
+      const rules = (bu.system || {}).photography;
+      const on = rules && rules.declared && b.props.treatment !== false;
+      const fid = 'ph' + esc(b.id);
+      const defs = on ? PH.filter(rules, bu, fid) : '';
+      const scrim = on ? PH.scrimStyle(rules, bu, b.props.scrim) : null;
+
       const img = `<img src="${esc(im.src)}" alt="${esc(b.props.caption || b.props.label || '')}"`
-        + ` style="width:100%;height:100%;object-fit:${fit};object-position:${pos};display:block">`;
-      if (!b.props.caption) return `<div class="hb-img">${img}</div>`;
-      return `<figure class="hb-img"><div class="hb-img-f">${img}</div>`
+        + ` style="width:100%;height:100%;object-fit:${fit};object-position:${pos};display:block`
+        + (on && rules.duotone ? `;filter:url(#${fid})` : '') + `">`;
+      const frame = `<div class="hb-img-f">${defs}${img}`
+        + (scrim ? `<div class="hb-scrim" style="background:${scrim.background}"></div>` : '') + `</div>`;
+
+      if (!b.props.caption) return `<div class="hb-img">${frame}</div>`;
+      return `<figure class="hb-img">${frame}`
         + `<figcaption style="${typeStyle(bu, 'Caption')}color:${colour(bu, 'primary')}">${esc(b.props.caption)}</figcaption></figure>`;
     },
 
@@ -239,6 +253,35 @@
           <defs><clipPath id="${id}-c"><rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}"/></clipPath></defs>
           <g clip-path="url(#${id}-c)"><g class="hb-fill">${filled.join('')}</g></g>
           <g class="hb-out">${outline.join('')}</g></svg>${caption}</div>`;
+    },
+
+    // The treatment stated, and shown. A ramp rather than a photograph, because
+    // a project has no photograph of its own and a rule block should still say
+    // what the rule is on a page nobody has dropped a file onto.
+    photography: (b, bu) => {
+      const r = (bu.system || {}).photography;
+      if (!r || !r.declared) {
+        return `<div class="hb-missing">No photography treatment yet. Set system.photography in the project: a duotone, a scrim, or both.</div>`;
+      }
+      const ink = colour(bu, 'primary'), on = colour(bu, b.props.on);
+      const steps = 9;
+      const swatches = [];
+      for (let i = 0; i < steps; i++) {
+        const v = i / (steps - 1);
+        const t = PH.treatPixel(r, bu, { r: v, g: v, b: v });
+        swatches.push(`<i style="background:rgb(${Math.round(t.r * 255)},${Math.round(t.g * 255)},${Math.round(t.b * 255)})"></i>`);
+      }
+      const scrim = PH.scrimStyle(r, bu, undefined);
+      const line = (label, value) => `<div class="r"><span>${esc(label)}</span><em>${esc(value)}</em></div>`;
+      return `<div class="hb-photo" style="background:${on};color:${ink}">
+        <div class="ramp">${swatches.join('')}${scrim ? `<div class="hb-scrim" style="background:${scrim.background}"></div>` : ''}</div>
+        <div class="rows">
+          ${r.duotone ? line('Duotone', `${r.duotone.shadow} → ${r.duotone.highlight}`
+            + (r.duotone.amount < 1 ? ` at ${Math.round(r.duotone.amount * 100)}%` : '')) : ''}
+          ${r.scrim ? line('Scrim', `${Math.round(r.scrim.opacity * 100)}% ${r.scrim.colour}, from the ${r.scrim.direction}`) : ''}
+          ${(r.ratios || []).length ? line('Crops to', r.ratios.join('  ')) : ''}
+        </div>
+        ${b.props.caption === false ? '' : ruleCaption('black → white through the treatment', ink)}</div>`;
     },
 
     assetIndex: (b, bu) => {

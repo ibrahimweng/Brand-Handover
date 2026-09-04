@@ -70,7 +70,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 136 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 136 tests.
+of it. 155 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -91,6 +91,13 @@ document and any page free to differ. Layout is in pixels and printing is in
 millimetres, because 794 px is only A4 by accident of 96 dpi. Changing the size
 scales the layout and keeps anything that was against an edge against it.
 
-Still to do: the photography treatment rules, bleed and crop marks, the CMYK
-print path through Typst, and a run on a real identity job — which is the next
-checkpoint and matters more than any further feature.
+Photography has a treatment: a duotone and a scrim set once in the project and
+applied to every image by rule, drawn with an SVG filter rather than baked into
+the file, so changing the recipe changes every picture in every document. The
+editor then measures the mark against the treated pixels and works out the
+scrim strength that particular photograph needs, which is the thing an opacity
+slider is usually guessed at.
+
+Still to do: bleed and crop marks, the CMYK print path through Typst, and a run
+on a real identity job — which is the next checkpoint and matters more than any
+further feature.

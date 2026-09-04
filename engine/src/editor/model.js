@@ -18,7 +18,7 @@ const DERIVED = ['mark', 'lockup', 'construction', 'clearSpace', 'minimumSize', 
 // Rule blocks are the third kind. One decision, made once, generating every
 // instance after that. You place one and choose which instance to show; you
 // never redraw it and you never restate the rule.
-const RULE = ['pattern', 'iconGrid', 'motion'];
+const RULE = ['pattern', 'iconGrid', 'motion', 'photography'];
 const KINDS = [...PLAIN, ...DERIVED, ...RULE];
 const kindOf = (type) => (RULE.includes(type) ? 'rule' : DERIVED.includes(type) ? 'derived' : 'plain');
 
@@ -92,7 +92,10 @@ const DEFAULTS = {
   rule: { colour: 'primary', weight: 2 },
   fill: { colour: 'ground' },
   // an image slot holds an id, never the bytes. See editor/images.js for why.
-  slot: { label: 'Image', image: null, fit: 'cover', focusX: 50, focusY: 50, caption: '' },
+  slot: { label: 'Image', image: null, fit: 'cover', focusX: 50, focusY: 50, caption: '',
+    // the brand's photography treatment applies unless this slot opts out, and
+    // scrim is a per-image override of the rule's own strength
+    treatment: true, scrim: null },
   mark: { colourway: 'primary', on: 'ground' },
   lockup: { lockup: 'horizontal', colourway: 'primary', on: 'ground' },
   construction: {}, clearSpace: {}, minimumSize: {},
@@ -100,6 +103,7 @@ const DEFAULTS = {
   pattern: { density: 'medium', colourway: 'ground', on: 'primary', caption: false },
   iconGrid: { colourway: 'primary', on: 'ground', line: 'neutral', caption: true },
   motion: { colourway: 'ground', on: 'primary', caption: true },
+  photography: { on: 'ground', caption: true },
 };
 const SIZES = {
   text: { w: 520, h: 120 }, rule: { w: 520, h: 2 }, fill: { w: 400, h: 260 },
@@ -108,6 +112,7 @@ const SIZES = {
   palette: { w: 900, h: 260 }, contrast: { w: 820, h: 300 }, typeSpecimen: { w: 820, h: 300 },
   assetIndex: { w: 560, h: 320 },
   pattern: { w: 620, h: 280 }, iconGrid: { w: 560, h: 420 }, motion: { w: 360, h: 360 },
+  photography: { w: 560, h: 300 },
 };
 
 function makeBlock(type, at = {}, on) {

@@ -9,8 +9,9 @@ around it.
 
     cd engine
     npm install
-    npm test                                            # 136 checks
+    npm test                                            # 155 checks
     node test/print-check.mjs                           # prints, and measures the paper
+    node test/treatment-check.mjs                       # renders, and reads the pixels back
     node src/cli.js check   test/fixtures/messy-illustrator.svg --tokens projects/meridian/project.json
     node src/cli.js check   my-icon.svg --icon projects/meridian/project.json
     node src/cli.js measure projects/meridian/project.json
@@ -268,7 +269,7 @@ instance without asking again. That is the difference between a pattern in a
 brand manual and a pattern in a brand system: one is a picture of a decision,
 the other is the decision.
 
-There are three, and each is one decision.
+There are four, and each is one decision.
 
 ### The pattern
 
@@ -336,6 +337,85 @@ than sliding past. `prefers-reduced-motion` turns it off.
 The first version translated the whole mark as one piece, which is a slide, not
 a build. Splitting it is what makes the rule a rule rather than an animation
 somebody made once.
+
+### Photography
+
+The plan filed this under photography and moved on, as though a treatment were
+a matter of taste. Most of it is. The direction is the designer's forever, and
+nobody misreads a photographic brief. What people get wrong is the mechanical
+half, and the mechanical half is arithmetic.
+
+The decision is a duotone, a scrim, and the ratios photography is allowed to be
+cropped to:
+
+    "photography": {
+      "duotone": { "shadow": "primary", "highlight": "ground", "amount": 0.82 },
+      "scrim":   { "colour": "primary", "opacity": 0.42, "direction": "bottom" },
+      "ratios":  ["3:2", "16:9", "1:1", "4:5"]
+    }
+
+**It is drawn with an SVG filter and a CSS gradient, not by rewriting pixels,
+and that is the whole reason it is a rule.** The stored photograph is never
+touched, so changing the recipe once changes every image in every document, and
+the same markup draws it in the editor, on a published page and in print.
+Baking it into the file would give you a picture of a decision instead of the
+decision.
+
+A duotone is a greyscale ramped between two brand colours: `feColorMatrix
+saturate 0`, then `feComponentTransfer` mapping the one remaining value onto a
+line from the shadow colour to the highlight. Held in sRGB on purpose, because
+that is the space the two colours were picked in. An `amount` below 1 composites
+some of the original back, which is how a treatment reads as a grade rather than
+as a poster.
+
+### The mark on a treated photograph
+
+The check from the image slots section had to be rebuilt for this, and it got
+much better in the process.
+
+Sampling the raw file is now wrong: what is on the page is the treated image,
+so the check works on the **treated** pixel. `src/photography.js` computes what
+the filter will produce, and the gradient scrim is read at the point the mark
+actually sits rather than averaged, because a scrim strong at the bottom is
+absent at the top and a single number for it is true nowhere.
+
+Then the useful part. Working out how much scrim a particular picture needs is
+what an opacity slider is for, and it is guesswork on one person's screen. Here
+it is a number:
+
+    1.79:1 on the picture
+    The mark measures 1.79:1 against the lightest part of the photograph under
+    it. Either turn the scrim on this image up to 80%, which takes it to
+    3.13:1, or use the primary colourway, which measures 5.54:1.
+
+Set it to 80 and the warning goes. When the rule's own scrim cannot get there,
+it says which of the two reasons it is — the gradient does not reach that far up
+the frame, or a scrim in the mark's own colour can never separate them, however
+strong:
+
+    Either use a flat 50% primary scrim here, since the gradient from the
+    bottom does not reach this far up (3.12:1), or use the primary colourway.
+
+A crop that drifts off the allowed ratios is reported with the box that fixes
+it, because a set of photographs stops looking like a set one box at a time.
+
+### Two implementations of one thing
+
+The treatment is drawn by a browser and computed in JavaScript, and the second
+is only worth having if it agrees with the first. `test/treatment-check.mjs`
+renders through the real filter, reads the pixels back, and compares:
+
+    ok    duotone, full                (worst channel off by 1)
+    ok    duotone at 60%               (worst channel off by 1)
+    ok    duotone into the accent      (worst channel off by 1)
+    ok    scrim from the bottom        (worst channel off by 1)
+    ok    scrim from the flat          (worst channel off by 0)
+
+One off in 255 is rounding. It earned its place immediately: a flat scrim was
+being painted as a bare hex, so a 42% scrim rendered solid while every number
+the editor reported assumed 42%. Nothing in the unit tests could have seen that,
+and nobody would have noticed by eye until a photograph disappeared under a wash
+of Deep.
 
 ### On the page
 
@@ -460,8 +540,8 @@ correction that can only be made once the browser has laid the new size out.
   on the Typst path rather than as a half version here.
 - **Images are per document, not per project.** A photograph dropped into one
   document is not offered in the next one.
-- **No duotone or scrim.** The photography treatment from the specimen is a
-  rule block waiting to be built; today a slot shows the file as given.
+- **No grade beyond the duotone.** Saturation and contrast as separate dials
+  are not there; the duotone's `amount` is the only mixer.
 
 ## What it does not do yet
 
@@ -487,6 +567,7 @@ correction that can only be made once the browser has laid the new size out.
     src/pdf.js        true vector PDF, and the .ai that is the same bytes
     src/export.js     icons, favicons, social crops and the zip
     src/system.js     the rules: icon grid off the mark, pattern, motion
+    src/photography.js  the duotone, the scrim, and what a treated pixel becomes
     src/pattern.js    seamless tiles cut from the shape you marked
     src/documents/    blocks.js, chrome.js, index.js (manual), deck.js
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js

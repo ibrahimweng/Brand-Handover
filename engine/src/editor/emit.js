@@ -104,7 +104,15 @@ h4{margin:0 0 8px;font-size:10px;letter-spacing:.13em;text-transform:uppercase;c
 .hb-slot span{font-family:var(--mono);font-size:10px;opacity:.75}
 .hb-block[data-type=slot].drop .hb-slot{border-color:var(--sel);border-style:solid;color:var(--sel)}
 .hb-img{width:100%;height:100%;margin:0;display:flex;flex-direction:column;overflow:hidden}
-.hb-img-f{flex:1;min-height:0;overflow:hidden}
+.hb-img-f{flex:1;min-height:0;overflow:hidden;position:relative}
+.hb-scrim{position:absolute;inset:0;pointer-events:none}
+.hb-photo{width:100%;height:100%;display:flex;flex-direction:column;gap:9px;padding:12px;box-sizing:border-box}
+.hb-photo .ramp{flex:1;min-height:34px;display:flex;position:relative;overflow:hidden}
+.hb-photo .ramp i{flex:1}
+.hb-photo .rows{font-family:var(--mono);font-size:10.5px;line-height:1.7}
+.hb-photo .r{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid currentColor;opacity:.85}
+.hb-photo .r span{opacity:.6;letter-spacing:.06em;text-transform:uppercase;font-size:9px}
+.hb-photo .r em{font-style:normal}
 .hb-img figcaption,figure.hb-img>figcaption{flex:none;padding-top:7px}
 .hb-img img{background:rgba(128,128,128,.12)}
 .hb-missing{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#3A2422;color:#E8695F;font-family:var(--mono);font-size:11px;text-align:center;padding:8px}
@@ -173,6 +181,7 @@ ${fontLink(bu.type)}
 <input type="file" id="file" accept="application/json" hidden>
 <input type="file" id="imgfile" accept="image/*" hidden>
 <script>${read('../contrast.js')}</script>
+<script>${read('../photography.js')}</script>
 <script>${read('model.js')}</script>
 <script>${read('images.js')}</script>
 <script>${read('render.js')}</script>

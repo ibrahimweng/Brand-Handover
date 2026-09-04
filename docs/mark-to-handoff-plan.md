@@ -373,8 +373,8 @@ and there is some of it in all nine.
 Phases 0 to 3 are in `engine/`, together with the parts of phase 5 that turned
 out to be cheap once the renderer was shared. What is running: the normaliser,
 the measuring engine, the packager, both documents, the canvas editor,
-publishing, all three kinds of block, image slots and page sizes. 136 files
-from one master, 136 tests.
+publishing, all three kinds of block, image slots, page sizes and the
+photography treatment. 136 files from one master, 155 tests.
 
 Three things the plan had wrong, found by building rather than by thinking.
 
@@ -404,6 +404,23 @@ took an afternoon and it is the only part of the editor that catches a mistake
 a working designer actually makes: the mark on a bright sky at 1.1 to 1. It
 also needed the block to stop painting its own ground, which nobody would have
 noticed until the check confidently measured pixels the reader never sees.
+
+**The photography chapter was right about the split, and wrong about the size
+of the machine's half.** This plan said the treatment and the mechanical rules
+are decided once and the measuring belongs to the machine. True, and it
+undersells it. Once the treatment is a rule the machine draws rather than a
+recipe someone applies in Photoshop, the machine also knows what every pixel
+will look like before it is drawn — so it can answer the question a designer
+actually has, which is not "what is the recipe" but "how much scrim does this
+particular photograph need for the mark to survive". That is a number, it takes
+a second to compute, and it is otherwise a slider dragged until it looks about
+right on one person's screen.
+
+Doing it that way costs a discipline: the treatment is implemented twice, once
+as markup a browser paints and once as arithmetic the editor reasons with, and
+the two must agree. So there is a check that renders through the real filter and
+reads the pixels back. It caught a flat scrim painting solid while the numbers
+assumed 42% on its first run.
 
 **Page sizes broke the assumption that type is free.** Every other measurement
 in this system is derived, which is the whole argument. Type is the exception:

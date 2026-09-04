@@ -234,5 +234,25 @@
       "Do not retype the wordmark. It is artwork, not live text."
     ],
     "constructionNotes": "The ring is five units in a twelve unit square, with a stroke of nine tenths of a unit. The tide line is an arc of three times the ring radius, crossing a quarter of a radius below centre. Everything is a whole fraction of r, so the mark rebuilds from one number."
+  },
+  "system": {
+    "photography": {
+      "duotone": {
+        "shadow": "primary",
+        "highlight": "ground",
+        "amount": 0.82
+      },
+      "scrim": {
+        "colour": "primary",
+        "opacity": 0.42,
+        "direction": "bottom"
+      },
+      "ratios": [
+        "3:2",
+        "16:9",
+        "1:1",
+        "4:5"
+      ]
+    }
   }
 }

@@ -201,6 +201,7 @@ function resolve(project, measured) {
     icons: iconRules(measured, sys.icons),
     pattern: patternRules(sys.pattern),
     motion: motionRules(sys.motion),
+    photography: require('./photography').rules(sys.photography),
   };
 }
 

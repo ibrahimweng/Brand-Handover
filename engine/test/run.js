@@ -544,7 +544,7 @@ test('a tile is written for every density in every colourway', () => {
 
 console.log('\nrule blocks: on the page');
 test('the model knows a third kind', () => {
-  assert.deepStrictEqual(EM.RULE, ['pattern', 'iconGrid', 'motion']);
+  assert.deepStrictEqual(EM.RULE, ['pattern', 'iconGrid', 'motion', 'photography']);
   assert.strictEqual(EM.kindOf('pattern'), 'rule');
   assert.strictEqual(EM.kindOf('lockup'), 'derived');
   assert.strictEqual(EM.kindOf('text'), 'plain');
@@ -628,6 +628,172 @@ test('the editor and the exported document use the same renderer', () => {
   const html = editorHtml(project, m, []);
   assert.ok(html.includes(fs.readFileSync(path2, 'utf8').slice(200, 400)),
     'the editor inlines a different renderer than the one on disk');
+});
+
+console.log('\nrule blocks: the photography treatment');
+const PH = require('../src/photography');
+const PHR = sys.resolve(project, m).photography;
+
+test('the project file reaches the engine at all', () => {
+  // regression: the loader returned brand, tokens, assets and rules, and quietly
+  // dropped system and content. Every rule override in every project file was
+  // read as absent and the defaults won, and nothing complained, because a
+  // default is a perfectly good answer until somebody wants a different one.
+  assert.ok(project.system, 'the loader dropped the system block');
+  assert.ok(project.content, 'the loader dropped the content block');
+  assert.strictEqual(sys.iconRules(m, { box: 32 }).box, 32);
+  assert.strictEqual(sys.resolve({ system: { icons: { box: 32 } } }, m).icons.box, 32,
+    'an override in the project file did not reach the rules');
+});
+test('nothing guesses a treatment', () => {
+  const none = PH.rules();
+  assert.strictEqual(none.declared, false);
+  assert.strictEqual(none.duotone, null);
+  assert.ok(none.ratios.length, 'the crop ratios still have a sensible default');
+  assert.strictEqual(PH.rules({ scrim: { opacity: 0.3 } }).declared, true);
+});
+test('the duotone runs between exactly the two colours it was given', () => {
+  const black = PH.treatPixel(PHR, bu, { r: 0, g: 0, b: 0 });
+  const white = PH.treatPixel(PHR, bu, { r: 1, g: 1, b: 1 });
+  const near = (px, hex) => {
+    const [r, g, b] = require('../src/contrast').unit(hex);
+    return Math.max(Math.abs(px.r - r), Math.abs(px.g - g), Math.abs(px.b - b)) < 0.04;
+  };
+  assert.ok(near(black, bu.roles[PHR.duotone.shadow].hex), 'black did not land on the shadow colour');
+  assert.ok(near(white, bu.roles[PHR.duotone.highlight].hex), 'white did not land on the highlight colour');
+});
+test('an amount below one leaves some of the photograph showing', () => {
+  const red = { r: 0.86, g: 0.24, b: 0.16 };
+  const full = PH.treatPixel(PH.rules({ duotone: { shadow: 'primary', highlight: 'ground', amount: 1 } }), bu, red);
+  const part = PH.treatPixel(PH.rules({ duotone: { shadow: 'primary', highlight: 'ground', amount: 0.5 } }), bu, red);
+  assert.ok(part.r > full.r, 'a half-strength duotone kept none of the red');
+  assert.ok(part.r < red.r, 'a half-strength duotone did nothing at all');
+});
+test('a scrim is the strength it says it is', () => {
+  // regression: a flat scrim was painted as a bare hex, so a 42% scrim rendered
+  // solid while every number the editor reported assumed 42%
+  const flat = PH.scrimStyle(PH.rules({ scrim: { colour: 'primary', opacity: 0.42, direction: 'flat' } }), bu);
+  assert.ok(/rgba\(10,42,51,0\.42\)/.test(flat.background), `a flat scrim painted ${flat.background}`);
+  const grad = PH.scrimStyle(PHR, bu);
+  assert.ok(grad.background.includes('rgba(10,42,51,0.42) 0%'), 'the gradient does not start at its stated opacity');
+  assert.ok(grad.background.includes('rgba(10,42,51,0) 78%'), 'the gradient does not fade to nothing');
+});
+test('the gradient can be read back exactly where it is painted', () => {
+  const g = PH.scrimStyle(PHR, bu);
+  assert.strictEqual(Number(PH.alphaAt(g, 0).toFixed(3)), 0.42);
+  assert.strictEqual(PH.alphaAt(g, 0.78), 0);
+  assert.strictEqual(PH.alphaAt(g, 1), 0);
+  assert.ok(PH.alphaAt(g, 0.2) < 0.42 && PH.alphaAt(g, 0.2) > 0.2, 'the middle of the ramp is wrong');
+  assert.strictEqual(PH.alphaAt(PH.scrimStyle(PH.rules({ scrim: { opacity: 0.3, direction: 'flat' } }), bu), 0.9), 0.3,
+    'a flat scrim is not flat');
+});
+test('a scrim from the bottom is strongest at the bottom', () => {
+  const at = (y) => ({ x: 0.5, y });
+  assert.strictEqual(PH.gradientT('bottom', at(1)), 0);      // the bottom is the strong end
+  assert.strictEqual(PH.gradientT('bottom', at(0)), 1);
+  assert.strictEqual(PH.gradientT('top', at(0)), 0);
+  assert.strictEqual(PH.gradientT('left', { x: 0, y: 0.5 }), 0);
+  assert.strictEqual(PH.gradientT('right', { x: 1, y: 0.5 }), 0);
+});
+test('a pixel is measured through the treatment, not as it arrived', () => {
+  const C2 = require('../src/contrast');
+  const px = { r: 0.86, g: 0.90, b: 0.95 };                  // a bright sky
+  const raw = C2.luminanceOf(px.r, px.g, px.b);
+  const treated = PH.luminanceAfter(PHR, bu, px, null, { x: 0.5, y: 0.5 });
+  assert.notStrictEqual(Number(treated.toFixed(4)), Number(raw.toFixed(4)),
+    'the treatment made no difference to what gets measured');
+  // in the scrim at the bottom it is darker than halfway up
+  const low = PH.luminanceAfter(PHR, bu, px, null, { x: 0.5, y: 0.98 });
+  assert.ok(low < treated, 'the scrim did not darken the bottom of the picture');
+});
+
+test('the scrim strength a picture needs is worked out, not guessed', () => {
+  const ink = bu.roles.ground.hex;                            // a light mark
+  const bright = [];
+  for (let i = 0; i < 12; i++) bright.push({ r: 0.93, g: 0.95, b: 0.97, at: { x: 0.5, y: 0.9 } });
+  const need = PH.scrimNeeded(ink, bright, bu.roles.primary.hex, 'bottom');
+  assert.ok(need.needed > 0 && need.needed <= 1, `no workable scrim was found: ${JSON.stringify(need)}`);
+  assert.ok(need.ratio >= PH.NONTEXT, 'the scrim it suggested does not actually clear the bar');
+});
+test('a scrim in the mark\'s own colour is refused with a reason', () => {
+  const dark = [{ r: 0.05, g: 0.09, b: 0.11, at: { x: 0.5, y: 0.9 } }];
+  const need = PH.scrimNeeded(bu.roles.primary.hex, dark, bu.roles.primary.hex, 'flat');
+  assert.strictEqual(need.needed, null);
+  assert.ok(/cannot separate/.test(need.why), `no reason was given: ${need.why}`);
+});
+test('a scrim already strong enough asks for nothing', () => {
+  const dark = [{ r: 0.04, g: 0.06, b: 0.08, at: { x: 0.5, y: 0.5 } }];
+  const need = PH.scrimNeeded(bu.roles.ground.hex, dark, bu.roles.primary.hex, 'flat');
+  assert.strictEqual(need.needed, 0);
+  assert.ok(need.ratio >= PH.NONTEXT);
+});
+
+test('a crop that drifts off the allowed ratios is named, with the box that fixes it', () => {
+  assert.deepStrictEqual(PH.checkCrop(PHR, { w: 720, h: 480 }), [], '3:2 was reported as wrong');
+  assert.deepStrictEqual(PH.checkCrop(PHR, { w: 480, h: 720 }), [], 'a portrait 3:2 was reported as wrong');
+  assert.deepStrictEqual(PH.checkCrop(PHR, { w: 1280, h: 720 }), [], '16:9 was reported as wrong');
+  const f = PH.checkCrop(PHR, { w: 700, h: 500 }, 'beach.jpg');
+  assert.strictEqual(f.length, 1);
+  assert.ok(f[0].what.includes('1.4 to 1'));
+  assert.ok(/3:2/.test(f[0].how) && /750 by 500/.test(f[0].how), `the fix is not spelled out: ${f[0].how}`);
+});
+test('the recipe reads as a sentence', () => {
+  const d = PH.describe(PHR, bu);
+  assert.ok(/duotone primary → ground at 82%/.test(d), d);
+  assert.ok(/42% primary scrim from the bottom/.test(d), d);
+});
+
+console.log('\nphotography on the page');
+test('a treated image carries its own filter and its own scrim', () => {
+  const st = IM.store();
+  const id = st.add(PNG_A, { w: 1600, h: 1000, name: 'beach.jpg' });
+  const draw = (props) => ER.block(EM.makeBlock('slot', { props: Object.assign({ image: id }, props) }),
+    Object.assign({}, bu, { images: st.all() }));
+  const on = draw();
+  assert.ok(/<filter id="ph/.test(on), 'no filter travelled with the image');
+  assert.ok(/feComponentTransfer/.test(on), 'the duotone is not in the filter');
+  assert.ok(/class="hb-scrim"/.test(on), 'the scrim is missing');
+  assert.ok(/filter:url\(#ph/.test(on), 'the image does not use the filter');
+
+  const off = draw({ treatment: false });
+  assert.ok(!/<filter/.test(off) && !/hb-scrim/.test(off), 'opting out left the treatment on');
+});
+test('a project with no treatment declared leaves photographs alone', () => {
+  const st = IM.store();
+  const id = st.add(PNG_A, { w: 1600, h: 1000 });
+  const plain = Object.assign({}, bu, { images: st.all(),
+    system: Object.assign({}, bu.system, { photography: PH.rules() }) });
+  const html = ER.block(EM.makeBlock('slot', { props: { image: id } }), plain);
+  assert.ok(!/<filter/.test(html) && !/hb-scrim/.test(html), 'an undeclared treatment was applied anyway');
+  assert.ok(/<img /.test(html), 'the photograph vanished with it');
+});
+test('the treatment is a rule, so the stored photograph is never touched', () => {
+  const st = IM.store();
+  const id = st.add(PNG_A, { w: 1600, h: 1000 });
+  const before = st.get(id).src;
+  ER.block(EM.makeBlock('slot', { props: { image: id } }), Object.assign({}, bu, { images: st.all() }));
+  assert.strictEqual(st.get(id).src, before, 'drawing the treatment rewrote the file');
+});
+test('the recipe block states the rule, and says what to do when there is none', () => {
+  const html = ER.block(EM.makeBlock('photography'), bu);
+  assert.ok(html.includes('Duotone') && html.includes('primary → ground'), 'the duotone is not stated');
+  assert.ok(html.includes('42% primary'), 'the scrim is not stated');
+  assert.ok(html.includes('3:2'), 'the crops are not stated');
+  assert.ok(!html.includes('hb-missing'));
+
+  const plain = Object.assign({}, bu, { system: Object.assign({}, bu.system, { photography: PH.rules() }) });
+  const empty = ER.block(EM.makeBlock('photography'), plain);
+  assert.ok(empty.includes('system.photography'), 'it does not say where the treatment is set');
+});
+test('photography is the fourth rule block', () => {
+  assert.strictEqual(EM.kindOf('photography'), 'rule');
+  assert.ok(EM.RULE.includes('photography'));
+});
+test('the treatment reaches brand.json', () => {
+  const bj = JSON.parse(fs.readFileSync(path.join(out, 'brand.json'), 'utf8'));
+  assert.ok(bj.system.photography, 'a developer cannot read the treatment');
+  assert.strictEqual(bj.system.photography.duotone.amount, 0.82);
+  assert.deepStrictEqual(bj.system.photography.ratios, ['3:2', '16:9', '1:1', '4:5']);
 });
 
 console.log('\npage sizes');

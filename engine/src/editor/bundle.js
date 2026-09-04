@@ -71,6 +71,7 @@ function bundle(project, measured, files = []) {
       icons: rules.icons,
       pattern: Object.assign({}, rules.pattern, { available: gen.ok, why: gen.ok ? null : gen.why, how: gen.ok ? null : gen.how }),
       motion: rules.motion,
+      photography: rules.photography,
     },
     patternTiles, patternRefused,
     // Photographs a document uses, keyed by content. Empty from a build: they
@@ -126,12 +127,13 @@ function starterDoc(bu) {
   const p4 = M.makePage('The system');
   doc.pages.push(p4);
   p4.blocks.push(M.makeBlock('text', { x: 80, y: 56, w: 700, h: 56, props: { text: 'Set once, generated after that', style: 'H1', colour: 'primary' } }));
-  p4.blocks.push(M.makeBlock('pattern', { x: 80, y: 140, w: 560, h: 250, props: { density: 'medium', colourway: 'ground', on: 'primary' } }));
-  p4.blocks.push(M.makeBlock('pattern', { x: 660, y: 140, w: 540, h: 250, props: { density: 'fine', colourway: 'primary', on: 'ground', caption: true } }));
-  p4.blocks.push(M.makeBlock('iconGrid', { x: 80, y: 415, w: 300, h: 260, props: { colourway: 'primary', on: 'ground', line: 'neutral' } }));
-  p4.blocks.push(M.makeBlock('motion', { x: 410, y: 415, w: 260, h: 260, props: { colourway: 'ground', on: 'primary' } }));
-  p4.blocks.push(M.makeBlock('text', { x: 700, y: 430, w: 500, h: 200,
-    props: { text: 'These three come from one decision each. Change the rule in the project and every instance follows. Nothing here is redrawn by hand.', style: 'Body', colour: 'primary' } }));
+  p4.blocks.push(M.makeBlock('pattern', { x: 80, y: 136, w: 440, h: 232, props: { density: 'medium', colourway: 'ground', on: 'primary' } }));
+  p4.blocks.push(M.makeBlock('pattern', { x: 544, y: 136, w: 288, h: 232, props: { density: 'fine', colourway: 'primary', on: 'ground', caption: true } }));
+  p4.blocks.push(M.makeBlock('photography', { x: 856, y: 136, w: 344, h: 232, props: { on: 'ground' } }));
+  p4.blocks.push(M.makeBlock('iconGrid', { x: 80, y: 400, w: 280, h: 264, props: { colourway: 'primary', on: 'ground', line: 'neutral' } }));
+  p4.blocks.push(M.makeBlock('motion', { x: 384, y: 400, w: 232, h: 264, props: { colourway: 'ground', on: 'primary' } }));
+  p4.blocks.push(M.makeBlock('text', { x: 648, y: 408, w: 552, h: 200,
+    props: { text: 'These four come from one decision each. Change the rule in the project and every instance follows. Nothing here is redrawn by hand.', style: 'Body', colour: 'primary' } }));
   return doc;
 }
 

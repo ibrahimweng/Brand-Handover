@@ -61,12 +61,21 @@ function cmyk(hex) {
 }
 
 // Luminance straight off pixels, for the case where the background is a
-// photograph rather than a swatch.
+// photograph rather than a swatch. Channels are sRGB, 0 to 1.
+const luminanceOf = (r, g, b) => 0.2126 * channel(r * 255) + 0.7152 * channel(g * 255) + 0.0722 * channel(b * 255);
+
+// The same weights without the transfer curve. This is what an SVG saturate(0)
+// does, and a duotone is built on top of it, so the two have to agree.
+const greyOf = (r, g, b) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+const unit = (hex) => rgb(hex).map((v) => v / 255);
+
 function ratioOfLuminance(la, lb) {
   const [hi, lo] = la > lb ? [la, lb] : [lb, la];
   return Math.round(((hi + 0.05) / (lo + 0.05)) * 100) / 100;
 }
 const channelOf = channel;
 
-return { ratio, verdict, luminance, matrix, rgb, cmyk, ratioOfLuminance, channel: channelOf };
+return { ratio, verdict, luminance, matrix, rgb, cmyk, ratioOfLuminance,
+  channel: channelOf, luminanceOf, greyOf, unit };
 }));

@@ -111,6 +111,7 @@ async function build(project, outDir, { log = () => {} } = {}) {
       icons: sys.icons,
       pattern: Object.assign({}, sys.pattern, { source: gen.ok ? 'the shape marked data-pattern in the master' : null }),
       motion: sys.motion,
+      photography: sys.photography,
     },
     generated: { measuredFrom: path.basename(project.assets.mark.path), files: written.length + 1 },
   };

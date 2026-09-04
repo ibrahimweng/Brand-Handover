@@ -6,6 +6,7 @@
 (function () {
   'use strict';
   const M = window.HandoverModel, R = window.HandoverRender, BUNDLE = window.HANDOVER_BUNDLE;
+  const PH = window.HandoverPhotography;
   const $ = (s, r) => (r || document).querySelector(s);
   const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
   const esc = R.esc;
@@ -122,7 +123,11 @@
     change((d) => M.ops.setProps(d, pageId, blockId, { image: id }));
     persistImages();
     draw();
-    if (b) findings(IM.check(images.get(id), { w: b.w, h: b.h }, im.name));
+    if (b) {
+      findings(IM.check(images.get(id), { w: b.w, h: b.h }, im.name));
+      const ph = (BUNDLE.system || {}).photography;
+      if (ph) findings(PH.checkCrop(ph, { w: b.w, h: b.h }, im.name));
+    }
   }
 
   // ------------------------------------------- the mark on a photograph
@@ -146,12 +151,15 @@
     let data;
     try { data = g.getImageData(0, 0, GX, GY).data; }
     catch (_) { return null; }        // a tainted canvas, which a data URI is not
-    const C = window.HandoverContrast, out = [];
+    // the raw pixel, not its luminance: the treatment has to be applied to it
+    // before anything is measured, or the check reports a photograph nobody
+    // will ever see
+    const out = [];
     for (let i = 0; i < data.length; i += 4) {
       if (data[i + 3] < 8) continue;                    // transparent, nothing under
-      const l = 0.2126 * C.channel(data[i]) + 0.7152 * C.channel(data[i + 1]) + 0.0722 * C.channel(data[i + 2]);
       const n = i / 4;
-      out.push({ luminance: l, col: n % GX, row: Math.floor(n / GX) });
+      out.push({ r: data[i] / 255, g: data[i + 1] / 255, b: data[i + 2] / 255,
+        col: n % GX, row: Math.floor(n / GX) });
     }
     return out.length ? out : null;
   }
@@ -177,18 +185,57 @@
         if (over.props.on && over.props.on !== 'none') continue;
         const hit = IM.overlap(under, over);
         if (!hit) continue;
-        const patches = patchesOf(imgEl, geo.toSource(hit));
-        if (!patches) continue;
+        const raw = patchesOf(imgEl, geo.toSource(hit));
+        if (!raw) continue;
+
+        // measured through the treatment, because that is what is on the page
+        const rules = (BUNDLE.system || {}).photography;
+        const treated = rules && rules.declared && under.props.treatment !== false;
+        // where each patch sits in the image block, so a gradient scrim can be
+        // read at that point rather than averaged into a number true nowhere
+        const place = (px) => ({
+          x: (hit.x + (px.col + 0.5) / GX * hit.w) / under.w,
+          y: (hit.y + (px.row + 0.5) / GY * hit.h) / under.h,
+        });
+        const lit = raw.map((px) => {
+          const l = treated
+            ? PH.luminanceAfter(rules, BUNDLE, px, under.props.scrim, place(px))
+            : window.HandoverContrast.luminanceOf(px.r, px.g, px.b);
+          return { luminance: l, col: px.col, row: px.row };
+        });
         const ink = R.colour(BUNDLE, over.props.colourway);
-        const v = IM.overlayVerdict(ink, patches, { what: over.type === 'lockup' ? 'lockup' : 'mark' });
+        const v = IM.overlayVerdict(ink, lit, { what: over.type === 'lockup' ? 'lockup' : 'mark' });
         if (!v || v.passes) continue;
-        const better = IM.bestColourway(ways.filter((w) => w.name !== over.props.colourway), patches);
-        if (better) {
-          v.finding.how = `Use the ${better.name} colourway here, which measures ${better.ratio}:1, `
-            + 'or move the mark to a quieter part of the picture.';
-          v.instead = better;
+
+        // Two ways out, and the scrim is the one that keeps the photograph.
+        // Working out the strength by eye is what an opacity slider is for, and
+        // it is guesswork on one person's screen; this is the number.
+        const better = IM.bestColourway(ways.filter((w) => w.name !== over.props.colourway), lit);
+        const scrimHex = PH.hexOf(BUNDLE, (rules && rules.scrim && rules.scrim.colour) || 'primary');
+        const dir = (rules && rules.scrim && rules.scrim.direction) || 'bottom';
+        const need = PH.scrimNeeded(ink,
+          raw.map((px) => Object.assign(treated ? PH.treatPixel(rules, BUNDLE, px) : px, { at: place(px) })),
+          scrimHex, dir);
+        const scrimName = (rules && rules.scrim && rules.scrim.colour) || 'primary';
+        const pct = (n) => `${Math.round(n * 100)}%`;
+        const ways2 = [];
+        if (need.needed) {
+          ways2.push(`turn the scrim on this image up to ${pct(need.needed)}, which takes it to ${need.ratio}:1`);
+        } else if (dir !== 'flat') {
+          // a gradient can be strong at one end and absent where the mark is,
+          // and that is a different problem from the scrim being too weak
+          const flat = PH.scrimNeeded(ink,
+            raw.map((px) => Object.assign(treated ? PH.treatPixel(rules, BUNDLE, px) : px, { at: place(px) })),
+            scrimHex, 'flat');
+          if (flat.needed) ways2.push(`use a flat ${pct(flat.needed)} ${scrimName} scrim here, since the gradient from the ${dir} does not reach this far up (${flat.ratio}:1)`);
         }
-        overlays.push({ id: over.id, x: over.x, y: over.y, w: over.w, h: over.h, verdict: v });
+        if (better) ways2.push(`use the ${better.name} colourway, which measures ${better.ratio}:1`);
+        const sentence = ways2.length === 0 ? null
+          : ways2.length === 1 ? ways2[0][0].toUpperCase() + ways2[0].slice(1) + '.'
+          : `Either ${ways2.join(', or ')}.`;
+        v.finding.how = sentence || `Move the mark to a quieter part of the picture. ${need.why || ''}`.trim();
+        v.instead = better; v.scrim = need;
+        overlays.push({ id: over.id, x: over.x, y: over.y, w: over.w, h: over.h, slot: under.id, verdict: v });
       }
     }
     drawOverlayWarnings();
@@ -298,7 +345,7 @@
     mark: 'Mark', lockup: 'Lockup', construction: 'Construction',
     clearSpace: 'Clear space', minimumSize: 'Minimum size', palette: 'Palette',
     contrast: 'Contrast table', typeSpecimen: 'Type specimen', assetIndex: 'Asset index',
-    pattern: 'Pattern', iconGrid: 'Icon grid', motion: 'Motion',
+    pattern: 'Pattern', iconGrid: 'Icon grid', motion: 'Motion', photography: 'Photography',
   };
   const nameOf = (t) => NAME[t] || t;
 
@@ -306,6 +353,21 @@
   // a block laid over a photograph needs no ground of its own
   const GROUNDS = () => ['none', ...COLOURS()];
   const STYLES = () => ((BUNDLE.type || {}).scale || []).map((s) => s.name);
+
+  // A photograph follows the brand's treatment unless this one has a reason not
+  // to. The scrim is the exception worth having per image: the check works out
+  // the strength a particular picture needs, and that number has to go
+  // somewhere other than back into the rule.
+  function treatmentFields(b) {
+    const r = (BUNDLE.system || {}).photography;
+    if (!r || !r.declared) return '';
+    const on = b.props.treatment !== false;
+    const over = b.props.scrim;
+    return field('Brand treatment', chk('treatment', on))
+      + (on ? `<p class="hint imeta">${esc(PH.describe(r, BUNDLE))}</p>` : '')
+      + (on && r.scrim ? field(`Scrim on this one${over == null ? ' (the rule)' : ''}`,
+        `<input type="range" min="0" max="100" step="5" data-prop="scrim" data-num-prop="1" data-pct="1" value="${Math.round((over == null ? r.scrim.opacity : over) * 100)}">`) : '');
+  }
 
   const PROPS = {
     text: (b) => field('Text', `<textarea data-prop="text" rows="4">${esc(b.props.text)}</textarea>`)
@@ -324,7 +386,8 @@
         + (im ? `<button id="clearimg">Remove</button>` : '') + `</div>`
         + (im ? field('Fit', sel('fit', ['cover', 'contain'], b.props.fit))
             + (b.props.fit !== 'contain' ? field('Focus across', rng('focusX', b.props.focusX))
-              + field('Focus down', rng('focusY', b.props.focusY)) : '') : '')
+              + field('Focus down', rng('focusY', b.props.focusY)) : '')
+            + treatmentFields(b) : '')
         + field('Caption', `<input data-prop="caption" value="${esc(b.props.caption || '')}">`)
         + field('Label', `<input data-prop="label" value="${esc(b.props.label)}">`);
     },
@@ -342,6 +405,8 @@
       + field('On', sel('on', COLOURS(), b.props.on)) + field('Lines', sel('line', COLOURS(), b.props.line))
       + field('State the rule', chk('caption', b.props.caption !== false)),
     motion: (b) => field('Ink', sel('colourway', COLOURS(), b.props.colourway)) + field('On', sel('on', COLOURS(), b.props.on))
+      + field('State the rule', chk('caption', b.props.caption !== false)),
+    photography: (b) => field('On', sel('on', COLOURS(), b.props.on))
       + field('State the rule', chk('caption', b.props.caption !== false)),
   };
   PROPS.clearSpace = PROPS.construction;
@@ -383,6 +448,7 @@
       const ev = i.tagName === 'SELECT' || i.type === 'checkbox' ? 'change' : 'input';
       i.addEventListener(ev, () => {
         const v = i.type === 'checkbox' ? i.checked
+          : i.dataset.pct ? Number(i.value) / 100
           : (i.type === 'number' || i.dataset.numProp) ? Number(i.value) : i.value;
         change((d) => M.ops.setProps(d, pageId, b.id, { [i.dataset.prop]: v }));
       });
@@ -535,7 +601,7 @@
   const INSERT = [
     ['Plain', ['text', 'rule', 'fill', 'slot']],
     ['Drawn by the system', ['mark', 'lockup', 'construction', 'clearSpace', 'minimumSize', 'palette', 'contrast', 'typeSpecimen', 'assetIndex']],
-    ['Set once by you', ['pattern', 'iconGrid', 'motion']],
+    ['Set once by you', ['pattern', 'iconGrid', 'motion', 'photography']],
   ];
   function drawInsert() {
     const box = $('#insert'); box.innerHTML = '';
