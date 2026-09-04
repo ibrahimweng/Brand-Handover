@@ -9,14 +9,17 @@ around it.
 
     cd engine
     npm install
-    npm test                                            # 20 checks
+    npm test                                            # 103 checks
     node src/cli.js check   test/fixtures/messy-illustrator.svg --tokens projects/meridian/project.json
+    node src/cli.js check   my-icon.svg --icon projects/meridian/project.json
     node src/cli.js measure projects/meridian/project.json
     node src/cli.js build   projects/meridian/project.json -o out
     node src/cli.js edit    projects/meridian/project.json -o editor.html
     node src/cli.js publish projects/meridian/project.json out/document.json -o page.html
 
-The Meridian example writes 121 files in about four seconds, including both documents, the editor, the document it opens with, and that document published.
+The Meridian example writes 136 files in about six seconds, including both
+documents, the editor, the document it opens with, that document published, and
+the pattern at every density in every colourway.
 
 ## What it measures
 
@@ -120,6 +123,7 @@ Every file is cut from the master when you press build.
     01-horizontal/  02-stacked/  03-mark/  04-wordmark/   20 lockups, 5 files each
     05-icons/       app and touch icons, favicons, and a multi-size .ico
     06-social/      profile, header and open graph crops
+    07-pattern/     the pattern, every density in every colourway
     brand.json      the whole system, machine readable
     guidelines.html the manual
     deck.html       the presentation
@@ -193,7 +197,7 @@ turns an eight week job into something usable.
     cmd A             select everything on the page
     delete            remove
 
-Blocks come in two kinds, and the properties panel says which one you have
+Blocks come in three kinds, and the properties panel says which one you have
 selected.
 
 **Plain blocks** are text, a rule, a fill and an image slot. Ordinary furniture,
@@ -206,6 +210,8 @@ is painted in, and nothing else. Change the master and every one of them
 redraws. A colour chip row in Figma is six rectangles somebody has to update by
 hand. Here it is one block that is always current, and that difference is the
 reason this is worth building rather than making a nice template.
+
+**Rule blocks** are the pattern, the icon grid and the motion curve. See below.
 
 ### One renderer
 
@@ -252,11 +258,101 @@ it generates. Inlined into the editor that closed the editor's own script block
 early and took the rest of the file with it, so it is escaped in the source. The
 test refuses a raw closing tag in any file that gets inlined.
 
+## Rule blocks, the third kind
+
+A derived block reads a measurement. A rule block reads a **decision**. You make
+it once, the project stores it, and from then on the engine generates every
+instance without asking again. That is the difference between a pattern in a
+brand manual and a pattern in a brand system: one is a picture of a decision,
+the other is the decision.
+
+There are three, and each is one decision.
+
+### The pattern
+
+The decision is *which shape*. Mark it in the master and nothing else is needed:
+
+    <path data-pattern="source" d="..."/>
+
+The engine will not pick one for you. Guessing which part of a mark is the motif
+is a taste judgement, and a wrong guess produces a plausible pattern that is
+quietly not the brand's. With nothing marked, the build says so and tells you
+what to add.
+
+From that one shape it cuts a seamless tile — two rows, the second dropped by
+half, so the field reads as movement rather than as stripes — at every density
+in every colourway. Fifteen files for Meridian, none of them drawn.
+
+**A colourway that fails contrast is refused rather than drawn faintly.** Beacon
+on Chalk measures 1.83:1, so the tile is not written and the build says why. A
+pattern nobody can see is worse than no pattern, because it ships.
+
+### The icon grid
+
+The decision is the box, and everything else comes off the mark:
+
+    24 box · 21.8 live · 1.8 stroke · curve r 30
+    from the mark: viewBox 120, margin 5.5, stroke 9
+
+The stroke is the mark's own stroke as a fraction of its box. The live area is
+the mark's own margin. So an icon set drawn to this grid looks like it came from
+the same hand as the mark, because arithmetically it did. Any of it can be
+overridden in `project.json`; what is overridden stays overridden and the rest
+still follows the artwork.
+
+Then the rule does the part that actually matters:
+
+    node src/cli.js check my-icon.svg --icon projects/meridian/project.json
+
+Exporting an icon at eight sizes is easy. Rejecting the ninth icon whose stroke
+is wrong is the part that keeps a set coherent, and by the twentieth icon a
+machine is the only thing still checking. A wrong stroke or the wrong artboard
+is a blocker. A butt cap, a mitred corner, a filled shape in an outline set, or
+a drawing that reaches outside the live area is worth a look.
+
+Two things this gets right that a naive version does not, both found by testing
+rather than by thinking:
+
+- **Paint is inherited.** Every drawing tool hangs `stroke` and `stroke-width`
+  on the `<svg>` or on a `<g>` and lets the shapes inherit them. Reading only
+  what is on the shape itself finds no strokes at all, so an icon with the wrong
+  weight passes silently — which is worse than not checking.
+- **An arc's radii are not points.** `A30 30 0 0 1 21 9.5` carries a radius of 30
+  in the same number stream as the coordinates. Scraping numbers reads that as a
+  point 30 units across and fails a perfectly good icon on a 24 unit grid.
+
+### Motion
+
+The decision is the easing pair and how the mark builds. The rule then splits
+the artwork the only way that generalises: **what is stroked is the outline,
+what is filled is the fill.** The outline settles, then the fill rises to its
+line inside a clip of the mark's own measured ink box, so it fills up rather
+than sliding past. `prefers-reduced-motion` turns it off.
+
+    400ms out · 600ms through · outline, then fill
+
+The first version translated the whole mark as one piece, which is a slide, not
+a build. Splitting it is what makes the rule a rule rather than an animation
+somebody made once.
+
+### On the page
+
+Place a rule block, choose which instance to show, and you are done. The panel
+shows an amber **set once by you** badge and offers only the instance: density,
+ink, ground, and whether the block states its rule underneath. To change the
+rule itself you edit the project, not the block — which is the whole point, and
+why the panel says so rather than letting you drift.
+
+The loop closes here too. Thicken the ring in `mark.svg` from 9 to 14 and the
+icon stroke goes 1.8 → 2.8, the live area 21.8 → 22.8, and an icon drawn to the
+old rule becomes a blocker. A test asserts exactly that, because a rule that
+remembers an old master is not a rule.
+
 ### What the editor does not do yet
 
 - **Image slots are placeholders.** Dropping a file in is not wired up.
-- **No rule blocks.** The pattern, the icon grid and the motion curve are the
-  third kind of block from the specimen and none of them is built.
+- **The icon grid draws a demonstration glyph**, not your icon set. Icons are
+  checked one at a time through the CLI; a set is not yet held in the project.
 - **One page size.** 1280 by 720 for everything, print sizes included.
 
 ## What it does not do yet
@@ -268,7 +364,8 @@ test refuses a raw closing tag in any file that gets inlined.
   differently in some tools, and that is not checked.
 - **Overlapping identical shapes.** Duplicate artwork stacked on itself measures
   correctly and still doubles the file size.
-- **Icons, patterns and motion.** Those are later phases.
+- **Motion is CSS only.** It plays in a browser. Exporting Lottie or a video is
+  not written.
 
 ## Layout
 
@@ -281,8 +378,10 @@ test refuses a raw closing tag in any file that gets inlined.
     src/contrast.js   WCAG ratios and CMYK, computed rather than typed
     src/pdf.js        true vector PDF, and the .ai that is the same bytes
     src/export.js     icons, favicons, social crops and the zip
+    src/system.js     the rules: icon grid off the mark, pattern, motion
+    src/pattern.js    seamless tiles cut from the shape you marked
     src/documents/    blocks.js, chrome.js, index.js (manual), deck.js
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/naming.js     one naming rule for the whole package
     src/build.js      write the package, brand.json and the read me
-    src/cli.js        check, measure and build
+    src/cli.js        check, measure, build, edit and publish

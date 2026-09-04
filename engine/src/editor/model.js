@@ -11,12 +11,16 @@
 // A block is one of three kinds:
 //   plain    text, rule, fill, slot. Ordinary furniture.
 //   derived  draws itself from the project. Never edited, never wrong.
-//   rule     one decision, applied forever. Not in this version yet.
+//   rule     one decision, applied forever. Placed, never redrawn.
 
 const PLAIN = ['text', 'rule', 'fill', 'slot'];
 const DERIVED = ['mark', 'lockup', 'construction', 'clearSpace', 'minimumSize', 'palette', 'contrast', 'typeSpecimen', 'assetIndex'];
-const KINDS = [...PLAIN, ...DERIVED];
-const kindOf = (type) => (DERIVED.includes(type) ? 'derived' : 'plain');
+// Rule blocks are the third kind. One decision, made once, generating every
+// instance after that. You place one and choose which instance to show; you
+// never redraw it and you never restate the rule.
+const RULE = ['pattern', 'iconGrid', 'motion'];
+const KINDS = [...PLAIN, ...DERIVED, ...RULE];
+const kindOf = (type) => (RULE.includes(type) ? 'rule' : DERIVED.includes(type) ? 'derived' : 'plain');
 
 const PAGE = { w: 1280, h: 720 };
 const GRID = 8;
@@ -33,6 +37,9 @@ const DEFAULTS = {
   lockup: { lockup: 'horizontal', colourway: 'primary', on: 'ground' },
   construction: {}, clearSpace: {}, minimumSize: {},
   palette: {}, contrast: { limit: 6 }, typeSpecimen: {}, assetIndex: {},
+  pattern: { density: 'medium', colourway: 'ground', on: 'primary', caption: false },
+  iconGrid: { colourway: 'primary', on: 'ground', line: 'neutral', caption: true },
+  motion: { colourway: 'ground', on: 'primary', caption: true },
 };
 const SIZES = {
   text: { w: 520, h: 120 }, rule: { w: 520, h: 2 }, fill: { w: 400, h: 260 },
@@ -40,6 +47,7 @@ const SIZES = {
   construction: { w: 380, h: 400 }, clearSpace: { w: 380, h: 400 }, minimumSize: { w: 640, h: 240 },
   palette: { w: 900, h: 260 }, contrast: { w: 820, h: 300 }, typeSpecimen: { w: 820, h: 300 },
   assetIndex: { w: 560, h: 320 },
+  pattern: { w: 620, h: 280 }, iconGrid: { w: 560, h: 420 }, motion: { w: 360, h: 360 },
 };
 
 function makeBlock(type, at = {}) {
@@ -138,6 +146,6 @@ function history(initial, limit = 60) {
   };
 }
 
-return { PLAIN, DERIVED, KINDS, kindOf, DEFAULTS, SIZES, PAGE, GRID,
+return { PLAIN, DERIVED, RULE, KINDS, kindOf, DEFAULTS, SIZES, PAGE, GRID,
   makeBlock, makePage, emptyDoc, ops, history, clone, snap, findPage };
 }));

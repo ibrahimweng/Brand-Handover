@@ -5,6 +5,8 @@
 const svgu = require('../svg');
 const contrast = require('../contrast');
 const { buildVariant } = require('../variants');
+const system = require('../system');
+const pattern = require('../pattern');
 
 function bundle(project, measured, files = []) {
   const cols = project.tokens.colour || {};
@@ -45,8 +47,32 @@ function bundle(project, measured, files = []) {
     if (marks[n]) { marks[key] = marks[n]; markInner[key] = markInner[n]; }
   }
 
+  // ---- rule blocks: resolved once here, then every instance is generated ----
+  const rules = system.resolve(project, measured);
+  const pairs = contrast.matrix(cols);
+  const patternTiles = {};
+  const patternRefused = [];
+  const src = project.assets.mark.source;
+  const ways = [];
+  for (const key of ['ground', 'primary', 'secondary', 'accent']) {
+    if (!roles[key]) continue;
+    const on = key === 'ground' ? roles.primary.hex : roles.ground.hex;
+    ways.push({ name: key, ink: roles[key].hex, on });
+  }
+  const gen = pattern.everyTile(src, rules.pattern, ways, pairs);
+  if (gen.ok) {
+    for (const t of gen.tiles) patternTiles[`${t.density}:${t.colourway}`] = t;
+    patternRefused.push(...gen.refused);
+  }
+
   return {
     brand: project.brand, version: project.version,
+    system: {
+      icons: rules.icons,
+      pattern: Object.assign({}, rules.pattern, { available: gen.ok, why: gen.ok ? null : gen.why, how: gen.ok ? null : gen.how }),
+      motion: rules.motion,
+    },
+    patternTiles, patternRefused,
     colours, roles,
     type: project.tokens.type || {},
     measured: {
@@ -92,6 +118,17 @@ function starterDoc(bu) {
   p3.blocks.push(M.makeBlock('text', { x: 80, y: 64, w: 600, h: 60, props: { text: 'Colour', style: 'H1', colour: 'primary' } }));
   p3.blocks.push(M.makeBlock('palette', { x: 80, y: 150, w: 1120, h: 250 }));
   p3.blocks.push(M.makeBlock('contrast', { x: 80, y: 430, w: 1120, h: 240, props: { limit: 5 } }));
+
+  // the third kind of block, so a beginner meets all three on the way in
+  const p4 = M.makePage('The system');
+  doc.pages.push(p4);
+  p4.blocks.push(M.makeBlock('text', { x: 80, y: 56, w: 700, h: 56, props: { text: 'Set once, generated after that', style: 'H1', colour: 'primary' } }));
+  p4.blocks.push(M.makeBlock('pattern', { x: 80, y: 140, w: 560, h: 250, props: { density: 'medium', colourway: 'ground', on: 'primary' } }));
+  p4.blocks.push(M.makeBlock('pattern', { x: 660, y: 140, w: 540, h: 250, props: { density: 'fine', colourway: 'primary', on: 'ground', caption: true } }));
+  p4.blocks.push(M.makeBlock('iconGrid', { x: 80, y: 415, w: 300, h: 260, props: { colourway: 'primary', on: 'ground', line: 'neutral' } }));
+  p4.blocks.push(M.makeBlock('motion', { x: 410, y: 415, w: 260, h: 260, props: { colourway: 'ground', on: 'primary' } }));
+  p4.blocks.push(M.makeBlock('text', { x: 700, y: 430, w: 500, h: 200,
+    props: { text: 'These three come from one decision each. Change the rule in the project and every instance follows. Nothing here is redrawn by hand.', style: 'Body', colour: 'primary' } }));
   return doc;
 }
 

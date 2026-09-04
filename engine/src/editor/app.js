@@ -58,7 +58,7 @@
         for (const h of ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']) {
           const k = el('div', 'h h-' + h); k.dataset.handle = h; k.dataset.id = id; box.appendChild(k);
         }
-        box.appendChild(el('span', 'tag', esc(b.type)));
+        box.appendChild(el('span', 'tag', esc(nameOf(b.type))));
       }
       overlay.appendChild(box);
     }
@@ -87,6 +87,17 @@
   const num = (k, v) => `<input type="number" data-num="${k}" value="${v}">`;
   const opts = (list, cur) => list.map((o) => `<option value="${esc(o)}"${o === cur ? ' selected' : ''}>${esc(o)}</option>`).join('');
   const sel = (k, list, cur) => `<select data-prop="${k}">${opts(list, cur)}</select>`;
+  const chk = (k, on) => `<input type="checkbox" data-prop="${k}"${on ? ' checked' : ''}>`;
+
+  // What a block is called to a designer. The type name is the code's business.
+  const NAME = {
+    text: 'Text', rule: 'Line', fill: 'Colour field', slot: 'Image',
+    mark: 'Mark', lockup: 'Lockup', construction: 'Construction',
+    clearSpace: 'Clear space', minimumSize: 'Minimum size', palette: 'Palette',
+    contrast: 'Contrast table', typeSpecimen: 'Type specimen', assetIndex: 'Asset index',
+    pattern: 'Pattern', iconGrid: 'Icon grid', motion: 'Motion',
+  };
+  const nameOf = (t) => NAME[t] || t;
 
   const COLOURS = () => [...Object.keys(BUNDLE.roles), ...Object.keys(BUNDLE.colours)];
   const STYLES = () => ((BUNDLE.type || {}).scale || []).map((s) => s.name);
@@ -106,6 +117,14 @@
       + field('On', sel('on', COLOURS(), b.props.on || 'ground')) + field('Lines', sel('line', COLOURS(), b.props.line || 'neutral')),
     minimumSize: (b) => field('Ink', sel('colourway', COLOURS(), b.props.colourway || 'primary')),
     contrast: (b) => field('Rows', `<input type="number" data-prop="limit" value="${b.props.limit || 6}" min="1" max="${BUNDLE.contrast.length}">`),
+    pattern: (b) => field('Density', sel('density', Object.keys((BUNDLE.system.pattern || {}).densities || { medium: 1 }), b.props.density))
+      + field('Ink', sel('colourway', COLOURS(), b.props.colourway)) + field('On', sel('on', COLOURS(), b.props.on))
+      + field('State the rule', chk('caption', b.props.caption)),
+    iconGrid: (b) => field('Ink', sel('colourway', COLOURS(), b.props.colourway))
+      + field('On', sel('on', COLOURS(), b.props.on)) + field('Lines', sel('line', COLOURS(), b.props.line))
+      + field('State the rule', chk('caption', b.props.caption !== false)),
+    motion: (b) => field('Ink', sel('colourway', COLOURS(), b.props.colourway)) + field('On', sel('on', COLOURS(), b.props.on))
+      + field('State the rule', chk('caption', b.props.caption !== false)),
   };
   PROPS.clearSpace = PROPS.construction;
 
@@ -118,10 +137,16 @@
       return;
     }
     const b = blockById(selection[0]); if (!b) { box.innerHTML = ''; return; }
-    const derived = M.DERIVED.indexOf(b.type) > -1;
+    const kind = M.kindOf(b.type);
+    const LABEL = { derived: 'Drawn by the system', rule: 'Set once by you', plain: 'Yours' };
+    const NOTE = {
+      derived: 'This block reads the project and draws itself. Change the master and it redraws. You set where it sits and what it is painted in, and nothing else.',
+      rule: 'One decision, made once in the project, generating every instance after it. You choose which instance to show. To change the rule itself, edit the project rather than this block.',
+      plain: '',
+    };
     box.innerHTML =
-      `<div class="ph"><h3>${esc(b.type)}</h3><span class="kind ${derived ? 'd' : 'p'}">${derived ? 'Drawn by the system' : 'Yours'}</span></div>`
-      + (derived ? `<p class="hint">This block reads the project and draws itself. Change the master and it redraws. You set where it sits and what it is painted in, and nothing else.</p>` : '')
+      `<div class="ph"><h3>${esc(nameOf(b.type))}</h3><span class="kind ${kind[0]}">${LABEL[kind]}</span></div>`
+      + (NOTE[kind] ? `<p class="hint">${NOTE[kind]}</p>` : '')
       + `<div class="grid4">${num('x', b.x)}${num('y', b.y)}${num('w', b.w)}${num('h', b.h)}</div>`
       + `<div class="labels"><span>X</span><span>Y</span><span>W</span><span>H</span></div>`
       + ((PROPS[b.type] && PROPS[b.type](b)) || '')
@@ -135,9 +160,9 @@
       });
     });
     box.querySelectorAll('[data-prop]').forEach((i) => {
-      const ev = i.tagName === 'SELECT' ? 'change' : 'input';
+      const ev = i.tagName === 'SELECT' || i.type === 'checkbox' ? 'change' : 'input';
       i.addEventListener(ev, () => {
-        const v = i.type === 'number' ? Number(i.value) : i.value;
+        const v = i.type === 'checkbox' ? i.checked : i.type === 'number' ? Number(i.value) : i.value;
         change((d) => M.ops.setProps(d, pageId, b.id, { [i.dataset.prop]: v }));
       });
     });
@@ -285,6 +310,7 @@
   const INSERT = [
     ['Plain', ['text', 'rule', 'fill', 'slot']],
     ['Drawn by the system', ['mark', 'lockup', 'construction', 'clearSpace', 'minimumSize', 'palette', 'contrast', 'typeSpecimen', 'assetIndex']],
+    ['Set once by you', ['pattern', 'iconGrid', 'motion']],
   ];
   function drawInsert() {
     const box = $('#insert'); box.innerHTML = '';
@@ -292,7 +318,7 @@
       box.appendChild(el('p', 'gl', esc(group)));
       const wrap = el('div', 'gi');
       for (const t of types) {
-        const b = el('button', 'ins', esc(t));
+        const b = el('button', 'ins', esc(nameOf(t)));
         b.onclick = () => { let made; change((d) => { made = M.ops.addBlock(d, pageId, t); }); selection = [made]; drawOverlay(); drawPanel(); };
         wrap.appendChild(b);
       }

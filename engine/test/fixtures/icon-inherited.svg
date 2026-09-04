@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <title>An icon exported the way a drawing tool exports one</title>
+  <g fill="none" stroke="#0A2A33" style="stroke-width:3;stroke-linecap:butt">
+    <path d="M3 9.5 A30 30 0 0 1 21 9.5"/>
+    <path d="M3 15 A30 30 0 0 1 21 15"/>
+  </g>
+</svg>

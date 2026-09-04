@@ -12,6 +12,8 @@ handover — derives a whole logo package from one master mark
   handover build <project.json> [-o out]   write the package
   handover measure <project.json>          print what the master measures, write nothing
   handover check <artwork.svg>             report what is wrong with an export
+  handover check <icon.svg> --icon <project.json>
+                                           check an icon against the grid rule
   handover edit <project.json> [-o f]      write a self contained canvas editor
   handover publish <project.json> <doc.json> [-o f]
                                            publish an edited document as a page
@@ -26,6 +28,28 @@ async function main(argv) {
   const [cmd, file] = argv;
   if (!cmd || cmd === '-h' || cmd === '--help') { console.log(USAGE.trim()); return 0; }
   if (!file) { console.error('Which project file? Pass a path to project.json.'); return 1; }
+
+  // an icon is checked against the rule the project already holds
+  if (cmd === 'check' && argv.includes('--icon')) {
+    const ii = argv.indexOf('--icon');
+    const projPath = argv[ii + 1];
+    if (!projPath) { console.error('which project holds the icon rule? pass --icon <project.json>'); return 1; }
+    let proj;
+    try { proj = projectLoader.load(projPath); }
+    catch (e) { console.error(e.message); return 1; }
+    const system = require('./system');
+    const { format } = require('./report');
+    const { measure } = require('./variants');
+    const r = system.iconRules(measure(proj), (proj.system || {}).icons);
+    let src;
+    try { src = fs.readFileSync(file, 'utf8'); }
+    catch (e) { console.error(`could not read ${file}: ${e.message}`); return 1; }
+    const found = system.checkIcon(src, r);
+    console.log(`  the rule: ${r.box} unit box, ${r.live} live, ${r.stroke} stroke, ${r.cap} ends, curve radius ${r.curveRadius}`);
+    console.log(`  taken from the mark: viewBox ${r.derivedFrom.viewBox}, margin ${r.derivedFrom.markMargin}, stroke ${r.derivedFrom.markStroke}\n`);
+    console.log(format(found, { name: path.basename(file) }));
+    return found.some((f) => f.level === 'blocker') ? 1 : 0;
+  }
 
   // check runs on a bare SVG, before there is a project at all
   if (cmd === 'check') {

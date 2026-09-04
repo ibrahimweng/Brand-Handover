@@ -1,7 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
   <!-- the ring -->
   <circle data-slot="ink" cx="60" cy="60" r="50" fill="none" stroke="#0A2A33" stroke-width="9"/>
-  <!-- the tide line: an arc of 3r crossing the ring a quarter of a radius below centre -->
-  <path data-slot="ink" fill="#0A2A33"
+  <!-- the tide line: an arc of 3r crossing the ring a quarter of a radius below centre.
+       data-pattern="source" marks it as the shape the brand pattern is built from. -->
+  <path data-slot="ink" data-pattern="source" fill="#0A2A33"
         d="M11.59 72.5 A150 150 0 0 1 108.41 72.5 A50 50 0 0 1 11.59 72.5 Z"/>
 </svg>

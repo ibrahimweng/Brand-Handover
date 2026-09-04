@@ -61,6 +61,7 @@ h4{margin:0 0 8px;font-size:10px;letter-spacing:.13em;text-transform:uppercase;c
 .ph h3{margin:0;font-size:14px;font-weight:600}
 .kind{font-family:var(--mono);font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:2px 6px;border-radius:3px}
 .kind.d{background:#1E3A2E;color:#7EE0A8}.kind.p{background:#2A2E31;color:var(--dim)}
+.kind.r{background:#33301C;color:#E2C86A}
 .hint{font-size:12px;line-height:1.5;color:var(--dim);margin:0 0 12px}
 .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
 .grid4 input{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:5px 6px;font-family:var(--mono);font-size:11px}
@@ -68,6 +69,9 @@ h4{margin:0 0 8px;font-size:10px;letter-spacing:.13em;text-transform:uppercase;c
 .labels span{font-family:var(--mono);font-size:9px;color:var(--dim);text-align:center}
 .f{display:block;margin-bottom:10px}
 .f>span{display:block;font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim);margin-bottom:4px}
+.f:has(input[type=checkbox]){display:flex;align-items:center;gap:8px;cursor:pointer}
+.f:has(input[type=checkbox])>span{margin:0;order:2}
+.f input[type=checkbox]{width:auto;margin:0;accent-color:#E2C86A}
 .f input,.f select,.f textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:6px 7px;font-size:12px}
 .f textarea{resize:vertical;font-family:var(--ui);line-height:1.45}
 .ord{display:flex;gap:4px;margin:14px 0 10px}

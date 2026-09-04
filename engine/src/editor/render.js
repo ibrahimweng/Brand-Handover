@@ -39,6 +39,18 @@
       `<svg${a.replace(/\s(width|height|style)="[^"]*"/g, '')} preserveAspectRatio="xMidYMid meet" `
       + `style="width:100%;height:100%;display:block;padding:${pad || 0}px;box-sizing:border-box">`);
 
+  // A rule block states its own rule. That is the whole point of the kind: you
+  // read the decision off the page instead of trusting that someone wrote it
+  // down somewhere else and kept it current.
+  // Segments are held together so the line breaks between them rather than
+  // inside a phrase. Done with nowrap rather than hard spaces, so the caption
+  // is still ordinary text to search for, select and paste.
+  const ruleCaption = (text, tint) =>
+    `<p style="font-family:ui-monospace,Menlo,monospace;font-size:10px;line-height:1.5;letter-spacing:.06em;`
+    + `color:${tint};margin:0;text-align:center;opacity:.8">`
+    + esc(text).split(' \u00b7 ').map((seg) => `<span style="white-space:nowrap">${seg}</span>`).join(' \u00b7 ')
+    + `</p>`;
+
   // ------------------------------------------------------------ diagrams
   // Built from arithmetic and the mark's inner markup. No parsing, so this is
   // the same code in the editor and on the server.
@@ -121,6 +133,97 @@
     typeSpecimen: (b, bu) => `<div class="hb-faces">${Object.entries((bu.type || {}).families || {}).map(([role, f]) =>
       `<div><p class="fl">${esc(f.family)} · ${esc(role)}</p>
        <p style="font-family:'${esc(f.family)}',${esc(f.fallback || 'serif')};font-weight:${(f.weights || [400])[0]};font-size:30px;line-height:1.2;margin:6px 0 0">ABCDEFGHIJ abcdefghij 0123</p></div>`).join('')}</div>`,
+
+    // ---- rule blocks: one decision, every instance generated from it ----
+    pattern: (b, bu) => {
+      const sys = (bu.system || {}).pattern || {};
+      if (!sys.available) {
+        return `<div class="hb-missing">No pattern yet. ${esc(sys.how || 'Mark a shape in the master with data-pattern="source".')}</div>`;
+      }
+      // tiles are already keyed by role, so this must not go through cwName,
+      // which would turn "primary" into the colourway name and miss every time
+      const key = `${b.props.density || 'medium'}:${b.props.colourway || 'ground'}`;
+      const t = bu.patternTiles[key] || bu.patternTiles[Object.keys(bu.patternTiles)[0]];
+      if (!t) return `<div class="hb-missing">That density and colourway was refused, because it fails contrast on its ground.</div>`;
+      const pid = 'p' + esc(b.id);
+      const field = `<svg viewBox="0 0 ${b.w} ${b.h}" preserveAspectRatio="none" style="width:100%;height:100%;display:block" role="img" aria-label="The brand pattern at ${esc(t.density)} density in ${esc(t.colourway)}.">
+        <defs><pattern id="${pid}" width="${t.width}" height="${t.height}" patternUnits="userSpaceOnUse">${t.body}</pattern></defs>
+        <rect width="${b.w}" height="${b.h}" fill="${colour(bu, b.props.on)}"/>
+        <rect width="${b.w}" height="${b.h}" fill="url(#${pid})"/></svg>`;
+      if (!b.props.caption) return field;
+      // The tile is square-ish and repeats on a half-drop, so those two numbers
+      // and the weight are the whole rule. Stated in the units the tile is cut in.
+      const rule = `${t.width} tile · ${t.height} row · ${esc(t.density)} · half drop`;
+      return `<div style="width:100%;height:100%;display:flex;flex-direction:column;gap:6px">
+        <div style="flex:1;min-height:0">${field}</div>${ruleCaption(rule, colour(bu, b.props.colourway))}</div>`;
+    },
+
+    iconGrid: (b, bu) => {
+      const r = (bu.system || {}).icons; if (!r) return `<div class="hb-missing">no icon rules</div>`;
+      const line = colour(bu, b.props.line || 'neutral'), ink = colour(bu, b.props.colourway || 'primary');
+      const S = 240, pad = 26, k = (S - pad * 2) / r.box;
+      const X = (v) => r3(pad + v * k);
+      let grid = '';
+      for (let i = 0; i <= 8; i++) {
+        const g = X(r.box / 8 * i);
+        grid += `<path d="M${g} ${X(0)}V${X(r.box)}"/><path d="M${X(0)} ${g}H${X(r.box)}"/>`;
+      }
+      const m = r.box * r.marginFraction;
+      return `<div style="width:100%;height:100%;background:${colour(bu, b.props.on)};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
+        <svg viewBox="0 0 ${S} ${S}" style="width:100%;height:auto;max-height:78%" role="img" aria-label="The icon grid. A ${r.box} unit box with a ${r.live} unit live area and a stroke of ${r.stroke}.">
+          <g stroke="${line}" stroke-width=".4" opacity=".25">${grid}</g>
+          <rect x="${X(0)}" y="${X(0)}" width="${r3(r.box * k)}" height="${r3(r.box * k)}" fill="none" stroke="${line}" stroke-width=".9" opacity=".6"/>
+          <rect x="${X(m)}" y="${X(m)}" width="${r3(r.live * k)}" height="${r3(r.live * k)}" fill="none" stroke="${bu.roles.accent.hex}" stroke-width="1" stroke-dasharray="4 3"/>
+          <g fill="none" stroke="${ink}" stroke-width="${r3(r.stroke * k)}" stroke-linecap="${r.cap}">
+            <path d="M${X(m)} ${X(r.box * 0.34)} A${r3(r.curveRadius * k)} ${r3(r.curveRadius * k)} 0 0 1 ${X(r.box - m)} ${X(r.box * 0.34)}"/>
+            <path d="M${X(m)} ${X(r.box * 0.5)} A${r3(r.curveRadius * k)} ${r3(r.curveRadius * k)} 0 0 1 ${X(r.box - m)} ${X(r.box * 0.5)}"/>
+            <path d="M${X(m)} ${X(r.box * 0.66)} A${r3(r.curveRadius * k)} ${r3(r.curveRadius * k)} 0 0 1 ${X(r.box - m)} ${X(r.box * 0.66)}"/>
+          </g>
+        </svg>
+        ${b.props.caption === false ? '' : ruleCaption(`${r.box} box \u00b7 ${r.live} live \u00b7 ${r.stroke} stroke \u00b7 curve r ${r.curveRadius}`, line)}</div>`;
+    },
+
+    motion: (b, bu) => {
+      const mo = (bu.system || {}).motion; if (!mo) return `<div class="hb-missing">no motion rules</div>`;
+      const svg = bu.marks[cwName(bu, b.props.colourway)] || Object.values(bu.marks)[0];
+      const inner = (svg.match(/<svg[^>]*>([\s\S]*)<\/svg>/) || [])[1] || '';
+      const vb = (svg.match(/viewBox="([^"]+)"/) || [])[1] || '0 0 120 120';
+      const n = vb.split(/\s+/).map(Number), vw = n[2] || 120, vh = n[3] || 120;
+
+      // The rule has two steps, so the artwork has to move in two parts. Split
+      // it the only way that generalises: what is stroked is the outline, what
+      // is filled is the fill. The fill rises inside a clip of the outline's
+      // own bounds, so it fills up rather than sliding past.
+      const els = inner.match(/<[a-z][^>]*\/?>(?:[\s\S]*?<\/[a-z]+>)?/gi) || [];
+      const outline = [], filled = [];
+      for (const el of els) {
+        const hasStroke = /stroke="(?!none)/.test(el);
+        const hasFill = /fill="(?!none)/.test(el);
+        (hasFill && !hasStroke ? filled : outline).push(el);
+      }
+      const dur = mo.durations, e = mo.easing;
+      const bez = (a) => `cubic-bezier(${a.join(',')})`;
+      const id = 'm' + esc(b.id);
+      const draw = mo.build[0] || { from: 0, to: dur.considered };
+      const rise = mo.build[1] || { from: 0, to: dur.slow };
+      const box = bu.measured.markInk;
+      const ms = (a) => `${a.to - a.from}ms`;
+      const caption = b.props.caption === false ? '' :
+        ruleCaption(`${ms(draw)} out \u00b7 ${ms(rise)} through \u00b7 ${draw.part || 'outline'}, then ${rise.part || 'fill'}`,
+          colour(bu, b.props.colourway));
+      return `<div style="width:100%;height:100%;background:${colour(bu, b.props.on)};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;overflow:hidden">
+        <style>
+          @keyframes ${id}-rise{from{transform:translateY(${r3(box.h)}px)}to{transform:translateY(0)}}
+          @keyframes ${id}-in{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+          #${id} .hb-fill{animation:${id}-rise ${rise.to - rise.from}ms ${bez(e.through)} ${rise.from}ms both}
+          #${id} .hb-out{animation:${id}-in ${draw.to - draw.from}ms ${bez(e.out)} ${draw.from}ms both;transform-origin:50% 50%}
+          @media (prefers-reduced-motion:reduce){#${id} .hb-fill,#${id} .hb-out{animation:none}}
+        </style>
+        <svg id="${id}" viewBox="${vb}" style="width:64%;height:auto" role="img" aria-label="The mark, built to the brand's own motion rules. The outline settles, then the fill rises to its line.">
+          <defs><clipPath id="${id}-c"><rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}"/></clipPath></defs>
+          <g clip-path="url(#${id}-c)"><g class="hb-fill">${filled.join('')}</g></g>
+          <g class="hb-out">${outline.join('')}</g></svg>${caption}</div>`;
+    },
 
     assetIndex: (b, bu) => {
       const g = new Map();

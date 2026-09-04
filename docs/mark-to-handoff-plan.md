@@ -368,6 +368,37 @@ and there is some of it in all nine.
 
 ---
 
+## Built so far, and what building it changed
+
+Phases 0 to 3 are in `engine/`, together with the parts of phase 5 that turned
+out to be cheap once the renderer was shared. What is running: the normaliser,
+the measuring engine, the packager, both documents, the canvas editor,
+publishing, and all three kinds of block. 136 files from one master, 103 tests.
+
+Three things the plan had wrong, found by building rather than by thinking.
+
+**Rule blocks are a whole kind, not a footnote.** The plan named them and moved
+on. They needed their own module, their own panel state, their own badge, and a
+rule about where the decision lives: in the project, never in the document.
+Without that last rule a rule block is just a derived block with more options,
+and the first person to edit one on a page breaks the system quietly.
+
+**A rule has to be derived from the artwork, or it is a memory.** The icon grid
+takes its stroke and its live area from the mark's own stroke and margin. That
+sounded like elegance when it was written down. It is actually the only version
+that survives the mark changing, which it will. Thicken the ring from 9 to 14
+and the icon stroke goes 1.8 to 2.8 and an icon drawn to yesterday's rule becomes
+a blocker, which is correct and is the entire point.
+
+**Refusing well is most of the value, and it is harder than drawing.** Two
+defects in the first icon check would each have made it useless while looking
+like it worked: it read an arc's radius as a coordinate, and it never saw paint
+that shapes inherit from a group, which is how every drawing tool exports. Both
+passed a casual look. Both were found by writing a fixture that looked like a
+real export rather than like a test.
+
+---
+
 Prior art checked September 2026: Logo Package Express, Standards, Brandpad,
 Frontify, Pitch and Gamma. The stack of usvg, resvg, svg2pdf and Typst is MIT or
 Apache 2.0. Verify every licence again before selling anything built on it. Week

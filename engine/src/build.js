@@ -76,6 +76,25 @@ async function build(project, outDir, { log = () => {} } = {}) {
   // ---- contrast is computed, never typed ----
   const pairs = contrast.matrix(project.tokens.colour || {});
 
+  // ---- rule blocks: one decision each, every instance cut from it ----
+  const system = require('./system');
+  const pattern = require('./pattern');
+  const sys = system.resolve(project, measured);
+  const ways = [];
+  for (const cw of rules.colourways) {
+    const ink = Object.values(cw.slots)[0];
+    ways.push({ name: cw.name, ink, on: cw.on && (project.tokens.colour[cw.on] || {}).hex || '#FFFFFF' });
+  }
+  const gen = pattern.everyTile(mark, sys.pattern, ways, pairs);
+  if (gen.ok) {
+    for (const t of gen.tiles) {
+      write(`07-pattern/pattern-${naming.slug(t.density)}-${naming.slug(t.colourway)}.svg`, t.tile);
+    }
+    for (const r of gen.refused) warnings.push(`pattern ${r.density} in ${r.colourway} was not written. ${r.why}`);
+  } else {
+    warnings.push(`no pattern was written. ${gen.why} ${gen.how}`);
+  }
+
   const brandJson = {
     brand: project.brand,
     version: project.version,
@@ -88,6 +107,11 @@ async function build(project, outDir, { log = () => {} } = {}) {
       colourways: rules.colourways.map((c) => c.name),
     },
     contrast: pairs.map((p) => ({ pair: `${p.fg} on ${p.bg}`, ratio: p.ratio, verdict: p.use })),
+    system: {
+      icons: sys.icons,
+      pattern: Object.assign({}, sys.pattern, { source: gen.ok ? 'the shape marked data-pattern in the master' : null }),
+      motion: sys.motion,
+    },
     generated: { measuredFrom: path.basename(project.assets.mark.path), files: written.length + 1 },
   };
   write('brand.json', JSON.stringify(brandJson, null, 2));

@@ -66,6 +66,21 @@ run locally.
 
 ## Status
 
-Planning. No code yet. Phase 0 is the project model and the variations engine,
-with no interface at all, and it should prove or disprove the idea inside two
-weeks.
+The engine runs. `engine/` takes one master SVG and a project file and writes
+136 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
+favicons, social crops, the brand pattern at every density, `brand.json`, the
+manual, the deck, a self contained canvas editor, and any document published out
+of it. 103 tests.
+
+The claim the whole thing rests on is checked in the suite. Thicken the ring in
+`mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
+27.25 to 28.5, the minimum size 32 px to 21 px and 9 mm to 5.8 mm, the icon
+stroke 1.8 to 2.8 — through `brand.json`, the manual, the deck and every
+published page at once, while a block somebody nudged to `x: 40` is still at 40.
+
+Blocks come in three kinds: yours, drawn by the system, and set once by you.
+`engine/README.md` has the detail.
+
+Still to do: image slots, more than one page size, the CMYK print path through
+Typst, and a run on a real identity job — which is the next checkpoint and
+matters more than any further feature.

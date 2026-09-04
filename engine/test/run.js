@@ -100,6 +100,14 @@ console.log('\nthe whole package');
 const out = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-'));
 let result;
 before(async () => { result = await build(project, out); });
+// A rule block is set once and generates every instance, so its file count is
+// arithmetic too: one tile per density per colourway, less any the contrast
+// check refused.
+function patternTiles() {
+  const dens = Object.keys(require('../src/system').patternRules((project.system || {}).pattern).densities).length;
+  const refused = result.warnings.filter((w) => /^pattern .+ was not written/.test(w)).length;
+  return dens * project.rules.colourways.length - refused;
+}
 test('the file count is exactly what the rules ask for', () => {
   const r = project.rules;
   const perVariant = ['svg', 'pdf', 'ai'].filter((f) => r.formats.includes(f)).length
@@ -109,6 +117,7 @@ test('the file count is exactly what the rules ask for', () => {
     + (r.iconSizes || []).length                            // app and touch icons
     + (r.faviconSizes || []).length + ((r.faviconSizes || []).length ? 1 : 0)  // favicons plus the .ico
     + Object.keys(r.social || {}).length                    // social crops
+    + patternTiles()                                        // the pattern, at every density, in every colourway
     + 2                                                     // brand.json and README.txt
     + (r.documents === false ? 0 : 5)                       // manual, deck, editor, document.json, published.html
     + (r.zip === false ? 0 : 1);                            // the package itself
@@ -397,6 +406,201 @@ test('text is escaped rather than injected', () => {
   assert.ok(html.includes('&lt;img'));
 });
 
+console.log('\nrule blocks: the icon rules');
+const sys = require('../src/system');
+const iconGood = fs.readFileSync(path.join(__dirname, 'fixtures', 'icon-good.svg'), 'utf8');
+const iconBad = fs.readFileSync(path.join(__dirname, 'fixtures', 'icon-bad.svg'), 'utf8');
+const R = sys.iconRules(m);
+
+test('the icon rules are measured off the mark, not typed in', () => {
+  // viewBox 120, ink 109, so the mark's own margin is 5.5 either side
+  assert.strictEqual(R.derivedFrom.markMargin, 5.5);
+  assert.strictEqual(R.stroke, 1.8);      // 24 x (9 / 120)
+  assert.strictEqual(R.live, 21.8);       // 24 x (1 - 2 x 5.5/120)
+});
+test('a project override replaces the decision and the arithmetic follows it', () => {
+  const r = sys.iconRules(m, { box: 32, strokeRatio: 0.05 });
+  assert.strictEqual(r.box, 32);
+  assert.strictEqual(r.stroke, 1.6);
+  assert.notStrictEqual(r.live, R.live, 'the live area did not follow the new box');
+});
+
+test('an arc\'s radii are not mistaken for points', () => {
+  const pts = sys.pathPoints('M3 9.5 A30 30 0 0 1 21 9.5');
+  assert.strictEqual(pts.length, 2, 'the arc parameters were read as coordinates');
+  assert.deepStrictEqual(pts[1], [21, 9.5]);
+  assert.ok(!pts.some(([x]) => x === 30), 'a radius of 30 was read as a point 30 across');
+});
+test('relative commands accumulate from where the pen is', () => {
+  assert.deepStrictEqual(sys.pathPoints('M2 2 l4 0 l0 4').map((q) => q.join(',')), ['2,2', '6,2', '6,6']);
+  // close returns the pen to the start of the subpath, so what follows is
+  // measured from there and not from the last corner
+  assert.deepStrictEqual(sys.pathPoints('M2 2 l4 0 l0 4 z l1 1').pop(), [3, 3]);
+});
+test('a shorthand move continues as a line', () => {
+  assert.strictEqual(sys.pathPoints('M1 1 2 2 3 3').length, 3);
+});
+
+test('an icon drawn to the rules passes clean', () => {
+  assert.deepStrictEqual(sys.checkIcon(iconGood, R), []);
+});
+test('a stroke that is not the set stroke is a blocker', () => {
+  const f = sys.checkIcon(iconBad, R);
+  const b = f.filter((x) => x.level === 'blocker');
+  assert.strictEqual(b.length, 1);
+  assert.ok(b[0].what.includes('3'), 'the wrong weight was not named');
+  assert.ok(b[0].what.includes('1.8'), 'the right weight was not named');
+});
+test('caps, corners and fills are warnings, because they are still exportable', () => {
+  const w = sys.checkIcon(iconBad, R).filter((x) => x.level === 'warning').map((x) => x.what).join(' ');
+  assert.ok(/butt/.test(w), 'the wrong cap was not reported');
+  assert.ok(/miter/.test(w), 'the wrong corner was not reported');
+  assert.ok(/filled/.test(w), 'a filled shape in an outline set was not reported');
+});
+test('paint set on a group is still the icon\'s paint', () => {
+  // regression: a drawing tool hangs stroke on the <svg> or a <g> and lets the
+  // shapes inherit it. Reading only the shape found no strokes at all, so an
+  // icon with the wrong weight passed silently, which is worse than no check.
+  const inherited = fs.readFileSync(path.join(__dirname, 'fixtures', 'icon-inherited.svg'), 'utf8');
+  const f = sys.checkIcon(inherited, R);
+  assert.ok(f.some((x) => x.level === 'blocker' && x.what.includes('3')), 'an inherited stroke-width was not seen');
+  assert.ok(f.some((x) => /butt/.test(x.what)), 'an inherited cap, set in a style attribute, was not seen');
+  assert.ok(!f.some((x) => /filled/.test(x.what)), 'an inherited fill="none" was read as a fill');
+});
+test('a title or a group is not counted as a drawn shape', () => {
+  const empty = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><title>x</title><g></g></svg>';
+  assert.ok(sys.checkIcon(empty, R).some((x) => x.what.includes('empty')), 'an icon with nothing drawn in it passed');
+});
+test('the wrong grid stops the check, because nothing after it means anything', () => {
+  const f = sys.checkIcon(iconGood.replace('0 0 24 24', '0 0 32 32'), R);
+  assert.strictEqual(f.length, 1);
+  assert.strictEqual(f[0].level, 'blocker');
+  assert.ok(f[0].what.includes('24'), 'the check did not say what the grid is');
+});
+test('every finding says what, why and how, in words a designer uses', () => {
+  for (const f of sys.checkIcon(iconBad, R)) {
+    assert.ok(f.what && f.why && f.how, 'a finding was missing one of its three parts');
+    assert.ok(!/viewBox|stroke-width=|nodeName/.test(f.what), `"${f.what}" is written in code, not English`);
+  }
+});
+
+console.log('\nrule blocks: the pattern');
+const pat = require('../src/pattern');
+const PR = sys.patternRules();
+
+test('a master with nothing marked is refused, not guessed at', () => {
+  const g = pat.sourceGeometry(project.assets.mark.source.replace(/\sdata-pattern="source"/, ''));
+  assert.strictEqual(g.ok, false);
+  assert.ok(/data-pattern="source"/.test(g.how), 'the refusal did not say how to fix it');
+});
+test('the tile is cut from the marked shape alone, not the whole mark', () => {
+  const g = pat.sourceGeometry(project.assets.mark.source);
+  assert.ok(g.ok, g.why);
+  assert.ok(g.box.w < m.markInk.w, 'the tile was measured off the whole mark');
+});
+test('the tile repeats seamlessly: the second row is offset by half a tile', () => {
+  const t = pat.tile(project.assets.mark.source, PR, '#0A2A33');
+  assert.strictEqual(t.width, PR.tile);
+  assert.strictEqual(t.height, Number((PR.tile * PR.rowSpacing * 2).toFixed(2)));
+  // three placements: one on the first row, and two on the second so the
+  // half-drop still covers the tile where it wraps
+  assert.strictEqual((t.body.match(/<g transform=/g) || []).length, 3);
+  const xs = [...t.body.matchAll(/translate\((-?[\d.]+)/g)].map((x) => Number(x[1]));
+  assert.ok(Math.abs((xs[2] - xs[1]) - PR.tile) < 0.01, 'the wrap copy is not exactly one tile across');
+});
+test('the tile carries the pattern weight, not the mark\'s own', () => {
+  const t = pat.tile(project.assets.mark.source, PR, '#0A2A33');
+  assert.ok(t.body.includes('stroke="#0A2A33"'));
+  assert.ok(!/stroke-width="9"/.test(t.body), 'the tile kept the mark\'s stroke');
+});
+test('every density and colourway is cut once', () => {
+  assert.strictEqual(Object.keys(bu.patternTiles).length, 9);   // 3 densities x 3 colourways that pass
+  assert.ok(bu.patternTiles['coarse:primary'], 'a density and colourway pair is missing');
+});
+test('a colourway that fails contrast is refused with its ratio, not drawn faintly', () => {
+  const r = bu.patternRefused;
+  assert.ok(r.length, 'nothing was refused, and accent on ground cannot be seen');
+  assert.ok(r.every((x) => x.colourway === 'accent'));
+  assert.strictEqual(r[0].ratio, 1.83);
+  assert.ok(!bu.patternTiles['medium:accent'], 'a refused pair was cut anyway');
+});
+test('a denser setting really is denser', () => {
+  assert.ok(bu.patternTiles['fine:primary'].width < bu.patternTiles['coarse:primary'].width);
+});
+
+test('the rules reach brand.json, so a developer reads the same numbers', () => {
+  const bj = JSON.parse(fs.readFileSync(path.join(out, 'brand.json'), 'utf8'));
+  assert.strictEqual(bj.system.icons.stroke, R.stroke);
+  assert.strictEqual(bj.system.icons.live, R.live);
+  assert.ok(bj.system.pattern.source, 'brand.json does not say where the pattern comes from');
+  assert.strictEqual(bj.system.motion.durations.considered, 480);
+});
+test('a tile is written for every density in every colourway', () => {
+  const tiles = result.written.filter((f) => f.path.startsWith('07-pattern/'));
+  assert.strictEqual(tiles.length, patternTiles());
+  assert.ok(tiles.every((f) => /pattern-(fine|medium|coarse)-[a-z]+\.svg$/.test(f.path)),
+    'a tile is named something other than its density and colourway');
+});
+
+console.log('\nrule blocks: on the page');
+test('the model knows a third kind', () => {
+  assert.deepStrictEqual(EM.RULE, ['pattern', 'iconGrid', 'motion']);
+  assert.strictEqual(EM.kindOf('pattern'), 'rule');
+  assert.strictEqual(EM.kindOf('lockup'), 'derived');
+  assert.strictEqual(EM.kindOf('text'), 'plain');
+});
+test('a pattern block reaches for the tile by role name', () => {
+  // regression: the colourway was mapped through the colour name first, which
+  // turned "primary" into "Deep" and missed every tile
+  const b = EM.makeBlock('pattern', { props: { density: 'coarse', colourway: 'primary', on: 'ground' } });
+  const html = ER.block(b, bu);
+  assert.ok(html.includes('<pattern '), 'no tile was found for a pair that exists');
+  assert.ok(html.includes(bu.roles.primary.hex), 'the tile was drawn in the wrong ink');
+});
+test('a refused pair says so on the page instead of drawing nothing', () => {
+  const thin = Object.assign({}, bu, { patternTiles: {} });
+  assert.ok(ER.block(EM.makeBlock('pattern'), thin).includes('refused'));
+});
+test('a master with no pattern source says what to mark', () => {
+  const none = Object.assign({}, bu, { system: Object.assign({}, bu.system, { pattern: { available: false, how: 'Mark a shape.' } }) });
+  assert.ok(ER.block(EM.makeBlock('pattern'), none).includes('Mark a shape.'));
+});
+test('the motion block moves the outline and the fill separately', () => {
+  const html = ER.block(EM.makeBlock('motion'), bu);
+  assert.ok(/class="hb-out"/.test(html) && /class="hb-fill"/.test(html), 'the artwork was animated in one piece');
+  assert.ok(/clip-path="url\(#/.test(html), 'the fill rises without a clip, so it slides past the mark');
+  assert.ok(html.includes('prefers-reduced-motion'), 'the animation ignores a reader who asked for less of it');
+});
+test('two rule blocks on a page do not collide', () => {
+  const a = ER.block(EM.makeBlock('motion'), bu), b = ER.block(EM.makeBlock('motion'), bu);
+  const idOf = (h) => (h.match(/@keyframes (\S+?)-rise/) || [])[1];
+  assert.ok(idOf(a) && idOf(b) && idOf(a) !== idOf(b), 'both blocks named their keyframes the same thing');
+});
+test('a rule block states its rule, and stops when told to', () => {
+  const on = ER.block(EM.makeBlock('iconGrid'), bu);
+  assert.ok(on.includes('24 box') && on.includes('1.8'), 'the icon grid did not state its rule');
+  assert.ok(!ER.block(EM.makeBlock('iconGrid', { props: { caption: false } }), bu).includes('24 box'));
+
+  // "400ms" is in the keyframes whatever happens, so look for the phrase
+  assert.ok(ER.block(EM.makeBlock('motion'), bu).includes('400ms out'), 'the motion block did not state its timing');
+  assert.ok(!ER.block(EM.makeBlock('motion', { props: { caption: false } }), bu).includes('400ms out'));
+
+  assert.ok(!ER.block(EM.makeBlock('pattern'), bu).includes('half drop'), 'a pattern field stated a rule it was not asked for');
+  assert.ok(ER.block(EM.makeBlock('pattern', { props: { caption: true } }), bu).includes('half drop'));
+});
+test('a stated rule breaks between phrases, not inside one', () => {
+  const html = ER.block(EM.makeBlock('motion'), bu);
+  assert.ok(html.includes('400ms out'), 'a phrase can wrap mid-way and read as nonsense');
+});
+test('the rules survive the round trip to a published page', () => {
+  const d = EM.emptyDoc('Meridian');
+  d.pages[0].blocks.push(EM.makeBlock('pattern', { props: { density: 'coarse', colourway: 'primary', on: 'ground', caption: true } }));
+  d.pages[0].blocks.push(EM.makeBlock('iconGrid'));
+  const html = require('../src/editor/publish').publish(d, bu, { title: 'Rules' });
+  assert.ok(html.includes('<pattern '), 'the pattern did not survive publishing');
+  assert.ok(html.includes('24 box'), 'the icon rule did not survive publishing');
+});
+
 console.log('\nthe editor');
 test('the starter document opens on something worth looking at', () => {
   const d = starterDoc(bu);
@@ -410,6 +614,14 @@ test('the editor is self contained, with no fetch at load', () => {
   assert.ok(html.includes('HandoverRender'), 'the renderer is not inlined');
   const remote = (html.match(/<script[^>]+src=/g) || []);
   assert.deepStrictEqual(remote, [], 'the editor pulls a script from somewhere');
+});
+test('every block type can be inserted, and is called something a designer says', () => {
+  const app = fs.readFileSync(path.join(__dirname, '..', 'src', 'editor', 'app.js'), 'utf8');
+  const groups = app.slice(app.indexOf('const INSERT'), app.indexOf('function drawInsert'));
+  for (const t of EM.KINDS) {
+    assert.ok(groups.includes(`'${t}'`), `${t} can be rendered but never added`);
+    assert.ok(new RegExp(`\\b${t}: '`).test(app), `${t} has no name, so it shows in the interface as its type`);
+  }
 });
 test('the editor and the exported document use the same renderer', () => {
   const path2 = require.resolve('../src/editor/render');
@@ -500,6 +712,24 @@ test('thickening the stroke moves the floor everywhere at once', async () => {
   assert.ok(g.includes(String(bj.logo.minSize.screenPx)), 'the manual still shows the old floor');
   const d = fs.readFileSync(path.join(dir, 'deck.html'), 'utf8');
   assert.ok(d.includes(String(bj.logo.minSize.screenPx)), 'the deck still shows the old floor');
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+test('a rule set once still follows the master, because it was derived from it', async () => {
+  const thick = project.assets.mark.source.replace('stroke-width="9"', 'stroke-width="14"');
+  const altered = Object.assign({}, project, {
+    assets: Object.assign({}, project.assets, { mark: Object.assign({}, project.assets.mark, { source: thick }) }),
+  });
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover4-'));
+  const r2 = await build(altered, dir);
+  const bj = JSON.parse(fs.readFileSync(path.join(dir, 'brand.json'), 'utf8'));
+  // 24 x (14 / 120) = 2.8, where the 9 wide master gave 1.8
+  assert.strictEqual(bj.system.icons.stroke, 2.8, 'the icon stroke ignored the thicker mark');
+  assert.notStrictEqual(bj.system.icons.live, 21.8, 'the live area ignored the thicker mark');
+  // and the icon that passed against the old rule is now a blocker, which is
+  // the point: the check moves with the mark rather than with a memory of it
+  const f = sys.checkIcon(iconGood, bj.system.icons);
+  assert.ok(f.some((x) => x.level === 'blocker'), 'an icon drawn to the old stroke still passes');
+  assert.strictEqual(r2.written.filter((x) => x.path.startsWith('07-pattern/')).length, patternTiles());
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
