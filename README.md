@@ -70,7 +70,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 136 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 124 tests.
+of it. 136 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -86,6 +86,11 @@ the mark against the actual pixels underneath it and says which colourway would
 read there, because putting the mark on a bright sky is the thing people
 actually get wrong and it is arithmetic, not taste.
 
-Still to do: more than one page size, the photography treatment rules, the CMYK
+Pages come in nine sizes, from a 16:9 slide to A4 and US Letter, one per
+document and any page free to differ. Layout is in pixels and printing is in
+millimetres, because 794 px is only A4 by accident of 96 dpi. Changing the size
+scales the layout and keeps anything that was against an edge against it.
+
+Still to do: the photography treatment rules, bleed and crop marks, the CMYK
 print path through Typst, and a run on a real identity job — which is the next
 checkpoint and matters more than any further feature.

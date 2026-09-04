@@ -214,13 +214,18 @@
   // ------------------------------------------------------------- rendering
   const stage = $('#stage'), sheet = $('#sheet'), overlay = $('#overlay');
 
+  // The size of the page being looked at, which is the document's unless this
+  // page overrides it.
+  const sheetOf = (p) => M.pageSize(D(), p || page());
+
   function fit() {
-    const p = D().page, box = $('#canvas').getBoundingClientRect();
+    const p = sheetOf(), box = $('#canvas').getBoundingClientRect();
     scale = Math.min((box.width - 80) / p.w, (box.height - 80) / p.h, 1.6);
     sheet.style.width = p.w + 'px'; sheet.style.height = p.h + 'px';
     stage.style.transform = `scale(${scale})`;
     stage.style.width = p.w + 'px'; stage.style.height = p.h + 'px';
     $('#zoom').textContent = Math.round(scale * 100) + '%';
+    $('#sheetname').textContent = p.name;
     drawOverlay();
   }
 
@@ -228,7 +233,8 @@
     const p = page();
     sheet.innerHTML = p.blocks.map((b) => R.positioned(b, BUNDLE)).join('');
     sheet.style.background = BUNDLE.roles.ground.hex;
-    drawPages(); drawOverlay(); drawPanel(); drawHistory();
+    fitSheet();
+    drawPages(); drawOverlay(); drawPanel(); drawHistory(); drawSizes();
     for (const im of sheet.querySelectorAll('img')) im.addEventListener('load', scheduleOverlayCheck, { once: true });
     scheduleOverlayCheck();
   }
@@ -254,7 +260,9 @@
     const list = $('#pages'); list.innerHTML = '';
     D().pages.forEach((p, i) => {
       const row = el('button', 'pg' + (p.id === pageId ? ' on' : ''));
-      row.innerHTML = `<i>${String(i + 1).padStart(2, '0')}</i><span>${esc(p.name)}</span><em>${p.blocks.length}</em>`;
+      const own = p.page ? M.pageSize(D(), p).name : '';
+      row.innerHTML = `<i>${String(i + 1).padStart(2, '0')}</i><span>${esc(p.name)}`
+        + (own ? `<u>${esc(own)}</u>` : '') + `</span><em>${p.blocks.length}</em>`;
       row.onclick = () => { pageId = p.id; selection = []; draw(); };
       row.ondblclick = () => {
         const n = prompt('Name this page', p.name);
@@ -262,6 +270,14 @@
       };
       list.appendChild(row);
     });
+  }
+
+  // switching to a page of a different size has to resize the stage, and doing
+  // it inside draw() keeps every caller honest without each one remembering
+  function fitSheet() {
+    const p = sheetOf();
+    if (sheet.style.width === p.w + 'px' && sheet.style.height === p.h + 'px') return;
+    fit();
   }
 
   const drawHistory = () => {
@@ -528,7 +544,7 @@
       const wrap = el('div', 'gi');
       for (const t of types) {
         const b = el('button', 'ins', esc(nameOf(t)));
-        b.onclick = () => { let made; change((d) => { made = M.ops.addBlock(d, pageId, t); }); selection = [made]; drawOverlay(); drawPanel(); };
+        b.onclick = () => { let made; change((d) => { made = M.ops.addBlock(d, pageId, t, { on: sheetOf() }); }); selection = [made]; drawOverlay(); drawPanel(); };
         wrap.appendChild(b);
       }
       box.appendChild(wrap);
@@ -619,8 +635,90 @@
   };
   $('#grid').onchange = (e) => change((d) => { d.grid = Number(e.target.value); });
 
+  // ------------------------------------------------------------- page size
+  // Changing the size scales the layout rather than throwing it away, and
+  // anything that was against an edge stays against it. That is worth saying
+  // out loud before it happens, because it is the one action here that touches
+  // every block on the page at once.
+  const sizeOptions = (cur, extra) =>
+    (extra || []).concat(Object.entries(M.SHEETS).map(([k, v]) =>
+      [k, `${v.name}  ${v.w} × ${v.h} ${v.unit}`]))
+      .map(([k, label]) => `<option value="${esc(k)}"${k === cur ? ' selected' : ''}>${esc(label)}</option>`).join('');
+
+  function drawSizes() {
+    const d = D();
+    $('#sheet-size').innerHTML = sizeOptions((d.page || {}).size);
+    const p = page();
+    $('#page-size').innerHTML = sizeOptions(p.page ? p.page.size : '', [['', 'Same as the document']]);
+  }
+
+  // Type does not scale with the page, and it should not: a size comes from the
+  // brand's type scale, not from a number somebody stretched. So after a resize
+  // a headline can need more lines than its box has room for. The editor can
+  // see that, because the text is laid out in front of it, so it grows the box
+  // to fit rather than leaving a clipped word on the page.
+  function fitText() {
+    const sh = sheetOf();
+    let grown = 0, stuck = 0;
+    for (const node of sheet.querySelectorAll('.hb-block[data-type="text"]')) {
+      const inner = node.firstElementChild;
+      if (!inner) continue;
+      const need = inner.scrollHeight;
+      const have = node.clientHeight;
+      if (need <= have + 1) continue;
+      const b = blockById(node.dataset.id);
+      if (!b) continue;
+      const room = sh.h - b.y;
+      const h = Math.min(need + 2, room);
+      if (h <= have + 1) { stuck++; continue; }
+      H.amend((d) => { const t = M.findPage(d, pageId).blocks.find((x) => x.id === b.id); if (t) t.h = h; });
+      grown++;
+      if (h < need) stuck++;
+    }
+    if (grown) { persist(); draw(); }
+    return { grown, stuck };
+  }
+
+  function askScale(what) {
+    return confirm(`${what}\n\nOK scales what is on it to the new size, keeping anything that was against an edge against it.\nCancel leaves every block exactly where it is.`)
+      ? 'scale' : 'keep';
+  }
+
+  $('#sheet-size').onchange = (e) => {
+    const key = e.target.value, next = M.sheet(key);
+    const mode = askScale(`Set every page in this document to ${next.name}?`);
+    change((d) => M.ops.setPageSize(d, null, key, null, mode));
+    selection = []; draw(); fit(); drawSizes();
+    const f = mode === 'scale' ? fitText() : { grown: 0, stuck: 0 };
+    note(`Every page is now ${next.name}. Undo puts it back.`
+      + (f.grown ? ` ${f.grown} text block${f.grown === 1 ? '' : 's'} grew to fit, because type comes from the scale and does not shrink with the page.` : '')
+      + (f.stuck ? ` ${f.stuck} still ${f.stuck === 1 ? 'runs' : 'run'} past the bottom of the page.` : ''), f.stuck ? 'warn' : '');
+  };
+  $('#page-size').onchange = (e) => {
+    const key = e.target.value;
+    const target = pageId;
+    let mode;
+    if (!key) {                       // back to whatever the document says
+      const back = M.pageSize(D(), null);
+      mode = askScale(`Put this page back to the document size, ${back.name}?`);
+      change((d) => {
+        const pg = M.findPage(d, target);
+        const from = M.pageSize(d, pg);
+        delete pg.page;
+        if (mode !== 'keep') M.reflow(pg, from, M.pageSize(d, pg));
+      });
+    } else {
+      const next = M.sheet(key);
+      mode = askScale(`Set this page to ${next.name}?`);
+      change((d) => M.ops.setPageSize(d, target, key, null, mode));
+    }
+    selection = []; draw(); fit(); drawSizes();
+    const f = mode === 'scale' ? fitText() : { grown: 0, stuck: 0 };
+    if (f.stuck) note(`${f.stuck} text block${f.stuck === 1 ? '' : 's'} ${f.stuck === 1 ? 'runs' : 'run'} past the bottom of this page. Type comes from the brand's scale, so it does not shrink with the page.`, 'warn');
+  };
+
   window.addEventListener('resize', fit);
-  drawInsert(); draw(); fit();
+  drawInsert(); drawSizes(); draw(); fit();
   window.__handover = { get doc() { return D(); }, get selection() { return selection; },
     publish: () => window.HandoverPublish.publish(D(),
       Object.assign({}, BUNDLE, { images: IM.forDoc(D(), images.all()) }), { title: 'Guidelines', builtAt: 'test' }),

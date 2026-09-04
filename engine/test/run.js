@@ -630,6 +630,122 @@ test('the editor and the exported document use the same renderer', () => {
     'the editor inlines a different renderer than the one on disk');
 });
 
+console.log('\npage sizes');
+test('a print size is laid out in pixels and printed in its own units', () => {
+  const a4 = EM.sheet('a4');
+  assert.strictEqual(a4.w, 794);            // 210 mm at 96 dpi
+  assert.strictEqual(a4.h, 1123);
+  assert.strictEqual(a4.css, '210mm 297mm', '794 px is only A4 by accident; a printer needs the millimetres');
+  const slide = EM.sheet('slide-16x9');
+  assert.strictEqual(slide.css, '1280px 720px');
+  assert.strictEqual(EM.sheet('letter').css, '8.5in 11in');
+});
+test('an unknown size falls back rather than throwing, and a custom one passes through', () => {
+  assert.strictEqual(EM.sheet('nonsense').size, 'slide-16x9');
+  const c = EM.sheet('custom', { w: 100, h: 50, unit: 'mm' });
+  assert.strictEqual(c.size, 'custom');
+  assert.strictEqual(c.w, EM.toPx(100, 'mm'));
+  assert.strictEqual(c.css, '100mm 50mm');
+});
+test('a document written before sizes had names keeps the size it was laid out at', () => {
+  // it carries pixels and nothing else, so it must not snap to a preset
+  assert.strictEqual(EM.pageSize({ page: { w: 1600, h: 900 } }, null).size, 'custom');
+  assert.strictEqual(EM.pageSize({ page: { w: 1600, h: 900 } }, null).w, 1600);
+  // and one that happens to be a size we now have a name for gets that name,
+  // which is how an old A4 document starts printing in millimetres
+  assert.strictEqual(EM.pageSize({ page: { w: 1280, h: 720 } }, null).size, 'slide-16x9');
+  assert.strictEqual(EM.pageSize({ page: { w: 794, h: 1123 } }, null).css, '210mm 297mm');
+});
+test('a page takes the document size unless it says otherwise', () => {
+  const d = EM.emptyDoc('T');
+  assert.strictEqual(EM.pageSize(d, d.pages[0]).size, 'slide-16x9');
+  EM.ops.addPage(d, 'Insert');
+  EM.ops.setPageSize(d, d.pages[1].id, 'a4');
+  assert.strictEqual(EM.pageSize(d, d.pages[0]).size, 'slide-16x9');
+  assert.strictEqual(EM.pageSize(d, d.pages[1]).size, 'a4');
+  assert.strictEqual(d.page.size, 'slide-16x9', 'one page changed the whole document');
+});
+
+test('resizing scales the layout instead of throwing it away', () => {
+  const d = EM.emptyDoc('T'), p = d.pages[0];
+  p.blocks.push(EM.makeBlock('fill', { x: 0, y: 0, w: 1280, h: 720 }));       // full bleed
+  p.blocks.push(EM.makeBlock('text', { x: 120, y: 180, w: 620, h: 200 }));    // free
+  p.blocks.push(EM.makeBlock('rule', { x: 1180, y: 100, w: 100, h: 2 }));     // on the right edge
+  p.blocks.push(EM.makeBlock('text', { x: 60, y: 660, w: 400, h: 60 }));      // on the bottom edge
+  EM.ops.setPageSize(d, null, 'a4');
+  const [bleed, free, right, bottom] = p.blocks;
+  assert.deepStrictEqual([bleed.x, bleed.y, bleed.w, bleed.h], [0, 0, 794, 1123],
+    'a full-bleed block stopped being full bleed');
+  assert.strictEqual(right.x + right.w, 794, 'a block on the right edge came away from it');
+  assert.strictEqual(bottom.y + bottom.h, 1123, 'a block on the bottom edge came away from it');
+  assert.ok(free.x > 0 && free.x + free.w < 794, 'a free block was not brought inside the page');
+});
+test('nothing is stretched: both directions scale by the same factor', () => {
+  const d = EM.emptyDoc('T'), p = d.pages[0];
+  p.blocks.push(EM.makeBlock('mark', { x: 300, y: 200, w: 300, h: 300 }));
+  EM.ops.setPageSize(d, null, 'a4');
+  const b = p.blocks[0];
+  assert.strictEqual(b.w, b.h, 'a square block came out a rectangle');
+});
+test('keeping positions really keeps them', () => {
+  const d = EM.emptyDoc('T'), p = d.pages[0];
+  p.blocks.push(EM.makeBlock('text', { x: 120, y: 180, w: 620, h: 200 }));
+  EM.ops.setPageSize(d, null, 'a4', null, 'keep');
+  assert.deepStrictEqual([p.blocks[0].x, p.blocks[0].y], [120, 180]);
+  assert.strictEqual(d.page.size, 'a4');
+});
+test('setting the document size clears the overrides it replaces', () => {
+  const d = EM.emptyDoc('T');
+  EM.ops.addPage(d, 'Two');
+  EM.ops.setPageSize(d, d.pages[1].id, 'square');
+  assert.ok(d.pages[1].page, 'the override was not recorded');
+  EM.ops.setPageSize(d, null, 'a4');
+  assert.ok(!d.pages[1].page, 'a page kept an override the document had overruled');
+  assert.strictEqual(EM.pageSize(d, d.pages[1]).size, 'a4');
+});
+test('a new block is centred on its own page and never wider than it', () => {
+  const d = EM.emptyDoc('T');
+  EM.ops.addPage(d, 'Tall');
+  EM.ops.setPageSize(d, d.pages[1].id, 'a5');
+  const a5 = EM.sheet('a5');
+  const id = EM.ops.addBlock(d, d.pages[1].id, 'palette');   // 900 wide by default, A5 is 559
+  const b = d.pages[1].blocks.find((x) => x.id === id);
+  assert.ok(b.w <= a5.w, 'a block opened wider than the page it was put on');
+  assert.strictEqual(b.x, Math.round((a5.w - b.w) / 2));
+});
+test('a correction folded into an action is not a second thing to undo', () => {
+  const H = EM.history(EM.emptyDoc('T'));
+  H.apply((d) => { d.grid = 4; });
+  H.amend((d) => { d.grid = 16; });
+  assert.strictEqual(H.get().grid, 16);
+  H.undo();
+  assert.strictEqual(H.get().grid, 8, 'the amendment became an undo step of its own');
+});
+
+test('one size gives one plain @page, in the units a printer wants', () => {
+  const d = EM.emptyDoc('Meridian');
+  EM.ops.setPageSize(d, null, 'a4');
+  const html = publish(d, bu, { builtAt: 'fixed' });
+  const rules = html.match(/@page[^{]*\{[^}]*}/g) || [];
+  assert.strictEqual(rules.length, 1, 'a single-size document emitted more than one page rule');
+  assert.ok(rules[0].includes('210mm 297mm'), `the print size is not in millimetres: ${rules[0]}`);
+  assert.ok(html.includes('width:794px;height:1123px'), 'the screen size is missing');
+});
+test('a document that mixes sizes prints each page at its own', () => {
+  const d = EM.emptyDoc('Meridian');
+  EM.ops.addPage(d, 'Insert'); EM.ops.addPage(d, 'Also');
+  EM.ops.setPageSize(d, d.pages[1].id, 'a4');
+  const html = publish(d, bu, { builtAt: 'fixed' });
+  const rules = html.match(/@page[^{]*\{[^}]*}/g) || [];
+  // the size most pages use is the plain rule, so a browser without named
+  // pages still prints the bulk of the document correctly
+  assert.ok(rules[0].includes('1280px 720px'), `the commonest size is not the plain rule: ${rules[0]}`);
+  assert.ok(rules.some((r) => /^@page hs\d\{/.test(r) && r.includes('210mm 297mm')),
+    'the odd page out has no rule of its own');
+  assert.strictEqual((html.match(/class="hp-page hs\d"/g) || []).length, 3);
+  assert.ok(html.includes('A4 portrait'), 'a mixed document does not say which page is which size');
+});
+
 console.log('\nimage slots');
 const IM = require('../src/editor/images');
 // a 4x4 red PNG and a 2x2 one, enough to be real data URIs without a fixture
@@ -775,7 +891,7 @@ const { publish } = require('../src/editor/publish');
 const pubDoc = starterDoc(bu);
 test('a published page holds every page of the document', () => {
   const html = publish(pubDoc, bu, {});
-  const count = (html.match(/class="hp-page"/g) || []).length;
+  const count = (html.match(/class="hp-page /g) || []).length;
   assert.strictEqual(count, pubDoc.pages.length);
 });
 test('the document stores layout, never a measurement', () => {

@@ -4,9 +4,9 @@
    Two publish paths would drift, and the whole point of editing real DOM was to
    have one. */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('./render'));
-  else root.HandoverPublish = factory(root.HandoverRender);
-}(typeof self !== 'undefined' ? self : this, function (R) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./render'), require('./model'));
+  else root.HandoverPublish = factory(root.HandoverRender, root.HandoverModel);
+}(typeof self !== 'undefined' ? self : this, function (R, M) {
   'use strict';
   const esc = R.esc;
 
@@ -16,7 +16,7 @@
     return fams.length ? `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?${fams.join('&')}&display=swap">` : '';
   };
 
-  const CSS = (w, h) => `
+  const CSS = () => `
 :root{--shell:#15181A;--ink:#E9EBEC;--dim:#8A9198;--line:#2A2E31}
 @media (prefers-color-scheme:light){:root{--shell:#E9E9E6;--ink:#15181A;--dim:#666C71;--line:#D2D3CF}}
 *{box-sizing:border-box}
@@ -29,12 +29,11 @@ html,body{margin:0;background:var(--shell);color:var(--ink);font-family:ui-sans-
 .hp-bar button{background:none;border:1px solid var(--line);color:var(--ink);border-radius:4px;padding:5px 11px;cursor:pointer;font:inherit}
 .hp-bar button:hover{background:color-mix(in srgb,var(--ink) 8%,transparent)}
 .hp-doc{padding:70px 24px 60px;display:flex;flex-direction:column;align-items:center;gap:28px}
-.hp-page{width:${w}px;height:${h}px;position:relative;overflow:hidden;box-shadow:0 4px 30px rgba(0,0,0,.28);flex:none;
+.hp-page{position:relative;overflow:hidden;box-shadow:0 4px 30px rgba(0,0,0,.28);flex:none;
   transform-origin:top center}
 .hp-cap{font-family:ui-monospace,Menlo,monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-top:-18px}
 .hb-block{position:absolute}
 @media print{
-  @page{size:${w}px ${h}px;margin:0}
   html,body{background:#fff}
   .hp-bar,.hp-cap{display:none}
   .hp-doc{padding:0;gap:0;display:block}
@@ -79,22 +78,53 @@ html,body{margin:0;background:var(--shell);color:var(--ink);font-family:ui-sans-
   // into the editor inside a <script> block, and an unescaped one would close
   // that block early and take the rest of the editor with it.
 
+  // A page is laid out in pixels and printed at its real size. 794 px is only
+  // A4 by accident of 96 dpi; a printer has to be told 210 mm, so the @page
+  // rule carries the physical size and the screen carries the pixels.
+  //
+  // A document can mix sizes, so the size used by most pages becomes the plain
+  // @page rule and every other one gets a named rule. That way a browser that
+  // does not do named pages still prints the bulk of the document correctly.
+  function sheets(doc) {
+    const seen = new Map(), order = [];
+    for (const p of doc.pages) {
+      const s = M.pageSize(doc, p);
+      const key = `${s.w}x${s.h}:${s.css}`;
+      if (!seen.has(key)) { seen.set(key, { sheet: s, key, n: 0, cls: 'hs' + order.length }); order.push(key); }
+      seen.get(key).n++;
+    }
+    const list = order.map((k) => seen.get(k));
+    const main = list.slice().sort((a, b) => b.n - a.n)[0];
+    return { list, main, of: (p) => seen.get(`${M.pageSize(doc, p).w}x${M.pageSize(doc, p).h}:${M.pageSize(doc, p).css}`) };
+  }
+
+  function pageCss(sh) {
+    const rules = sh.list.map((e) =>
+      `.${e.cls}{width:${e.sheet.w}px;height:${e.sheet.h}px}`).join('\n');
+    const printed = [`@page{size:${sh.main.sheet.css};margin:0}`];
+    for (const e of sh.list) {
+      if (e === sh.main) continue;
+      printed.push(`@page ${e.cls}{size:${e.sheet.css};margin:0}`, `@media print{.${e.cls}{page:${e.cls}}}`);
+    }
+    return rules + '\n' + printed.join('\n');
+  }
+
   // The document holds layout only. Every measurement comes from the bundle at
   // publish time, which is why republishing after a change to the master gives
   // new numbers without anybody reopening the editor.
   function publish(doc, bundle, opts) {
     const o = opts || {};
-    const w = doc.page.w, h = doc.page.h;
+    const sh = sheets(doc);
     const pages = doc.pages.map((p, i) =>
-      `<section class="hp-page" style="background:${bundle.roles.ground.hex}" aria-label="Page ${i + 1}, ${esc(p.name)}">`
+      `<section class="hp-page ${sh.of(p).cls}" style="background:${bundle.roles.ground.hex}" aria-label="Page ${i + 1}, ${esc(p.name)}">`
       + p.blocks.map((b) => R.positioned(b, bundle)).join('')
-      + `</section>` + (o.captions === false ? '' : `<p class="hp-cap">${String(i + 1).padStart(2, '0')} · ${esc(p.name)}</p>`)).join('\n');
+      + `</section>` + (o.captions === false ? '' : `<p class="hp-cap">${String(i + 1).padStart(2, '0')} · ${esc(p.name)}${sh.list.length > 1 ? ' · ' + esc(sh.of(p).sheet.name) : ''}</p>`)).join('\n');
 
     return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(bundle.brand)}${o.title ? ' · ' + esc(o.title) : ''}</title>
 ${fontLink(bundle.type)}
-<style>${CSS(w, h)}${BLOCK_CSS}</style></head><body>
+<style>${CSS()}${pageCss(sh)}${BLOCK_CSS}</style></head><body>
 <div class="hp-bar">
   <b>${esc(bundle.brand)}</b><span>${esc(bundle.version)}</span>
   <span>${doc.pages.length} page${doc.pages.length === 1 ? '' : 's'}</span>
@@ -106,10 +136,13 @@ ${fontLink(bundle.type)}
 ${pages}
 </main>
 <script>
-// scale the pages down on a narrow screen rather than letting the page scroll sideways
-(function(){var W=${w};function fit(){var a=Math.min(1,(innerWidth-56)/W);
-document.querySelectorAll('.hp-page').forEach(function(p){p.style.transform='scale('+a+')';
-p.style.marginBottom=(a<1?-(1-a)*${h}:0)+'px'})}addEventListener('resize',fit);fit()})();
+// scale each page down on a narrow screen rather than letting the page scroll sideways
+// offsetWidth is the laid-out size and a transform does not change it, so this
+// stays correct however many times it runs
+(function(){function fit(){document.querySelectorAll('.hp-page').forEach(function(p){
+var w=p.offsetWidth,h=p.offsetHeight,a=Math.min(1,(innerWidth-56)/w);
+p.style.transform='scale('+a+')';p.style.marginBottom=(a<1?-(1-a)*h:0)+'px'})}
+addEventListener('resize',fit);fit()})();
 <\/script>
 </body></html>`;
   }

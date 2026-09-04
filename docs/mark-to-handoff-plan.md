@@ -373,8 +373,8 @@ and there is some of it in all nine.
 Phases 0 to 3 are in `engine/`, together with the parts of phase 5 that turned
 out to be cheap once the renderer was shared. What is running: the normaliser,
 the measuring engine, the packager, both documents, the canvas editor,
-publishing, all three kinds of block, and image slots. 136 files from one
-master, 124 tests.
+publishing, all three kinds of block, image slots and page sizes. 136 files
+from one master, 136 tests.
 
 Three things the plan had wrong, found by building rather than by thinking.
 
@@ -404,6 +404,15 @@ took an afternoon and it is the only part of the editor that catches a mistake
 a working designer actually makes: the mark on a bright sky at 1.1 to 1. It
 also needed the block to stop painting its own ground, which nobody would have
 noticed until the check confidently measured pixels the reader never sees.
+
+**Page sizes broke the assumption that type is free.** Every other measurement
+in this system is derived, which is the whole argument. Type is the exception:
+a size comes from the brand's scale, so it is a token, and a token does not
+scale when the page does. A headline that fitted two lines at 1280 wide needs
+three at 794, and no amount of arithmetic on the page size will tell you that —
+only laying the text out will. The editor can, so it does, and it says so. This
+is the first place where the answer was not "derive it" but "measure what the
+browser did and report it".
 
 The cost of images sat somewhere the plan never looked: undo. Sixty whole
 documents cloned per session is fine until one of them holds a photograph. The

@@ -22,7 +22,66 @@ const RULE = ['pattern', 'iconGrid', 'motion'];
 const KINDS = [...PLAIN, ...DERIVED, ...RULE];
 const kindOf = (type) => (RULE.includes(type) ? 'rule' : DERIVED.includes(type) ? 'derived' : 'plain');
 
-const PAGE = { w: 1280, h: 720 };
+// Page sizes. Layout always happens in CSS pixels, because that is what a
+// block's x and y mean and what the browser lays out in. A print size also
+// carries its real dimensions, because 794 px is only A4 by accident of 96 dpi
+// and a printer wants to be told 210 mm.
+const PER = { px: 1, mm: 96 / 25.4, in: 96 };
+const toPx = (v, unit) => Math.round(v * (PER[unit] || 1));
+
+const SHEETS = {
+  'slide-16x9': { name: 'Slide 16:9', w: 1280, h: 720, unit: 'px' },
+  'slide-4x3': { name: 'Slide 4:3', w: 1024, h: 768, unit: 'px' },
+  square: { name: 'Square', w: 1080, h: 1080, unit: 'px' },
+  story: { name: 'Story 9:16', w: 1080, h: 1920, unit: 'px' },
+  a4: { name: 'A4 portrait', w: 210, h: 297, unit: 'mm' },
+  'a4-landscape': { name: 'A4 landscape', w: 297, h: 210, unit: 'mm' },
+  a5: { name: 'A5 portrait', w: 148, h: 210, unit: 'mm' },
+  letter: { name: 'US Letter', w: 8.5, h: 11, unit: 'in' },
+  'letter-landscape': { name: 'US Letter landscape', w: 11, h: 8.5, unit: 'in' },
+};
+
+// One shape for a page size wherever it is read: pixels to lay out in, and the
+// real size to print at. A custom size passes through the same door.
+const FALLBACK = 'slide-16x9';
+
+// A size given as bare numbers that happens to be one of the named ones is that
+// named one. Old documents carry pixels and no name, and a picker that shows
+// nothing selected for a plain 16:9 slide is just wrong.
+function recognise(custom) {
+  if (!custom) return null;
+  for (const [k, v] of Object.entries(SHEETS)) {
+    if (toPx(v.w, v.unit) === toPx(custom.w, custom.unit)
+      && toPx(v.h, v.unit) === toPx(custom.h, custom.unit)) return k;
+  }
+  return null;
+}
+
+function sheet(key, custom) {
+  // the name reports what was actually used, so an unknown key falls back to a
+  // real size rather than to a size called "custom" that nothing can round trip
+  const named = SHEETS[key] ? key
+    : (custom && custom.unit) ? (recognise(custom) || 'custom')
+    : FALLBACK;
+  const s = named === 'custom' ? custom : SHEETS[named];
+  const w = toPx(s.w, s.unit), h = toPx(s.h, s.unit);
+  return { size: named, name: s.name || `${s.w} × ${s.h} ${s.unit}`,
+    w, h, unit: s.unit, printW: s.w, printH: s.h,
+    // what @page wants: the physical size, or pixels when there is no physical one
+    css: s.unit === 'px' ? `${s.w}px ${s.h}px` : `${s.w}${s.unit} ${s.h}${s.unit}` };
+}
+
+// A document has one size; a page may override it, which is how a fold-out or a
+// full-bleed cover lives in the same file as everything else.
+const pageSize = (doc, page) => {
+  const p = (page && page.page) || (doc && doc.page) || {};
+  // a document written before sizes were named carries pixels and nothing else,
+  // and it has to keep the size it was laid out at rather than snap to a preset
+  const custom = p.unit ? p : (p.w && p.h) ? { w: p.w, h: p.h, unit: 'px' } : null;
+  return sheet(p.size, custom);
+};
+
+const PAGE = sheet('slide-16x9');
 const GRID = 8;
 
 let seq = 0;
@@ -51,14 +110,16 @@ const SIZES = {
   pattern: { w: 620, h: 280 }, iconGrid: { w: 560, h: 420 }, motion: { w: 360, h: 360 },
 };
 
-function makeBlock(type, at = {}) {
+function makeBlock(type, at = {}, on) {
   if (!KINDS.includes(type)) throw new Error(`there is no block called "${type}"`);
-  const s = SIZES[type];
+  const s = SIZES[type], sheetOn = on || PAGE;
+  // a block never opens wider than the page it lands on
+  const w = Math.min(at.w || s.w, sheetOn.w), h = Math.min(at.h || s.h, sheetOn.h);
   return {
     id: id('b'), type,
-    x: at.x !== undefined ? at.x : Math.round((PAGE.w - s.w) / 2),
-    y: at.y !== undefined ? at.y : Math.round((PAGE.h - s.h) / 2),
-    w: at.w || s.w, h: at.h || s.h,
+    x: at.x !== undefined ? at.x : Math.round((sheetOn.w - w) / 2),
+    y: at.y !== undefined ? at.y : Math.round((sheetOn.h - h) / 2),
+    w, h,
     props: Object.assign({}, DEFAULTS[type], at.props),
   };
 }
@@ -67,7 +128,7 @@ const makePage = (name = 'Page') => ({ id: id('p'), name, blocks: [] });
 
 const emptyDoc = (brand = 'Brand') => ({
   version: 1, brand,
-  page: { w: PAGE.w, h: PAGE.h }, grid: GRID,
+  page: { size: 'slide-16x9', w: PAGE.w, h: PAGE.h }, grid: GRID,
   pages: [makePage('Cover')],
 });
 
@@ -78,11 +139,30 @@ const clone = (d) => JSON.parse(JSON.stringify(d));
 const findPage = (doc, pageId) => doc.pages.find((p) => p.id === pageId);
 const snap = (v, g) => (g ? Math.round(v / g) * g : Math.round(v));
 
+const EDGE = 1;                       // within a pixel of an edge counts as on it
+function reflow(page, from, to) {
+  const k = Math.min(to.w / from.w, to.h / from.h);
+  const padX = (to.w - from.w * k) / 2, padY = (to.h - from.h * k) / 2;
+  for (const b of page.blocks) {
+    const left = b.x <= EDGE, top = b.y <= EDGE;
+    const right = Math.abs(b.x + b.w - from.w) <= EDGE, bottom = Math.abs(b.y + b.h - from.h) <= EDGE;
+    b.x = Math.round(b.x * k + padX); b.y = Math.round(b.y * k + padY);
+    b.w = Math.max(1, Math.round(b.w * k)); b.h = Math.max(1, Math.round(b.h * k));
+    if (left && right) { b.x = 0; b.w = to.w; }
+    else if (left) b.x = 0;
+    else if (right) b.x = to.w - b.w;
+    if (top && bottom) { b.y = 0; b.h = to.h; }
+    else if (top) b.y = 0;
+    else if (bottom) b.y = to.h - b.h;
+  }
+}
+
 const ops = {
   addBlock(doc, pageId, type, at) {
     const p = findPage(doc, pageId);
     if (!p) throw new Error('that page is not in this document');
-    const b = makeBlock(type, at);
+    // centred on the page it is landing on, whatever size that page is
+    const b = makeBlock(type, at, (at && at.on) || pageSize(doc, p));
     p.blocks.push(b);
     return b.id;
   },
@@ -118,6 +198,28 @@ const ops = {
     p.blocks.splice(j, 0, p.blocks.splice(i, 1)[0]);
   },
   addPage(doc, name) { const p = makePage(name || `Page ${doc.pages.length + 1}`); doc.pages.push(p); return p.id; },
+
+  // Changing the page size must not throw the layout away. Blocks are scaled by
+  // the same factor in both directions, so nothing is stretched, and then
+  // anything that was against an edge is put back against it. That last rule is
+  // what keeps a full-bleed cover full bleed and a footer on the baseline; a
+  // plain proportional scale leaves both floating.
+  setPageSize(doc, pageId, key, custom, mode) {
+    const next = sheet(key, custom);
+    const target = pageId ? findPage(doc, pageId) : null;
+    if (pageId && !target) throw new Error('that page is not in this document');
+    const record = { size: next.size, w: next.w, h: next.h };
+    if (next.size === 'custom') { record.unit = next.unit; record.printW = next.printW; record.printH = next.printH; }
+
+    const pages = target ? [target] : doc.pages;
+    for (const p of pages) {
+      const from = pageSize(doc, p);
+      if (mode !== 'keep') reflow(p, from, next);
+      if (target) p.page = record; else delete p.page;
+    }
+    if (!target) doc.page = record;
+    return next;
+  },
   removePage(doc, pageId) {
     if (doc.pages.length < 2) throw new Error('a document needs at least one page');
     doc.pages = doc.pages.filter((p) => p.id !== pageId);
@@ -139,6 +241,11 @@ function history(initial, limit = 60) {
       present = next; future = [];
       return r;
     },
+    // A correction to what apply() just did, folded into the same entry. The
+    // editor uses it after a page resize: text can only be measured once it has
+    // been laid out at the new size, and growing a box to fit its words is part
+    // of that one action rather than a second thing to undo.
+    amend(fn) { const r = fn(present); return r; },
     undo() { if (!past.length) return false; future.unshift(present); present = past.pop(); return true; },
     redo() { if (!future.length) return false; past.push(present); present = future.shift(); return true; },
     canUndo: () => past.length > 0,
@@ -148,5 +255,6 @@ function history(initial, limit = 60) {
 }
 
 return { PLAIN, DERIVED, RULE, KINDS, kindOf, DEFAULTS, SIZES, PAGE, GRID,
+  SHEETS, sheet, pageSize, toPx, reflow, recognise,
   makeBlock, makePage, emptyDoc, ops, history, clone, snap, findPage };
 }));

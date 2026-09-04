@@ -9,7 +9,8 @@ around it.
 
     cd engine
     npm install
-    npm test                                            # 124 checks
+    npm test                                            # 136 checks
+    node test/print-check.mjs                           # prints, and measures the paper
     node src/cli.js check   test/fixtures/messy-illustrator.svg --tokens projects/meridian/project.json
     node src/cli.js check   my-icon.svg --icon projects/meridian/project.json
     node src/cli.js measure projects/meridian/project.json
@@ -405,11 +406,58 @@ photograph and the check was measuring pixels nobody sees; `on` now takes
 **none**. And `src/contrast.js` became UMD, because the alternative was a second
 copy of the WCAG arithmetic in the browser to disagree with the first.
 
+### Page sizes
+
+Nine named sizes, from a 16:9 slide to A4, A5, US Letter and a square. One for
+the document, and any page may override it, which is how a fold-out or a
+full-bleed cover lives in the same file as everything else.
+
+**Layout is in pixels; printing is in millimetres.** 794 px is only A4 by
+accident of 96 dpi, and a printer has to be told 210 mm or it will fit the page
+to whatever paper it has. So a size carries both, and the `@page` rule gets the
+physical one:
+
+    A4 portrait        794 × 1123 px on screen      @page size: 210mm 297mm
+    US Letter          816 × 1056 px on screen      @page size: 8.5in 11in
+    Slide 16:9        1280 ×  720 px on screen      @page size: 1280px 720px
+
+A document that mixes sizes gets one plain `@page` rule for the size most of its
+pages use, and a named rule for every other one. That ordering is deliberate: a
+browser that does not support named pages still prints the bulk of the document
+at the right size instead of all of it at the wrong one.
+
+`test/print-check.mjs` drives a browser, prints, and reads the MediaBox back out
+of the PDF, because the CSS assertions in the suite only prove the right rule
+was written. A document of four A4 pages comes out 209.9 × 297.0 mm four times,
+and a document that mixes three sizes comes out at three sizes.
+
+**Changing the size scales the layout rather than throwing it away.** Both
+directions scale by the same factor, so nothing is stretched, and then anything
+that was against an edge is put back against it. That last rule is what keeps a
+full-bleed cover full bleed and a footer on its baseline; a plain proportional
+scale leaves both floating a few pixels inside the page. "Keep positions" is
+offered for anyone who would rather redo it themselves.
+
+One thing that falls out of the type coming from the project rather than from a
+number: **type does not scale with the page, and it should not.** A headline is
+set in H1, and H1 is a token. So a headline that fitted two lines at 1280 wide
+can need three at 794. The editor can see that, because the text is laid out in
+front of it, so it grows the box to fit and says why:
+
+    Every page is now A4 portrait. Undo puts it back. 1 text block grew to
+    fit, because type comes from the scale and does not shrink with the page.
+
+That correction is folded into the same history entry as the resize, so one
+press of undo puts everything back. `history.amend` exists for exactly this: a
+correction that can only be made once the browser has laid the new size out.
+
 ### What the editor does not do yet
 
 - **The icon grid draws a demonstration glyph**, not your icon set. Icons are
   checked one at a time through the CLI; a set is not yet held in the project.
-- **One page size.** 1280 by 720 for everything, print sizes included.
+- **No bleed or crop marks.** A print size prints at trim. Bleed needs the trim
+  box and the bleed box kept apart properly, and that belongs with the CMYK work
+  on the Typst path rather than as a half version here.
 - **Images are per document, not per project.** A photograph dropped into one
   document is not offered in the next one.
 - **No duotone or scrim.** The photography treatment from the specimen is a

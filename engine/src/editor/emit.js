@@ -80,6 +80,12 @@ h4{margin:0 0 8px;font-size:10px;letter-spacing:.13em;text-transform:uppercase;c
 .danger{width:100%;background:none;border:1px solid #4A2A28;color:var(--danger);border-radius:4px;padding:7px;cursor:pointer}
 .danger:hover{background:#2A1D1C}
 #zoom{font-family:var(--mono);font-size:11px;color:var(--dim);min-width:42px;text-align:right}
+.bar select{background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:4px;padding:3px 5px;font:inherit;font-size:11px}
+.pgsize{margin:10px 0 18px}
+.pgsize select{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:4px;padding:5px 6px;font-size:12px}
+.pg u{display:block;font-family:var(--mono);font-size:9px;color:var(--dim);text-decoration:none;margin-top:1px}
+#sheetname{position:absolute;left:50%;transform:translateX(-50%);bottom:6px;font-family:var(--mono);font-size:10px;
+  letter-spacing:.08em;color:var(--dim);pointer-events:none}
 .keys{margin-top:18px;padding-top:14px;border-top:1px solid var(--line);font-family:var(--mono);font-size:10px;line-height:1.9;color:var(--dim)}
 .keys b{color:var(--ink);font-weight:400}
 #notes{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;z-index:20;pointer-events:none;max-width:640px}
@@ -138,6 +144,7 @@ ${fontLink(bu.type)}
     <button id="undo" title="Undo (Cmd Z)">Undo</button>
     <button id="redo" title="Redo (Cmd Shift Z)">Redo</button>
     <span class="sp"></span>
+    <label class="ver">size <select id="sheet-size"></select></label>
     <label class="ver">grid <select id="grid"><option>4</option><option selected>8</option><option>16</option><option value="0">off</option></select></label>
     <span id="zoom">100%</span>
     <button id="open">Open</button>
@@ -148,6 +155,7 @@ ${fontLink(bu.type)}
   <div class="rail">
     <h4>Pages</h4><div id="pages"></div>
     <div class="pgbtns"><button id="addpage">Add page</button><button id="delpage">Delete</button></div>
+    <label class="f pgsize"><span>This page</span><select id="page-size"></select></label>
     <h4>Add a block</h4><div id="insert"></div>
     <div class="keys">
       <b>drag</b> move · <b>alt</b> ignore grid<br>
@@ -159,7 +167,7 @@ ${fontLink(bu.type)}
       <b>drop a file</b> on an image slot
     </div>
   </div>
-  <div id="canvas"><div id="stage"><div id="sheet"></div><div id="overlay"></div></div><div id="notes"></div></div>
+  <div id="canvas"><div id="stage"><div id="sheet"></div><div id="overlay"></div></div><div id="notes"></div><span id="sheetname"></span></div>
   <div class="side"><h4>Properties</h4><div id="panel"></div></div>
 </div>
 <input type="file" id="file" accept="application/json" hidden>
