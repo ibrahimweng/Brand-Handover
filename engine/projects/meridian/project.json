@@ -1,0 +1,35 @@
+{
+  "brand": "Meridian",
+  "version": "1.0.0",
+  "assets": {
+    "mark": "mark.svg",
+    "wordmark": "wordmark.svg"
+  },
+  "tokens": {
+    "colour": {
+      "deep":   { "hex": "#0A2A33", "role": "primary" },
+      "tide":   { "hex": "#1E7A8C", "role": "secondary" },
+      "beacon": { "hex": "#F2A007", "role": "accent", "textSafe": false, "maxCoverage": 0.03 },
+      "chalk":  { "hex": "#EFEDE4", "role": "ground" },
+      "slate":  { "hex": "#5C6B70", "role": "neutral" }
+    }
+  },
+  "rules": {
+    "clearSpaceRatio": 0.25,
+    "minStrokePx": 2.4,
+    "minStrokeMm": 0.675,
+    "lockupGapRatio": 0.36,
+    "wordmarkHeightRatio": 0.34,
+    "naming": "{brand}-{lockup}-{colourway}",
+    "lockups": ["horizontal", "stacked", "mark", "wordmark"],
+    "formats": ["svg", "png"],
+    "pngWidths": [512, 1024],
+    "colourways": [
+      { "name": "deep",     "on": "chalk", "slots": { "ink": "#0A2A33" } },
+      { "name": "tide",     "on": "chalk", "slots": { "ink": "#1E7A8C" } },
+      { "name": "chalk",    "on": "deep",  "slots": { "ink": "#EFEDE4" } },
+      { "name": "black",    "on": "white", "slots": { "ink": "#000000" } },
+      { "name": "white",    "on": "black", "slots": { "ink": "#FFFFFF" } }
+    ]
+  }
+}
