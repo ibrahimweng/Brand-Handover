@@ -9,7 +9,7 @@ around it.
 
     cd engine
     npm install
-    npm test                                            # 155 checks
+    npm test                                            # 168 checks
     node test/print-check.mjs                           # prints, and measures the paper
     node test/treatment-check.mjs                       # renders, and reads the pixels back
     node src/cli.js check   test/fixtures/messy-illustrator.svg --tokens projects/meridian/project.json
@@ -518,6 +518,66 @@ full-bleed cover full bleed and a footer on its baseline; a plain proportional
 scale leaves both floating a few pixels inside the page. "Keep positions" is
 offered for anyone who would rather redo it themselves.
 
+### Bleed, trim and crop marks
+
+A printed page is three boxes, and confusing them is how a job comes back with
+a white line down one side.
+
+    trim    the finished page. 210 by 297 for A4, and the space every block's
+            x and y is measured in.
+    bleed   trim plus a margin all round, usually 3 mm. Anything meant to reach
+            the edge has to be painted out to here, because a guillotine cutting
+            a stack of paper is accurate to about a millimetre.
+    media   the sheet that goes through the press: bleed plus room for the marks
+            that tell the finisher where to cut.
+
+Set the bleed once for the document and the rest follows. `@page` grows to the
+media size in real units, the marks are drawn at the four trim corners with the
+bleed as the gap between mark and artwork, and the page on screen stays the trim
+size, because a reader has no use for a bleed.
+
+**The awkward part is that a designer draws to trim and the printer needs
+bleed**, so something has to paint outside the page. Asking for that by hand
+means a block at `x: -11.34` with a width of page plus 22.68, which breaks the
+grid, breaks the resize, and gets forgotten on the one page that matters. So the
+rule is the one the resize already uses: **a block that touches an edge is meant
+to run off it**, and the system paints it out.
+
+Only what can bleed does. A photograph or a colour field running off the page is
+what bleed is for; a line of type doing it is a mistake, and quietly widening
+its box would move centred text. So `fill`, `slot` and `pattern` bleed and
+nothing else does.
+
+Two things get checked, and neither is visible on screen:
+
+    Colour field stops 3 px from the left and 3 px from the right of the page
+    edge. On screen that is nothing. After trimming it is a white line down the
+    side, and it cannot be fixed at that point. Put it exactly on the edge and
+    it will be painted out into the bleed for you.
+
+    Text comes within 3 mm of the left edge. A guillotine cutting a stack of
+    paper is accurate to about that, so anything inside the 3 mm margin can be
+    cut into. Keep it 12 px or more from the edge.
+
+In the editor the stage becomes the sheet and the page sits inside it, so you
+see the bleed and a dashed trim line. `#sheet` stays at trim size and simply
+moves, which means every coordinate in the editor is still in trim space and
+none of the pointer maths knows bleed exists.
+
+Two bugs this turned up, both found by printing rather than by reading:
+
+- **The pixel media box and the physical `@page` were rounded separately.** An
+  A4 page came out a third of a pixel taller than its paper and every sheet
+  spilled onto a second one — eight pages for four. The pixel box is now derived
+  from the physical one and floored, so it can only ever be smaller than the
+  paper.
+- **Millimetres were being added to inches.** US Letter with a 3 mm bleed came
+  out three times the size it should have been. The pad is converted into the
+  sheet's own unit once, and both boxes are built from that.
+
+A document that does not use bleed publishes exactly the bytes it did before the
+feature existed, which a test asserts.
+
 One thing that falls out of the type coming from the project rather than from a
 number: **type does not scale with the page, and it should not.** A headline is
 set in H1, and H1 is a token. So a headline that fitted two lines at 1280 wide
@@ -535,9 +595,6 @@ correction that can only be made once the browser has laid the new size out.
 
 - **The icon grid draws a demonstration glyph**, not your icon set. Icons are
   checked one at a time through the CLI; a set is not yet held in the project.
-- **No bleed or crop marks.** A print size prints at trim. Bleed needs the trim
-  box and the bleed box kept apart properly, and that belongs with the CMYK work
-  on the Typst path rather than as a half version here.
 - **Images are per document, not per project.** A photograph dropped into one
   document is not offered in the next one.
 - **No grade beyond the duotone.** Saturation and contrast as separate dials
@@ -568,6 +625,7 @@ correction that can only be made once the browser has laid the new size out.
     src/export.js     icons, favicons, social crops and the zip
     src/system.js     the rules: icon grid off the mark, pattern, motion
     src/photography.js  the duotone, the scrim, and what a treated pixel becomes
+    src/print.js      trim, bleed and media boxes, and the marks between them
     src/pattern.js    seamless tiles cut from the shape you marked
     src/documents/    blocks.js, chrome.js, index.js (manual), deck.js
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js

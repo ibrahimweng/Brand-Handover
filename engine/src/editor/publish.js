@@ -4,9 +4,9 @@
    Two publish paths would drift, and the whole point of editing real DOM was to
    have one. */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('./render'), require('./model'));
-  else root.HandoverPublish = factory(root.HandoverRender, root.HandoverModel);
-}(typeof self !== 'undefined' ? self : this, function (R, M) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./render'), require('./model'), require('../print'));
+  else root.HandoverPublish = factory(root.HandoverRender, root.HandoverModel, root.HandoverPrint);
+}(typeof self !== 'undefined' ? self : this, function (R, M, PR) {
   'use strict';
   const esc = R.esc;
 
@@ -31,6 +31,7 @@ html,body{margin:0;background:var(--shell);color:var(--ink);font-family:ui-sans-
 .hp-doc{padding:70px 24px 60px;display:flex;flex-direction:column;align-items:center;gap:28px}
 .hp-page{position:relative;overflow:hidden;box-shadow:0 4px 30px rgba(0,0,0,.28);flex:none;
   transform-origin:top center}
+.hp-trim{position:absolute;overflow:hidden}
 .hp-cap{font-family:ui-monospace,Menlo,monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-top:-18px}
 .hb-block{position:absolute}
 @media print{
@@ -39,6 +40,7 @@ html,body{margin:0;background:var(--shell);color:var(--ink);font-family:ui-sans-
   .hp-doc{padding:0;gap:0;display:block}
   .hp-page{box-shadow:none;break-after:page;page-break-after:always;margin:0}
   .hp-page:last-child{break-after:auto;page-break-after:auto}
+
 }
 `;
 
@@ -93,28 +95,56 @@ html,body{margin:0;background:var(--shell);color:var(--ink);font-family:ui-sans-
   // A document can mix sizes, so the size used by most pages becomes the plain
   // @page rule and every other one gets a named rule. That way a browser that
   // does not do named pages still prints the bulk of the document correctly.
+  const keyOf = (s) => `${s.w}x${s.h}:${s.css}`;
+
   function sheets(doc) {
+    const spec = M.printSpec(doc);
     const seen = new Map(), order = [];
     for (const p of doc.pages) {
       const s = M.pageSize(doc, p);
-      const key = `${s.w}x${s.h}:${s.css}`;
-      if (!seen.has(key)) { seen.set(key, { sheet: s, key, n: 0, cls: 'hs' + order.length }); order.push(key); }
+      const key = keyOf(s);
+      if (!seen.has(key)) {
+        seen.set(key, { sheet: s, box: PR.boxes(s, spec), key, n: 0, cls: 'hs' + order.length });
+        order.push(key);
+      }
       seen.get(key).n++;
     }
     const list = order.map((k) => seen.get(k));
     const main = list.slice().sort((a, b) => b.n - a.n)[0];
-    return { list, main, of: (p) => seen.get(`${M.pageSize(doc, p).w}x${M.pageSize(doc, p).h}:${M.pageSize(doc, p).css}`) };
+    return { list, main, spec, of: (p) => seen.get(keyOf(M.pageSize(doc, p))) };
   }
 
+  // Screen shows the trim box, because a reader has no use for a bleed. Paper
+  // shows the media box, with the artwork running past the trim and the marks
+  // saying where to cut. One markup, two presentations, which is the same
+  // arrangement that keeps the canvas and the published page from drifting.
+  // Only written when a page actually bleeds, so a document that does not use
+  // it publishes exactly the bytes it did before the feature existed.
+  const BLEED_CSS = `
+.hp-marks{position:absolute;left:0;top:0;display:none}
+@media print{
+  .hp-page.hp-b{overflow:visible}
+  .hp-page.hp-b .hp-trim{overflow:visible}
+  .hp-marks{display:block}
+}`;
+
   function pageCss(sh) {
-    const rules = sh.list.map((e) =>
-      `.${e.cls}{width:${e.sheet.w}px;height:${e.sheet.h}px}`).join('\n');
-    const printed = [`@page{size:${sh.main.sheet.css};margin:0}`];
+    const rules = [];
+    for (const e of sh.list) {
+      const b = e.box;
+      rules.push(`.${e.cls}{width:${e.sheet.w}px;height:${e.sheet.h}px}`);
+      rules.push(`.${e.cls} .hp-trim{left:0;top:0;width:${e.sheet.w}px;height:${e.sheet.h}px}`);
+      if (!b.bleed) continue;
+      rules.push(`@media print{.${e.cls}{width:${b.media.w}px;height:${b.media.h}px}`
+        + `.${e.cls} .hp-trim{left:${b.offset}px;top:${b.offsetY}px}}`);
+    }
+    const printed = [`@page{size:${sh.main.box.css};margin:0}`];
     for (const e of sh.list) {
       if (e === sh.main) continue;
-      printed.push(`@page ${e.cls}{size:${e.sheet.css};margin:0}`, `@media print{.${e.cls}{page:${e.cls}}}`);
+      printed.push(`@page ${e.cls}{size:${e.box.css};margin:0}`, `@media print{.${e.cls}{page:${e.cls}}}`);
     }
-    return rules + '\n' + printed.join('\n');
+    const bleeds = sh.list.some((e) => e.box.bleed);
+    return rules.join('\n') + '\n' + printed.join('\n') + (bleeds ? BLEED_CSS : '');
   }
 
   // The document holds layout only. Every measurement comes from the bundle at
@@ -123,10 +153,14 @@ html,body{margin:0;background:var(--shell);color:var(--ink);font-family:ui-sans-
   function publish(doc, bundle, opts) {
     const o = opts || {};
     const sh = sheets(doc);
-    const pages = doc.pages.map((p, i) =>
-      `<section class="hp-page ${sh.of(p).cls}" style="background:${bundle.roles.ground.hex}" aria-label="Page ${i + 1}, ${esc(p.name)}">`
-      + p.blocks.map((b) => R.positioned(b, bundle)).join('')
-      + `</section>` + (o.captions === false ? '' : `<p class="hp-cap">${String(i + 1).padStart(2, '0')} · ${esc(p.name)}${sh.list.length > 1 ? ' · ' + esc(sh.of(p).sheet.name) : ''}</p>`)).join('\n');
+    const pages = doc.pages.map((p, i) => {
+      const e = sh.of(p);
+      return `<section class="hp-page ${e.cls}${e.box.bleed ? ' hp-b' : ''}" style="background:${bundle.roles.ground.hex}" aria-label="Page ${i + 1}, ${esc(p.name)}">`
+        + `<div class="hp-trim">`
+        + p.blocks.map((b) => R.positioned(b, bundle, e.sheet, e.box)).join('')
+        + `</div>${PR.marks(e.box)}</section>`
+        + (o.captions === false ? '' : `<p class="hp-cap">${String(i + 1).padStart(2, '0')} · ${esc(p.name)}${sh.list.length > 1 ? ' · ' + esc(e.sheet.name) : ''}</p>`);
+    }).join('\n');
 
     return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">

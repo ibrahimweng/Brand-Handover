@@ -374,7 +374,8 @@ Phases 0 to 3 are in `engine/`, together with the parts of phase 5 that turned
 out to be cheap once the renderer was shared. What is running: the normaliser,
 the measuring engine, the packager, both documents, the canvas editor,
 publishing, all three kinds of block, image slots, page sizes and the
-photography treatment. 136 files from one master, 155 tests.
+photography treatment, and print work with bleed. 136 files from one master,
+168 tests.
 
 Three things the plan had wrong, found by building rather than by thinking.
 
@@ -421,6 +422,21 @@ as markup a browser paints and once as arithmetic the editor reasons with, and
 the two must agree. So there is a check that renders through the real filter and
 reads the pixels back. It caught a flat scrim painting solid while the numbers
 assumed 42% on its first run.
+
+**Bleed is where "derive it" stopped being a preference and became the only
+option.** The correct thing to hand a printer needs artwork painted outside the
+page, and the honest way to ask for that is a block at minus eleven pixels with
+a width of page plus twenty-three. Nobody would do that on every page, and the
+one they forgot would be the one that came back with a white line down it. So
+the same rule the resize already used — a block against an edge is meant to run
+off it — does the work, and the designer never sees the negative number.
+
+It also produced the two most embarrassing bugs so far, both from arithmetic
+rather than design: a page rounded a third of a pixel too tall for its own
+paper, so every sheet printed twice, and millimetres added to inches, so US
+Letter came out three times its size. Neither was visible in the editor. Both
+were caught by printing to PDF and measuring the result, which is now a check
+that runs on six documents.
 
 **Page sizes broke the assumption that type is free.** Every other measurement
 in this system is derived, which is the whole argument. Type is the exception:

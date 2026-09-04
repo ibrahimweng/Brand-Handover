@@ -3,9 +3,9 @@
    and no measuring at draw time. Everything expensive already happened in the
    engine; this only lays it out. */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('../photography'));
-  else root.HandoverRender = factory(root.HandoverPhotography);
-}(typeof self !== 'undefined' ? self : this, function (PH) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('../photography'), require('../print'));
+  else root.HandoverRender = factory(root.HandoverPhotography, root.HandoverPrint);
+}(typeof self !== 'undefined' ? self : this, function (PH, PR) {
   'use strict';
 
   const esc = (s) => String(s == null ? '' : s)
@@ -300,8 +300,16 @@
     catch (e) { return `<div class="hb-missing">${esc(b.type)} could not draw: ${esc(e.message)}</div>`; }
   }
 
-  const positioned = (b, bundle) =>
-    `<div class="hb-block" data-id="${b.id}" data-type="${b.type}" style="position:absolute;left:${b.x}px;top:${b.y}px;width:${b.w}px;height:${b.h}px">${block(b, bundle)}</div>`;
+  // A block sits where it was put, unless it is against an edge on a page with
+  // bleed, in which case it is painted out past the trim. The block never knows;
+  // the box it draws into is simply bigger. See src/print.js.
+  const positioned = (b, bundle, sheet, box) => {
+    const out = sheet && box ? PR.bleedBox(b, sheet, box) : null;
+    const g = out || b;
+    return `<div class="hb-block${out ? ' bleeds' : ''}" data-id="${b.id}" data-type="${b.type}"`
+      + ` style="position:absolute;left:${r3(g.x)}px;top:${r3(g.y)}px;width:${r3(g.w)}px;height:${r3(g.h)}px">`
+      + `${block(b, bundle)}</div>`;
+  };
 
   const page = (p, bundle, size) =>
     `<div class="hb-page" data-page="${p.id}" style="position:relative;width:${size.w}px;height:${size.h}px;background:${bundle.roles.ground.hex};overflow:hidden">`

@@ -70,7 +70,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 136 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 155 tests.
+of it. 168 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -98,6 +98,11 @@ editor then measures the mark against the treated pixels and works out the
 scrim strength that particular photograph needs, which is the thing an opacity
 slider is usually guessed at.
 
-Still to do: bleed and crop marks, the CMYK print path through Typst, and a run
-on a real identity job — which is the next checkpoint and matters more than any
-further feature.
+Print work has bleed and crop marks. Set the bleed once and the sheet grows to
+the media size, the marks land on the trim corners, and anything touching an
+edge is painted out past the trim for you, because asking a designer to draw a
+block at minus eleven pixels is how it gets forgotten on the one page that
+matters.
+
+Still to do: the CMYK print path through Typst, and a run on a real identity job
+— which is the next checkpoint and matters more than any further feature.

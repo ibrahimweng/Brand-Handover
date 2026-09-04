@@ -44,9 +44,11 @@ h4{margin:0 0 8px;font-size:10px;letter-spacing:.13em;text-transform:uppercase;c
 .ins:hover{background:#24282B;color:var(--ink);border-color:#3A4045}
 #canvas{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;background:
   repeating-conic-gradient(#191C1E 0% 25%,#1D2123 0% 50%) 50%/22px 22px}
-#stage{position:relative;transform-origin:center center;box-shadow:0 6px 40px rgba(0,0,0,.5)}
-#sheet{position:absolute;inset:0;overflow:hidden}
-#overlay{position:absolute;inset:0;pointer-events:none}
+#stage{position:relative;transform-origin:center center;box-shadow:0 6px 40px rgba(0,0,0,.5);overflow:hidden}
+#sheet{position:absolute;overflow:hidden}
+#overlay{position:absolute;pointer-events:none}
+/* where the guillotine goes. Drawn over the artwork, under the selection. */
+#trimline{position:absolute;display:none;pointer-events:none;outline:1px dashed rgba(226,200,106,.85);outline-offset:0}
 .sel{position:absolute;outline:1.5px solid var(--sel);outline-offset:0}
 .sel .tag{position:absolute;top:-19px;left:0;background:var(--sel);color:#fff;font-family:var(--mono);font-size:10px;padding:1px 5px;border-radius:3px 3px 0 0;white-space:nowrap}
 .h{position:absolute;width:9px;height:9px;background:#fff;border:1.5px solid var(--sel);border-radius:2px;pointer-events:auto}
@@ -95,6 +97,8 @@ h4{margin:0 0 8px;font-size:10px;letter-spacing:.13em;text-transform:uppercase;c
 .nx{position:absolute;top:5px;right:6px;background:none;border:none;color:var(--dim);cursor:pointer;font-size:15px;line-height:1;padding:2px 4px}
 .imeta{font-family:var(--mono);font-size:10.5px}
 .hint.bad{color:#E2C86A;border-left:2px solid #E2C86A;padding-left:9px}
+.trimwarn{position:absolute;transform:translate(4px,4px);background:#E2C86A;color:#231F09;font-family:var(--mono);
+  font-size:9px;letter-spacing:.05em;padding:1px 5px;border-radius:3px;pointer-events:auto;cursor:help}
 .ovwarn{position:absolute;transform:translateY(4px);background:#E2C86A;color:#231F09;font-family:var(--mono);
   font-size:9px;letter-spacing:.05em;padding:2px 6px;border-radius:3px;white-space:nowrap;pointer-events:auto;cursor:help}
 .f input[type=range]{padding:0;height:20px;accent-color:var(--sel);background:none;border:none}
@@ -153,6 +157,7 @@ ${fontLink(bu.type)}
     <button id="redo" title="Redo (Cmd Shift Z)">Redo</button>
     <span class="sp"></span>
     <label class="ver">size <select id="sheet-size"></select></label>
+    <label class="ver">bleed <select id="bleed"><option value="0">none</option><option value="3">3 mm</option><option value="5">5 mm</option></select></label>
     <label class="ver">grid <select id="grid"><option>4</option><option selected>8</option><option>16</option><option value="0">off</option></select></label>
     <span id="zoom">100%</span>
     <button id="open">Open</button>
@@ -175,13 +180,14 @@ ${fontLink(bu.type)}
       <b>drop a file</b> on an image slot
     </div>
   </div>
-  <div id="canvas"><div id="stage"><div id="sheet"></div><div id="overlay"></div></div><div id="notes"></div><span id="sheetname"></span></div>
+  <div id="canvas"><div id="stage"><div id="sheet"></div><div id="trimline"></div><div id="overlay"></div></div><div id="notes"></div><span id="sheetname"></span></div>
   <div class="side"><h4>Properties</h4><div id="panel"></div></div>
 </div>
 <input type="file" id="file" accept="application/json" hidden>
 <input type="file" id="imgfile" accept="image/*" hidden>
 <script>${read('../contrast.js')}</script>
 <script>${read('../photography.js')}</script>
+<script>${read('../print.js')}</script>
 <script>${read('model.js')}</script>
 <script>${read('images.js')}</script>
 <script>${read('render.js')}</script>

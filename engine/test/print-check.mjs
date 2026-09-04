@@ -45,11 +45,14 @@ const boxes = (file) =>
   [...fs.readFileSync(file, 'latin1').matchAll(/MediaBox\s*\[\s*[\d.]+\s+[\d.]+\s+([\d.]+)\s+([\d.]+)/g)]
     .map((m) => ({ w: mm(+m[1]), h: mm(+m[2]) }));
 
-// what each named size should measure once it is on paper
-const expected = (key) => {
+// what each named size should measure once it is on paper, in millimetres,
+// including the bleed and the room the marks need
+const PR = require('../src/print');
+const expected = (key, bleedMm) => {
   const s = M.sheet(key);
   const f = { mm: 1, in: 25.4, px: 25.4 / 96 }[s.unit];
-  return { w: Number((s.printW * f).toFixed(1)), h: Number((s.printH * f).toFixed(1)) };
+  const pad = bleedMm ? (bleedMm + PR.MARK_LENGTH_MM) : 0;
+  return { w: Number((s.printW * f + pad * 2).toFixed(1)), h: Number((s.printH * f + pad * 2).toFixed(1)) };
 };
 
 const cases = [
@@ -58,6 +61,17 @@ const cases = [
   { name: 'a document that mixes three sizes',
     build: (d) => { M.ops.setPageSize(d, d.pages[1].id, 'a4'); M.ops.setPageSize(d, d.pages[2].id, 'square'); },
     want: (d) => d.pages.map((p, i) => expected(i === 1 ? 'a4' : i === 2 ? 'square' : 'slide-16x9')) },
+  // the sheet has to grow by the bleed and the marks, and each page still has
+  // to be one page: a media box a fraction taller than its @page spills
+  { name: 'A4 with 3 mm bleed and crop marks',
+    build: (d) => { M.ops.setPageSize(d, null, 'a4'); M.ops.setBleed(d, 3); },
+    want: (d) => d.pages.map(() => expected('a4', 3)) },
+  { name: 'US Letter with 5 mm bleed',
+    build: (d) => { M.ops.setPageSize(d, null, 'letter'); M.ops.setBleed(d, 5); },
+    want: (d) => d.pages.map(() => expected('letter', 5)) },
+  { name: 'bleed on a document that mixes sizes',
+    build: (d) => { M.ops.setPageSize(d, null, 'a4'); M.ops.setPageSize(d, d.pages[2].id, 'square'); M.ops.setBleed(d, 3); },
+    want: (d) => d.pages.map((p, i) => expected(i === 2 ? 'square' : 'a4', 3)) },
 ];
 
 const browser = await chromium.launch(process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {});
@@ -75,9 +89,16 @@ for (const c of cases) {
 
   const got = boxes(pdf), want = c.want(doc);
   const near = (a, b) => Math.abs(a - b) <= 0.3;          // the printer rounds to points
-  const ok = got.length === want.length && got.every((g, i) => near(g.w, want[i].w) && near(g.h, want[i].h));
+  let ok = got.length === want.length && got.every((g, i) => near(g.w, want[i].w) && near(g.h, want[i].h));
+  // and when there is bleed, the marks have to have been drawn
+  const wantsMarks = M.printSpec(doc).bleed > 0;
+  const marksDrawn = await page.locator('svg.hp-marks').count();
+  const marksOk = wantsMarks ? marksDrawn === doc.pages.length : marksDrawn === 0;
+  if (!marksOk) ok = false;
   const show = (l) => l.map((x) => `${x.w}×${x.h}`).join('  ');
-  console.log(`  ${ok ? 'ok   ' : 'FAIL '} ${c.name}\n        ${show(got)}${ok ? '' : `\n        wanted ${show(want)}`}`);
+  console.log(`  ${ok ? 'ok   ' : 'FAIL '} ${c.name}\n        ${show(got)}`
+    + (wantsMarks ? `  ·  ${marksDrawn} sets of marks` : '')
+    + (ok ? '' : `\n        wanted ${show(want)}${marksOk ? '' : `, and ${wantsMarks ? doc.pages.length : 0} sets of marks`}`));
   if (!ok) failed++;
 }
 

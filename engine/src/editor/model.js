@@ -73,6 +73,13 @@ function sheet(key, custom) {
 
 // A document has one size; a page may override it, which is how a fold-out or a
 // full-bleed cover lives in the same file as everything else.
+// Bleed is a print spec for the whole document rather than part of a page's
+// identity, so it lives beside the size rather than inside it.
+const printSpec = (doc) => {
+  const p = (doc && doc.page) || {};
+  return { bleed: Number(p.bleed) || 0, marks: p.marks !== false };
+};
+
 const pageSize = (doc, page) => {
   const p = (page && page.page) || (doc && doc.page) || {};
   // a document written before sizes were named carries pixels and nothing else,
@@ -202,6 +209,14 @@ const ops = {
     if (j < 0 || j >= p.blocks.length) return;
     p.blocks.splice(j, 0, p.blocks.splice(i, 1)[0]);
   },
+  setBleed(doc, mm, marks) {
+    doc.page = doc.page || {};
+    const v = Math.max(0, Number(mm) || 0);
+    if (v) { doc.page.bleed = v; doc.page.marks = marks !== false; }
+    else { delete doc.page.bleed; delete doc.page.marks; }
+    return v;
+  },
+
   addPage(doc, name) { const p = makePage(name || `Page ${doc.pages.length + 1}`); doc.pages.push(p); return p.id; },
 
   // Changing the page size must not throw the layout away. Blocks are scaled by
@@ -215,6 +230,9 @@ const ops = {
     if (pageId && !target) throw new Error('that page is not in this document');
     const record = { size: next.size, w: next.w, h: next.h };
     if (next.size === 'custom') { record.unit = next.unit; record.printW = next.printW; record.printH = next.printH; }
+    // the print spec belongs to the document and survives a change of size
+    const keep = printSpec(doc);
+    if (!pageId && keep.bleed) { record.bleed = keep.bleed; record.marks = keep.marks; }
 
     const pages = target ? [target] : doc.pages;
     for (const p of pages) {
@@ -260,6 +278,6 @@ function history(initial, limit = 60) {
 }
 
 return { PLAIN, DERIVED, RULE, KINDS, kindOf, DEFAULTS, SIZES, PAGE, GRID,
-  SHEETS, sheet, pageSize, toPx, reflow, recognise,
+  SHEETS, sheet, pageSize, printSpec, toPx, reflow, recognise,
   makeBlock, makePage, emptyDoc, ops, history, clone, snap, findPage };
 }));

@@ -6,7 +6,7 @@
 (function () {
   'use strict';
   const M = window.HandoverModel, R = window.HandoverRender, BUNDLE = window.HANDOVER_BUNDLE;
-  const PH = window.HandoverPhotography;
+  const PH = window.HandoverPhotography, PR = window.HandoverPrint;
   const $ = (s, r) => (r || document).querySelector(s);
   const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
   const esc = R.esc;
@@ -265,20 +265,37 @@
   // page overrides it.
   const sheetOf = (p) => M.pageSize(D(), p || page());
 
+  // The stage is the sheet that goes through the press; the page sits inside it.
+  // Keeping #sheet at trim size and simply moving it means every coordinate in
+  // the editor stays in trim space and none of the pointer maths knows bleed
+  // exists. See src/print.js for the three boxes.
+  const boxOf = (p) => PR.boxes(sheetOf(p), M.printSpec(D()));
+
   function fit() {
-    const p = sheetOf(), box = $('#canvas').getBoundingClientRect();
-    scale = Math.min((box.width - 80) / p.w, (box.height - 80) / p.h, 1.6);
-    sheet.style.width = p.w + 'px'; sheet.style.height = p.h + 'px';
+    const p = sheetOf(), b = boxOf(), box = $('#canvas').getBoundingClientRect();
+    scale = Math.min((box.width - 80) / b.media.w, (box.height - 80) / b.media.h, 1.6);
     stage.style.transform = `scale(${scale})`;
-    stage.style.width = p.w + 'px'; stage.style.height = p.h + 'px';
+    stage.style.width = b.media.w + 'px'; stage.style.height = b.media.h + 'px';
+    stage.style.background = BUNDLE.roles.ground.hex;
+    for (const n of [sheet, overlay]) {
+      n.style.left = b.offset + 'px'; n.style.top = b.offsetY + 'px';
+      n.style.width = p.w + 'px'; n.style.height = p.h + 'px';
+    }
+    sheet.style.overflow = b.bleed ? 'visible' : 'hidden';
+    const guide = $('#trimline');
+    guide.style.display = b.bleed ? 'block' : 'none';
+    if (b.bleed) {
+      guide.style.cssText += `;left:${b.offset}px;top:${b.offsetY}px;width:${p.w}px;height:${p.h}px`;
+    }
     $('#zoom').textContent = Math.round(scale * 100) + '%';
-    $('#sheetname').textContent = p.name;
+    $('#sheetname').textContent = p.name + (b.bleed ? ` · ${b.bleedMm} mm bleed` : '');
     drawOverlay();
   }
 
   function draw() {
     const p = page();
-    sheet.innerHTML = p.blocks.map((b) => R.positioned(b, BUNDLE)).join('');
+    const box = boxOf(p);
+    sheet.innerHTML = p.blocks.map((b) => R.positioned(b, BUNDLE, sheetOf(p), box)).join('');
     sheet.style.background = BUNDLE.roles.ground.hex;
     fitSheet();
     drawPages(); drawOverlay(); drawPanel(); drawHistory(); drawSizes();
@@ -301,6 +318,7 @@
       overlay.appendChild(box);
     }
     drawOverlayWarnings();
+    checkBleed();
   }
 
   function drawPages() {
@@ -322,8 +340,8 @@
   // switching to a page of a different size has to resize the stage, and doing
   // it inside draw() keeps every caller honest without each one remembering
   function fitSheet() {
-    const p = sheetOf();
-    if (sheet.style.width === p.w + 'px' && sheet.style.height === p.h + 'px') return;
+    const b = boxOf();
+    if (stage.style.width === b.media.w + 'px' && sheet.style.width === b.trim.w + 'px') return;
     fit();
   }
 
@@ -427,10 +445,11 @@
       rule: 'One decision, made once in the project, generating every instance after it. You choose which instance to show. To change the rule itself, edit the project rather than this block.',
       plain: '',
     };
-    const ov = overlayFor(b.id);
+    const ov = overlayFor(b.id), tw = bleedFor(b.id);
     box.innerHTML =
       `<div class="ph"><h3>${esc(nameOf(b.type))}</h3><span class="kind ${kind[0]}">${LABEL[kind]}</span></div>`
       + (ov ? `<p class="hint bad">${esc(ov.verdict.finding.what)} ${esc(ov.verdict.finding.how)}</p>` : '')
+      + (tw ? `<p class="hint bad">${esc(tw.what)} ${esc(tw.how)}</p>` : '')
       + (NOTE[kind] ? `<p class="hint">${NOTE[kind]}</p>` : '')
       + `<div class="grid4">${num('x', b.x)}${num('y', b.y)}${num('w', b.w)}${num('h', b.h)}</div>`
       + `<div class="labels"><span>X</span><span>Y</span><span>W</span><span>H</span></div>`
@@ -716,7 +735,25 @@
     $('#sheet-size').innerHTML = sizeOptions((d.page || {}).size);
     const p = page();
     $('#page-size').innerHTML = sizeOptions(p.page ? p.page.size : '', [['', 'Same as the document']]);
+    $('#bleed').value = String(M.printSpec(d).bleed || 0);
   }
+
+  // The two mistakes bleed exists to prevent, neither of which is visible on
+  // screen. Run whenever the page changes, like the contrast check.
+  let bleedFindings = [];
+  function checkBleed() {
+    const b = boxOf();
+    bleedFindings = b.bleed ? PR.check(page(), sheetOf(), b, (blk) => nameOf(blk.type)) : [];
+    for (const n of overlay.querySelectorAll('.trimwarn')) n.remove();
+    for (const f of bleedFindings) {
+      const blk = blockById(f.block); if (!blk) continue;
+      const n = el('div', 'trimwarn', 'trim');
+      n.style.cssText = `left:${blk.x}px;top:${blk.y}px`;
+      n.title = `${f.what} ${f.why} ${f.how}`;
+      overlay.appendChild(n);
+    }
+  }
+  const bleedFor = (id) => bleedFindings.find((f) => f.block === id);
 
   // Type does not scale with the page, and it should not: a size comes from the
   // brand's type scale, not from a number somebody stretched. So after a resize
@@ -749,6 +786,17 @@
     return confirm(`${what}\n\nOK scales what is on it to the new size, keeping anything that was against an edge against it.\nCancel leaves every block exactly where it is.`)
       ? 'scale' : 'keep';
   }
+
+  $('#bleed').onchange = (e) => {
+    const mm = Number(e.target.value) || 0;
+    change((d) => M.ops.setBleed(d, mm));
+    draw(); fit();
+    const n = bleedFindings.length;
+    note(mm
+      ? `${mm} mm bleed. Anything against an edge is now painted out past the trim for you, and the marks come out when you print.`
+        + (n ? ` ${n} thing${n === 1 ? '' : 's'} to look at on this page.` : '')
+      : 'No bleed. The page prints at trim.', n ? 'warn' : '');
+  };
 
   $('#sheet-size').onchange = (e) => {
     const key = e.target.value, next = M.sheet(key);

@@ -912,6 +912,152 @@ test('a document that mixes sizes prints each page at its own', () => {
   assert.ok(html.includes('A4 portrait'), 'a mixed document does not say which page is which size');
 });
 
+console.log('\nbleed, trim and crop marks');
+const PRN = require('../src/print');
+const pxOfCss = (css) => css.split(' ').map((v) => {
+  const n = parseFloat(v);
+  return v.endsWith('mm') ? n * 96 / 25.4 : v.endsWith('in') ? n * 96 : n;
+});
+
+test('no bleed changes nothing at all', () => {
+  const a4 = EM.sheet('a4');
+  const b = PRN.boxes(a4, {});
+  assert.deepStrictEqual(b.media, { w: a4.w, h: a4.h });
+  assert.strictEqual(b.offset, 0);
+  assert.strictEqual(b.marks, false);
+  assert.strictEqual(b.css, a4.css);
+  assert.strictEqual(PRN.marks(b), '');
+  assert.strictEqual(PRN.bleedBox({ type: 'fill', x: 0, y: 0, w: a4.w, h: a4.h }, a4, b), null);
+  assert.deepStrictEqual(PRN.check({ blocks: [{ id: 'x', type: 'fill', x: 3, y: 0, w: 10, h: 10 }] }, a4, b), []);
+});
+test('the sheet grows by the bleed plus room for the marks', () => {
+  const a4 = EM.sheet('a4');
+  const b = PRN.boxes(a4, { bleed: 3 });
+  assert.strictEqual(b.css, '226mm 313mm', `210 + 2 x (3 + 5) should be 226: got ${b.css}`);
+  assert.deepStrictEqual(b.bleedBox, { w: 816.68, h: 1145.68 });
+  assert.strictEqual(b.trim.w, 794);
+  assert.ok(b.offset > 0 && b.offsetY > 0);
+});
+test('the page element always fits inside the paper it is printed on', () => {
+  // regression: the pixel media box and the physical @page were rounded
+  // separately, so an A4 page came out a third of a pixel too tall and every
+  // sheet spilled onto a second one
+  for (const key of Object.keys(EM.SHEETS)) {
+    const s = EM.sheet(key), b = PRN.boxes(s, { bleed: 3 });
+    const [w, h] = pxOfCss(b.css);
+    assert.ok(b.media.w <= w + 0.01, `${key} is ${b.media.w} px wide on paper ${w} px wide`);
+    assert.ok(b.media.h <= h + 0.01, `${key} is ${b.media.h} px tall on paper ${h} px tall`);
+    assert.ok(w - b.media.w < 2 && h - b.media.h < 2, `${key} wastes more than a pixel of paper`);
+  }
+});
+test('a bleed in millimetres works on a page measured in inches or pixels', () => {
+  // regression: millimetres were added to inches, so US Letter came out three
+  // times the size it should have been
+  const letter = EM.sheet('letter'), b = PRN.boxes(letter, { bleed: 3 });
+  assert.strictEqual(b.css, '9.13in 11.63in', `8.5 + 2 x (8/25.4) should be 9.13: got ${b.css}`);
+  assert.ok(b.media.w < letter.w * 1.2, 'the media box is wildly bigger than the page');
+  const slide = EM.sheet('slide-16x9'), c = PRN.boxes(slide, { bleed: 3 });
+  const [w] = pxOfCss(c.css);
+  assert.ok(Math.abs(c.media.w - w) < 2, `the pixel page and its @page disagree: ${c.media.w} vs ${w}`);
+});
+
+test('a block against an edge is painted out past the trim, and one that is not is left alone', () => {
+  const a4 = EM.sheet('a4'), b = PRN.boxes(a4, { bleed: 3 });
+  const at = (t, x, y, w, h) => PRN.bleedBox({ type: t, x, y, w, h }, a4, b);
+  const full = at('fill', 0, 0, a4.w, a4.h);
+  assert.deepStrictEqual([full.x, full.y], [-b.bleed, -b.bleed]);
+  assert.strictEqual(Math.round(full.w), Math.round(a4.w + b.bleed * 2));
+  const leftOnly = at('slot', 0, 100, 200, 200);
+  assert.strictEqual(leftOnly.x, -b.bleed);
+  assert.strictEqual(leftOnly.h, 200, 'a block bled off an edge it was nowhere near');
+  assert.strictEqual(at('fill', 50, 100, 200, 200), null, 'a floating block was stretched');
+});
+test('words never bleed, because widening their box would move them', () => {
+  const a4 = EM.sheet('a4'), b = PRN.boxes(a4, { bleed: 3 });
+  for (const t of ['text', 'rule', 'lockup', 'mark', 'palette']) {
+    assert.strictEqual(PRN.bleedBox({ type: t, x: 0, y: 0, w: a4.w, h: a4.h }, a4, b), null,
+      `${t} was painted into the bleed`);
+  }
+  for (const t of PRN.BLEEDS) {
+    assert.ok(PRN.bleedBox({ type: t, x: 0, y: 0, w: a4.w, h: a4.h }, a4, b), `${t} did not bleed`);
+  }
+});
+
+test('the marks are eight lines, at the trim corners, on the paper', () => {
+  const a4 = EM.sheet('a4'), b = PRN.boxes(a4, { bleed: 3 });
+  const svg = PRN.marks(b);
+  const d = svg.match(/d="([^"]+)"/)[1];
+  assert.strictEqual(d.split('M').length - 1, 8, 'there should be two marks at each of four corners');
+  const nums = [...d.matchAll(/-?[\d.]+/g)].map(Number);
+  assert.ok(Math.min(...nums) >= -0.01, 'a mark runs off the top or left of the sheet');
+  assert.ok(Math.max(...nums) <= Math.max(b.media.w, b.media.h) + 0.01, 'a mark runs off the bottom or right');
+  // and the gap between the mark and the page is the bleed, so a mark never
+  // crosses artwork
+  assert.ok(d.includes(`M${b.offset} 0V`), `the top-left vertical is not at the trim edge: ${d.slice(0, 40)}`);
+});
+test('marks are not drawn when there is no room for them', () => {
+  const a4 = EM.sheet('a4');
+  assert.strictEqual(PRN.marks(PRN.boxes(a4, { bleed: 3, marks: false })), '');
+  assert.strictEqual(PRN.boxes(a4, { bleed: 3, marks: false }).css, '216mm 303mm',
+    'turning the marks off should still leave the bleed');
+});
+
+test('a block that stops just short of the edge is the mistake worth catching', () => {
+  const a4 = EM.sheet('a4'), b = PRN.boxes(a4, { bleed: 3 });
+  const pg = { blocks: [{ id: 'a', type: 'fill', x: 3, y: 0, w: a4.w - 6, h: a4.h }] };
+  const f = PRN.check(pg, a4, b, () => 'The colour field');
+  assert.strictEqual(f.length, 1);
+  assert.ok(/3 px from the left and 3 px from the right/.test(f[0].what), f[0].what);
+  assert.ok(/white line/.test(f[0].why));
+  // and a block properly on the edge says nothing
+  assert.deepStrictEqual(PRN.check({ blocks: [{ id: 'a', type: 'fill', x: 0, y: 0, w: a4.w, h: a4.h }] }, a4, b), []);
+});
+test('type inside the trim margin is reported, in millimetres', () => {
+  const a4 = EM.sheet('a4'), b = PRN.boxes(a4, { bleed: 3 });
+  const f = PRN.check({ blocks: [{ id: 't', type: 'text', x: 4, y: 400, w: 300, h: 60 }] }, a4, b, () => 'Text');
+  assert.strictEqual(f.length, 1);
+  assert.ok(/within 3 mm of the left edge/.test(f[0].what), f[0].what);
+  assert.ok(/guillotine/.test(f[0].why));
+  assert.deepStrictEqual(
+    PRN.check({ blocks: [{ id: 't', type: 'text', x: 60, y: 400, w: 300, h: 60 }] }, a4, b), [],
+    'type well inside the page was reported anyway');
+});
+
+test('the bleed belongs to the document and survives a change of size', () => {
+  const d = EM.emptyDoc('T');
+  EM.ops.setPageSize(d, null, 'a4');
+  EM.ops.setBleed(d, 3);
+  assert.deepStrictEqual(EM.printSpec(d), { bleed: 3, marks: true });
+  EM.ops.setPageSize(d, null, 'a5');
+  assert.strictEqual(EM.printSpec(d).bleed, 3, 'resizing the document threw the print spec away');
+  EM.ops.setBleed(d, 0);
+  assert.strictEqual(EM.printSpec(d).bleed, 0);
+  assert.ok(!('bleed' in d.page), 'turning bleed off left it in the document');
+});
+
+test('publishing keeps the trim on screen and the media box on paper', () => {
+  const d = EM.emptyDoc('Meridian');
+  d.pages[0].blocks.push(EM.makeBlock('fill', { x: 0, y: 0, w: 1280, h: 720 }));
+  EM.ops.setPageSize(d, null, 'a4');
+  EM.ops.setBleed(d, 3);
+  const html = publish(d, bu, { builtAt: 'fixed' });
+  assert.ok(html.includes('.hs0{width:794px;height:1123px}'), 'the screen page is not the trim size');
+  assert.ok(/@media print\{\.hs0\{width:854px;height:1182px}/.test(html), 'the printed page is not the media box');
+  assert.ok(html.includes('@page{size:226mm 313mm;margin:0}'), 'the paper is not the media size');
+  assert.ok(html.includes('class="hp-marks"'), 'no crop marks');
+  assert.ok(html.includes('hb-block bleeds'), 'nothing was painted into the bleed');
+  assert.ok(html.includes('<div class="hp-trim">'), 'there is no trim box to offset');
+});
+test('a document with no bleed publishes exactly as it did before', () => {
+  const d = EM.emptyDoc('Meridian');
+  d.pages[0].blocks.push(EM.makeBlock('fill', { x: 0, y: 0, w: 1280, h: 720 }));
+  const html = publish(d, bu, { builtAt: 'fixed' });
+  assert.ok(!html.includes('hp-marks'), 'the bleed stylesheet was written for a document that asked for none');
+  assert.ok(!html.includes('bleeds'), 'a block was painted past a trim that does not exist');
+  assert.ok(html.includes('@page{size:1280px 720px;margin:0}'));
+  assert.ok(!/@media print\{\.hs0\{width:/.test(html), 'a print size was written for a page that needs none');
+});
+
 console.log('\nimage slots');
 const IM = require('../src/editor/images');
 // a 4x4 red PNG and a 2x2 one, enough to be real data URIs without a fixture
