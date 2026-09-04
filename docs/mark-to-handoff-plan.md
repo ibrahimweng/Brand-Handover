@@ -375,7 +375,7 @@ out to be cheap once the renderer was shared. What is running: the normaliser,
 the measuring engine, the packager, both documents, the canvas editor,
 publishing, all three kinds of block, image slots, page sizes and the
 photography treatment, print work with bleed, CMYK, and a printed piece through
-Typst. 136 files from one master, 202 tests.
+Typst, and mockups. 136 files from one master, 218 tests.
 
 Three things the plan had wrong, found by building rather than by thinking.
 
@@ -422,6 +422,21 @@ as markup a browser paints and once as arithmetic the editor reasons with, and
 the two must agree. So there is a check that renders through the real filter and
 reads the pixels back. It caught a flat scrim painting solid while the numbers
 assumed 42% on its first run.
+
+**The mockup engine turned out to be arithmetic, which the plan did not expect.**
+It was filed after the print path as though it were an asset library: pictures
+of cards and totes with a slot to drop a logo into. What it actually is, is one
+projective transform and a blend mode, and both are exact. The mark takes the
+photograph's perspective because a homography puts the corners where you drag
+them, and it takes the photograph's creases because multiply is a multiplication.
+
+Which means the machine can answer the question again. A blend moves a colour
+one way only: multiply never lightens, screen never darkens. So light artwork
+multiplied onto a light surface is not faint, it is invisible by arithmetic, and
+the opacity slider a designer would reach for cannot help. Sampling the surface
+under the artwork and saying which blend and which colourway do read is the same
+move as the scrim strength and the icon stroke, and it was the third time that
+shape has paid.
 
 **The second emitter finally had to be built, and it needed a check rather than
 a promise.** Everything in this plan rests on there being one layout engine.

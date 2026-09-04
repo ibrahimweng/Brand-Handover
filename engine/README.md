@@ -9,7 +9,7 @@ around it.
 
     cd engine
     npm install
-    npm test                                            # 202 checks
+    npm test                                            # 218 checks
     node test/print-check.mjs                           # prints, and measures the paper
     node test/treatment-check.mjs                       # renders, and reads the pixels back
     node test/typst-check.mjs                           # the printed piece against the published page
@@ -360,9 +360,9 @@ turns an eight week job into something usable.
 Blocks come in three kinds, and the properties panel says which one you have
 selected.
 
-**Plain blocks** are text, a rule, a fill and an image slot. Ordinary furniture,
-and yours to arrange. The image slot is the one with anything to say, and it is
-below.
+**Plain blocks** are text, a rule, a fill, an image slot and a mockup. Ordinary
+furniture, and yours to arrange. The last two have something to say, and they
+are below.
 
 **Derived blocks** draw themselves from the project: the mark, any lockup, the
 construction drawing, clear space, minimum size, the palette, the contrast
@@ -588,6 +588,54 @@ icon stroke goes 1.8 → 2.8, the live area 21.8 → 22.8, and an icon drawn to 
 old rule becomes a blocker. A test asserts exactly that, because a rule that
 remembers an old master is not a rule.
 
+### Mockups
+
+The mark on a business card, a sign, a van door. Done properly this is not a
+picture of a card with a logo pasted flat on it: it is the artwork **mapped into
+the surface the photograph shows**, so it takes that surface's perspective, its
+shadows and its creases.
+
+Drop a photograph on a mockup block, then drag the four corners onto the thing
+in the picture. The mapping is a homography, the one projective transform that
+takes a rectangle to four arbitrary points, and CSS applies it directly with
+`matrix3d` — so the canvas and the published page do it the same way, and
+nothing is baked into the photograph. A check drives a browser and confirms the
+corners land where the arithmetic says: worst case, nine hundredths of a pixel.
+
+The shading comes from the photograph rather than from anywhere else, through a
+blend mode. That is what puts the paper's tooth and the bag's creases into the
+logo instead of leaving it sitting on top like a sticker.
+
+### What a mockup refuses
+
+**A blend can only move a colour one way.** Multiply never lightens; screen
+never darkens. So light artwork multiplied onto a light surface is not faint,
+it is arithmetically invisible, and no amount of dragging the opacity slider
+will help. The editor samples the surface under the artwork, through the same
+mapping the artwork uses, and says so:
+
+    1.16:1 on the surface
+    The artwork measures 1.16:1 against the surface, blended multiply. Multiply
+    can only darken, so light artwork on a light surface has nothing to darken
+    and disappears. Use the primary colourway, which measures 10.88:1.
+
+It tries every blend and every colourway against those same pixels and names
+the one that reads best. Take the advice and the warning goes.
+
+Two more. **Corners that fold over each other** have no single mapping, so the
+artwork comes out torn — that is a blocker, and nothing else is worth saying
+about a torn mapping. And if you tell it what the surface is in the real world,
+**the mark is checked against its own floor**: on a pen barrel 8 mm across, a
+mark whose floor is 9 mm is going to close up on the object, not on the mockup.
+
+One bug worth recording, because it would have looked like a mystery. A browser
+starts its own image drag the moment the pointer moves across a picture, and
+that swallows every event after it — the corner simply stops following, and no
+error is raised anywhere. Short drags worked and long ones did not, which is
+the least helpful symptom a bug can have. `draggable="false"` on every
+photograph the renderer emits, and refusing the default on pointer down. It was
+latent in image slots too.
+
 ### Image slots
 
 Drop a file on a slot, or choose one from the panel. Then fit (cover or
@@ -785,6 +833,7 @@ correction that can only be made once the browser has laid the new size out.
     src/cmyk.js       declared ink, total coverage, rich black, and the refusals
     src/paths.js      svg path data reduced to move, line and cubic
     src/typst.js      a printed piece, in ink, for Typst to compile
+    src/surface.js    the mark mapped into a surface, and whether it reads there
     src/pattern.js    seamless tiles cut from the shape you marked
     src/documents/    blocks.js, chrome.js, index.js (manual), deck.js
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js

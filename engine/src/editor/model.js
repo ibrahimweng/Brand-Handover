@@ -13,7 +13,7 @@
 //   derived  draws itself from the project. Never edited, never wrong.
 //   rule     one decision, applied forever. Placed, never redrawn.
 
-const PLAIN = ['text', 'rule', 'fill', 'slot'];
+const PLAIN = ['text', 'rule', 'fill', 'slot', 'surface'];
 const DERIVED = ['mark', 'lockup', 'construction', 'clearSpace', 'minimumSize', 'palette', 'contrast', 'typeSpecimen', 'assetIndex'];
 // Rule blocks are the third kind. One decision, made once, generating every
 // instance after that. You place one and choose which instance to show; you
@@ -103,6 +103,11 @@ const DEFAULTS = {
     // the brand's photography treatment applies unless this slot opts out, and
     // scrim is a per-image override of the rule's own strength
     treatment: true, scrim: null },
+  // A mockup: the mark mapped into a surface in a photograph. The four corners
+  // are fractions of the block, so the mapping survives the block being resized.
+  surface: { image: null, quad: [[0.2, 0.25], [0.8, 0.25], [0.8, 0.75], [0.2, 0.75]],
+    art: 'lockup', lockup: 'horizontal', colourway: 'primary',
+    blend: 'multiply', opacity: 1, surfaceWidthMm: 0, treatment: false },
   mark: { colourway: 'primary', on: 'ground' },
   lockup: { lockup: 'horizontal', colourway: 'primary', on: 'ground' },
   construction: {}, clearSpace: {}, minimumSize: {},
@@ -114,7 +119,7 @@ const DEFAULTS = {
 };
 const SIZES = {
   text: { w: 520, h: 120 }, rule: { w: 520, h: 2 }, fill: { w: 400, h: 260 },
-  slot: { w: 420, h: 280 }, mark: { w: 300, h: 300 }, lockup: { w: 520, h: 200 },
+  slot: { w: 420, h: 280 }, surface: { w: 560, h: 380 }, mark: { w: 300, h: 300 }, lockup: { w: 520, h: 200 },
   construction: { w: 380, h: 400 }, clearSpace: { w: 380, h: 400 }, minimumSize: { w: 640, h: 240 },
   palette: { w: 900, h: 260 }, contrast: { w: 820, h: 300 }, typeSpecimen: { w: 820, h: 300 },
   assetIndex: { w: 560, h: 320 },

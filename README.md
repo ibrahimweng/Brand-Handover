@@ -71,7 +71,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 136 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 202 tests.
+of it. 218 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -123,6 +123,13 @@ That makes two emitters in a project whose argument is that there is one, so it
 has a check rather than an assurance: the redrawn artwork is compared with the
 SVG renderer shape for shape, and the printed page with the published page area
 by area.
+
+Mockups put the mark on things. Drop a photograph, drag four corners onto the
+surface in it, and the artwork is mapped into that surface's perspective and
+blended so the photograph's own shading comes through it. The editor then
+samples the surface and tells you when the artwork cannot be seen on it, which
+is most often because multiply can only darken and the artwork is lighter than
+what it is sitting on.
 
 Still to do: a run on a real identity job. That is the whole of what is left,
 and it matters more than any feature.

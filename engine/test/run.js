@@ -1042,6 +1042,153 @@ test('the manual will not present a guess as a fact', () => {
   assert.ok(/tide.*no build yet/s.test(docs.guidelines(ctx)), 'a missing build is not called out by name');
 });
 
+console.log('\nmockups');
+const SU = require('../src/surface');
+
+test('the mapping puts the corners exactly where they were asked for', () => {
+  const quad = [[100, 60], [400, 20], [430, 300], [80, 260]];
+  const H = SU.homography(quad);
+  const corners = [[0, 0], [1, 0], [1, 1], [0, 1]].map(([u, v]) => SU.project(H, u, v));
+  corners.forEach((got, i) => {
+    assert.ok(Math.abs(got[0] - quad[i][0]) < 1e-6 && Math.abs(got[1] - quad[i][1]) < 1e-6,
+      `corner ${i} landed at ${got}, not ${quad[i]}`);
+  });
+});
+test('a rectangle maps to itself without inventing a perspective', () => {
+  const H = SU.homography([[0, 0], [200, 0], [200, 100], [0, 100]]);
+  assert.strictEqual(Math.abs(H[6]), 0, 'a flat quad should have no projective term');
+  assert.strictEqual(Math.abs(H[7]), 0);
+  assert.deepStrictEqual(SU.project(H, 0.5, 0.5), [100, 50]);
+});
+test('the middle of the artwork lands inside the surface', () => {
+  const quad = [[100, 60], [400, 20], [430, 300], [80, 260]];
+  const [x, y] = SU.project(SU.homography(quad), 0.5, 0.5);
+  assert.ok(x > 100 && x < 430 && y > 20 && y < 300, `the centre came out at ${x}, ${y}`);
+});
+test('a quad that folds over itself is refused, not drawn', () => {
+  assert.strictEqual(SU.convex([[0, 0], [1, 0], [1, 1], [0, 1]]), true);
+  assert.strictEqual(SU.convex([[0, 0], [1, 1], [1, 0], [0, 1]]), false, 'a bow tie passed as a surface');
+  const f = SU.check([[0, 0], [1, 1], [1, 0], [0, 1]], { w: 400, h: 300 }, {});
+  assert.strictEqual(f[0].level, 'blocker');
+  assert.ok(/fold over/.test(f[0].what));
+  assert.strictEqual(f.length, 1, 'nothing else is worth saying about a torn mapping');
+});
+test('a surface too small to show anything is worth a word', () => {
+  const f = SU.check([[0.5, 0.5], [0.52, 0.5], [0.52, 0.52], [0.5, 0.52]], { w: 400, h: 300 }, {});
+  assert.ok(f.some((x) => /smaller than twenty pixels/.test(x.what)), JSON.stringify(f));
+});
+test('a mark placed on a stated real size is checked against its own floor', () => {
+  const quad = [[0.1, 0.3], [0.9, 0.3], [0.9, 0.7], [0.1, 0.7]];
+  // a business card 85 mm across, with the mark filling most of it
+  const ok = SU.check(quad, { w: 800, h: 500 }, { surfaceWidthMm: 85, minimumPrintMm: 9, artworkFraction: 0.7 });
+  assert.deepStrictEqual(ok.filter((x) => /floor/.test(x.what)), []);
+  // and a pen barrel, where it does not fit
+  const tiny = SU.check(quad, { w: 800, h: 500 }, { surfaceWidthMm: 8, minimumPrintMm: 9, artworkFraction: 0.7 });
+  const f = tiny.find((x) => /floor/.test(x.what));
+  assert.ok(f, 'the mark was allowed below its floor on a real object');
+  assert.ok(f.what.includes('9 mm'));
+});
+
+test('the blends are exactly what CSS does', () => {
+  assert.strictEqual(SU.BLENDS.multiply(0.5, 0.5), 0.25);
+  assert.strictEqual(SU.BLENDS.screen(0.5, 0.5), 0.75);
+  assert.strictEqual(SU.BLENDS.normal(0.5, 0.9), 0.5);
+  // opacity leaves the surface showing through
+  const half = SU.blended('normal', { r: 0, g: 0, b: 0 }, { r: 1, g: 1, b: 1 }, 0.5);
+  assert.strictEqual(half.r, 0.5);
+});
+test('multiply cannot lighten, and the check knows it', () => {
+  const C2 = require('../src/contrast');
+  const u = (hex) => { const [r, g, b] = C2.unit(hex); return { r, g, b }; };
+  const card = [u('#F4F2EA'), u('#E6E3D8'), u('#CFCBBE')];
+  const ways = Object.entries(bu.roles).map(([name, r]) => ({ name, hex: r.hex }));
+
+  const light = SU.advise(C2, { ink: u('#EFEDE4'), inkName: 'ground', patches: card,
+    mode: 'multiply', opacity: 1, colourways: ways });
+  assert.strictEqual(light.ok, false, 'chalk multiplied onto a chalk card was passed');
+  assert.ok(light.ratio < 1.5);
+  assert.ok(/Multiply can only darken/.test(light.finding.why), light.finding.why);
+  assert.ok(/primary/.test(light.finding.how), light.finding.how);
+
+  const dark = SU.advise(C2, { ink: u('#0A2A33'), inkName: 'primary', patches: card,
+    mode: 'multiply', opacity: 1, colourways: ways });
+  assert.strictEqual(dark.ok, true, `deep ink on a light card should read: ${dark.ratio}`);
+  assert.ok(dark.ratio > 8);
+});
+test('screen cannot darken, and says so', () => {
+  const C2 = require('../src/contrast');
+  const u = (hex) => { const [r, g, b] = C2.unit(hex); return { r, g, b }; };
+  const dark = [u('#12181B'), u('#0E1417')];
+  const a = SU.advise(C2, { ink: u('#0A2A33'), inkName: 'primary', patches: dark,
+    mode: 'screen', opacity: 1, colourways: Object.entries(bu.roles).map(([name, r]) => ({ name, hex: r.hex })) });
+  assert.strictEqual(a.ok, false);
+  assert.ok(/Screen can only lighten/.test(a.finding.why));
+  assert.ok(/ground|chalk/i.test(a.finding.how), a.finding.how);
+});
+test('when nothing in the palette reads, it says that rather than guessing', () => {
+  const C2 = require('../src/contrast');
+  const mid = [{ r: 0.42, g: 0.44, b: 0.43 }];
+  const a = SU.advise(C2, { ink: { r: 0.42, g: 0.44, b: 0.43 }, inkName: 'x', patches: mid,
+    mode: 'normal', opacity: 1, colourways: [{ name: 'same', hex: '#6B7069' }] });
+  assert.strictEqual(a.ok, false);
+  assert.ok(/Nothing in the palette/.test(a.finding.how), a.finding.how);
+});
+
+console.log('\na mockup on the page');
+test('a mockup with no photograph asks for one', () => {
+  const html = ER.block(EM.makeBlock('surface'), bu);
+  assert.ok(/drop a photograph here/.test(html));
+});
+test('the artwork is mapped into the surface, not pasted flat on it', () => {
+  const st = IM.store();
+  const id = st.add(PNG_A, { w: 1400, h: 1000, name: 'card.jpg' });
+  const b = EM.makeBlock('surface', { w: 600, h: 400, props: { image: id } });
+  const html = ER.block(b, Object.assign({}, bu, { images: st.all() }));
+  assert.ok(/matrix3d\(/.test(html), 'there is no perspective mapping');
+  assert.ok(/mix-blend-mode:multiply/.test(html), 'the photograph\'s shading is not coming through');
+  assert.ok(/<img draggable="false"/.test(html), 'the photograph is draggable');
+  // the corners of the mapped artwork sit on the quad
+  const m = html.match(/matrix3d\(([^)]+)\)/)[1].split(',').map(Number);
+  assert.ok(m.every((n) => isFinite(n)), 'the transform has a number that is not a number in it');
+});
+test('a photograph in a mockup is not draggable, or the drag is swallowed', () => {
+  // regression: a browser starts its own image drag as soon as the pointer
+  // moves over a picture, and every event after that goes to the drag rather
+  // than to the corner you were moving
+  const st = IM.store();
+  const id = st.add(PNG_A, { w: 800, h: 600 });
+  for (const t of ['slot', 'surface']) {
+    const html = ER.block(EM.makeBlock(t, { props: { image: id } }), Object.assign({}, bu, { images: st.all() }));
+    assert.ok(/<img draggable="false"/.test(html), `${t} emits a draggable photograph`);
+  }
+});
+test('a mockup can carry the mark, a lockup or the pattern', () => {
+  const st = IM.store();
+  const id = st.add(PNG_A, { w: 800, h: 600 });
+  const bun = Object.assign({}, bu, { images: st.all() });
+  for (const art of ['lockup', 'mark', 'pattern']) {
+    const html = ER.block(EM.makeBlock('surface', { props: { image: id, art } }), bun);
+    assert.ok(/<svg/.test(html), `${art} put nothing on the surface`);
+  }
+});
+test('a mockup keeps its photograph when the document is saved', () => {
+  const st = IM.store();
+  const id = st.add(PNG_A, { w: 800, h: 600 });
+  const d = EM.emptyDoc('Meridian');
+  d.pages[0].blocks.push(EM.makeBlock('surface', { props: { image: id } }));
+  assert.deepStrictEqual([...IM.used(d)], [id], 'a mockup photograph would be pruned away');
+  st.prune(d);
+  assert.strictEqual(st.count(), 1);
+});
+test('the corners are fractions, so the mapping survives a resize', () => {
+  const b = EM.makeBlock('surface');
+  assert.strictEqual(b.props.quad.length, 4);
+  for (const [u, v] of b.props.quad) {
+    assert.ok(u >= 0 && u <= 1 && v >= 0 && v <= 1, `a corner is outside the block: ${u}, ${v}`);
+  }
+  assert.strictEqual(EM.kindOf('surface'), 'plain');
+});
+
 console.log('\npath translation');
 const PA = require('../src/paths');
 const at = (segs, i) => segs[i];
@@ -1496,7 +1643,7 @@ const withImage = (props) => {
 };
 test('an empty slot asks for a file, and a filled one shows it', () => {
   assert.ok(ER.block(EM.makeBlock('slot'), bu).includes('drop an image here'));
-  assert.ok(withImage().html.includes('<img src="data:image/png'));
+  assert.ok(/<img[^>]+src="data:image\/png/.test(withImage().html));
 });
 test('fit and the focal point reach the markup', () => {
   assert.ok(withImage({ fit: 'contain' }).html.includes('object-fit:contain'));
@@ -1586,7 +1733,7 @@ test('a saved document carries its images beside itself, never inside a block', 
   const images = reopened.images; delete reopened.images;
   assert.ok(!/data:image/.test(JSON.stringify(reopened.pages)), 'bytes were stored in a block');
   const html = publish(reopened, Object.assign({}, bu, { images }), { builtAt: 'fixed' });
-  assert.ok(html.includes('<img src="data:image/png'), 'the round trip lost the photograph');
+  assert.ok(/<img[^>]+src="data:image\/png/.test(html), 'the round trip lost the photograph');
 });
 test('the publish command takes a document with photographs in it', () => {
   const cp = require('child_process');

@@ -61,6 +61,7 @@ html,body{margin:0;background:var(--shell);color:var(--ink);font-family:ui-sans-
 .hb-photo .r em{font-style:normal}
 .hb-img figcaption,figure.hb-img>figcaption{flex:none;padding-top:7px}
 .hb-img img{background:rgba(128,128,128,.12)}
+.hb-surface{width:100%;height:100%}
 .hb-missing{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#3A2422;color:#E8695F;font-family:ui-monospace,Menlo,monospace;font-size:11px;text-align:center;padding:8px}
 .hb-sizes{display:flex;gap:14px;align-items:flex-end;width:100%;height:100%}
 .hb-sizes figure{margin:0;flex:1;text-align:center}

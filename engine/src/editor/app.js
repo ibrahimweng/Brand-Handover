@@ -6,7 +6,7 @@
 (function () {
   'use strict';
   const M = window.HandoverModel, R = window.HandoverRender, BUNDLE = window.HANDOVER_BUNDLE;
-  const PH = window.HandoverPhotography, PR = window.HandoverPrint;
+  const PH = window.HandoverPhotography, PR = window.HandoverPrint, SU = window.HandoverSurface;
   const $ = (s, r) => (r || document).querySelector(s);
   const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
   const esc = R.esc;
@@ -126,7 +126,9 @@
     if (b) {
       findings(IM.check(images.get(id), { w: b.w, h: b.h }, im.name));
       const ph = (BUNDLE.system || {}).photography;
-      if (ph) findings(PH.checkCrop(ph, { w: b.w, h: b.h }, im.name));
+      // a mockup is a photograph of a thing, not brand photography, so the
+      // crop rule does not apply to it
+      if (ph && b.type === 'slot') findings(PH.checkCrop(ph, { w: b.w, h: b.h }, im.name));
     }
   }
 
@@ -164,10 +166,65 @@
     return out.length ? out : null;
   }
 
+  // The pixels under a mockup's artwork: a grid over the surface itself, taken
+  // through the same mapping the artwork uses, so it samples the thing the mark
+  // is actually sitting on rather than the whole photograph.
+  function surfacePatches(b, imgEl, im) {
+    const quad = (b.props.quad && b.props.quad.length === 4) ? b.props.quad : SU.DEFAULT;
+    const px = quad.map(([u, v]) => [u * b.w, v * b.h]);
+    const H = SU.homography(px);
+    const geo = IM.sourceRect(im, b, { fit: 'cover', focusX: 50, focusY: 50 });
+    const g = sampler.getContext('2d', { willReadFrequently: true });
+    const out = [];
+    const N = 6;
+    for (let iy = 0; iy < N; iy++) {
+      for (let ix = 0; ix < N; ix++) {
+        // inside the artwork's own margin, which is where legibility matters
+        const u = 0.14 + (ix + 0.5) / N * 0.72, v = 0.14 + (iy + 0.5) / N * 0.72;
+        const [bx, by] = SU.project(H, u, v);
+        const src = geo.toSource({ x: bx, y: by, w: 1, h: 1 });
+        if (src.x < 0 || src.y < 0 || src.x >= im.w || src.y >= im.h) continue;
+        g.clearRect(0, 0, 1, 1);
+        try { g.drawImage(imgEl, src.x, src.y, 1, 1, 0, 0, 1, 1); } catch (_) { return null; }
+        let d;
+        try { d = g.getImageData(0, 0, 1, 1).data; } catch (_) { return null; }
+        if (d[3] < 8) continue;
+        out.push({ r: d[0] / 255, g: d[1] / 255, b: d[2] / 255 });
+      }
+    }
+    return out.length ? out : null;
+  }
+
   function checkOverlays() {
     overlays = [];
     const blocks = page().blocks;
     const ways = Object.entries(BUNDLE.roles).map(([name, r]) => ({ name, hex: r.hex }));
+
+    // a mockup carries its own artwork, so it is checked on its own
+    for (const b of blocks) {
+      if (b.type !== 'surface' || !b.props.image) continue;
+      const im = images.get(b.props.image);
+      const imgEl = sheet.querySelector(`.hb-block[data-id="${b.id}"] img`);
+      if (!im || im.vector || !im.w || !imgEl || !imgEl.complete || !imgEl.naturalWidth) continue;
+      const shape = SU.check(b.props.quad || SU.DEFAULT, b, {});
+      if (shape.length) {
+        overlays.push({ id: b.id, x: b.x, y: b.y, w: b.w, h: b.h,
+          verdict: { ratio: '—', finding: shape[0] } });
+        continue;
+      }
+      const patches = surfacePatches(b, imgEl, im);
+      if (!patches) continue;
+      const C = window.HandoverContrast;
+      const hex = R.colour(BUNDLE, b.props.colourway);
+      const [ir, ig, ib] = C.unit(hex);
+      const a = SU.advise(C, { ink: { r: ir, g: ig, b: ib }, inkName: b.props.colourway,
+        patches, mode: b.props.blend || 'multiply',
+        opacity: b.props.opacity === undefined ? 1 : b.props.opacity, colourways: ways });
+      if (a.ok) continue;
+      overlays.push({ id: b.id, x: b.x, y: b.y, w: b.w, h: b.h, where: 'on the surface',
+        verdict: { ratio: a.ratio, finding: a.finding, best: a.best } });
+    }
+
     for (let i = 0; i < blocks.length; i++) {
       const under = blocks[i];
       if (under.type !== 'slot' || !under.props.image) continue;
@@ -244,7 +301,8 @@
   function drawOverlayWarnings() {
     for (const n of overlay.querySelectorAll('.ovwarn')) n.remove();
     for (const o of overlays) {
-      const n = el('div', 'ovwarn', `${o.verdict.ratio}:1 on the picture`);
+      const n = el('div', 'ovwarn', o.verdict.ratio === '\u2014'
+        ? 'the corners cross' : `${o.verdict.ratio}:1 ${o.where || 'on the picture'}`);
       n.style.cssText = `left:${o.x}px;top:${o.y + o.h}px`;
       n.title = o.verdict.finding.what + ' ' + o.verdict.finding.how;
       overlay.appendChild(n);
@@ -314,12 +372,32 @@
           const k = el('div', 'h h-' + h); k.dataset.handle = h; k.dataset.id = id; box.appendChild(k);
         }
         box.appendChild(el('span', 'tag', esc(nameOf(b.type))));
+        // a mockup also has the four corners of the surface itself, which is
+        // the whole interaction: you drag them onto the thing in the photograph
+        if (b.type === 'surface') {
+          const quad = (b.props.quad && b.props.quad.length === 4) ? b.props.quad : SU.DEFAULT;
+          const wrap = el('div', 'quad');
+          wrap.appendChild(el('div', 'quadline', quadSvg(quad, b)));
+          quad.forEach(([u, v], i) => {
+            const c = el('div', 'qh');
+            c.style.cssText = `left:${u * b.w}px;top:${v * b.h}px`;
+            c.dataset.corner = String(i); c.dataset.id = id;
+            wrap.appendChild(c);
+          });
+          box.appendChild(wrap);
+        }
       }
       overlay.appendChild(box);
     }
     drawOverlayWarnings();
     checkBleed();
   }
+
+  // the outline of the surface, so the four corners read as a shape
+  const quadSvg = (quad, b) =>
+    `<svg width="${b.w}" height="${b.h}" viewBox="0 0 ${b.w} ${b.h}" style="display:block">`
+    + `<polygon points="${quad.map(([u, v]) => `${u * b.w},${v * b.h}`).join(' ')}" `
+    + `fill="none" stroke="var(--sel)" stroke-width="1" stroke-dasharray="5 4"/></svg>`;
 
   function drawPages() {
     const list = $('#pages'); list.innerHTML = '';
@@ -359,7 +437,7 @@
 
   // What a block is called to a designer. The type name is the code's business.
   const NAME = {
-    text: 'Text', rule: 'Line', fill: 'Colour field', slot: 'Image',
+    text: 'Text', rule: 'Line', fill: 'Colour field', slot: 'Image', surface: 'Mockup',
     mark: 'Mark', lockup: 'Lockup', construction: 'Construction',
     clearSpace: 'Clear space', minimumSize: 'Minimum size', palette: 'Palette',
     contrast: 'Contrast table', typeSpecimen: 'Type specimen', assetIndex: 'Asset index',
@@ -408,6 +486,20 @@
             + treatmentFields(b) : '')
         + field('Caption', `<input data-prop="caption" value="${esc(b.props.caption || '')}">`)
         + field('Label', `<input data-prop="label" value="${esc(b.props.label)}">`);
+    },
+    surface: (b) => {
+      const im = b.props.image && images.get(b.props.image);
+      return (im ? `<p class="hint imeta">${esc(im.name || 'photograph')} · ${im.w} \u00d7 ${im.h}</p>`
+        : `<p class="hint">Drop a photograph on the block, or choose one. Then drag the four corners onto the surface the mark goes on.</p>`)
+        + `<div class="ord"><button id="pick">${im ? 'Replace photograph' : 'Choose photograph'}</button>`
+        + (im ? `<button id="clearimg">Remove</button>` : '') + `</div>`
+        + field('Put on it', sel('art', ['lockup', 'mark', 'pattern'], b.props.art))
+        + (b.props.art === 'lockup' ? field('Lockup', sel('lockup', BUNDLE.lockups, b.props.lockup)) : '')
+        + field('Colourway', sel('colourway', COLOURS(), b.props.colourway))
+        + field('Blend', sel('blend', ['multiply', 'screen', 'normal'], b.props.blend))
+        + field('Strength', `<input type="range" min="10" max="100" step="5" data-prop="opacity" data-num-prop="1" data-pct="1" value="${Math.round((b.props.opacity === undefined ? 1 : b.props.opacity) * 100)}">`)
+        + field('Surface is (mm across)', `<input type="number" min="0" step="1" data-prop="surfaceWidthMm" value="${b.props.surfaceWidthMm || 0}">`)
+        + `<button class="ghost" id="resetquad">Put the corners back</button>`;
     },
     mark: (b) => field('Colourway', sel('colourway', COLOURS(), b.props.colourway)) + field('On', sel('on', GROUNDS(), b.props.on)),
     lockup: (b) => field('Lockup', sel('lockup', BUNDLE.lockups, b.props.lockup))
@@ -480,6 +572,8 @@
     if (pick) pick.onclick = () => { pickFor = b.id; $('#imgfile').click(); };
     const clear = $('#clearimg', box);
     if (clear) clear.onclick = () => { change((d) => M.ops.setProps(d, pageId, b.id, { image: null })); persistImages(); draw(); };
+    const rq = $('#resetquad', box);
+    if (rq) rq.onclick = () => change((d) => M.ops.setProps(d, pageId, b.id, { quad: M.clone(SU.DEFAULT) }));
   }
 
   // ------------------------------------------------------------- editing
@@ -521,11 +615,17 @@
   let drag = null;
   $('#canvas').addEventListener('pointerdown', (e) => {
     if (editing) return;
+    const corner = e.target.closest('.qh');
     const handle = e.target.closest('.h');
     const hit = e.target.closest('.hb-block');
     const start = toPage(e);
 
-    if (handle) {
+    if (corner) {
+      const b = blockById(corner.dataset.id);
+      drag = { mode: 'corner', index: Number(corner.dataset.corner), id: b.id, start,
+        orig: M.clone((b.props.quad && b.props.quad.length === 4) ? b.props.quad : SU.DEFAULT),
+        box: { x: b.x, y: b.y, w: b.w, h: b.h } };
+    } else if (handle) {
       const b = blockById(handle.dataset.id);
       drag = { mode: 'resize', dir: handle.dataset.handle, start, orig: { x: b.x, y: b.y, w: b.w, h: b.h }, id: b.id };
     } else if (hit) {
@@ -538,8 +638,15 @@
       selection = []; drag = { mode: 'marquee', start };
       drawOverlay(); drawPanel();
     }
+    // A browser starts its own image drag the moment the pointer moves over a
+    // picture, and that swallows every event after it: the corner you were
+    // dragging simply stops following. Refusing the default here, and marking
+    // the pictures undraggable in the renderer, is what keeps the gesture.
+    if (drag) e.preventDefault();
     e.target.setPointerCapture && e.target.setPointerCapture(e.pointerId);
   });
+  // belt and braces: a drag that starts anyway is not one this editor wants
+  $('#canvas').addEventListener('dragstart', (e) => e.preventDefault());
 
   window.addEventListener('pointermove', (e) => {
     if (!drag) return;
@@ -568,6 +675,29 @@
         n.style.left = M.snap(drag.box.x, g) + 'px'; n.style.top = M.snap(drag.box.y, g) + 'px';
         n.style.width = M.snap(drag.box.w, g) + 'px'; n.style.height = M.snap(drag.box.h, g) + 'px';
       }
+    } else if (drag.mode === 'corner') {
+      // in fractions of the block, so the mapping survives a resize. A corner
+      // may go outside the block: a surface often runs off the edge of a photo.
+      const q = M.clone(drag.orig);
+      q[drag.index] = [
+        Math.round(((drag.orig[drag.index][0] * drag.box.w) + dx) / drag.box.w * 1e4) / 1e4,
+        Math.round(((drag.orig[drag.index][1] * drag.box.h) + dy) / drag.box.h * 1e4) / 1e4,
+      ];
+      drag.quad = q;
+      // Shown live, because dragging a corner you cannot see the result of is
+      // guesswork. Only the transform is touched: rebuilding the block would
+      // mean parsing a few hundred kilobytes of photograph on every mouse
+      // move, which is slow enough to lose the rest of the drag.
+      const b = blockById(drag.id);
+      const art = sheet.querySelector(`[data-id="${drag.id}"] .hb-art`);
+      if (art && b) art.style.transform = SU.matrix3d(SU.homography(q.map(([u, v]) => [u * b.w, v * b.h])), b.w, b.h);
+      const wrap = overlay.querySelector('.quad');
+      if (wrap && b) {
+        wrap.querySelector('.quadline').innerHTML = quadSvg(q, b);
+        wrap.querySelectorAll('.qh').forEach((c, i) => {
+          c.style.left = q[i][0] * b.w + 'px'; c.style.top = q[i][1] * b.h + 'px';
+        });
+      }
     } else if (drag.mode === 'marquee') {
       const x = Math.min(drag.start.x, now.x), y = Math.min(drag.start.y, now.y);
       const w = Math.abs(dx), h = Math.abs(dy);
@@ -583,6 +713,8 @@
       change((doc2) => M.ops.moveBlocks(doc2, pageId, d.orig.map((o) => o.id), d.dx, d.dy, d.g));
     } else if (d.mode === 'resize' && d.box) {
       change((doc2) => M.ops.resizeBlock(doc2, pageId, d.id, d.box, d.g));
+    } else if (d.mode === 'corner' && d.quad) {
+      change((doc2) => M.ops.setProps(doc2, pageId, d.id, { quad: d.quad }));
     } else if (d.mode === 'marquee' && d.rect && d.rect.w > 4) {
       const r = d.rect;
       selection = page().blocks.filter((b) => b.x < r.x + r.w && b.x + b.w > r.x && b.y < r.y + r.h && b.y + b.h > r.y).map((b) => b.id);
@@ -618,7 +750,7 @@
 
   // ------------------------------------------------------------- chrome
   const INSERT = [
-    ['Plain', ['text', 'rule', 'fill', 'slot']],
+    ['Plain', ['text', 'rule', 'fill', 'slot', 'surface']],
     ['Drawn by the system', ['mark', 'lockup', 'construction', 'clearSpace', 'minimumSize', 'palette', 'contrast', 'typeSpecimen', 'assetIndex']],
     ['Set once by you', ['pattern', 'iconGrid', 'motion', 'photography']],
   ];
@@ -669,7 +801,8 @@
   // is the target.
   const slotUnder = (e) => {
     const el2 = document.elementFromPoint(e.clientX, e.clientY);
-    const blk = el2 && el2.closest && el2.closest('.hb-block[data-type="slot"]');
+    const blk = el2 && el2.closest
+      && el2.closest('.hb-block[data-type="slot"], .hb-block[data-type="surface"]');
     return blk ? blk.dataset.id : null;
   };
   const mark = (id) => {
@@ -686,7 +819,7 @@
     if (!files.length) return;
     e.preventDefault();
     const id = slotUnder(e); mark(null);
-    if (!id) return note('Drop an image on an image slot. Add one from the left if there is none on this page.', 'warn');
+    if (!id) return note('Drop an image on an image slot or a mockup. Add one from the left if there is none on this page.', 'warn');
     placeImage(files[0], id);
   });
   $('#imgfile').onchange = (e) => {

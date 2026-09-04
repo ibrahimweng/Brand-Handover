@@ -29,7 +29,8 @@
     return 'i' + h.toString(36) + dataUri.length.toString(36);
   }
 
-  const SLOTS = ['slot'];
+  // every block kind that holds a photograph, so none of them gets pruned away
+  const SLOTS = ['slot', 'surface'];
   const isImage = (s) => typeof s === 'string' && /^data:image\//.test(s);
 
   function store(initial) {

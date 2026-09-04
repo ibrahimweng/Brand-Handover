@@ -99,6 +99,13 @@ h4{margin:0 0 8px;font-size:10px;letter-spacing:.13em;text-transform:uppercase;c
 .hint.bad{color:#E2C86A;border-left:2px solid #E2C86A;padding-left:9px}
 .trimwarn{position:absolute;transform:translate(4px,4px);background:#E2C86A;color:#231F09;font-family:var(--mono);
   font-size:9px;letter-spacing:.05em;padding:1px 5px;border-radius:3px;pointer-events:auto;cursor:help}
+.quad{position:absolute;inset:0;pointer-events:none}
+.quadline{position:absolute;left:0;top:0}
+.qh{position:absolute;width:13px;height:13px;margin:-7px 0 0 -7px;border-radius:50%;
+  background:var(--sel);border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5);cursor:grab;pointer-events:auto}
+.qh:active{cursor:grabbing}
+.ghost{width:100%;background:none;border:1px solid var(--line);color:var(--dim);border-radius:4px;padding:6px;cursor:pointer;margin-top:4px;font:inherit}
+.ghost:hover{color:var(--ink)}
 .ovwarn{position:absolute;transform:translateY(4px);background:#E2C86A;color:#231F09;font-family:var(--mono);
   font-size:9px;letter-spacing:.05em;padding:2px 6px;border-radius:3px;white-space:nowrap;pointer-events:auto;cursor:help}
 .f input[type=range]{padding:0;height:20px;accent-color:var(--sel);background:none;border:none}
@@ -119,6 +126,7 @@ h4{margin:0 0 8px;font-size:10px;letter-spacing:.13em;text-transform:uppercase;c
 .hb-photo .r em{font-style:normal}
 .hb-img figcaption,figure.hb-img>figcaption{flex:none;padding-top:7px}
 .hb-img img{background:rgba(128,128,128,.12)}
+.hb-surface{width:100%;height:100%}
 .hb-missing{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#3A2422;color:#E8695F;font-family:var(--mono);font-size:11px;text-align:center;padding:8px}
 .hb-sizes{display:flex;gap:14px;align-items:flex-end;width:100%;height:100%}
 .hb-sizes figure{margin:0;flex:1;text-align:center}
@@ -189,6 +197,7 @@ ${fontLink(bu.type)}
 <script>${read('../contrast.js')}</script>
 <script>${read('../photography.js')}</script>
 <script>${read('../print.js')}</script>
+<script>${read('../surface.js')}</script>
 <script>${read('model.js')}</script>
 <script>${read('images.js')}</script>
 <script>${read('render.js')}</script>

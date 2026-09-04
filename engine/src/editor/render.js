@@ -3,9 +3,9 @@
    and no measuring at draw time. Everything expensive already happened in the
    engine; this only lays it out. */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('../photography'), require('../print'));
-  else root.HandoverRender = factory(root.HandoverPhotography, root.HandoverPrint);
-}(typeof self !== 'undefined' ? self : this, function (PH, PR) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('../photography'), require('../print'), require('../surface'));
+  else root.HandoverRender = factory(root.HandoverPhotography, root.HandoverPrint, root.HandoverSurface);
+}(typeof self !== 'undefined' ? self : this, function (PH, PR, SU) {
   'use strict';
 
   const esc = (s) => String(s == null ? '' : s)
@@ -90,6 +90,18 @@
   }
 
   // ------------------------------------------------------------ blocks
+  // what a mockup puts on the surface: a lockup, the mark alone, or the pattern
+  function artFor(b, bu) {
+    const cw = cwName(bu, b.props.colourway);
+    if (b.props.art === 'mark') return (bu.marks || {})[cw] || Object.values(bu.marks || {})[0];
+    if (b.props.art === 'pattern') {
+      const t = (bu.patternTiles || {})[`medium:${b.props.colourway || 'ground'}`];
+      return t ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${t.width} ${t.height}">${t.body}</svg>` : null;
+    }
+    return (bu.variants || {})[`${b.props.lockup || 'horizontal'}:${cw}`]
+      || Object.values(bu.variants || {})[0];
+  }
+
   const BLOCK = {
     text: (b, bu) => `<div class="hb-text" style="${typeStyle(bu, b.props.style)}color:${colour(bu, b.props.colour)};text-align:${b.props.align};width:100%;height:100%;overflow:hidden">${esc(b.props.text).replace(/\n/g, '<br>')}</div>`,
     rule: (b, bu) => `<div style="width:100%;height:${b.props.weight}px;background:${colour(bu, b.props.colour)}"></div>`,
@@ -113,7 +125,7 @@
       const defs = on ? PH.filter(rules, bu, fid) : '';
       const scrim = on ? PH.scrimStyle(rules, bu, b.props.scrim) : null;
 
-      const img = `<img src="${esc(im.src)}" alt="${esc(b.props.caption || b.props.label || '')}"`
+      const img = `<img draggable="false" src="${esc(im.src)}" alt="${esc(b.props.caption || b.props.label || '')}"`
         + ` style="width:100%;height:100%;object-fit:${fit};object-position:${pos};display:block`
         + (on && rules.duotone ? `;filter:url(#${fid})` : '') + `">`;
       const frame = `<div class="hb-img-f">${defs}${img}`
@@ -122,6 +134,34 @@
       if (!b.props.caption) return `<div class="hb-img">${frame}</div>`;
       return `<figure class="hb-img">${frame}`
         + `<figcaption style="${typeStyle(bu, 'Caption')}color:${colour(bu, 'primary')}">${esc(b.props.caption)}</figcaption></figure>`;
+    },
+
+    // A mockup. The photograph, then the artwork mapped into the surface with
+    // the one projective transform that takes a rectangle to four points, and
+    // blended so the photograph's own shading comes through it. See
+    // src/surface.js; the transform is CSS, so the canvas and the published
+    // page do it the same way and nothing is baked into the picture.
+    surface: (b, bu) => {
+      const im = (bu.images || {})[b.props.image];
+      const quad = (b.props.quad && b.props.quad.length === 4) ? b.props.quad : SU.DEFAULT;
+      const px = quad.map(([u, v]) => [u * b.w, v * b.h]);
+      const art = artFor(b, bu);
+      const inner = art
+        ? `<div class="hb-art" style="position:absolute;left:0;top:0;width:${b.w}px;height:${b.h}px;`
+          + `transform-origin:0 0;transform:${SU.matrix3d(SU.homography(px), b.w, b.h)};`
+          + `mix-blend-mode:${b.props.blend === 'normal' ? 'normal' : esc(b.props.blend || 'multiply')};`
+          + `opacity:${b.props.opacity === undefined ? 1 : b.props.opacity}">`
+          + `<div style="position:absolute;inset:12%;display:flex;align-items:center;justify-content:center">`
+          + fitSvg(art, 0) + `</div></div>`
+        : '';
+      if (!im) {
+        return `<div class="hb-slot"><b>Mockup</b><span>drop a photograph here</span></div>`
+          + (inner ? `<div style="position:absolute;inset:0;overflow:hidden">${inner}</div>` : '');
+      }
+      return `<div class="hb-surface" style="position:absolute;inset:0;overflow:hidden;isolation:isolate">`
+        + `<img draggable="false" src="${esc(im.src)}" alt="${esc(b.props.label || 'mockup')}" `
+        + `style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block">`
+        + inner + `</div>`;
     },
 
     mark: (b, bu) => `<div style="width:100%;height:100%;background:${colour(bu, b.props.on)};display:flex;align-items:center;justify-content:center">
