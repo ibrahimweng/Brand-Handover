@@ -1,0 +1,252 @@
+'use strict';
+// Real artwork does not arrive clean. This turns an export into something the
+// engine can measure, and says plainly what it found. Anything it cannot fix
+// safely it refuses to guess about.
+const { optimize } = require('svgo');
+const svgu = require('./svg');
+
+const finding = (level, code, what, why, how) => ({ level, code, what, why, how });
+
+// Illustrator writes a metadata block containing entities it never declares,
+// such as &ns_sfw;. Strict parsers stop on those before reaching any artwork,
+// so this runs before anything else looks at the file.
+const STANDARD_ENTITY = /^&(?:amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);$/;
+function preClean(source) {
+  let out = source, removed = 0;
+  const drop = (re) => { out = out.replace(re, (m) => { removed++; return ''; }); };
+  drop(/<metadata[\s\S]*?<\/metadata>/gi);
+  drop(/<!DOCTYPE[^>[]*\[[\s\S]*?\]\s*>/gi);
+  drop(/<\?xpacket[\s\S]*?\?>/gi);
+  out = out.replace(/&[a-zA-Z_][\w.-]*;/g, (m) => (STANDARD_ENTITY.test(m) ? m : (removed++, '')));
+  return { source: out, removed };
+}
+
+function eachEl(doc, fn) {
+  (function walk(n) {
+    if (n.nodeType === 1) fn(n);
+    for (let c = n.firstChild; c; c = c.nextSibling) walk(c);
+  })(doc.documentElement);
+}
+
+const hex = (c) => {
+  if (!c) return null;
+  const s = String(c).trim().toLowerCase();
+  let m = /^#([0-9a-f]{6})$/.exec(s);
+  if (m) return '#' + m[1].toUpperCase();
+  m = /^#([0-9a-f]{3})$/.exec(s);
+  if (m) return '#' + m[1].split('').map((d) => d + d).join('').toUpperCase();
+  m = /^rgb\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/.exec(s);
+  if (m) return '#' + [1, 2, 3].map((i) => (+m[i]).toString(16).padStart(2, '0')).join('').toUpperCase();
+  return null;
+};
+const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const distance = (a, b) => Math.hypot(...rgb(a).map((v, i) => v - rgb(b)[i]));
+
+// ---------- look before touching ----------
+function inspect(source) {
+  const found = [];
+  source = preClean(source).source;
+  let doc;
+  try { doc = svgu.parse(source); }
+  catch (e) {
+    found.push(finding('blocker', 'unparseable', 'This file is not valid SVG.',
+      'Nothing can be measured or exported from it.',
+      'Re-export from Illustrator with File > Export > Export As > SVG.'));
+    return { found, doc: null };
+  }
+
+  const counts = { text: 0, image: 0, clip: 0, mask: 0, filter: 0, transform: 0, hidden: 0, zero: 0, gradient: 0, nonScaling: 0 };
+  eachEl(doc, (el) => {
+    const tag = String(el.nodeName).toLowerCase();
+    if (tag === 'text' || tag === 'tspan') counts.text++;
+    if (tag === 'image') counts.image++;
+    if (tag === 'clippath' || el.getAttribute('clip-path')) counts.clip++;
+    if (tag === 'mask' || el.getAttribute('mask')) counts.mask++;
+    if (tag === 'filter' || el.getAttribute('filter')) counts.filter++;
+    if (tag === 'lineargradient' || tag === 'radialgradient') counts.gradient++;
+    if (el.getAttribute('transform')) counts.transform++;
+    if (el.getAttribute('vector-effect') === 'non-scaling-stroke') counts.nonScaling++;
+    const style = el.getAttribute('style') || '';
+    if (el.getAttribute('display') === 'none' || /display\s*:\s*none/.test(style)
+        || el.getAttribute('opacity') === '0' || el.getAttribute('visibility') === 'hidden') counts.hidden++;
+    for (const a of ['r', 'width', 'height']) {
+      const v = parseFloat(el.getAttribute(a));
+      if (Number.isFinite(v) && v === 0) { counts.zero++; break; }
+    }
+  });
+
+  if (counts.text) found.push(finding('blocker', 'live-text',
+    `${counts.text} piece${counts.text > 1 ? 's' : ''} of live text.`,
+    'Live type renders in a different font on any machine without your typeface, so a client would get the wrong wordmark and never know.',
+    'In Illustrator select the type and use Type > Create Outlines, then export again.'));
+
+  if (counts.image) found.push(finding('blocker', 'raster',
+    `${counts.image} embedded image${counts.image > 1 ? 's' : ''}.`,
+    'Part of this mark is a photograph or a screenshot rather than vector, so it will blur the moment anyone scales it up.',
+    'Redraw that part as vector, or supply the mark without it.'));
+
+  try { svgu.viewBox(doc); }
+  catch (_) {
+    found.push(finding('blocker', 'no-viewbox', 'No viewBox and no width or height.',
+      'Without one of those the artwork has no known size, so nothing can be scaled or measured against it.',
+      'Re-export with "Responsive" ticked, or add a viewBox by hand.'));
+  }
+
+  if (counts.clip) found.push(finding('warning', 'clip-path',
+    `${counts.clip} clipping mask${counts.clip > 1 ? 's' : ''}.`,
+    'A clip hides artwork rather than removing it. The hidden part comes back if anyone opens the file and moves the clip.',
+    'Use Object > Expand or Pathfinder to cut the shape for real.'));
+
+  if (counts.mask) found.push(finding('warning', 'mask',
+    `${counts.mask} mask${counts.mask > 1 ? 's' : ''}.`,
+    'Masks are rasterised by some exporters and ignored by others, so the mark may not survive a round trip.',
+    'Flatten the masked artwork before exporting.'));
+
+  if (counts.filter) found.push(finding('warning', 'filter',
+    `${counts.filter} filter effect${counts.filter > 1 ? 's' : ''}.`,
+    'Filters are rasterised on export, which puts a blurry patch inside an otherwise sharp mark.',
+    'Remove the effect. A brand mark should not carry a shadow or a glow.'));
+
+  if (counts.gradient) found.push(finding('warning', 'gradient',
+    `${counts.gradient} gradient${counts.gradient > 1 ? 's' : ''}.`,
+    'Colourways repaint flat colours. A gradient cannot be swapped for a single brand colour, so those parts will not change between colourways.',
+    'Use flat colour, or accept that this part stays the same in every colourway.'));
+
+  if (counts.nonScaling) found.push(finding('warning', 'non-scaling-stroke',
+    `${counts.nonScaling} stroke${counts.nonScaling > 1 ? 's' : ''} set not to scale.`,
+    'That stroke stays the same thickness at every size, so the mark gets heavier as it gets smaller.',
+    'Turn off "Scale strokes and effects" handling for this artwork and let the stroke scale.'));
+
+  return { found, doc, counts };
+}
+
+// ---------- clean ----------
+const SVGO = {
+  multipass: true,
+  plugins: [
+    'removeDoctype', 'removeXMLProcInst', 'removeComments', 'removeMetadata',
+    { name: 'inlineStyles', params: { onlyMatchedOnce: false } }, 'convertStyleToAttrs',
+    'removeEditorsNSData', 'removeEmptyAttrs', 'removeHiddenElems', 'removeEmptyText',
+    'removeEmptyContainers', 'cleanupIds', 'removeUselessDefs', 'removeUnknownsAndDefaults',
+    'removeNonInheritableGroupAttrs', 'cleanupNumericValues', 'convertColors',
+    { name: 'convertShapeToPath', params: { convertArcs: true } },
+    { name: 'convertPathData', params: { applyTransforms: true, applyTransformsStroked: true, floatPrecision: 3 } },
+    'convertTransform', 'moveGroupAttrsToElems', 'collapseGroups', 'mergePaths', 'sortAttrs',
+  ],
+};
+
+// ---------- colour ----------
+const SNAP_DISTANCE = 18;   // close enough that it is a slip rather than a choice
+
+function colourPass(doc, tokens) {
+  const palette = Object.entries((tokens && tokens.colour) || {})
+    .map(([name, t]) => ({ name, hex: hex(t.hex) })).filter((t) => t.hex);
+  const snapped = [];
+  const offPalette = new Set();
+  const used = new Map();          // hex -> count
+
+  eachEl(doc, (el) => {
+    for (const prop of ['fill', 'stroke']) {
+      const raw = el.getAttribute(prop);
+      if (!raw || raw === 'none' || raw.startsWith('url(')) continue;
+      const h = hex(raw);
+      if (!h) continue;
+      let final = h;
+      if (palette.length) {
+        const exact = palette.find((p) => p.hex === h);
+        if (!exact) {
+          const near = palette
+            .map((p) => ({ p, d: distance(h, p.hex) }))
+            .sort((a, b) => a.d - b.d)[0];
+          if (near && near.d <= SNAP_DISTANCE) {
+            final = near.p.hex;
+            snapped.push({ from: h, to: near.p.hex, token: near.p.name, distance: Math.round(near.d) });
+          } else {
+            offPalette.add(h);
+          }
+        }
+      }
+      if (final !== raw) el.setAttribute(prop, final);
+      used.set(final, (used.get(final) || 0) + 1);
+    }
+  });
+  return { snapped, offPalette: [...offPalette], used };
+}
+
+// Give every distinct colour a slot, so colourways have something to target.
+function assignSlots(doc, used, tokens) {
+  const palette = Object.entries((tokens && tokens.colour) || {})
+    .map(([name, t]) => ({ name, hex: hex(t.hex) })).filter((t) => t.hex);
+  const order = [...used.entries()].sort((a, b) => b[1] - a[1]).map(([h]) => h);
+  const slotFor = new Map();
+  order.forEach((h, i) => {
+    const token = palette.find((p) => p.hex === h);
+    slotFor.set(h, order.length === 1 ? 'ink' : (token ? token.name : `colour-${i + 1}`));
+  });
+
+  let tagged = 0;
+  eachEl(doc, (el) => {
+    if (el.getAttribute('data-slot')) return;
+    for (const prop of ['fill', 'stroke']) {
+      const h = hex(el.getAttribute(prop));
+      if (h && slotFor.has(h)) { el.setAttribute('data-slot', slotFor.get(h)); tagged++; return; }
+    }
+  });
+  return { slots: [...new Set(slotFor.values())], tagged };
+}
+
+// ---------- the whole pass ----------
+function normalise(source, { tokens } = {}) {
+  const { found, doc: pre, counts } = inspect(source);
+  const findings = [...found];
+  if (findings.some((f) => f.level === 'blocker')) return { ok: false, findings, svg: null, slots: [] };
+
+  const before = source.length;
+  const stripped = preClean(source);
+  let cleaned;
+  try { cleaned = optimize(stripped.source, SVGO).data; }
+  catch (e) {
+    findings.push(finding('blocker', 'clean-failed', 'This file could not be cleaned up.',
+      `The tidy-up step stopped with: ${e.message}`, 'Re-export it and try again.'));
+    return { ok: false, findings, svg: null, slots: [] };
+  }
+
+  const doc = svgu.parse(cleaned);
+  const already = svgu.slotsUsed(doc);
+  const colour = colourPass(doc, tokens);
+  const assigned = already.length ? { slots: already, tagged: 0 } : assignSlots(doc, colour.used, tokens);
+
+  if (stripped.removed) findings.push(finding('fixed', 'editor-metadata',
+    `Removed ${stripped.removed} block${stripped.removed > 1 ? 's' : ''} of editor metadata.`,
+    'Illustrator writes a metadata block that refers to entities it never declares, which stops a strict parser before it reaches any of your artwork. None of it draws anything.', null));
+
+  if (counts.transform) findings.push(finding('fixed', 'transforms',
+    `Flattened ${counts.transform} transform${counts.transform > 1 ? 's' : ''} into the artwork.`,
+    'Nested transforms make a stroke measure thinner than it prints, which would have put the minimum size wrong.', null));
+
+  if (counts.hidden || counts.zero) findings.push(finding('fixed', 'leftovers',
+    `Removed ${counts.hidden + counts.zero} hidden or zero-size shape${counts.hidden + counts.zero > 1 ? 's' : ''}.`,
+    'Leftovers from editing. They are invisible but they enlarge the file and can widen the measured bounds.', null));
+
+  for (const s of colour.snapped) findings.push(finding('fixed', 'colour-snapped',
+    `${s.from} was ${s.distance} step${s.distance === 1 ? '' : 's'} from ${s.token} ${s.to}. Snapped it.`,
+    'Almost certainly a slip rather than a decision. Two nearly identical colours in one identity is the thing nobody spots until print.', null));
+
+  if (colour.offPalette.length) findings.push(finding('warning', 'off-palette',
+    `${colour.offPalette.length} colour${colour.offPalette.length > 1 ? 's are' : ' is'} not in the palette: ${colour.offPalette.join(', ')}.`,
+    'These are too far from any brand colour to be a mistake, so they were left alone. Colourways will not change them.',
+    'Add them to the palette, or repaint that artwork in a brand colour.'));
+
+  if (assigned.tagged) findings.push(finding('fixed', 'slots',
+    `Tagged ${assigned.tagged} shape${assigned.tagged > 1 ? 's' : ''} with ${assigned.slots.length} colour slot${assigned.slots.length > 1 ? 's' : ''}: ${assigned.slots.join(', ')}.`,
+    'Colourways repaint by slot, so without this the artwork stays one colour whatever the rules say.', null));
+
+  const after = cleaned.length;
+  if (after < before * 0.92) findings.push(finding('fixed', 'size',
+    `Cleaned out ${Math.round((1 - after / before) * 100)} percent of the file.`,
+    'Editor metadata, comments and empty groups. None of it draws anything.', null));
+
+  return { ok: true, findings, svg: svgu.serialize(doc), slots: assigned.slots, bytes: { before, after } };
+}
+
+module.exports = { normalise, inspect, preClean, hex, distance, SNAP_DISTANCE };

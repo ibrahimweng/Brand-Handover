@@ -11,6 +11,7 @@ handover — derives a whole logo package from one master mark
 
   handover build <project.json> [-o out]   write the package
   handover measure <project.json>          print what the master measures, write nothing
+  handover check <artwork.svg>             report what is wrong with an export
 
 Every number in the output is read off the artwork. None of it is typed in.
 `;
@@ -20,9 +21,42 @@ function main(argv) {
   if (!cmd || cmd === '-h' || cmd === '--help') { console.log(USAGE.trim()); return 0; }
   if (!file) { console.error('Which project file? Pass a path to project.json.'); return 1; }
 
+  // check runs on a bare SVG, before there is a project at all
+  if (cmd === 'check') {
+    const { normalise } = require('./normalise');
+    const { format } = require('./report');
+    let tokens = {};
+    const ti = argv.indexOf('--tokens');
+    if (ti > -1 && argv[ti + 1]) {
+      try { tokens = (JSON.parse(fs.readFileSync(argv[ti + 1], 'utf8')).tokens) || {}; }
+      catch (e) { console.error(`could not read tokens from ${argv[ti + 1]}: ${e.message}`); return 1; }
+    }
+    let src;
+    try { src = fs.readFileSync(file, 'utf8'); }
+    catch (e) { console.error(`could not read ${file}: ${e.message}`); return 1; }
+    const r = normalise(src, { tokens });
+    console.log(format(r.findings, { name: path.basename(file) }));
+    return r.ok ? 0 : 1;
+  }
+
   let project;
-  try { project = projectLoader.load(file); }
-  catch (e) { console.error(e.message); return 1; }
+  try {
+    project = projectLoader.load(file);
+  } catch (e) {
+    if (e.findings) {
+      const { format } = require('./report');
+      console.error(format(e.findings, { name: `${e.asset}.svg` }));
+    } else {
+      console.error(e.message);
+    }
+    return 1;
+  }
+  if (project.report) {
+    const { format } = require('./report');
+    for (const [asset, findings] of Object.entries(project.report)) {
+      if (findings.length) console.log(format(findings, { name: `${asset} artwork` }));
+    }
+  }
 
   if (cmd === 'measure') {
     const m = measure(project);

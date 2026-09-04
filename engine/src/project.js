@@ -1,6 +1,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const { normalise } = require('./normalise');
 
 const DEFAULTS = {
   clearSpaceRatio: 0.25,
@@ -40,7 +41,25 @@ function load(file) {
   if (rules.lockups.some((l) => l === 'horizontal' || l === 'stacked' || l === 'wordmark') && !assets.wordmark) {
     throw new Error('this project asks for a lockup that needs a wordmark, but assets.wordmark is not set');
   }
-  return { brand: raw.brand, version: raw.version || '0.0.0', dir, tokens: raw.tokens || {}, assets, rules };
+
+  // Every piece of artwork goes through the normaliser before anything measures
+  // it, so a messy export is caught here rather than halfway through a build.
+  const tokens = raw.tokens || {};
+  const report = {};
+  for (const [key, asset] of Object.entries(assets)) {
+    const n = normalise(asset.source, { tokens });
+    report[key] = n.findings;
+    if (!n.ok) {
+      const err = new Error(`the ${key} artwork cannot be used yet`);
+      err.findings = n.findings;
+      err.asset = key;
+      throw err;
+    }
+    asset.source = n.svg;          // downstream only ever sees normalised artwork
+    asset.slots = n.slots;
+  }
+
+  return { brand: raw.brand, version: raw.version || '0.0.0', dir, tokens, assets, rules, report };
 }
 
 module.exports = { load, DEFAULTS };

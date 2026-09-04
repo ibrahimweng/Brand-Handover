@@ -120,5 +120,97 @@ test('a rendered PNG actually contains the colourway', () => {
 });
 fs.rmSync(out, { recursive: true, force: true });
 
+// ---------------------------------------------------------------- normaliser
+const { normalise, preClean, hex, distance } = require('../src/normalise');
+const { format } = require('../src/report');
+const fx = (n) => fs.readFileSync(path.join(__dirname, 'fixtures', n), 'utf8');
+const tokens = JSON.parse(fs.readFileSync(PROJECT, 'utf8')).tokens;
+
+console.log('\nreading colour');
+test('hex forms all normalise to one', () => {
+  assert.strictEqual(hex('#0a2a33'), '#0A2A33');
+  assert.strictEqual(hex('#abc'), '#AABBCC');
+  assert.strictEqual(hex('rgb(10, 42, 51)'), '#0A2A33');
+  assert.strictEqual(hex('none'), null);
+});
+test('near colours measure near, far colours measure far', () => {
+  assert.ok(distance('#0A2A33', '#0B2A34') < 3);
+  assert.ok(distance('#0A2A33', '#F2A007') > 200);
+});
+
+console.log('\nrefusing artwork that cannot work');
+for (const [file, code, why] of [
+  ['has-live-text.svg', 'live-text', 'live type would render in the wrong font'],
+  ['has-raster.svg', 'raster', 'an embedded photo cannot be scaled'],
+  ['no-viewbox.svg', 'no-viewbox', 'artwork with no size cannot be measured'],
+]) {
+  test(`${file} is refused because ${why}`, () => {
+    const r = normalise(fx(file), { tokens });
+    assert.strictEqual(r.ok, false);
+    assert.ok(r.findings.some((f) => f.level === 'blocker' && f.code === code), `expected a ${code} blocker`);
+    assert.strictEqual(r.svg, null, 'nothing should be produced from unusable artwork');
+  });
+}
+test('every blocker tells the designer what to do about it', () => {
+  for (const file of ['has-live-text.svg', 'has-raster.svg', 'no-viewbox.svg']) {
+    for (const f of normalise(fx(file), { tokens }).findings.filter((x) => x.level === 'blocker')) {
+      assert.ok(f.why && f.how, `${f.code} has no explanation or no remedy`);
+    }
+  }
+});
+
+console.log('\ncleaning a real export');
+const dirty = normalise(fx('messy-illustrator.svg'), { tokens });
+test('an Illustrator export with undeclared entities still parses', () => {
+  assert.ok(preClean(fx('messy-illustrator.svg')).removed > 0, 'the metadata block should be stripped');
+  assert.strictEqual(dirty.ok, true);
+});
+test('nested transforms are flattened and the stroke is rescaled with them', () => {
+  // the fixture draws stroke-width 4.5 inside scale(2), so it must come out as 9
+  assert.ok(!/transform=/.test(dirty.svg), 'no transform should survive');
+  assert.strictEqual(svgu.thinnestStroke(svgu.parse(dirty.svg)), 9);
+});
+test('a colour one step off the palette is snapped to it', () => {
+  assert.ok(dirty.svg.includes('#0A2A33'));
+  assert.ok(!dirty.svg.includes('#0B2A34'), 'the near-miss colour should be gone');
+  assert.ok(dirty.findings.some((f) => f.code === 'colour-snapped'));
+});
+test('colour slots are assigned so colourways have something to repaint', () => {
+  assert.deepStrictEqual(dirty.slots, ['ink']);
+  assert.ok(dirty.svg.includes('data-slot="ink"'));
+});
+test('hidden layers and zero-size leftovers are dropped', () => {
+  assert.ok(!dirty.svg.includes('#FF00FF'), 'the hidden layer should not survive');
+  assert.ok(dirty.findings.some((f) => f.code === 'leftovers'));
+});
+test('a dirty export measures exactly the same as the clean master', () => {
+  const a = geo.inkBox(project.assets.mark.source), b = geo.inkBox(dirty.svg);
+  assert.deepStrictEqual({ w: b.w, h: b.h }, { w: a.w, h: a.h });
+  const rules = { minStrokePx: 2.4, minStrokeMm: 0.675 };
+  assert.deepStrictEqual(
+    geo.minimumSize(dirty.svg, rules).screenPx,
+    geo.minimumSize(project.assets.mark.source, rules).screenPx);
+});
+test('normalising clean artwork does not change what it measures', () => {
+  const again = normalise(project.assets.mark.source, { tokens });
+  assert.strictEqual(again.ok, true);
+  assert.deepStrictEqual(geo.inkBox(again.svg), geo.inkBox(project.assets.mark.source));
+});
+
+console.log('\nthe report');
+test('a clean file says so instead of printing an empty list', () => {
+  assert.match(format([], { name: 'x.svg' }), /is clean/);
+});
+test('blockers are listed before warnings, and the report says nothing was built', () => {
+  const out = format(normalise(fx('has-live-text.svg'), { tokens }).findings, { name: 'x.svg' });
+  assert.match(out, /Must fix before this can be used/);
+  assert.match(out, /Nothing was built/);
+});
+test('the report wraps rather than running off the terminal', () => {
+  const out = format(normalise(fx('messy-illustrator.svg'), { tokens }).findings, { name: 'x.svg', width: 76 });
+  const tooLong = out.split('\n').filter((l) => l.length > 78);
+  assert.deepStrictEqual(tooLong, [], 'some lines are too wide');
+});
+
 console.log(`\n${passed} passed, ${failed} failed\n`);
 process.exit(failed ? 1 : 0);
