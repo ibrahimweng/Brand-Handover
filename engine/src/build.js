@@ -5,8 +5,10 @@ const svgu = require('./svg');
 const geo = require('./geometry');
 const naming = require('./naming');
 const { buildVariant, measure } = require('./variants');
+const exp = require('./export');
+const contrast = require('./contrast');
 
-function build(project, outDir, { log = () => {} } = {}) {
+async function build(project, outDir, { log = () => {} } = {}) {
   const measured = measure(project);
   log(`measured the master: ink ${measured.markInk.w} × ${measured.markInk.h}, ` +
       `clear space ${measured.clearSpace}, floor ${measured.minimumSize.screenPx} px / ${measured.minimumSize.printMm} mm`);
@@ -38,8 +40,41 @@ function build(project, outDir, { log = () => {} } = {}) {
       if (rules.formats.includes('png')) {
         for (const w of rules.pngWidths) write(`${dir}/${base}-${w}.png`, geo.renderPng(v.svg, w));
       }
+      if (rules.formats.includes('pdf') || rules.formats.includes('ai')) {
+        const pdf = await exp.toPdf(v.svg);
+        if (rules.formats.includes('pdf')) write(`${dir}/${base}.pdf`, pdf);
+        // an .ai file is a PDF wrapper, so the same bytes open in Illustrator
+        if (rules.formats.includes('ai')) write(`${dir}/${base}.ai`, pdf);
+      }
     }
   }
+
+  // ---- icons, favicons and social crops, all cut from the same master ----
+  const mark = project.assets.mark.source;
+  const iconInk = rules.iconInk || '#FFFFFF';
+  const iconBg = rules.iconBg || '#000000';
+  const favPngs = [];
+  for (const size of rules.iconSizes || []) {
+    const svg = exp.iconSquare(mark, { size, background: iconBg, ink: iconInk, radius: 0.22 });
+    write(`05-icons/icon-${size}.png`, geo.renderPng(svg, size));
+  }
+  for (const size of rules.faviconSizes || []) {
+    const svg = exp.iconSquare(mark, { size, background: iconBg, ink: iconInk });
+    const png = geo.renderPng(svg, size);
+    write(`05-icons/favicon-${size}.png`, png);
+    favPngs.push({ size, data: png });
+  }
+  if (favPngs.length) write('05-icons/favicon.ico', exp.ico(favPngs));
+
+  for (const [name, spec] of Object.entries(rules.social || {})) {
+    const svg = spec.w === spec.h
+      ? exp.iconSquare(mark, { size: spec.w, background: iconBg, ink: iconInk, radius: spec.round ? 0.5 : 0 })
+      : exp.banner(mark, { width: spec.w, height: spec.h, background: iconBg, ink: iconInk });
+    write(`06-social/${naming.slug(name)}-${spec.w}x${spec.h}.png`, geo.renderPng(svg, spec.w));
+  }
+
+  // ---- contrast is computed, never typed ----
+  const pairs = contrast.matrix(project.tokens.colour || {});
 
   const brandJson = {
     brand: project.brand,
@@ -52,7 +87,8 @@ function build(project, outDir, { log = () => {} } = {}) {
       lockups: rules.lockups,
       colourways: rules.colourways.map((c) => c.name),
     },
-    generated: { measuredFrom: path.basename(project.assets.mark.path), files: written.length },
+    contrast: pairs.map((p) => ({ pair: `${p.fg} on ${p.bg}`, ratio: p.ratio, verdict: p.use })),
+    generated: { measuredFrom: path.basename(project.assets.mark.path), files: written.length + 1 },
   };
   write('brand.json', JSON.stringify(brandJson, null, 2));
 
@@ -77,7 +113,27 @@ function build(project, outDir, { log = () => {} } = {}) {
   ].join('\n');
   write('README.txt', readme);
 
-  return { measured, written, warnings };
+  // ---- the two documents, both reading this same project ----
+  if (rules.documents !== false) {
+    const docs = require('./documents');
+    const { deck } = require('./documents/deck');
+    const ctx = docs.context(project, measured, written.slice(), brandJson);
+    write('guidelines.html', docs.guidelines(ctx));
+    write('deck.html', deck(ctx));
+  }
+
+  // ---- one zip the client keeps, whoever is paying for what ----
+  if (rules.zip !== false) {
+    const buf = await exp.zip(written.map((f) => ({
+      path: f.path,
+      data: fs.readFileSync(path.join(outDir, f.path)),
+    })));
+    const zipName = `${naming.slug(project.brand)}-brand-package.zip`;
+    fs.writeFileSync(path.join(outDir, zipName), buf);
+    written.push({ path: zipName, bytes: buf.length });
+  }
+
+  return { measured, written, warnings, contrast: pairs };
 }
 
 module.exports = { build };

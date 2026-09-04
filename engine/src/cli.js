@@ -13,10 +13,13 @@ handover — derives a whole logo package from one master mark
   handover measure <project.json>          print what the master measures, write nothing
   handover check <artwork.svg>             report what is wrong with an export
 
+Both documents and every file come out of the same project, so a change to the
+master shows up in all of them at once.
+
 Every number in the output is read off the artwork. None of it is typed in.
 `;
 
-function main(argv) {
+async function main(argv) {
   const [cmd, file] = argv;
   if (!cmd || cmd === '-h' || cmd === '--help') { console.log(USAGE.trim()); return 0; }
   if (!file) { console.error('Which project file? Pass a path to project.json.'); return 1; }
@@ -78,7 +81,7 @@ function main(argv) {
 
   const started = Date.now();
   let result;
-  try { result = build(project, outDir, { log: (m) => console.log(`  ${m}`) }); }
+  try { result = await build(project, outDir, { log: (m) => console.log(`  ${m}`) }); }
   catch (e) { console.error(e.message); return 1; }
 
   const bytes = result.written.reduce((n, f) => n + f.bytes, 0);
@@ -87,5 +90,5 @@ function main(argv) {
   return 0;
 }
 
-if (require.main === module) process.exit(main(process.argv.slice(2)));
+if (require.main === module) main(process.argv.slice(2)).then((c) => process.exit(c));
 module.exports = { main };

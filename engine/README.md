@@ -14,7 +14,7 @@ around it.
     node src/cli.js measure projects/meridian/project.json
     node src/cli.js build   projects/meridian/project.json -o out
 
-The Meridian example writes 62 files in about two seconds.
+The Meridian example writes 118 files in about five seconds, including both documents.
 
 ## What it measures
 
@@ -111,9 +111,70 @@ classes, a hidden layer, a zero-size rectangle, bad metadata and an off-by-one
 colour, normalises to measure **exactly** the same as the clean hand-written
 master. Same 109 × 109 ink box, same stroke of 9, same 32 px and 9 mm floor.
 
+## The package
+
+Every file is cut from the master when you press build.
+
+    01-horizontal/  02-stacked/  03-mark/  04-wordmark/   20 lockups, 5 files each
+    05-icons/       app and touch icons, favicons, and a multi-size .ico
+    06-social/      profile, header and open graph crops
+    brand.json      the whole system, machine readable
+    guidelines.html the manual
+    deck.html       the presentation
+    README.txt      which file to use where, in plain words
+    *.zip           all of the above, for the client to keep
+
+**PDF is true vector**, not a rasterised picture, so a printer receives paths.
+**The `.ai` file is the same bytes as the PDF**, because since version 9 an
+Illustrator file is a PDF wrapper and Illustrator opens one without complaint.
+The `.ico` is written by hand, since a whole dependency for 22 bytes of header
+would be silly.
+
+One trap worth knowing if you touch `src/pdf.js`. jsPDF ships a UMD bundle that
+attaches itself to `window` when it finds one, so it must be required **before**
+the jsdom globals exist or `require()` hands back nothing at all. svg2pdf reads
+the DOM as it loads, so it must be required **after** they exist. And its UMD
+wrapper then takes the browser branch, which looks for a global called `jspdf`
+rather than requiring it, so that has to be handed over too. All three are
+commented in the file.
+
+## The two documents
+
+Both read the same project and the same measurements, and they are not one
+document in two shapes. The manual carries every value and edge case. The deck
+holds one idea a slide and runs in the brand's own colours, because a
+presentation is brand expression where a manual is reference. A test asserts the
+deck is the shorter document, so a future change cannot quietly turn it into a
+reflow.
+
+The blocks that draw them live in `src/documents/blocks.js`. Two rules hold
+there, both learned the hard way when the deck first rendered:
+
+- **A block styles its own text.** A diagram that needs the host page's
+  stylesheet is not a block, it is a fragment that works in one document.
+- **A block takes the ink colour it should draw in.** The first version assumed
+  the manual's ground, so on a dark slide the mark was drawn in the background
+  colour and simply vanished.
+
+Both are covered by tests.
+
+## The loop
+
+This is the whole point, and it is checked in the suite. Thicken the ring in
+`mark.svg` from 9 to 14 and rebuild:
+
+    ink box       109 → 114
+    clear space   27.25 → 28.5
+    minimum size  32 px → 21 px,  9 mm → 5.8 mm
+
+`brand.json`, `guidelines.html` and `deck.html` all say the new numbers, because
+none of them holds a copy of the old ones.
+
 ## What it does not do yet
 
-- **PDF and EPS.** `svg2pdf` goes in next for true vector output.
+- **CMYK output.** The conversion on the page is arithmetic from hex. Real print
+  work soft proofs through an ICC profile, and that is the Typst path in the plan.
+- **EPS.** Rarely asked for now that print shops take PDF, but not written.
 - **Open path detection.** A path that is filled but never closed renders
   differently in some tools, and that is not checked.
 - **Overlapping identical shapes.** Duplicate artwork stacked on itself measures
@@ -128,6 +189,10 @@ master. Same 109 × 109 ink box, same stroke of 9, same 32 px and 9 mm floor.
     src/variants.js   measure the master once, then build each lockup
     src/normalise.js  clean an export and say plainly what was wrong with it
     src/report.js     write the findings for a designer, not for an engineer
+    src/contrast.js   WCAG ratios and CMYK, computed rather than typed
+    src/pdf.js        true vector PDF, and the .ai that is the same bytes
+    src/export.js     icons, favicons, social crops and the zip
+    src/documents/    blocks.js, chrome.js, index.js (manual), deck.js
     src/naming.js     one naming rule for the whole package
     src/build.js      write the package, brand.json and the read me
     src/cli.js        check, measure and build

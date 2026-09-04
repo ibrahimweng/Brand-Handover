@@ -7,11 +7,119 @@
   },
   "tokens": {
     "colour": {
-      "deep":   { "hex": "#0A2A33", "role": "primary" },
-      "tide":   { "hex": "#1E7A8C", "role": "secondary" },
-      "beacon": { "hex": "#F2A007", "role": "accent", "textSafe": false, "maxCoverage": 0.03 },
-      "chalk":  { "hex": "#EFEDE4", "role": "ground" },
-      "slate":  { "hex": "#5C6B70", "role": "neutral" }
+      "deep": {
+        "hex": "#0A2A33",
+        "role": "primary",
+        "pantone": "5467 C"
+      },
+      "tide": {
+        "hex": "#1E7A8C",
+        "role": "secondary",
+        "pantone": "7474 C"
+      },
+      "beacon": {
+        "hex": "#F2A007",
+        "role": "accent",
+        "textSafe": false,
+        "maxCoverage": 0.03,
+        "pantone": "1235 C"
+      },
+      "chalk": {
+        "hex": "#EFEDE4",
+        "role": "ground",
+        "pantone": "7527 C"
+      },
+      "slate": {
+        "hex": "#5C6B70",
+        "role": "neutral",
+        "pantone": "5477 C"
+      }
+    },
+    "type": {
+      "families": {
+        "display": {
+          "family": "Archivo",
+          "google": true,
+          "weights": [
+            500,
+            600,
+            700
+          ],
+          "fallback": "Helvetica,Arial,sans-serif",
+          "note": "Headings, the wordmark and any number a reader has to compare. Its figures are why it was chosen, since half of what Meridian publishes is output data."
+        },
+        "text": {
+          "family": "Literata",
+          "google": true,
+          "weights": [
+            400,
+            500
+          ],
+          "fallback": "Georgia,serif",
+          "note": "Anything read for more than a line. It holds up in long reports and prints well on the uncoated stock the annual review uses."
+        }
+      },
+      "scale": [
+        {
+          "name": "Display",
+          "family": "display",
+          "size": 58,
+          "leading": 59,
+          "weight": 700,
+          "tracking": -0.03,
+          "sample": "Power from the predictable sea"
+        },
+        {
+          "name": "H1",
+          "family": "display",
+          "size": 38,
+          "leading": 42,
+          "weight": 600,
+          "tracking": -0.02,
+          "sample": "Fifty years of tide tables"
+        },
+        {
+          "name": "H2",
+          "family": "display",
+          "size": 26,
+          "leading": 30,
+          "weight": 600,
+          "sample": "The turbine and the estuary"
+        },
+        {
+          "name": "H3",
+          "family": "display",
+          "size": 19,
+          "leading": 24,
+          "weight": 600,
+          "sample": "How a lagoon holds its head"
+        },
+        {
+          "name": "Body",
+          "family": "text",
+          "size": 17,
+          "leading": 27,
+          "weight": 400,
+          "sample": "The tide is the only renewable source you can put in a diary."
+        },
+        {
+          "name": "Small",
+          "family": "text",
+          "size": 14,
+          "leading": 21,
+          "weight": 400,
+          "sample": "Figures are annual mean output at the point of grid connection."
+        },
+        {
+          "name": "Caption",
+          "family": "display",
+          "size": 12,
+          "leading": 17,
+          "weight": 500,
+          "tracking": 0.09,
+          "sample": "Estuary programme 2031"
+        }
+      ]
     }
   },
   "rules": {
@@ -21,15 +129,110 @@
     "lockupGapRatio": 0.36,
     "wordmarkHeightRatio": 0.34,
     "naming": "{brand}-{lockup}-{colourway}",
-    "lockups": ["horizontal", "stacked", "mark", "wordmark"],
-    "formats": ["svg", "png"],
-    "pngWidths": [512, 1024],
+    "lockups": [
+      "horizontal",
+      "stacked",
+      "mark",
+      "wordmark"
+    ],
+    "formats": [
+      "svg",
+      "png",
+      "pdf",
+      "ai"
+    ],
+    "pngWidths": [
+      512,
+      1024
+    ],
     "colourways": [
-      { "name": "deep",     "on": "chalk", "slots": { "ink": "#0A2A33" } },
-      { "name": "tide",     "on": "chalk", "slots": { "ink": "#1E7A8C" } },
-      { "name": "chalk",    "on": "deep",  "slots": { "ink": "#EFEDE4" } },
-      { "name": "black",    "on": "white", "slots": { "ink": "#000000" } },
-      { "name": "white",    "on": "black", "slots": { "ink": "#FFFFFF" } }
-    ]
+      {
+        "name": "deep",
+        "on": "chalk",
+        "slots": {
+          "ink": "#0A2A33"
+        }
+      },
+      {
+        "name": "tide",
+        "on": "chalk",
+        "slots": {
+          "ink": "#1E7A8C"
+        }
+      },
+      {
+        "name": "chalk",
+        "on": "deep",
+        "slots": {
+          "ink": "#EFEDE4"
+        }
+      },
+      {
+        "name": "black",
+        "on": "white",
+        "slots": {
+          "ink": "#000000"
+        }
+      },
+      {
+        "name": "white",
+        "on": "black",
+        "slots": {
+          "ink": "#FFFFFF"
+        }
+      }
+    ],
+    "iconInk": "#EFEDE4",
+    "iconBg": "#0A2A33",
+    "iconSizes": [
+      1024,
+      512,
+      180,
+      192
+    ],
+    "faviconSizes": [
+      16,
+      32,
+      48
+    ],
+    "social": {
+      "profile": {
+        "w": 400,
+        "h": 400
+      },
+      "profile round": {
+        "w": 400,
+        "h": 400,
+        "round": true
+      },
+      "x header": {
+        "w": 1500,
+        "h": 500
+      },
+      "linkedin cover": {
+        "w": 1128,
+        "h": 191
+      },
+      "og image": {
+        "w": 1200,
+        "h": 630
+      }
+    }
+  },
+  "content": {
+    "positioning": "Power from the predictable sea.",
+    "introduction": "The tide is the only renewable source you can put in a diary. Wind drops and the sun sets, but the moon keeps an appointment, and a tidal lagoon can be scheduled against a grid four years ahead.",
+    "markRationale": "A ring holding a tide line. The line is not flat, because water in a vessel is not flat. It is an arc struck at three times the radius of the ring, sitting a quarter of a radius below centre, which is what gives the mark its lift.",
+    "colourRationale": "Deep grounds everything and Chalk carries the page. Tide is for surfaces and charts. Beacon marks the single most important thing on a page and never more than three percent of it.",
+    "typeRationale": "Archivo sets headings, the wordmark and any number a reader has to compare, because its figures are why it was chosen. Literata sets anything read for more than a line, and it prints well on the uncoated stock the annual review uses.",
+    "misuse": [
+      "Do not stretch. Scale both axes together, always.",
+      "Do not rotate. The tide line is level or it is nothing.",
+      "Do not recolour outside the approved colourways.",
+      "Do not add a shadow, a glow, a bevel or an outline.",
+      "Do not place it on low contrast. Use the reversed mark.",
+      "Do not retype the wordmark. It is artwork, not live text."
+    ],
+    "constructionNotes": "The ring is five units in a twelve unit square, with a stroke of nine tenths of a unit. The tide line is an arc of three times the ring radius, crossing a quarter of a radius below centre. Everything is a whole fraction of r, so the mark rebuilds from one number."
   }
 }

@@ -13,15 +13,22 @@ const { measure, buildVariant } = require('../src/variants');
 const { build } = require('../src/build');
 
 let passed = 0, failed = 0;
-function test(name, fn) {
-  try { fn(); console.log(`  ok    ${name}`); passed++; }
-  catch (e) { console.log(`  FAIL  ${name}\n        ${e.message}`); failed++; }
+const queue = [];
+function test(name, fn) { queue.push({ name, fn }); }
+function before(fn) { queue.push({ setup: fn }); }
+async function drain() {
+  for (const item of queue) {
+    if (item.setup) { await item.setup(); continue; }
+    try { await item.fn(); console.log(`  ok    ${item.name}`); passed++; }
+    catch (e) { console.log(`  FAIL  ${item.name}\n        ${e.message}`); failed++; }
+  }
 }
 
 const PROJECT = path.join(__dirname, '..', 'projects', 'meridian', 'project.json');
 const project = projectLoader.load(PROJECT);
 const m = measure(project);
 
+// headings print as the queue is built, so they stay in order with the results
 console.log('\nmeasuring the master');
 test('the ink box is the ring plus its stroke, not the viewBox', () => {
   // circle r=50 with a 9 wide stroke paints out to 54.5 from centre, so 109 across
@@ -91,11 +98,41 @@ test('a naming pattern asking for something undefined fails loudly', () => {
 
 console.log('\nthe whole package');
 const out = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-'));
-const result = build(project, out);
+let result;
+before(async () => { result = await build(project, out); });
 test('the file count is exactly what the rules ask for', () => {
-  const perVariant = 1 + project.rules.pngWidths.length;
-  const expected = project.rules.lockups.length * project.rules.colourways.length * perVariant + 2; // + brand.json + README
-  assert.strictEqual(result.written.length, expected, `expected ${expected} files`);
+  const r = project.rules;
+  const perVariant = ['svg', 'pdf', 'ai'].filter((f) => r.formats.includes(f)).length
+    + (r.formats.includes('png') ? r.pngWidths.length : 0);
+  const expected =
+      r.lockups.length * r.colourways.length * perVariant   // every lockup in every colourway
+    + (r.iconSizes || []).length                            // app and touch icons
+    + (r.faviconSizes || []).length + ((r.faviconSizes || []).length ? 1 : 0)  // favicons plus the .ico
+    + Object.keys(r.social || {}).length                    // social crops
+    + 2                                                     // brand.json and README.txt
+    + (r.documents === false ? 0 : 2)                       // the manual and the deck
+    + (r.zip === false ? 0 : 1);                            // the package itself
+  assert.strictEqual(result.written.length, expected, `expected ${expected} files, got ${result.written.length}`);
+});
+test('the package holds a true vector PDF, and the .ai is the same bytes', () => {
+  const pdf = fs.readFileSync(path.join(out, '03-mark', 'meridian-mark-deep.pdf'));
+  const ai = fs.readFileSync(path.join(out, '03-mark', 'meridian-mark-deep.ai'));
+  assert.strictEqual(pdf.slice(0, 5).toString(), '%PDF-', 'not a PDF');
+  assert.ok(!/\/Subtype\s*\/Image/.test(pdf.toString('latin1')), 'the PDF was rasterised');
+  assert.strictEqual(Buffer.compare(pdf, ai), 0, 'the .ai should be the same PDF bytes');
+});
+test('the favicon is a valid multi-size ico', () => {
+  const ico = fs.readFileSync(path.join(out, '05-icons', 'favicon.ico'));
+  assert.strictEqual(ico.readUInt16LE(0), 0, 'bad ico reserved field');
+  assert.strictEqual(ico.readUInt16LE(2), 1, 'bad ico type');
+  assert.strictEqual(ico.readUInt16LE(4), project.rules.faviconSizes.length, 'wrong number of images');
+});
+test('the zip contains the whole package', async () => {
+  const JSZip = require('jszip');
+  const name = fs.readdirSync(out).find((f) => f.endsWith('.zip'));
+  const z = await JSZip.loadAsync(fs.readFileSync(path.join(out, name)));
+  const inZip = Object.keys(z.files).filter((f) => !z.files[f].dir).length;
+  assert.strictEqual(inZip, result.written.length - 1, 'the zip is missing files');
 });
 test('no warnings for a complete project', () => assert.deepStrictEqual(result.warnings, []));
 test('every written file has content', () => {
@@ -118,7 +155,6 @@ test('a rendered PNG actually contains the colourway', () => {
   }
   assert.ok(found, 'no Tide-coloured pixel found in the rendered mark');
 });
-fs.rmSync(out, { recursive: true, force: true });
 
 // ---------------------------------------------------------------- normaliser
 const { normalise, preClean, hex, distance } = require('../src/normalise');
@@ -212,5 +248,82 @@ test('the report wraps rather than running off the terminal', () => {
   assert.deepStrictEqual(tooLong, [], 'some lines are too wide');
 });
 
-console.log(`\n${passed} passed, ${failed} failed\n`);
-process.exit(failed ? 1 : 0);
+// ------------------------------------------------------- packager and documents
+const contrast = require('../src/contrast');
+const docs = require('../src/documents');
+const { deck } = require('../src/documents/deck');
+
+console.log('\ncontrast');
+test('ratios match the published figures', () => {
+  assert.strictEqual(contrast.ratio('#0A2A33', '#EFEDE4'), 12.86);
+  assert.strictEqual(contrast.ratio('#1E7A8C', '#EFEDE4'), 4.24);
+  assert.strictEqual(contrast.ratio('#F2A007', '#EFEDE4'), 1.83);
+});
+test('a failure is reported as a failure', () => {
+  assert.strictEqual(contrast.verdict(contrast.ratio('#F2A007', '#EFEDE4')).level, 'fail');
+  assert.strictEqual(contrast.verdict(contrast.ratio('#1E7A8C', '#EFEDE4')).level, 'AA-large');
+});
+test('cmyk converts and black stays black', () => {
+  assert.deepStrictEqual(contrast.cmyk('#000000'), [0, 0, 0, 100]);
+  assert.deepStrictEqual(contrast.cmyk('#FFFFFF'), [0, 0, 0, 0]);
+});
+
+console.log('\nthe package');
+const out2 = fs.mkdtempSync(path.join(os.tmpdir(), 'handover2-'));
+let full;
+before(async () => { full = await build(project, out2); });
+
+console.log('\ndocuments');
+test('both documents are written', () => {
+  assert.ok(fs.existsSync(path.join(out2, 'guidelines.html')));
+  assert.ok(fs.existsSync(path.join(out2, 'deck.html')));
+});
+test('the documents carry the measured numbers, not typed ones', () => {
+  const g = fs.readFileSync(path.join(out2, 'guidelines.html'), 'utf8');
+  assert.ok(g.includes(String(m.minimumSize.screenPx)), 'the measured floor is missing');
+  assert.ok(g.includes(String(m.clearSpace)), 'the measured clear space is missing');
+  assert.ok(g.includes('12.86'), 'the computed contrast is missing');
+});
+test('the deck holds less text per section than the manual', () => {
+  const g = fs.readFileSync(path.join(out2, 'guidelines.html'), 'utf8').replace(/<[^>]+>/g, ' ');
+  const d = fs.readFileSync(path.join(out2, 'deck.html'), 'utf8').replace(/<[^>]+>/g, ' ');
+  assert.ok(d.length < g.length, 'the deck should be the shorter document, not a reflow of the manual');
+});
+test('a diagram block styles its own text rather than borrowing the page stylesheet', () => {
+  const blocks = require('../src/documents/blocks');
+  const ctx = docs.context(project, m, [{ path: 'x.svg', bytes: 1 }], {});
+  for (const svg of [blocks.construction(ctx), blocks.clearSpace(ctx)]) {
+    const texts = svg.match(/<text[^>]*>/g) || [];
+    assert.ok(texts.length, 'the diagram has no labels');
+    for (const t of texts) assert.match(t, /font-size=/, 'a diagram label depends on the host stylesheet');
+  }
+});
+test('a diagram draws in the ink colour it is given', () => {
+  const blocks = require('../src/documents/blocks');
+  const ctx = docs.context(project, m, [], {});
+  assert.ok(blocks.clearSpace(ctx, { ink: '#FF0000' }).includes('#FF0000'),
+    'the block ignored the ink colour, so it would vanish on a dark slide');
+});
+
+console.log('\nregenerating from a changed master');
+test('thickening the stroke moves the floor everywhere at once', async () => {
+  const thick = project.assets.mark.source.replace('stroke-width="9"', 'stroke-width="14"');
+  const altered = Object.assign({}, project, {
+    assets: Object.assign({}, project.assets, { mark: Object.assign({}, project.assets.mark, { source: thick }) }),
+  });
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover3-'));
+  const r = await build(altered, dir);
+  const bj = JSON.parse(fs.readFileSync(path.join(dir, 'brand.json'), 'utf8'));
+  assert.notStrictEqual(bj.logo.minSize.screenPx, m.minimumSize.screenPx, 'the floor did not move');
+  const g = fs.readFileSync(path.join(dir, 'guidelines.html'), 'utf8');
+  assert.ok(g.includes(String(bj.logo.minSize.screenPx)), 'the manual still shows the old floor');
+  const d = fs.readFileSync(path.join(dir, 'deck.html'), 'utf8');
+  assert.ok(d.includes(String(bj.logo.minSize.screenPx)), 'the deck still shows the old floor');
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+drain().then(() => {
+  for (const d of [out, out2]) fs.rmSync(d, { recursive: true, force: true });
+  console.log(`\n${passed} passed, ${failed} failed\n`);
+  process.exit(failed ? 1 : 0);
+});
