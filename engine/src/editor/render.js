@@ -71,9 +71,15 @@
   // ------------------------------------------------------------ diagrams
   // Built from arithmetic and the mark's inner markup. No parsing, so this is
   // the same code in the editor and on the server.
+  // The manual draws this block too, and three fixes made there were never made
+  // here: the artwork was placed at the canvas origin and then drawn in its own
+  // coordinates, nothing clipped it to the artboard, and clear space was drawn
+  // as a square around artwork that is not one. One block, two renderers, and
+  // only one of them ever taught.
   function construction(bundle, ink, line) {
     const vb = bundle.measured.markViewBox, ink2 = bundle.measured.markInk;
     const S = 260, pad = 30, k = (S - pad * 2) / Math.max(vb.w, vb.h);
+    const clip = `k${Math.abs(Math.round(vb.x * 7 + vb.y * 13 + vb.w * 3 + vb.h))}`;
     const X = (v) => r3(pad + (v - vb.x) * k), Y = (v) => r3(pad + (v - vb.y) * k);
     let grid = '';
     for (let i = 0; i <= 6; i++) {
@@ -81,10 +87,11 @@
            +  `<path d="M${X(vb.x)} ${Y(vb.y + vb.h / 6 * i)}H${X(vb.x + vb.w)}"/>`;
     }
     return `<svg viewBox="0 0 ${S} ${S + 26}" style="width:100%;height:100%" role="img" aria-label="The mark on its grid. The box is ${vb.w} units and the artwork fills ${ink2.w} by ${ink2.h} of them.">
+      <defs><clipPath id="${clip}"><rect x="${X(vb.x)}" y="${Y(vb.y)}" width="${r3(vb.w * k)}" height="${r3(vb.h * k)}"/></clipPath></defs>
       <g stroke="${line}" stroke-width=".5" opacity=".22">${grid}</g>
       <rect x="${X(vb.x)}" y="${Y(vb.y)}" width="${r3(vb.w * k)}" height="${r3(vb.h * k)}" fill="none" stroke="${line}" stroke-width=".9" opacity=".55"/>
       <rect x="${X(ink2.x)}" y="${Y(ink2.y)}" width="${r3(ink2.w * k)}" height="${r3(ink2.h * k)}" fill="none" stroke="${bundle.roles.accent.hex}" stroke-width="1" stroke-dasharray="4 3"/>
-      <g transform="translate(${X(vb.x)} ${Y(vb.y)}) scale(${r3(k)})">${bundle.markInner[ink] || ''}</g>
+      <g clip-path="url(#${clip})"><g transform="translate(${X(vb.x)} ${Y(vb.y)}) scale(${r3(k)})${vb.x || vb.y ? ` translate(${-vb.x} ${-vb.y})` : ''}">${bundle.markInner[ink] || ''}</g></g>
       <text x="${S / 2}" y="16" font-family="ui-monospace,Menlo,monospace" font-size="8" fill="${line}" text-anchor="middle">${vb.w} unit box</text>
       <text x="${S / 2}" y="${S + 16}" font-family="ui-monospace,Menlo,monospace" font-size="8" fill="${bundle.roles.accent.hex}" text-anchor="middle">fills ${ink2.w} × ${ink2.h} · stroke ${bundle.measured.minimumSize.thinnestStroke}</text>
     </svg>`;
@@ -92,14 +99,19 @@
 
   function clearSpace(bundle, ink, line) {
     const b = bundle.measured.markInk, x = bundle.measured.clearSpace;
-    const total = b.w + x * 2, S = 260, k = S / (total * 1.12), o = (S - total * k) / 2;
-    const P = (v) => r3(o + v * k);
+    // clear space is x on every side of the ink box, so the box it makes is the
+    // ink box grown by 2x — not a square. Drawn square it showed a rule nobody
+    // could follow for anything but a square mark.
+    const tw = b.w + x * 2, th = b.h + x * 2;
+    const S = 260, k = S / (Math.max(tw, th) * 1.12);
+    const ox = (S - tw * k) / 2, oy = (S - th * k) / 2;
+    const PX = (v) => r3(ox + v * k), PY = (v) => r3(oy + v * k);
     return `<svg viewBox="0 0 ${S} ${S + 22}" style="width:100%;height:100%" role="img" aria-label="Clear space of ${x} units on every side.">
-      <rect x="${P(0)}" y="${P(0)}" width="${r3(total * k)}" height="${r3(total * k)}" fill="none" stroke="${line}" stroke-width="1" stroke-dasharray="4 3" opacity=".5"/>
-      <g transform="translate(${P(x)} ${P(x)}) scale(${r3(k)}) translate(${-b.x} ${-b.y})">${bundle.markInner[ink] || ''}</g>
+      <rect x="${PX(0)}" y="${PY(0)}" width="${r3(tw * k)}" height="${r3(th * k)}" fill="none" stroke="${line}" stroke-width="1" stroke-dasharray="4 3" opacity=".5"/>
+      <g transform="translate(${PX(x)} ${PY(x)}) scale(${r3(k)}) translate(${-b.x} ${-b.y})">${bundle.markInner[ink] || ''}</g>
       <g stroke="${bundle.roles.accent.hex}" stroke-width="1.1">
-        <path d="M${P(0)} ${P(total / 2)}H${P(x)}"/><path d="M${P(0)} ${P(total / 2) - 5}v10"/><path d="M${P(x)} ${P(total / 2) - 5}v10"/></g>
-      <text x="${P(x / 2)}" y="${P(total / 2) - 9}" font-family="ui-monospace,Menlo,monospace" font-size="8" fill="${bundle.roles.accent.hex}" text-anchor="middle">x</text>
+        <path d="M${PX(0)} ${PY(th / 2)}H${PX(x)}"/><path d="M${PX(0)} ${PY(th / 2) - 5}v10"/><path d="M${PX(x)} ${PY(th / 2) - 5}v10"/></g>
+      <text x="${PX(x / 2)}" y="${PY(th / 2) - 9}" font-family="ui-monospace,Menlo,monospace" font-size="8" fill="${bundle.roles.accent.hex}" text-anchor="middle">x</text>
       <text x="${S / 2}" y="${S + 14}" font-family="ui-monospace,Menlo,monospace" font-size="8" fill="${line}" text-anchor="middle">x = ${x} units · ${bundle.clearSpaceRatio} of the mark's height</text>
     </svg>`;
   }

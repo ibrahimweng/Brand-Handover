@@ -92,12 +92,25 @@ function iconFloor(measured, rules) {
   if (thin == null || !(long > 0)) return null;
   const paints = (size) => (thin * size * ICON_SAFE_AREA) / long;
   const smallest = Math.ceil((rules.minStrokePx * long) / (thin * ICON_SAFE_AREA));
+  // An icon is square and a logotype is not. The mark is inset to fit its
+  // longest side, so a wordmark four times wider than it is tall is drawn at a
+  // quarter of the height a square mark would get and covers a tenth of the
+  // icon. The stroke rule catches the consequence — everything in it is thinner
+  // — but says the artwork needs redrawing heavier, which is not advice you can
+  // take about a word. What a logotype identity needs for square contexts is a
+  // device, and nothing was saying so.
+  const short = Math.min(measured.markInk.w, measured.markInk.h);
+  const aspect = long / short;
+  const coverage = ICON_SAFE_AREA * ICON_SAFE_AREA * (short / long);
   const look = (prefix, sizes) => (sizes || []).map((size) =>
     ({ name: `${prefix}-${size}.png`, size, at: svgu.round(paints(size), 2) }));
   const icons = look('icon', rules.iconSizes);
   const favicons = look('favicon', rules.faviconSizes);
   return {
     smallest,
+    aspect: svgu.round(aspect, 2),
+    coverage: svgu.round(coverage * 100, 1),      // per cent of the square the artwork's box fills
+    squarish: aspect < 2,                          // beyond this a square icon wastes most of itself
     thinIcons: icons.filter((i) => i.at < rules.minStrokePx),
     thinFavicons: favicons.filter((i) => i.at < rules.minStrokePx),
     clears: icons.concat(favicons).filter((i) => i.at >= rules.minStrokePx).map((i) => i.name),

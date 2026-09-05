@@ -25,7 +25,15 @@ function load(file) {
 
   const problems = [];
   if (!raw.brand) problems.push('the project has no "brand" name');
-  if (!raw.assets || !raw.assets.mark) problems.push('the project does not say where the master mark is (assets.mark)');
+  // An identity does not have to have a symbol. Google, FedEx, Braun and most
+  // of the publishing world are a logotype and nothing else, and every one of
+  // the twelve projects here happened to have both — so the engine refused the
+  // commonest kind of identity there is, naming a missing field rather than the
+  // problem, with nothing to do about it. Either asset may be the master.
+  if (!raw.assets || (!raw.assets.mark && !raw.assets.wordmark)) {
+    problems.push('the project does not say where the master artwork is. Set assets.mark for a '
+      + 'symbol, assets.wordmark for a logotype, or both.');
+  }
   if (!raw.rules || !Array.isArray(raw.rules.colourways) || !raw.rules.colourways.length) {
     problems.push('the project defines no colourways (rules.colourways)');
   }
@@ -144,9 +152,21 @@ function load(file) {
     if (!fs.existsSync(p)) throw new Error(`the project points at ${rel} for the ${key}, and that file is not there`);
     assets[key] = { path: p, source: fs.readFileSync(p, 'utf8') };
   }
-  if (rules.lockups.some((l) => l === 'horizontal' || l === 'stacked' || l === 'wordmark') && !assets.wordmark) {
-    throw new Error('this project asks for a lockup that needs a wordmark, but assets.wordmark is not set');
+  const needs = { horizontal: ['mark', 'wordmark'], stacked: ['mark', 'wordmark'], mark: ['mark'], wordmark: ['wordmark'] };
+  for (const l of rules.lockups) {
+    const want = (needs[l] || []).filter((a) => !assets[a]);
+    if (!want.length) continue;
+    throw new Error(`this project asks for the ${l} lockup, which needs `
+      + `${want.map((a) => `assets.${a}`).join(' and ')}, and ${want.length > 1 ? 'they are' : 'it is'} not set. `
+      + `With ${Object.keys(assets).map((a) => `assets.${a}`).join(' and ')} the lockups available are `
+      + `${Object.keys(needs).filter((k) => needs[k].every((a) => assets[a])).join(', ') || 'none'}.`);
   }
+
+  // Which asset every measurement is taken from. With both, it is the mark, as
+  // it always was; with only a logotype, it is the logotype. Sixteen places in
+  // the engine reached for assets.mark meaning "the master", which is the same
+  // thing right up until a project has no symbol.
+  const master = assets.mark ? 'mark' : 'wordmark';
 
   // Every piece of artwork goes through the normaliser before anything measures
   // it, so a messy export is caught here rather than halfway through a build.
@@ -169,8 +189,11 @@ function load(file) {
   // here, which meant every rule override in a project file was read as absent
   // and the defaults quietly won. Nothing complained, because a default is a
   // perfectly good answer right up until somebody wanted a different one.
-  return { brand: raw.brand, latinName, language, direction, version: raw.version || '0.0.0', dir, tokens, assets, rules,
+  return { brand: raw.brand, latinName, language, direction, version: raw.version || '0.0.0', dir, tokens, assets, rules, master,
     system: raw.system || {}, content: raw.content || {}, report };
 }
 
-module.exports = { load, DEFAULTS };
+// The artwork every measurement is taken from.
+const masterOf = (project) => project.assets[project.master || (project.assets.mark ? 'mark' : 'wordmark')];
+
+module.exports = { masterOf, load, DEFAULTS };

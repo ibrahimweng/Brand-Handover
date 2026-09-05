@@ -7,6 +7,7 @@ const naming = require('./naming');
 const { buildVariant, measure } = require('./variants');
 const exp = require('./export');
 const contrast = require('./contrast');
+const { masterOf } = require('./project');
 
 async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   const measured = measure(project);
@@ -162,7 +163,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   const keptSlots = new Set();     // slots a colourway left painted as the master drew them
   const rgbShaded = [];            // PDFs carrying a gradient, which jsPDF writes as DeviceRGB
   const gradientSlots = new Set([
-    ...svgu.gradientSlots(svgu.parse(project.assets.mark.source)),
+    ...(project.assets.mark ? svgu.gradientSlots(svgu.parse(project.assets.mark.source)) : []),
     ...(project.assets.wordmark ? svgu.gradientSlots(svgu.parse(project.assets.wordmark.source)) : []),
   ]);
   // what the master itself paints each slot, so a slot nobody recoloured can be
@@ -179,7 +180,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   for (const lockup of rules.lockups) {
     for (const colourway of rules.colourways) {
       const v = buildVariant({
-        markSrc: project.assets.mark.source,
+        markSrc: project.assets.mark && project.assets.mark.source,
         wordmarkSrc: project.assets.wordmark && project.assets.wordmark.source,
         lockup, colourway, rules, measured,
       });
@@ -221,7 +222,9 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   }
 
   // ---- icons, favicons and social crops, all cut from the same master ----
-  const mark = project.assets.mark.source;
+  // icons are cut from the master, which for a logotype identity is the
+  // logotype: there is no symbol to cut
+  const mark = masterOf(project).source;
   const iconInk = rules.iconInk || '#FFFFFF';
   const iconBg = rules.iconBg || '#000000';
   const favPngs = [];
@@ -255,8 +258,22 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       + `${list}. They are in the package because the sizes were asked for, but the mark will read as `
       + `a smudge at them: this artwork needs ${icons.smallest} px square before it holds together`
       + `${icons.clears.length ? `, so only ${icons.clears.join(' and ')} come out of it clean` : `, and nothing asked for is that big`}. `
-      + `Draw a simplified icon mark — fewer parts, heavier strokes — and run `
-      + `\`check <icon.svg> --icon\` against it, which measures the same thing and will say when it clears.`);
+      + (icons.squarish
+        ? `Draw a simplified icon mark — fewer parts, heavier strokes — and run `
+          + `\`check <icon.svg> --icon\` against it, which measures the same thing and will say when it clears.`
+        : `The shape is the reason: this artwork is ${icons.aspect} times longer than it is deep, and an `
+          + `icon is square, so it is drawn to fit its longest side and fills ${icons.coverage}% of the `
+          + `square where a square mark fills about 46%. No amount of thickening fixes that. Draw a `
+          + `device for square places — a monogram, an initial, the part of the mark that stands alone — `
+          + `and run \`check <icon.svg> --icon\` against it.`));
+  } else if (!icons.squarish) {
+    // it clears the stroke rule and still wastes seven eighths of the square:
+    // Kvist has shipped that way since the round it arrived, and Spire since
+    // the round after the one that made the artwork's shape visible at all
+    warnings.push(`the icons are square and this artwork is ${icons.aspect} times longer than it is `
+      + `deep, so it fills ${icons.coverage}% of an icon where a square mark fills about 46%. Every icon `
+      + `and favicon in the package is mostly background. Draw a device for square places — a monogram, `
+      + `an initial, the part of the mark that stands alone — and run \`check <icon.svg> --icon\` against it.`);
   }
 
   // ---- what became of the artwork's own paint ----
@@ -356,6 +373,9 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       // icon under it means the artwork is too fine for the size it was cut at.
       icons: icons.smallest == null ? null : {
         smallestSquarePx: icons.smallest,
+        // an icon is square; how much of it this artwork's shape can use
+        aspect: icons.aspect,
+        fillsPercent: icons.coverage,
         clears: icons.clears,
         under: icons.thinIcons.concat(icons.thinFavicons)
           .map((i) => ({ file: i.name, paintsAtPx: i.at })),
@@ -369,22 +389,41 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       motion: sys.motion,
       photography: sys.photography,
     },
-    generated: { measuredFrom: path.basename(project.assets.mark.path), files: written.length + 1,
+    generated: { measuredFrom: path.basename(masterOf(project).path), files: written.length + 1,
       builtUnder: licence && licence.ok ? { plan: licence.licence.plan, fingerprint: lic0.fingerprint(licence.licence) } : null },
   };
   write('brand.json', JSON.stringify(brandJson, null, 2));
 
+  // What each folder is for depends on what else the identity has. A wordmark
+  // beside a symbol is the fallback below the mark's floor; a wordmark that is
+  // the whole identity is the logo.
+  const lockupLines = (lockups, assets) => {
+    const alone = !assets.mark;
+    const why = {
+      horizontal: 'the default. Use this unless the space is too narrow.',
+      stacked: 'when the space is narrower than it is tall.',
+      mark: 'avatars, app icons, and anywhere the name is already present.',
+      wordmark: alone
+        ? 'the logotype, which is the whole identity. Everything else is cut from it.'
+        : 'below the minimum size, where the mark stops reading.',
+    };
+    return lockups.filter((l) => why[l])
+      .map((l) => `  ${naming.folderFor(l).padEnd(15)} ${why[l]}`);
+  };
+
   const readme = [
     `${project.brand} logo package`, '='.repeat(`${project.brand} logo package`.length), '',
-    `Every file here was cut from ${path.basename(project.assets.mark.path)} at the moment this package`,
+    `Every file here was cut from ${path.basename(masterOf(project).path)} at the moment this package`,
     'was built. Nothing was drawn or renamed by hand, so no old variant can be',
     'hiding in a folder.', '',
     'Which file to use',
     '-----------------',
-    '  01-horizontal   the default. Use this unless the space is too narrow.',
-    '  02-stacked      when the space is narrower than it is tall.',
-    '  03-mark         avatars, app icons, and anywhere the name is already present.',
-    '  04-wordmark     below the minimum size, where the mark stops reading.', '',
+    // Four hardcoded lines, in a package that writes the lockups the project
+    // asks for. Eleven of the thirteen projects here do not ask for all four,
+    // so eleven read mes named folders that are not in the package — Cusp's
+    // named three of them. The read me now lists what was written, and says
+    // what each one is for given what else is beside it.
+    ...lockupLines(rules.lockups, project.assets), '',
     'Rules that travel with it',
     '-------------------------',
     `  Clear space     ${measured.clearSpace} units on every side, which is ${rules.clearSpaceRatio} of the mark's height.`,

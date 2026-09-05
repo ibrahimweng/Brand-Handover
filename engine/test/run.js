@@ -3525,6 +3525,239 @@ test('"keep" is a word the project file may use, and a typo still is not', () =>
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+// Twelve identities, and every one of them had both a mark and a wordmark.
+// A logotype and nothing else — Google, FedEx, Braun, most of publishing — is
+// the commonest kind of identity there is, and the engine refused it outright.
+const MW = projectLoader.load(path.join(__dirname, '..', 'projects', 'marlow', 'project.json'));
+const mwM = measure(MW);
+
+test('an identity may be a logotype and nothing else', () => {
+  assert.deepStrictEqual(Object.keys(MW.assets), ['wordmark']);
+  assert.strictEqual(MW.master, 'wordmark');
+  assert.strictEqual(mwM.master, 'wordmark');
+  // every measurement comes off the logotype, because there is nothing else
+  assert.strictEqual(projectLoader.masterOf(MW).path, MW.assets.wordmark.path);
+  assert.deepStrictEqual(mwM.markInk, geo.inkBox(MW.assets.wordmark.source));
+  assert.ok(mwM.minimumSize.screenPx > 0 && mwM.clearSpace > 0);
+  // and a project with both is measured off the mark, exactly as before
+  for (const [proj, meas] of [[project, m], [KV, kvM], [VE, veM]]) {
+    assert.strictEqual(meas.master, 'mark');
+    assert.deepStrictEqual(meas.markInk, geo.inkBox(proj.assets.mark.source));
+  }
+});
+
+test('a lockup that needs an asset the project has not got is refused by name', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-lock-'));
+  fs.copyFileSync(path.join(__dirname, '..', 'projects', 'marlow', 'wordmark.svg'), path.join(dir, 'wordmark.svg'));
+  const raw = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'projects', 'marlow', 'project.json'), 'utf8'));
+  const write = (mut) => {
+    const d = JSON.parse(JSON.stringify(raw)); mut(d);
+    const f = path.join(dir, 'p.json'); fs.writeFileSync(f, JSON.stringify(d)); return f;
+  };
+  for (const lockup of ['horizontal', 'stacked', 'mark']) {
+    assert.throws(() => projectLoader.load(write((d) => { d.rules.lockups = [lockup]; })),
+      (e) => new RegExp(`the ${lockup} lockup`).test(e.message) && /assets\.mark/.test(e.message)
+        && /the lockups available are wordmark/.test(e.message),
+      `${lockup} was not refused in words`);
+  }
+  // and an identity with neither asset says what to set, rather than naming one field
+  assert.throws(() => projectLoader.load(write((d) => { d.assets = {}; })),
+    (e) => /where the master artwork is/.test(e.message)
+      && /assets\.mark for a symbol/.test(e.message) && /assets\.wordmark for a logotype/.test(e.message));
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('the construction drawing puts the artwork where it says it is', () => {
+  // the artwork was placed at the top left of the canvas and then drawn in its
+  // own coordinates, so a viewBox that does not start at 0 0 put it somewhere
+  // else entirely. Nine units out for Kvist since it arrived; for a logotype,
+  // whose box starts 94 units above the baseline, the whole drawing landed
+  // outside its own grid.
+  const b = require('../src/documents/blocks');
+  const docs = require('../src/documents');
+  const all = [[project, m], [KV, kvM], [HW, hwM], [SP, spM], [VE, veM], [TH, measure(TH)], [MW, mwM]];
+  for (const [proj, meas] of all) {
+    const dia = b.construction(docs.context(proj, meas, [], {}), { ink: '#000000', line: '#000000' });
+    const head = /<svg viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(dia);
+    const defs = /(<defs>[^]*?<\/defs>)/.exec(dia)[1];
+    const i = dia.indexOf('<g clip-path'), j = dia.indexOf('<text', i);
+    const art = dia.slice(i, dia.lastIndexOf('</g>', j) + 4);
+    const painted = geo.inkBox(`<svg xmlns="${svgu.NS}" viewBox="0 0 ${head[1]} ${head[2]}">${defs}${art}</svg>`);
+    const dash = /<rect x="([-\d.]+)" y="([-\d.]+)" width="([\d.]+)" height="([\d.]+)"[^>]*dasharray/.exec(dia)
+      .slice(1).map(Number);
+    for (const [i2, got] of [painted.x, painted.y, painted.w, painted.h].entries()) {
+      assert.ok(Math.abs(got - dash[i2]) < 1,
+        `${proj.brand}: the ink box is drawn at ${dash.join(',')} and the artwork paints at `
+        + `${[painted.x, painted.y, painted.w, painted.h].join(',')}`);
+    }
+  }
+});
+
+test('the construction drawing shows what the package contains, and no more', () => {
+  // everything the engine writes is clipped to the artboard, because that is
+  // what a viewBox does. This drawing was not, so Thornbury's bar reaching 14
+  // units past its box — left in on purpose — was drawn here complete, through
+  // the very rectangle labelled as the box.
+  const b = require('../src/documents/blocks');
+  const docs = require('../src/documents');
+  const dia = b.construction(docs.context(TH, measure(TH), [], {}), { ink: '#000000', line: '#000000' });
+  assert.ok(/clip-path="url\(#/.test(dia), 'the drawing does not clip to the artboard');
+  const vb = measure(TH).markViewBox;
+  const clip = /<clipPath id="[^"]+"><rect x="([-\d.]+)" y="([-\d.]+)" width="([\d.]+)" height="([\d.]+)"/.exec(dia);
+  assert.ok(clip, 'no clip rectangle');
+  const box = /<rect x="([-\d.]+)" y="([-\d.]+)" width="([\d.]+)" height="([\d.]+)" fill="none"/.exec(dia);
+  // the clip is the box outline, exactly: the drawing cannot show more than the
+  // rectangle it labels as the artboard
+  assert.deepStrictEqual(clip.slice(1, 5), box.slice(1, 5));
+  assert.ok(vb.w > 0);
+});
+
+test('the smallest size specimen is drawn where it can be seen', () => {
+  // it painted a brand colourway onto a stage the colour of the page, and the
+  // page flips with the reader's light or dark setting. Eight of the thirteen
+  // projects drew this block at under 1.1 to 1 in light mode: three blank
+  // rectangles where the diagram that says how small the mark may go should be.
+  const b = require('../src/documents/blocks');
+  const docs = require('../src/documents');
+  const all = [[project, m], [HAL, measure(HAL)], [KV, kvM], [HW, hwM], [NL, measure(NL)],
+    [TH, measure(TH)], [SP, spM], [VE, veM], [MW, mwM]];
+  for (const [proj, meas] of all) {
+    const ctx = docs.context(proj, meas, [], {});
+    const html = b.minimumSize(ctx);
+    const grounds = [...html.matchAll(/class="stage tight" style="background:(#[0-9A-Fa-f]{6})"/g)].map((x) => x[1]);
+    assert.strictEqual(grounds.length, 3, `${proj.brand}: the specimen has no ground of its own`);
+    assert.strictEqual(new Set(grounds).size, 1, `${proj.brand}: three grounds for one specimen`);
+    const shown = b.showOn(ctx);
+    assert.strictEqual(grounds[0], shown.ground.hex);
+    assert.ok(b.worstOn(shown.colourway, grounds[0], ctx) >= b.SEEN,
+      `${proj.brand}: the specimen is drawn at ${b.worstOn(shown.colourway, grounds[0], ctx)} to 1`);
+  }
+});
+
+test('the read me lists the folders the package has, not four fixed ones', async () => {
+  // eleven of the thirteen projects do not ask for all four lockups, and every
+  // one of their read mes named folders that are not in the package
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-readme-'));
+  const r = await build(MW, dir);
+  const txt = fs.readFileSync(path.join(dir, 'README.txt'), 'utf8');
+  const listed = [...txt.matchAll(/^ {2}(\d\d-[a-z]+)/gm)].map((x) => x[1]);
+  const onDisk = fs.readdirSync(dir).filter((f) => /^\d\d-/.test(f) && !/icons|social/.test(f));
+  assert.deepStrictEqual(listed, ['04-wordmark']);
+  assert.deepStrictEqual(listed.slice().sort(), onDisk.slice().sort());
+  // and it says what a logotype is, rather than calling it a fallback for a
+  // symbol the identity has not got
+  assert.ok(/the logotype, which is the whole identity/.test(txt), txt.split('\n').slice(6, 12).join('\n'));
+  fs.rmSync(dir, { recursive: true, force: true });
+
+  // a project with all four still lists all four, in order
+  const dir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-readme2-'));
+  const r2 = await build(project, dir2);
+  const t2 = fs.readFileSync(path.join(dir2, 'README.txt'), 'utf8');
+  assert.deepStrictEqual([...t2.matchAll(/^ {2}(\d\d-[a-z]+)/gm)].map((x) => x[1]),
+    ['01-horizontal', '02-stacked', '03-mark', '04-wordmark']);
+  assert.ok(/below the minimum size, where the mark stops reading/.test(t2));
+  assert.ok(r.written.length && r2.written.length);
+  fs.rmSync(dir2, { recursive: true, force: true });
+});
+
+test('an icon is square, and artwork that is not is told so', () => {
+  // the icon check measured stroke weight and never asked whether the artwork
+  // is the right shape for a square. Kvist and Spire fill under a tenth of
+  // every icon in their packages and nothing said a word.
+  const exp = require('../src/export');
+  const wide = [[KV, kvM], [SP, spM], [MW, mwM]];
+  for (const [proj, meas] of wide) {
+    const f = exp.iconFloor(meas, proj.rules);
+    assert.ok(f.aspect > 2 && !f.squarish, `${proj.brand}: aspect ${f.aspect}`);
+    assert.ok(f.coverage < 15, `${proj.brand}: fills ${f.coverage}% of an icon`);
+  }
+  for (const [proj, meas] of [[project, m], [VE, veM], [HW, hwM]]) {
+    const f = exp.iconFloor(meas, proj.rules);
+    assert.ok(f.squarish && f.coverage > 40, `${proj.brand}: fills ${f.coverage}%`);
+  }
+  // the arithmetic: a square mark fills safeArea squared, and a long one loses
+  // the ratio of its sides on top of that
+  const f = exp.iconFloor(mwM, MW.rules);
+  const want = exp.ICON_SAFE_AREA * exp.ICON_SAFE_AREA * (1 / f.aspect) * 100;
+  assert.ok(Math.abs(f.coverage - want) < 0.2, `${f.coverage} against ${want.toFixed(1)}`);
+});
+
+test('a wide mark is told to draw a device, not to thicken its strokes', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-dev-'));
+  const r = await build(MW, dir);
+  const w = r.warnings.find((x) => /icon/.test(x) && /device for square places/.test(x));
+  assert.ok(w, 'a logotype was told to draw heavier strokes');
+  assert.ok(/3\.84 times longer than it is deep/.test(w), w);
+  assert.ok(/fills 12\.1% of the square/.test(w), w);
+  assert.ok(!/heavier strokes/.test(w), 'it still says to thicken a word');
+  const bj = JSON.parse(fs.readFileSync(path.join(dir, 'brand.json'), 'utf8'));
+  assert.strictEqual(bj.logo.icons.aspect, 3.84);
+  assert.strictEqual(bj.logo.icons.fillsPercent, 12.1);
+  fs.rmSync(dir, { recursive: true, force: true });
+
+  // a square mark keeps the advice it always had, and gains no warning
+  const dir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-dev2-'));
+  const r2 = await build(HW, dir2);
+  const w2 = r2.warnings.find((x) => /app icons? (was|were) written/.test(x));
+  assert.ok(w2 && /heavier strokes/.test(w2), w2);
+  assert.ok(!r2.warnings.some((x) => /device for square places/.test(x)));
+  fs.rmSync(dir2, { recursive: true, force: true });
+});
+
+test('a manual for a logotype does not keep talking about a mark', () => {
+  const docs = require('../src/documents');
+  assert.strictEqual(docs.context(MW, mwM, [], {}).noun, 'logotype');
+  assert.strictEqual(docs.context(project, m, [], {}).noun, 'mark');
+  const html = docs.guidelines(docs.context(MW, mwM, [], {}));
+  assert.ok(/<h2>The logotype<\/h2>/.test(html));
+  assert.ok(!/The primary mark/.test(html));
+  assert.ok(/of the logotype's height/.test(html));
+  // and one that has a mark is untouched
+  const mer = docs.guidelines(docs.context(project, m, [], {}));
+  assert.ok(/<h2>The mark<\/h2>/.test(mer) && /The primary mark/.test(mer));
+  assert.ok(/of the mark's height/.test(mer));
+});
+
+test('both renderers draw the same diagram', () => {
+  // the manual and the canvas each draw construction and clear space, and three
+  // fixes made in the manual's copy were never made in the canvas's: the
+  // artwork's origin, the clip to the artboard, and a clear space box drawn
+  // square around artwork that is not. Pin the geometry of the two together so
+  // the next fix cannot land in only one of them.
+  const b = require('../src/documents/blocks');
+  const docs = require('../src/documents');
+  const ER2 = require('../src/editor/render');
+  const num = (re, s2) => { const x = re.exec(s2); return x ? x.slice(1).map(Number) : null; };
+  const all = [[project, m], [KV, kvM], [HW, hwM], [SP, spM], [VE, veM], [MW, mwM], [TH, measure(TH)]];
+  for (const [proj, meas] of all) {
+    const ctx = docs.context(proj, meas, [], {});
+    const bu = bundleOf(proj, meas);
+    const cwName = proj.rules.colourways[0].name;
+    const doc1 = b.construction(ctx, { ink: '#000000', line: '#000000' });
+    const can1 = ER2.construction(bu, cwName, '#000000');
+    // both clip to the artboard
+    assert.ok(/clip-path="url\(#/.test(doc1) && /clip-path="url\(#/.test(can1), `${proj.brand}: clip`);
+    // and both subtract the artwork's own origin, or neither needs to
+    const off = (h) => (/scale\([\d.]+\) translate\((-?[\d.]+) (-?[\d.]+)\)/.exec(h) || [0, 0, 0]).slice(1).map(Number);
+    assert.deepStrictEqual(off(doc1), off(can1), `${proj.brand}: the two place the artwork differently`);
+    const vb = meas.markViewBox;
+    assert.deepStrictEqual(off(doc1).map(Number), [-vb.x || 0, -vb.y || 0], `${proj.brand}: origin`);
+
+    // clear space: both draw a box the shape of the ink box grown by 2x
+    const doc2 = b.clearSpace(ctx, { ink: '#000000', line: '#000000' });
+    const can2 = ER2.clearSpace(bu, cwName, '#000000');
+    const shapeOf = (h) => {
+      const r = num(/<rect x="[-\d.]+" y="[-\d.]+" width="([\d.]+)" height="([\d.]+)"[^>]*dasharray/, h);
+      return +(r[0] / r[1]).toFixed(3);
+    };
+    const want = +(((meas.markInk.w + meas.clearSpace * 2) / (meas.markInk.h + meas.clearSpace * 2))).toFixed(3);
+    for (const [name, h] of [['manual', doc2], ['canvas', can2]]) {
+      assert.ok(Math.abs(shapeOf(h) - want) < 0.01,
+        `${proj.brand}: the ${name} draws clear space at ${shapeOf(h)} where the ink box wants ${want}`);
+    }
+  }
+});
+
 drain().then(() => {
   for (const d of [out, out2]) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);

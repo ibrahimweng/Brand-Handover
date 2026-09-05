@@ -13,10 +13,15 @@ const TXT = 'font-family="ui-monospace, Menlo, monospace" font-size="8"';
 const esc = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+// Which asset a block means when it says "the mark". With both, the symbol; for
+// a logotype identity there is no symbol, and the master is the logotype.
+const artOf = (ctx, which) =>
+  ctx.project.assets[which || ctx.measured.master || (ctx.project.assets.mark ? 'mark' : 'wordmark')];
+
 // A silhouette: every slot in one colour. Right for the diagrams, where the
 // point is the geometry and a second ink would only be noise.
-function inked(ctx, hex, which = 'mark') {
-  const doc = svgu.parse(ctx.project.assets[which].source);
+function inked(ctx, hex, which) {
+  const doc = svgu.parse(artOf(ctx, which).source);
   svgu.applyColourway(doc, Object.fromEntries(ctx.measured.slots.map((s) => [s, hex])));
   return svgu.serialize(doc);
 }
@@ -43,9 +48,9 @@ function scaled(svg, width, css) {
 // it. A mark with two inks in it is not the same mark drawn in one, and
 // flattening it was invisible until a project arrived that had two — which is
 // what one project's worth of testing buys you.
-function asColourway(ctx, colourway, which = 'mark') {
+function asColourway(ctx, colourway, which) {
   const cw = colourway || ctx.primaryColourway;
-  const doc = svgu.parse(ctx.project.assets[which].source);
+  const doc = svgu.parse(artOf(ctx, which).source);
   svgu.applyColourway(doc, cw.slots);
   return svgu.serialize(doc);
 }
@@ -198,11 +203,30 @@ function construction(ctx, opts = {}) {
     const gx = X(vb.x + (vb.w / 6) * i), gy = Y(vb.y + (vb.h / 6) * i);
     grid.push(`<path d="M${gx} ${Y(vb.y)}V${Y(vb.y + vb.h)}"/><path d="M${X(vb.x)} ${gy}H${X(vb.x + vb.w)}"/>`);
   }
+  // Two things this drawing used to get wrong, both invisible until a master
+  // arrived whose viewBox does not begin at 0 0.
+  //
+  // The artwork is drawn in its own coordinates, and the group placed the top
+  // left of the viewBox at the top left of the canvas and then let the artwork
+  // fall wherever its own numbers put it — nine units out for Kvist since the
+  // round it arrived, and for a logotype, whose box starts 94 units above the
+  // baseline, the whole drawing landed outside its own grid. The clear space
+  // diagram beside this one has always subtracted the origin; this one never
+  // did.
+  //
+  // Everything the engine delivers is clipped to the artboard, because that is
+  // what a viewBox does. This drawing was not, so a mark with anything outside
+  // its box — Thornbury has a bar reaching 14 units past it, left in on purpose
+  // — was drawn here complete, sticking out through the very rectangle labelled
+  // as the box, under a caption saying what it fills. The manual showed a shape
+  // that is in no file in the package.
+  const clip = `c${Math.abs(Math.round(vb.x * 7 + vb.y * 13 + vb.w * 3 + vb.h))}`;
   return `<svg viewBox="0 0 ${W} ${H + CAP}" class="dia" role="img" aria-label="The mark on its construction grid, showing the ${vb.w} unit box, the ${ink.w} by ${ink.h} area it actually fills, and the margin between them.">
+    <defs><clipPath id="${clip}"><rect x="${X(vb.x)}" y="${Y(vb.y)}" width="${svgu.round(vb.w * k)}" height="${svgu.round(vb.h * k)}"/></clipPath></defs>
     <g stroke="${line}" stroke-width=".5" opacity=".22">${grid.join('')}</g>
     <rect x="${X(vb.x)}" y="${Y(vb.y)}" width="${svgu.round(vb.w * k)}" height="${svgu.round(vb.h * k)}" fill="none" stroke="${line}" stroke-width=".9" opacity=".55"/>
     <rect x="${X(ink.x)}" y="${Y(ink.y)}" width="${svgu.round(ink.w * k)}" height="${svgu.round(ink.h * k)}" fill="none" stroke="${ctx.accent.hex}" stroke-width="1" stroke-dasharray="4 3"/>
-    <g transform="translate(${X(vb.x)} ${Y(vb.y)}) scale(${svgu.round(k, 6)})">${svgu.innerXML(svgu.parse(inked(ctx, paint)))}</g>
+    <g clip-path="url(#${clip})"><g transform="translate(${X(vb.x)} ${Y(vb.y)}) scale(${svgu.round(k, 6)})${vb.x || vb.y ? ` translate(${-vb.x} ${-vb.y})` : ''}">${svgu.innerXML(svgu.parse(inked(ctx, paint)))}</g></g>
     <text x="${W / 2}" y="16" ${TXT} fill="${line}" text-anchor="middle">${vb.w} unit box</text>
     <text x="${W / 2}" y="${H + 16}" ${TXT} fill="${ctx.accent.hex}" text-anchor="middle">fills ${ink.w} × ${ink.h} · ${ctx.measured.minimumSize.from === 'stem' ? 'narrowest stem' : 'stroke'} ${ctx.measured.minimumSize.thinnestStroke}</text>
   </svg>`;
@@ -218,26 +242,34 @@ function clearSpace(ctx, opts = {}) {
   // 228 by 49, where the manual then showed a rule nobody could follow.
   const tw = ink.w + x * 2, th = ink.h + x * 2;
   const S = 260, CAP = 22, k = S / (Math.max(tw, th) * 1.12);
-  const csCap = `x = ${x} units · ${ctx.project.rules.clearSpaceRatio} of the mark's height`;
+  const csCap = `x = ${x} units · ${ctx.project.rules.clearSpaceRatio} of the ${ctx.noun || 'mark'}'s height`;
   const W = svgu.round(roomFor(tw * k + (S - Math.max(tw, th) * k), csCap));
   const H = svgu.round(th * k + (S - Math.max(tw, th) * k));
   const ox = (W - tw * k) / 2, oy = (H - th * k) / 2;
   const PX = (v) => svgu.round(ox + v * k), PY = (v) => svgu.round(oy + v * k);
-  return `<svg viewBox="0 0 ${W} ${H + CAP}" class="dia" role="img" aria-label="Clear space of ${x} units on every side, which is ${ctx.project.rules.clearSpaceRatio} of the mark's height.">
+  return `<svg viewBox="0 0 ${W} ${H + CAP}" class="dia" role="img" aria-label="Clear space of ${x} units on every side, which is ${ctx.project.rules.clearSpaceRatio} of the ${ctx.noun || 'mark'}'s height.">
     <rect x="${PX(0)}" y="${PY(0)}" width="${svgu.round(tw * k)}" height="${svgu.round(th * k)}" fill="none" stroke="${line}" stroke-width="1" stroke-dasharray="4 3" opacity=".5"/>
     <g transform="translate(${PX(x)} ${PY(x)}) scale(${svgu.round(k, 6)}) translate(${-ink.x} ${-ink.y})">${svgu.innerXML(svgu.parse(inked(ctx, paint)))}</g>
     <g stroke="${ctx.accent.hex}" stroke-width="1.1">
       <path d="M${PX(0)} ${PY(th / 2)}H${PX(x)}"/><path d="M${PX(0)} ${PY(th / 2) - 5}v10"/><path d="M${PX(x)} ${PY(th / 2) - 5}v10"/>
     </g>
     <text x="${PX(x / 2)}" y="${PY(th / 2) - 9}" ${TXT} fill="${ctx.accent.hex}" text-anchor="middle">x</text>
-    <text x="${W / 2}" y="${H + 14}" ${TXT} fill="${line}" text-anchor="middle">x = ${x} units · ${ctx.project.rules.clearSpaceRatio} of the mark's height</text>
+    <text x="${W / 2}" y="${H + 14}" ${TXT} fill="${line}" text-anchor="middle">x = ${x} units · ${ctx.project.rules.clearSpaceRatio} of the ${ctx.noun || 'mark'}'s height</text>
   </svg>`;
 }
 
 function minimumSize(ctx) {
   const m = ctx.measured.minimumSize;
   const steps = m.steps || [];
-  const art = asColourway(ctx, onGround(ctx, ctx.ground.name));
+  // The specimen was painted in the colourway cut for the brand's ground and
+  // then stood on a stage the colour of the page — and the page flips with the
+  // reader's light or dark setting, so no fixed ink reads on both. Eight of the
+  // thirteen projects here drew this block at under 1.1 to 1 in light mode:
+  // three blank rectangles where the one diagram that says how small the mark
+  // may go should be. The misuse grid was fixed this way rounds ago; this block
+  // was left with the same fault.
+  const on = showOn(ctx);
+  const art = asColourway(ctx, on.colourway);
   // Draw each step at its true size where the column has room, and at its share
   // of the column where it has not, so the three are either all life-size or all
   // shrunk by one factor. `svg{max-width:100%}` capped them one at a time, which
@@ -246,7 +278,7 @@ function minimumSize(ctx) {
   const big = steps.length ? steps[0].px : 1;
   const room = (w) => `min(${w}px,${svgu.round((w / big) * 100, 2)}%)`;
   return `<div class="row3">` + steps.map((s) =>
-    `<figure><div class="stage tight">${scaled(art, s.px, room(s.px))}</div>
+    `<figure><div class="stage tight" style="background:${on.ground.hex}">${scaled(art, s.px, room(s.px))}</div>
      <figcaption>${esc(s.caption)} · ${s.label}</figcaption></figure>`).join('') + `</div>
     <p class="note"><b>${geo.floorText(m, 'px')} on screen and ${geo.floorText(m, 'mm')} in print.</b> ${esc(m.basis)}, so holding the stroke at ${ctx.project.rules.minStrokePx} px and ${ctx.project.rules.minStrokeMm} mm puts the floor there. Move either rule and the floor moves with it.${m.squarish ? '' : ' Both figures are the width; the second is the height that goes with it.'}${big > 300 ? ` These three are in proportion to each other rather than at actual size: ${big} px is wider than this page.` : ''}</p>`;
 }
@@ -331,9 +363,8 @@ function palette(ctx) {
 // so a designer reading it could not tell which file carried the gradient, and
 // the one-colour version looked like a mistake rather than a decision.
 function gradientSpec(ctx) {
-  const gs = svgu.gradients(svgu.parse(ctx.project.assets.mark.source))
-    .concat(ctx.project.assets.wordmark
-      ? svgu.gradients(svgu.parse(ctx.project.assets.wordmark.source)) : []);
+  const gs = [ctx.project.assets.mark, ctx.project.assets.wordmark].filter(Boolean)
+    .flatMap((a) => svgu.gradients(svgu.parse(a.source)));
   if (!gs.length) return '';
   const ways = ctx.project.rules.colourways;
   return gs.map((g) => {

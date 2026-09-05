@@ -53,10 +53,18 @@ function buildVariant({ markSrc, wordmarkSrc, lockup, colourway, rules, measured
 }
 
 // Measure the master once. Every variant is derived from these numbers.
+//
+// markInk and markViewBox are the master's, whichever asset that is: an
+// identity with no symbol still has clear space, a smallest usable size and a
+// narrowest stem, and they come off the logotype. The names stay as they are
+// because every document, block and bundle reads them, and `master` says which
+// asset they were taken from.
 function measure(project) {
-  const markSrc = project.assets.mark.source;
+  const master = project.assets[project.master || (project.assets.mark ? 'mark' : 'wordmark')];
+  const markSrc = master.source;
   const markInk = geo.inkBox(markSrc);
   const out = {
+    master: project.master || (project.assets.mark ? 'mark' : 'wordmark'),
     markInk,
     markViewBox: svgu.viewBox(svgu.parse(markSrc)),
     clearSpace: geo.clearSpace(markInk, project.rules.clearSpaceRatio),

@@ -30,15 +30,18 @@ function bundle(project, measured, files = []) {
     neutral: byRole('neutral', primary),
   };
 
+  // "the mark" on the canvas is the master artwork, which for a logotype
+  // identity is the logotype: there is no symbol to fall back to
+  const masterSrc = require('../project').masterOf(project).source;
   const marks = {}, markInner = {}, variants = {};
   for (const cw of project.rules.colourways) {
-    const doc = svgu.parse(project.assets.mark.source);
+    const doc = svgu.parse(masterSrc);
     svgu.applyColourway(doc, cw.slots);
     marks[cw.name] = svgu.serialize(doc);
     markInner[cw.name] = svgu.innerXML(doc);
     for (const l of project.rules.lockups) {
       variants[`${l}:${cw.name}`] = buildVariant({
-        markSrc: project.assets.mark.source,
+        markSrc: project.assets.mark && project.assets.mark.source,
         wordmarkSrc: project.assets.wordmark && project.assets.wordmark.source,
         lockup: l, colourway: cw, rules: project.rules, measured,
       }).svg;
@@ -55,7 +58,7 @@ function bundle(project, measured, files = []) {
   const pairs = contrast.matrix(cols);
   const patternTiles = {};
   const patternRefused = [];
-  const src = project.assets.mark.source;
+  const src = masterSrc;
   const ways = [];
   for (const key of ['ground', 'primary', 'secondary', 'accent']) {
     if (!roles[key]) continue;

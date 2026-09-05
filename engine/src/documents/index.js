@@ -21,7 +21,7 @@ function context(project, measured, files, brandJson) {
   for (const l of project.rules.lockups) {
     for (const cw of project.rules.colourways) {
       variants[`${l}:${cw.name}`] = buildVariant({
-        markSrc: project.assets.mark.source,
+        markSrc: project.assets.mark && project.assets.mark.source,
         wordmarkSrc: project.assets.wordmark && project.assets.wordmark.source,
         lockup: l, colourway: cw, rules: project.rules, measured,
       }).svg;
@@ -37,7 +37,11 @@ function context(project, measured, files, brandJson) {
     || variants[Object.keys(variants)[0]]
     || null;
 
-  return { project, measured, colours, primary, ground, accent, primaryColourway,
+  // What to call the thing. An identity with no symbol has a logotype, and a
+  // manual for one that keeps saying "the mark" is describing something that
+  // is not in the package.
+  const noun = measured.master === 'wordmark' && !project.assets.mark ? 'logotype' : 'mark';
+  return { project, measured, colours, primary, ground, accent, primaryColourway, noun,
     variants, variantFor, files, brandJson, contrast: contrast.matrix(colours),
     content: project.content || {} };
 }
@@ -62,8 +66,8 @@ function guidelines(ctx) {
     <p class="sub">${b.esc(c.positioning || '')} ${b.esc(c.introduction || '')}</p>
   </header>
 
-  ${chapter('01', 'The mark',
-      sec('1.1', 'The primary mark', 'system', b.markSpecimen(ctx) + words(c.markRationale)) +
+  ${chapter('01', ctx.noun === 'mark' ? 'The mark' : 'The logotype',
+      sec('1.1', ctx.noun === 'mark' ? 'The primary mark' : 'The logotype', 'system', b.markSpecimen(ctx) + words(c.markRationale)) +
       sec('1.2', 'Construction', 'system', b.construction(ctx) + words(c.constructionNotes)) +
       sec('1.3', 'Clear space', 'system', b.clearSpace(ctx)) +
       sec('1.4', 'Minimum size', 'system', b.minimumSize(ctx)) +
@@ -87,7 +91,7 @@ function guidelines(ctx) {
         `<p class="note">Shipped beside this page so the client's own tools can read the brand instead of guessing at it.</p>` + b.brandJsonBlock(ctx)))}
 
   <footer>
-    Every measurement on this page was read off ${b.esc(require('path').basename(p.assets.mark.path))} when the package was built. None of it was typed in.<br>
+    Every measurement on this page was read off ${b.esc(require('path').basename(require('../project').masterOf(p).path))} when the package was built. None of it was typed in.<br>
     Contrast ratios follow WCAG 2.2. CMYK is converted from hex and should be soft proofed against an ICC profile before print.<br>
     ${b.esc(p.brand)} ${b.esc(p.version)} · ${ctx.files.length} files in the package.
   </footer>`;

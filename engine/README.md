@@ -9,7 +9,7 @@ around it.
 
     cd engine
     npm install
-    npm test                                            # 308 checks
+    npm test                                            # 318 checks
     node test/print-check.mjs                           # prints, and measures the paper
     node test/treatment-check.mjs                       # renders, and reads the pixels back
     node test/typst-check.mjs                           # the printed piece against the published page
@@ -33,6 +33,7 @@ around it.
     node src/cli.js build   projects/fathom/project.json    -o out-fathom
     node src/cli.js build   projects/spire/project.json     -o out-spire
     node src/cli.js build   projects/vesper/project.json    -o out-vesper
+    node src/cli.js build   projects/marlow/project.json    -o out-marlow
 
 The Meridian example writes 138 files in about six seconds, including both
 documents, the editor, the document it opens with, that document published, and
@@ -76,6 +77,10 @@ first mark in the repo that is not roughly square. See
 Vesper is the twelfth, and it is the first mark in the repo that is not flat
 colour: its ring is a three stop gradient, which is the one thing a colourway
 cannot express. See [A twelfth identity](#a-twelfth-identity).
+
+Marlow is the thirteenth, and it is a logotype and nothing else — no symbol at
+all, which the engine refused outright. See
+[A thirteenth identity](#a-thirteenth-identity).
 
 ## What it measures
 
@@ -1675,6 +1680,78 @@ mark genuinely cannot be seen — which leaves exactly one project switching,
 Ma'ayan, whose first colourway measures 2.76 to 1 on its own ground and which
 the build has warned about since the round it was added.
 
+## A thirteenth identity
+
+Thirteen rounds of varying the artwork, and every project so far had **both a
+mark and a wordmark**. An identity that is a logotype and nothing else — Google,
+FedEx, Braun, most of publishing — is arguably the commonest kind there is, and
+the engine would not build one at all:
+
+    This project file is not usable yet:
+      - the project does not say where the master mark is (assets.mark)
+
+A refusal naming a missing field rather than the problem, with nothing to do
+about it. **Marlow** is a logotype in a serif with a copper rule under it, and
+nothing else.
+
+Either asset may be the master now. With both it is the mark, exactly as before;
+with only a logotype, the logotype is what gets measured, what the icons are cut
+from, and what the read me says every file came out of. Asking for a lockup the
+project has not got the artwork for is refused by name — *"this project asks for
+the stacked lockup, which needs assets.mark, and it is not set. With
+assets.wordmark the lockups available are wordmark."*
+
+Five more came out of it, and four of them had been wrong for other projects the
+whole time.
+
+**The construction drawing put the artwork in the wrong place.** It placed the
+top left of the viewBox at the top left of the canvas and then drew the artwork
+in its own coordinates, so any master whose box does not begin at `0 0` landed
+somewhere else. Kvist has been nine units out since the round it arrived. A
+logotype's box begins 94 units *above* the baseline, so the whole drawing fell
+outside its own grid, through the rectangle labelled as the box. The clear space
+diagram beside it has always subtracted the origin; this one never did.
+
+**And it drew artwork that is in no file.** Everything the engine delivers is
+clipped to the artboard, because that is what a viewBox does. This drawing was
+not, so Thornbury's bar reaching fourteen units past its box — left in on
+purpose since the eighth round — was drawn here complete, sticking out through
+the box outline, under a caption saying what the mark fills. The manual showed a
+shape the package does not contain.
+
+**The smallest size specimen was invisible.** It painted a brand colourway onto
+a stage the colour of the page, and the page flips with the reader's light or
+dark setting, so no fixed ink reads on both. **Eight of the thirteen projects
+drew this block at under 1.1 to 1 in light mode** — three blank rectangles where
+the one diagram that says how small the mark may go should be. The misuse grid
+was fixed this way several rounds ago and this block was left with the same
+fault; it now stands on a ground of the brand's own, chosen the same way.
+
+**The read me listed four folders, always.** Written out as four fixed lines, in
+a package that writes the lockups the project asks for. **Eleven of the thirteen
+projects do not ask for all four**, so eleven read mes named folders that are not
+in the package — Cusp's named three of them. It lists what was written now, and
+says what each one is for given what else is beside it: a wordmark next to a
+symbol is the fallback below the mark's floor; a wordmark that *is* the identity
+is the logotype everything else was cut from.
+
+**An icon is square and a logotype is not.** The icon check measured stroke
+weight and never asked whether the artwork is the right shape for a square. A
+mark is inset to fit its longest side, so Marlow — 3.84 times longer than it is
+deep — fills **12% of an icon** where a square mark fills about 46%, and the
+advice the engine gave was to redraw it with heavier strokes, which is not
+advice you can take about a word. Kvist and Spire fill under a tenth of every
+icon in their packages and nothing had ever said so. The shape is now measured
+and reported, and a mark that is not square is told to draw a device — a
+monogram, an initial, the part of the mark that stands alone — rather than to
+thicken what it has.
+
+Two smaller things went with it. The manual for an identity with no symbol
+stopped calling it "the mark". And the Typst check compiled every project's
+**mark** lockup, which a logotype identity has not got: it crashed on Marlow and
+reported no failure, because a crash is not a failing check. It compiles every
+lockup a project asks for now — thirteen projects, forty checks.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.
@@ -1718,6 +1795,7 @@ the build has warned about since the round it was added.
     projects/fathom/    the tenth: the graphic language is the pattern
     projects/spire/     the eleventh: 1 to 4.7, six colour slots, a floor that is a width
     projects/vesper/    the twelfth: a gradient, which is not one colour
+    projects/marlow/    the thirteenth: a logotype, with no symbol to fall back on
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package

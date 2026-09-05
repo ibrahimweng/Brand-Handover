@@ -376,7 +376,7 @@ the measuring engine, the packager, both documents, the canvas editor,
 publishing, all three kinds of block, image slots, page sizes and the
 photography treatment, print work with bleed, CMYK, and a printed piece through
 Typst, mockups, and the licence half of accounts. 138 files from one master,
-308 tests, and eleven more identities in the repo that the engine had not been
+318 tests, and twelve more identities in the repo that the engine had not been
 written against.
 
 Three things the plan had wrong, found by building rather than by thinking.
@@ -882,6 +882,49 @@ earlier round had already made exactly this mistake with a ground colour and
 recorded the rule: keep the designer's choice unless it fails. The rule had been
 applied to the ground and not to the colourway. A lesson learned about one field
 is not learned until you go and look for the same shape in the fields beside it.
+
+**The largest gap was in the shape of the input, not its contents.** Twelve
+rounds varied what artwork is made of and how it is drawn, and every one of them
+handed the engine two files. An identity that is a logotype and nothing else is
+arguably the commonest kind there is, and it could not be built — the engine said
+so in one line naming a missing field, which reads like a rule rather than an
+oversight, and that is exactly why it survived twelve rounds. The audit that
+finds this is not about SVG features or aspect ratios: it is *how many pieces is
+the input made of, and has anything ever handed us a different number?*
+
+**A refusal is a design decision, and a refusal nobody revisits is a design
+decision nobody made.** "The project does not say where the master mark is" was
+written when a mark and a wordmark was the only shape anyone had tried. It was
+never argued for; it was the first sentence that made a test pass. Refusals age
+into architecture. Worth re-reading every one of them and asking which are
+principles and which are just the first day's assumptions with a full stop.
+
+**Four of the five defects this round were in code the new fixture merely
+walked past.** The construction drawing had placed artwork at the canvas origin
+rather than at the artwork's own — Kvist had been nine units out since the third
+round, small enough to look like a rendering artefact. The same drawing never
+clipped to the artboard, so Thornbury's deliberate overhang appeared in its
+manual and in none of its files. The size specimen stood on the page's colour
+rather than the brand's and vanished for eight of thirteen projects in light
+mode. The read me named four folders in a package that writes what it is asked
+for. None of these needed a logotype to exist; they needed something to *look*
+at them, and a new kind of input is the cheapest way to make yourself look.
+
+**Two renderers, again, and the same three fixes missing from the second one.**
+The canvas draws construction and clear space too, and the origin fix, the
+artboard clip and the round-eleven "clear space is the shape of the ink box, not
+a square" had all landed only in the manual's copy. The twelfth round recorded
+that duplication of judgement is the bug; the remedy this time was a property
+test that pins the two renderers' geometry to each other, so a fix that lands in
+one and not the other fails rather than ships.
+
+**A crash is not a failing check, and a harness that counts "ok" lines will
+report a green board for a script that died.** The Typst check compiled every
+project's *mark* lockup; a logotype identity has none, so it threw halfway
+through and the summary showed no failures at all — I only noticed because the
+count had gone down. Any check that iterates over inputs needs to fail loudly
+when an input kills it, and a count that shrinks is worth more attention than a
+count that stays the same.
 
 ---
 

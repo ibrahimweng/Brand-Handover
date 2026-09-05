@@ -71,7 +71,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 138 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 308 tests.
+of it. 318 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -374,7 +374,31 @@ readability check dropped it and never looked at the pale end of the mark at
 all. And the manual was **opening on the wrong colourway** in six of the twelve
 projects — five of them while the designer's first one read perfectly well.
 
-Still to do: a run on **your** identity job. Eleven identities the engine had not
-seen is worth a great deal more than eleven passes over one, but none of them
+The thirteenth found the biggest gap yet, and it was structural rather than
+material: every project so far had **both a mark and a wordmark**. An identity
+that is a logotype and nothing else — Google, FedEx, Braun, most of publishing —
+is arguably the commonest kind there is, and the engine refused to build one,
+naming a missing field rather than the problem. **Marlow** is a logotype and
+nothing else. Either asset can be the master now, and a lockup the project has
+not got the artwork for is refused by name with the ones it can have.
+
+Four of the five things that came out of it had been wrong for other projects
+the whole time. The **construction drawing placed the artwork at the canvas
+origin** and then drew it in its own coordinates — nine units out for Kvist since
+the round it arrived, and completely outside its own grid for a logotype, whose
+box starts above the baseline. It also **drew artwork that is in no file**,
+because it never clipped to the artboard: Thornbury's deliberate overhanging bar
+appears in its manual and in none of its deliverables. The **smallest size
+specimen was invisible** in light mode for eight of the thirteen — three blank
+rectangles where the diagram saying how small the mark may go should be. The
+**read me listed four folders always**, in a package that writes the lockups the
+project asks for; eleven of the thirteen do not ask for all four, and Cusp's read
+me named three folders it does not contain. And the **icon check never asked
+whether the artwork is the right shape for a square**: Marlow fills 12% of an
+icon where a square mark fills 46%, and the advice given was to draw heavier
+strokes, which is not advice you can take about a word.
+
+Still to do: a run on **your** identity job. Twelve identities the engine had not
+seen is worth a great deal more than twelve passes over one, but none of them
 came out of your exporter — and the normaliser is the part that most needs to
 meet one.

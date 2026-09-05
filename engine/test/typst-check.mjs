@@ -115,34 +115,41 @@ if (bin) {
     const b = bundle(p, meas, []);
     let worstNote = '';
     let ok = true;
+    // every lockup the project actually asks for: an identity that is a
+    // logotype and nothing else has no "mark" lockup to compile, and asking
+    // for one here crashed the check without failing it
+    const lockups = p.rules.lockups.slice();
     for (const cw of p.rules.colourways) {
-      const v = buildVariant({ markSrc: p.assets.mark.source,
+    for (const lockup of lockups) {
+      const v = buildVariant({ markSrc: p.assets.mark && p.assets.mark.source,
         wordmarkSrc: p.assets.wordmark && p.assets.wordmark.source,
-        lockup: 'mark', colourway: cw, rules: p.rules, measured: meas });
+        lockup, colourway: cw, rules: p.rules, measured: meas });
       const seen = new Set(); seen.unsayable = new Set();
       const body = typst.artwork(v.svg, { x: 0, y: 0, w: 160, h: 160 }, b, seen);
       const src = `#set page(width: 160pt, height: 160pt, margin: 0pt, fill: white)\n${body}\n`;
-      const f = path.join(dir, `${name}-${cw.name}.typ`);
+      const f = path.join(dir, `${name}-${cw.name}-${lockup}.typ`);
       fs.writeFileSync(f, src);
       const args = ['compile'];
       if (fonts) args.push('--font-path', fonts);
-      args.push('--format', 'png', '--ppi', '72', f, path.join(dir, `${name}-${cw.name}.png`));
+      args.push('--format', 'png', '--ppi', '72', f, path.join(dir, `${name}-${cw.name}-${lockup}.png`));
       const r = spawnSync(bin, args, { encoding: 'utf8' });
       if (r.status !== 0) {
         ok = false;
-        worstNote = `${cw.name}: ${(r.stderr || '').trim().split('\n').find((l) => /error/.test(l)) || 'did not compile'}`;
+        worstNote = `${cw.name}/${lockup}: ${(r.stderr || '').trim().split('\n').find((l) => /error/.test(l)) || 'did not compile'}`;
         break;
       }
       if (seen.unsayable.size) {
         // it compiles, and the shape goes out black: worse than not compiling,
         // because nothing stops it reaching a press
         ok = false;
-        worstNote = `${cw.name}: ${[...seen.unsayable].join(', ')} could not be said, so it was drawn in black`;
+        worstNote = `${cw.name}/${lockup}: ${[...seen.unsayable].join(', ')} could not be said, so it was drawn in black`;
         break;
       }
     }
+    if (!ok) break;
+    }
     report(ok, `${name} compiles in every colourway`,
-      worstNote || `${p.rules.colourways.length} colourway(s), nothing left unsaid`);
+      worstNote || `${p.rules.colourways.length} colourway(s) x ${lockups.length} lockup(s), nothing left unsaid`);
   }
   fs.rmSync(dir, { recursive: true, force: true });
 } else {

@@ -1,0 +1,217 @@
+{
+  "brand": "Marlow",
+  "version": "1.0.0",
+  "assets": {
+    "wordmark": "wordmark.svg"
+  },
+  "tokens": {
+    "colour": {
+      "forest": {
+        "hex": "#1B2A24",
+        "role": "primary",
+        "pantone": "5605 C",
+        "cmyk": [
+          75,
+          50,
+          65,
+          60
+        ]
+      },
+      "copper": {
+        "hex": "#B4692B",
+        "role": "accent",
+        "pantone": "1605 C",
+        "cmyk": [
+          22,
+          68,
+          96,
+          8
+        ]
+      },
+      "linen": {
+        "hex": "#F4F1EA",
+        "role": "ground",
+        "pantone": "11-0605",
+        "cmyk": [
+          4,
+          3,
+          7,
+          0
+        ]
+      },
+      "slate": {
+        "hex": "#6C7770",
+        "role": "secondary",
+        "pantone": "5497 C",
+        "cmyk": [
+          56,
+          39,
+          48,
+          10
+        ]
+      },
+      "ink": {
+        "hex": "#12100E",
+        "role": "neutral",
+        "pantone": "Black 6 C",
+        "cmyk": [
+          60,
+          55,
+          55,
+          80
+        ]
+      }
+    },
+    "type": {
+      "families": {
+        "display": {
+          "family": "Literata",
+          "fallback": "Georgia, serif",
+          "weights": [
+            500,
+            700
+          ],
+          "google": true
+        },
+        "text": {
+          "family": "Archivo",
+          "fallback": "Helvetica, Arial, sans-serif",
+          "weights": [
+            400,
+            500
+          ],
+          "google": true
+        }
+      },
+      "scale": [
+        {
+          "name": "Display",
+          "family": "display",
+          "size": 60,
+          "leading": 66,
+          "weight": 700
+        },
+        {
+          "name": "H1",
+          "family": "display",
+          "size": 36,
+          "leading": 42,
+          "weight": 700
+        },
+        {
+          "name": "H2",
+          "family": "display",
+          "size": 24,
+          "leading": 31,
+          "weight": 500
+        },
+        {
+          "name": "H3",
+          "family": "display",
+          "size": 18,
+          "leading": 26,
+          "weight": 500
+        },
+        {
+          "name": "Body",
+          "family": "text",
+          "size": 16,
+          "leading": 27,
+          "weight": 400
+        },
+        {
+          "name": "Small",
+          "family": "text",
+          "size": 13,
+          "leading": 21,
+          "weight": 400
+        },
+        {
+          "name": "Caption",
+          "family": "text",
+          "size": 11,
+          "leading": 16,
+          "weight": 500
+        }
+      ]
+    }
+  },
+  "rules": {
+    "clearSpaceRatio": 0.3,
+    "minStrokePx": 3,
+    "minStrokeMm": 0.8,
+    "lockupGapRatio": 0.3,
+    "wordmarkHeightRatio": 0.34,
+    "naming": "{brand}-{lockup}-{colourway}",
+    "lockups": [
+      "wordmark"
+    ],
+    "formats": [
+      "svg",
+      "png",
+      "pdf"
+    ],
+    "pngWidths": [
+      400,
+      1600
+    ],
+    "stock": "uncoated",
+    "colourways": [
+      {
+        "name": "full",
+        "on": "linen",
+        "slots": {
+          "word": "#1B2A24",
+          "rule": "#B4692B"
+        }
+      },
+      {
+        "name": "reverse",
+        "on": "forest",
+        "slots": {
+          "word": "#F4F1EA",
+          "rule": "#B4692B"
+        }
+      },
+      {
+        "name": "flat",
+        "on": "linen",
+        "slots": {
+          "word": "#1B2A24",
+          "rule": "#1B2A24"
+        }
+      }
+    ],
+    "iconInk": "#F4F1EA",
+    "iconBg": "#1B2A24",
+    "iconSizes": [
+      1024,
+      180
+    ],
+    "faviconSizes": [
+      16,
+      32
+    ],
+    "social": {
+      "profile": {
+        "w": 400,
+        "h": 400
+      },
+      "og image": {
+        "w": 1200,
+        "h": 630
+      }
+    }
+  },
+  "content": {
+    "positioning": "Marlow",
+    "misuse": [
+      "Do not stretch it",
+      "Do not rotate it",
+      "Do not recolour it",
+      "Do not add a shadow",
+      "Do not crowd it",
+      "Do not outline it"
+    ]
+  }
+}
