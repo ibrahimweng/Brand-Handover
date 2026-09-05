@@ -376,7 +376,7 @@ the measuring engine, the packager, both documents, the canvas editor,
 publishing, all three kinds of block, image slots, page sizes and the
 photography treatment, print work with bleed, CMYK, and a printed piece through
 Typst, mockups, and the licence half of accounts. 138 files from one master,
-318 tests, and twelve more identities in the repo that the engine had not been
+326 tests, and thirteen more identities in the repo that the engine had not been
 written against.
 
 Three things the plan had wrong, found by building rather than by thinking.
@@ -925,6 +925,53 @@ through and the summary showed no failures at all — I only noticed because the
 count had gone down. Any check that iterates over inputs needs to fail loudly
 when an input kills it, and a count that shrinks is worth more attention than a
 count that stays the same.
+
+**The documents had never been given anything to document.** Thirteen rounds
+varied the artwork — its shape, its material, its damage, how many files it came
+in — and left the *writing* at a stub: the longest string in the whole content
+block of twelve of the thirteen projects was 27 characters, and every fixture's
+positioning statement was its own name. This plan says in its own opening that
+what stays with the designer is the judgement inside every chapter. The engine
+renders that judgement, and until this round it had never rendered any. The
+cheapest audit in this whole sequence was `max(len(s))` over the content of
+every project.
+
+**A layout tested only with short strings is a layout that has not been tested.**
+The deck set a positioning statement as its headline at 7cqw on a 15ch measure —
+fine for the eight characters every fixture had, and 657 pixels past the bottom
+of the slide for the 331 a real one has. The starter document put the same
+statement in a block 700 by 120 whatever was in it. Neither was a bug anybody
+wrote; both were the natural code to write when the only input you have ever
+seen is a single word. Length is a dimension of input like any other, and the
+short case is the one that hides it.
+
+**Two renderers again, and this time they failed in opposite directions.** The
+canvas had `overflow:hidden` so it swallowed what did not fit; Typst has no such
+rule so it printed straight through the block underneath. The same document lost
+words on screen and overlapped them on press, and neither said anything. Where
+the twelfth round found two renderers disagreeing about a value, this one found
+them disagreeing about a *failure mode* — which is harder to see, because each
+one on its own looks like a reasonable choice. The fix that matters is not
+picking one: it is that the condition is measured and named, in one place both
+read.
+
+**When you cannot compute the answer, fit it against measurement and constrain
+the direction of the error.** How many lines a passage takes cannot be worked
+out in Node without a layout engine. So the estimator was fitted against 540
+measurements from a real browser — nine strings this engine actually sets, two
+face stacks, six sizes, five widths — under one rule: never say a passage takes
+fewer lines than it does. Under-counting misses a real overflow; over-counting
+mentions a near miss. A parameter search that rejects every pair that ever
+under-counts, and then minimises error among the rest, is a better instrument
+than picking a plausible constant and hoping.
+
+**A style is an assumption about length.** Misuse captions are set in
+letter-spaced uppercase monospace, which is a label style and right for "do not
+stretch it". Meridian's captions have been full sentences — 48 to 57 characters
+— since the first identity in the repo, set in spaced capitals the whole time,
+and nobody noticed because nobody had ever seen the alternative. Typography that
+is chosen once and applied to whatever arrives is the same class of defect as a
+box sized once and filled with whatever arrives.
 
 ---
 

@@ -71,7 +71,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 138 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 318 tests.
+of it. 326 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -398,7 +398,29 @@ whether the artwork is the right shape for a square**: Marlow fills 12% of an
 icon where a square mark fills 46%, and the advice given was to draw heavier
 strokes, which is not advice you can take about a word.
 
-Still to do: a run on **your** identity job. Twelve identities the engine had not
-seen is worth a great deal more than twelve passes over one, but none of them
-came out of your exporter — and the normaliser is the part that most needs to
-meet one.
+The fourteenth audited the *content* rather than the artwork, and the number was
+stark: the longest string in the whole content block of **twelve of the thirteen
+projects was 27 characters**. Every fixture's positioning statement was its own
+name. A real identity job is mostly writing, and the manual, the deck and the
+canvas exist to carry that writing — and had never been given any. **Beaumont &
+Whitcombe Rare Books** has a 31 character name, a 331 character positioning
+statement, prose in all six content fields and misuse captions that are
+sentences. Its mark is deliberately dull.
+
+The deck's title slide set the statement as its headline at 7cqw, so it ran
+**657px past the bottom of the slide** and opened halfway through a word. Text
+that does not fit its block was **silently swallowed on screen and printed
+through whatever was underneath** — one document, two renderers, two different
+wrong answers, and no report from either; the arithmetic that now catches it is
+fitted against 540 measurements taken from a real browser, under the rule that
+it must never say a passage is shorter than it is. The engine was **generating a
+cover it knew would not fit**. Misuse captions set in spaced uppercase
+monospace have been carrying full sentences since the very first identity. And,
+unrelated to the words, the printed piece and the canvas **resolved a colourway
+differently**, which put the mark in ink on an ink field on the one deliverable
+that costs money.
+
+Still to do: a run on **your** identity job. Thirteen identities the engine had
+not seen is worth a great deal more than thirteen passes over one, but none of
+them came out of your exporter — and the normaliser is the part that most needs
+to meet one.

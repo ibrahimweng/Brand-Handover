@@ -325,6 +325,13 @@ function misuse(ctx) {
   const outline = `filter:drop-shadow(1px 0 0 ${best}) drop-shadow(-1px 0 0 ${best})`
     + ` drop-shadow(0 1px 0 ${best}) drop-shadow(0 -1px 0 ${best})`;
 
+  // A misuse caption is a label in every fixture that has one — "do not stretch
+  // it" — and a sentence in a manual anybody actually writes. The label style is
+  // uppercase, letter-spaced and monospaced, which is right for three words and
+  // unreadable at fifteen. Take the style from the length: if any one of them is
+  // a sentence, all of them are set as sentences, so the row stays one thing.
+  const SAID = 34;                       // about a label's worth of characters
+  const asSentences = list.some((why) => String(why).length > SAID);
   return `<div class="row3">` + list.slice(0, 6).map((why, i) => {
     const busy = i === 4;
     // the third cell is deliberately the wrong colour, which is its whole point,
@@ -333,7 +340,7 @@ function misuse(ctx) {
     const style = i === 5 ? outline : styles[i];
     const ground = busy ? '' : `background:${s.ground.hex};`;
     return `<figure><div class="stage tight dont${busy ? ' busy' : ''}" style="${ground}"><span style="${style}">${scaled(inked(ctx, ink), 62)}</span></div>
-     <figcaption>${esc(why)}</figcaption></figure>`;
+     <figcaption${asSentences ? ' class="said"' : ''}>${esc(why)}</figcaption></figure>`;
   }).join('') + `</div>`;
 }
 

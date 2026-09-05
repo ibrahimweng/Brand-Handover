@@ -3758,6 +3758,209 @@ test('both renderers draw the same diagram', () => {
   }
 });
 
+// Thirteen identities, and every one of them was a mark with a stub of text:
+// the longest string in the whole content of twelve of the thirteen was 27
+// characters. A real identity job is mostly writing, and the documents that
+// carry that writing had never been given any.
+const BW = projectLoader.load(path.join(__dirname, '..', 'projects', 'beaumont', 'project.json'));
+const bwM = measure(BW);
+
+test('the words a project writes are the length words are', () => {
+  const c = BW.content;
+  assert.ok(c.positioning.length > 300 && c.introduction.length > 250);
+  for (const k of ['markRationale', 'colourRationale', 'typeRationale', 'constructionNotes']) {
+    assert.ok(c[k].length > 250, `${k} is ${c[k].length} characters`);
+  }
+  for (const why of c.misuse) assert.ok(why.length > 100, why);
+  assert.ok(BW.brand.length > 28, 'and the name is a long one');
+});
+
+test('a text block that cannot hold its words says so', () => {
+  // the canvas had overflow:hidden, so it swallowed whatever did not fit; Typst
+  // has no such rule, so the same block printed through the caption underneath
+  // it. One document, two renderers, two different wrong answers, no report.
+  const step = { size: 34, leading: 41 };
+  const long = BW.content.positioning;
+  const tight = EM.textFits(long, step, 700, 120);
+  assert.ok(tight.over > 0 && tight.lines > 3, JSON.stringify(tight));
+  assert.strictEqual(tight.has, 120);
+  assert.strictEqual(tight.needs, tight.lines * 41);
+  // room enough is not reported
+  assert.strictEqual(EM.textFits(long, step, 700, tight.needs).over, 0);
+  assert.strictEqual(EM.textFits('The mark', step, 700, 60).over, 0);
+
+  // and it is found in a whole document, with the page and the words to find it
+  const doc = EM.emptyDoc('x');
+  doc.pages[0].blocks.push(EM.makeBlock('text', { x: 0, y: 0, w: 700, h: 120,
+    props: { text: long, style: 'H1' } }));
+  doc.pages[0].blocks.push(EM.makeBlock('text', { x: 0, y: 200, w: 700, h: 400,
+    props: { text: long, style: 'Body' } }));
+  const over = EM.overfullText(doc, BW.tokens.type);
+  assert.strictEqual(over.length, 1, 'the block with room was reported too');
+  assert.strictEqual(over[0].page, 1);
+  assert.strictEqual(over[0].style, 'H1');
+  assert.ok(over[0].text.startsWith('Beaumont & Whitcombe have sold'));
+  assert.ok(over[0].over > 100);
+});
+
+test('the estimate never says a passage is shorter than it is', () => {
+  // it is fitted against measurements taken from a real browser, under one
+  // rule: over-count rather than under-count, because a check that misses an
+  // overflow is worse than one that mentions a near miss.
+  const step = { size: 16, leading: 27 };
+  // a line of exactly one word cannot be fewer than one line
+  assert.strictEqual(EM.textLines('', step, 300), 1);
+  assert.strictEqual(EM.textLines('one', step, 300), 1);
+  // a word longer than the measure takes one line and spills, as both renderers do
+  assert.strictEqual(EM.textLines('supercalifragilistic', step, 20), 1);
+  // more words never take fewer lines
+  const words = BW.content.positioning.split(' ');
+  let last = 0;
+  for (let n = 1; n <= words.length; n += 7) {
+    const got = EM.textLines(words.slice(0, n).join(' '), step, 320);
+    assert.ok(got >= last, `${n} words took ${got} lines after ${last}`);
+    last = got;
+  }
+  // a narrower measure never takes fewer lines than a wider one
+  let prev = Infinity;
+  for (const w of [200, 300, 420, 560, 700, 900]) {
+    const got = EM.textLines(BW.content.positioning, step, w);
+    assert.ok(got <= prev, `${w} wide took ${got} lines, wider than the last`);
+    prev = got;
+  }
+});
+
+test('neither renderer hides text that does not fit', () => {
+  const bu = bundleOf(BW, bwM);
+  const b = EM.makeBlock('text', { x: 0, y: 0, w: 700, h: 120,
+    props: { text: BW.content.positioning, style: 'H1', align: 'left', colour: 'primary' } });
+  const html = ER.block(b, bu);
+  assert.ok(!/overflow:\s*hidden/.test(html), 'the canvas still swallows what does not fit');
+  assert.ok(html.includes(ER.esc(BW.content.positioning).slice(0, 40)), 'the canvas lost the words');
+  // and Typst holds the same words
+  const typst = require('../src/typst');
+  const src = typst.emit({ page: EM.PAGE, pages: [{ name: 'p', blocks: [b] }] }, bu, {}).source;
+  assert.ok(src.includes('Beaumont & Whitcombe have sold'), 'the printed piece lost the words');
+});
+
+test('the cover the engine writes holds the words the project wrote', async () => {
+  // the block was 700 by 120 at H1 whatever was put in it, so three lines of a
+  // real positioning statement showed and the rest ran through the caption
+  const { bundle, starterDoc } = require('../src/editor/bundle');
+  for (const [proj, meas] of [[BW, bwM], [project, m], [KV, kvM], [MW, mwM]]) {
+    const doc = starterDoc(bundle(proj, meas, []));
+    assert.deepStrictEqual(EM.overfullText(doc, proj.tokens.type), [],
+      `${proj.brand}: the cover the engine wrote does not hold its own words`);
+    // the caption still sits below the statement, not on top of it
+    const [lede, cap] = doc.pages[0].blocks.filter((b) => b.type === 'text');
+    assert.ok(cap.y >= lede.y + lede.h, `${proj.brand}: the caption overlaps the statement`);
+  }
+  // a statement too long to be a headline is set in a step that can carry it
+  const bwDoc = starterDoc(bundle(BW, bwM, []));
+  assert.strictEqual(bwDoc.pages[0].blocks.filter((b) => b.type === 'text')[0].props.style, 'H2');
+  const merDoc = starterDoc(bundle(project, m, []));
+  assert.strictEqual(merDoc.pages[0].blocks.filter((b) => b.type === 'text')[0].props.style, 'H1');
+
+  // the build says nothing about a cover that fits, and would say so if it did not
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-bw-'));
+  const r = await build(BW, dir);
+  assert.ok(!r.warnings.some((w) => /runs past the bottom/.test(w)), r.warnings.join('\n'));
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('a title slide holds its own title', () => {
+  // h1 is 7cqw on a 15ch measure and a slide is 56.25cqw tall, so about three
+  // lines of headline fit. Every fixture's positioning was one word until one
+  // arrived with a sentence: 330 characters ran 657px past the bottom of the
+  // slide and it opened in the middle of a word.
+  const { deck } = require('../src/documents/deck');
+  const docs = require('../src/documents');
+  const HEAD_CH = 15, BUDGET = 44;
+  const used = [];
+  for (const [proj, meas] of [[BW, bwM], [project, m], [KV, kvM], [SP, spM], [MW, mwM]]) {
+    const html = deck(docs.context(proj, meas, [], {}));
+    const title = html.slice(html.indexOf('<section class="slide'), html.indexOf('<section', html.indexOf('<section class="slide') + 10));
+    const h1 = /<h1[^>]*>([^<]*)<\/h1>/.exec(title);
+    assert.ok(h1, `${proj.brand}: no headline`);
+    const size = Number((/font-size:([\d.]+)cqw/.exec(title) || [0, 7])[1]);
+    const plain = (t) => t.replace(/&amp;/g, '&').replace(/&#39;|&quot;/g, "'");
+    const lines = EM.textLines(plain(h1[1]), { size: 1, leading: 1 }, HEAD_CH * EM.CHAR_EM);
+    const lede = /<p class="lede"[^>]*>([^<]*)<\/p>/.exec(title);
+    const ledeSize = lede ? Number((/class="lede" style="font-size:([\d.]+)cqw/.exec(title) || [0, 2.2])[1]) : 0;
+    const ledeLines = lede ? EM.textLines(plain(lede[1]), { size: 1, leading: 1 }, 44 * EM.CHAR_EM) : 0;
+    // how much of the slide the two ask for. The guarantee that it fits is the
+    // browser measuring the built deck; what is checked here is that the
+    // engine steps down as the words grow rather than setting everything at 7.
+    const cqw = lines * size * 1.02 + (lede ? 2.2 + ledeLines * ledeSize * 1.5 : 0);
+    assert.ok(cqw <= BUDGET + 0.5, `${proj.brand}: the title slide asks for ${cqw.toFixed(1)}cqw of ${BUDGET}`);
+    used.push({ brand: proj.brand, cqw, size, lines, ledeSize });
+  }
+  const long = used.find((u) => u.brand === BW.brand), short = used.find((u) => u.brand === SP.brand);
+  // every title fits the budget, and the one carrying a three line name and a
+  // paragraph under it got there by stepping down rather than by luck
+  assert.ok(long.ledeSize < 2.2, `the statement is still set at ${long.ledeSize}cqw`);
+  assert.strictEqual(short.ledeSize, 0, 'a one word title grew a statement');
+  assert.strictEqual(short.size, 7, 'a one word title was shrunk for no reason');
+  assert.ok(long.cqw > short.cqw, 'the long title asks no more of the slide than the short one');
+  // a statement that is a paragraph is not used as a headline
+  const bwTitle = deck(docs.context(BW, bwM, [], {}));
+  assert.ok(/<h1[^>]*>Beaumont &amp; Whitcombe Rare Books<\/h1>/.test(bwTitle),
+    'the statement was used as the headline');
+  assert.ok(/<p class="lede" style="font-size:[\d.]+cqw">Beaumont &amp; Whitcombe have sold/.test(bwTitle),
+    'the statement is not set underneath at a size that fits');
+  // and one that is a phrase still is
+  const merTitle = deck(docs.context(project, m, [], {}));
+  assert.ok(/<h1>Power from the predictable sea\.<\/h1>/.test(merTitle), 'the short one lost its headline');
+});
+
+test('a caption that is a sentence is not set as a label', () => {
+  const b = require('../src/documents/blocks');
+  const docs = require('../src/documents');
+  const said = (proj, meas) => /<figcaption class="said">/.test(b.misuse(docs.context(proj, meas, [], {})));
+  assert.ok(said(BW, bwM), 'sentences are still set in spaced uppercase monospace');
+  assert.ok(said(project, m), 'Meridian writes sentences too, and always has');
+  for (const [proj, meas] of [[KV, kvM], [SP, spM], [VE, veM]]) {
+    assert.ok(!said(proj, meas), `${proj.brand}: three word labels lost their label style`);
+  }
+  // the style exists to be used
+  const chrome = fs.readFileSync(path.join(__dirname, '..', 'src', 'documents', 'chrome.js'), 'utf8');
+  assert.ok(/figcaption\.said\{[^}]*text-transform:none/.test(chrome));
+});
+
+test('the printed piece and the canvas pick the same colourway', () => {
+  // typst had its own answer to a block asking for a colourway the project does
+  // not cut — take the first variant of that lockup — while the canvas takes one
+  // cut for the ground the block is going onto. So the same cover drew the mark
+  // in paper on screen and in ink on an ink field in print.
+  const typst = require('../src/typst');
+  for (const [proj, meas] of [[BW, bwM], [project, m], [KV, kvM], [HAL, measure(HAL)], [MW, mwM]]) {
+    const bu = bundleOf(proj, meas);
+    const lockup = proj.rules.lockups[0];
+    for (const on of ['primary', 'ground', 'accent']) {
+      for (const want of ['ground', 'primary', 'accent']) {
+        const canvas = ER.cwName(bu, want, on);
+        const b = EM.makeBlock('lockup', { x: 0, y: 0, w: 400, h: 120,
+          props: { lockup, colourway: want, on } });
+        const src = typst.emit({ page: EM.PAGE, pages: [{ name: 'p', blocks: [b] }] }, bu, {}).source;
+        const chosen = bu.variants[`${lockup}:${canvas}`];
+        assert.ok(chosen, `${proj.brand}: no ${lockup} variant for ${canvas}`);
+        // the ink the canvas would use appears in what typst wrote
+        const inks = [...chosen.matchAll(/#[0-9A-Fa-f]{6}/g)].map((x) => x[0].toUpperCase());
+        const cm = require('../src/cmyk');
+        const table = cm.byName(cm.table(proj.tokens.colour));
+        const asInk = (hex) => {
+          const t = Object.values(table).find((c) => c.hex.toUpperCase() === hex);
+          return t && t.declared ? `cmyk(${t.values.map((v) => v + '%').join(', ')})` : `rgb("${hex}")`;
+        };
+        for (const hex of new Set(inks)) {
+          assert.ok(src.includes(asInk(hex)) || src.includes(hex),
+            `${proj.brand} ${want} on ${on}: the canvas draws ${hex} and the printed piece does not`);
+        }
+      }
+    }
+  }
+});
+
 drain().then(() => {
   for (const d of [out, out2]) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);

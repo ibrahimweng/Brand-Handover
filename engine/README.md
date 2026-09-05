@@ -9,7 +9,7 @@ around it.
 
     cd engine
     npm install
-    npm test                                            # 318 checks
+    npm test                                            # 326 checks
     node test/print-check.mjs                           # prints, and measures the paper
     node test/treatment-check.mjs                       # renders, and reads the pixels back
     node test/typst-check.mjs                           # the printed piece against the published page
@@ -34,6 +34,7 @@ around it.
     node src/cli.js build   projects/spire/project.json     -o out-spire
     node src/cli.js build   projects/vesper/project.json    -o out-vesper
     node src/cli.js build   projects/marlow/project.json    -o out-marlow
+    node src/cli.js build   projects/beaumont/project.json  -o out-beaumont
 
 The Meridian example writes 138 files in about six seconds, including both
 documents, the editor, the document it opens with, that document published, and
@@ -81,6 +82,10 @@ cannot express. See [A twelfth identity](#a-twelfth-identity).
 Marlow is the thirteenth, and it is a logotype and nothing else — no symbol at
 all, which the engine refused outright. See
 [A thirteenth identity](#a-thirteenth-identity).
+
+Beaumont & Whitcombe Rare Books is the fourteenth, and the artwork is
+deliberately dull: what it varies is the **writing**. See
+[A fourteenth identity](#a-fourteenth-identity).
 
 ## What it measures
 
@@ -1752,6 +1757,66 @@ stopped calling it "the mark". And the Typst check compiled every project's
 reported no failure, because a crash is not a failing check. It compiles every
 lockup a project asks for now — thirteen projects, forty checks.
 
+## A fourteenth identity
+
+The audit this time was of the *content*, not the artwork, and it was stark: the
+longest string in the whole content block of **twelve of the thirteen projects
+was 27 characters**. Every fixture's positioning statement was its own name.
+Only Meridian had ever been given prose, and only in a couple of fields.
+
+A real identity job is mostly writing. The manual, the deck and the canvas exist
+to carry that writing, and they had never been given any. **Beaumont & Whitcombe
+Rare Books** is a bookseller with a 31 character name, a positioning statement of
+331 characters, real prose in all six content fields, and misuse captions that
+are sentences rather than labels. Its mark is a plain bookplate roundel on
+purpose: the artwork is not the instrument this round.
+
+**The title slide had no bound at all.** The deck set the positioning statement
+as its headline — `h1` is 7cqw on a 15ch measure — so 331 characters became
+twenty-two lines, ran **657px past the bottom of the slide**, and the deck
+opened halfway through the word "Street" with the beginning and the end both
+off the slide. A statement that long is not a headline: the name goes in the
+headline now, the statement underneath at reading size, and both step down until
+they fit a budget taken from measuring built decks rather than from adding up
+the stylesheet.
+
+**Text that does not fit its block was silently swallowed on screen and printed
+through whatever was underneath.** A text block is a rectangle somebody drew and
+words somebody wrote, and nothing had ever asked whether the second fits the
+first. The canvas had `overflow:hidden`, so the cover lost the last two thirds
+of its sentence with no sign at all; Typst has no such rule, so **the same block
+on the same page printed straight through the caption below it**. One document,
+two renderers, two different wrong answers, and no report from either.
+
+Both show it now, which is the honest failure — a page that looks wrong gets
+fixed and a page that quietly drops a sentence does not — and the build, and
+`print`, name the block, its page, the lines it needs and the height it has. The
+arithmetic behind that is fitted against **540 measurements taken from a real
+browser** under one rule: never say a passage takes fewer lines than it does,
+because a check that misses an overflow is worse than one that mentions a near
+miss. At 0.55em a character and 0.16em a space it under-counted none of the 540,
+got 75 per cent exactly right and 93 per cent within a line.
+
+**The engine was generating a cover it knew would not fit.** The starter
+document put the positioning into a block 700 by 120 at H1, whatever was in it.
+It sizes the block to its own words now, and drops to a step that can carry a
+statement rather than a phrase.
+
+**A caption that is a sentence was set as a label.** Misuse captions are
+uppercase, letter-spaced monospace, which is right for "do not stretch it" and
+unreadable at 150 characters. Meridian's have been 48 to 57 characters — full
+sentences — since the first identity in this repo, set in spaced capitals the
+whole time. A caption longer than a label is now set as prose.
+
+And one that had nothing to do with the words. **The printed piece and the
+canvas resolved a colourway differently.** A block asks for a colourway by role
+and nothing says a project cuts one named after each role; the canvas answers
+that by taking a colourway cut for the ground the block is going *onto*, and
+`typst.js` had its own answer — take the first variant of that lockup. For a
+project whose colourways are named `ink`, `reverse` and `gilt`, that put the
+mark **in ink on an ink field**: invisible, on the one deliverable that costs
+money to find out about. There is one resolution now and both read it.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.
@@ -1796,6 +1861,7 @@ lockup a project asks for now — thirteen projects, forty checks.
     projects/spire/     the eleventh: 1 to 4.7, six colour slots, a floor that is a width
     projects/vesper/    the twelfth: a gradient, which is not one colour
     projects/marlow/    the thirteenth: a logotype, with no symbol to fall back on
+    projects/beaumont/  the fourteenth: a long name and prose in every field
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package

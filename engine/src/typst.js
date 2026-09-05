@@ -248,10 +248,13 @@ function blockSource(b, geom, bundle, ctx) {
     case 'mark':
     case 'lockup': {
       // The colourway a block asks for need not exist: nothing says a project
-      // cuts one named after each colour role, and this quietly dropped a
-      // lockup out of a printed piece until a second project turned up that
-      // does not. Falling back beats a hole in the page.
-      const want = ((bundle.roles || {})[b.props.colourway] || {}).name || b.props.colourway;
+      // cuts one named after each colour role. This had its own answer to that
+      // — take the first variant of the lockup — while the canvas had a better
+      // one, which is to take a colourway cut for the ground the block is going
+      // onto. So the same page put the mark in paper on screen and in ink on an
+      // ink field in print, where it cannot be seen at all and costs money to
+      // find out. One resolution, read by both.
+      const want = require('./editor/render').cwName(bundle, b.props.colourway, b.props.on);
       const pool = b.type === 'mark' ? (bundle.marks || {}) : (bundle.variants || {});
       const key = b.type === 'mark' ? want : `${b.props.lockup || 'horizontal'}:${want}`;
       const svg = pool[key]

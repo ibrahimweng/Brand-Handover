@@ -315,6 +315,14 @@ async function main(argv) {
       console.log(`  ${out.screenColours.length} colour(s) had no declared build and are written as screen colour: ${out.screenColours.join(', ')}`);
       console.log(`  run "handover check ${path.basename(file)} --print" before sending this anywhere.`);
     }
+    // the same question the build asks of the document it generates, asked of
+    // the one you are actually printing
+    const over = require('./editor/model').overfullText(document, project.tokens.type);
+    for (const t of over) {
+      console.log(`  page ${t.page} ("${t.pageName}"): the ${t.style} text needs about ${t.lines} lines, `
+        + `${t.needs} against the ${t.has} its block has, so "${t.text}…" prints over what is below it. `
+        + `Make the block ${t.over} taller, or set it in a smaller step.`);
+    }
     if ((out.unsayablePaint || []).length) {
       console.log(`  ${out.unsayablePaint.length} paint server could not be said in Typst and was drawn in `
         + `black: ${out.unsayablePaint.join(', ')}. A linear gradient translates; a radial one and a `

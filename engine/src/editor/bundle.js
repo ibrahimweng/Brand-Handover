@@ -117,9 +117,18 @@ function starterDoc(bu) {
 
   add('fill', { x: 0, y: 0, w: P.w, h: P.h, props: { colour: 'primary' } });
   add('lockup', { x: 120, y: 180, w: 620, h: 200, props: { lockup: 'horizontal', colourway: 'ground', on: 'primary' } });
-  add('text', { x: 124, y: 420, w: 700, h: 120,
-    props: { text: bu.content.positioning || `${bu.brand} brand guidelines`, style: 'H1', align: 'left', colour: 'ground' } });
-  add('text', { x: 124, y: 560, w: 520, h: 40,
+  // The cover carries whatever the project wrote as its positioning, and that
+  // is a sentence in a real project rather than the one word every fixture had.
+  // A block 120 tall at H1 held three lines of it and the rest ran through the
+  // caption underneath. Give the block the height its own words need, and set a
+  // long statement in a step a reader can take at that length.
+  const lede = bu.content.positioning || `${bu.brand} brand guidelines`;
+  const step = (st) => (((bu.type || {}).scale) || []).find((x) => x.name === st) || { size: 17, leading: 27 };
+  const ledeStyle = M.textLines(lede, step('H1'), 700) > 3 ? 'H2' : 'H1';
+  const ledeH = Math.max(120, M.textFits(lede, step(ledeStyle), 700, 0).needs);
+  add('text', { x: 124, y: 420, w: 700, h: ledeH,
+    props: { text: lede, style: ledeStyle, align: 'left', colour: 'ground' } });
+  add('text', { x: 124, y: 420 + ledeH + 20, w: 520, h: 40,
     props: { text: `${bu.brand} ${bu.version} · built from one master file`, style: 'Caption', align: 'left', colour: 'ground' } });
 
   const p2 = M.makePage('The mark');

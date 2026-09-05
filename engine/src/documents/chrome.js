@@ -1,6 +1,12 @@
 'use strict';
 // The document furniture. Deliberately neutral, so the brand being documented
 // is the only thing on the page with a colour.
+//
+// `figcaption` is a label: uppercase, letter-spaced, monospaced, which is right
+// for three words naming a thing. `figcaption.said` is the same caption when it
+// is a sentence, because that style is unreadable at that length. Every
+// fixture's misuse captions were three words until one arrived whose captions
+// were the sentences a real manual writes.
 const fontLink = (type) => {
   const fams = Object.values((type && type.families) || {})
     .filter((f) => f.google)
@@ -44,6 +50,7 @@ h1,h2,h3,h4{font-family:var(--ui);margin:0;text-wrap:balance}
 .row2{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
 .row3{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px}
 figure{margin:0}figcaption{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);margin-top:9px}
+figcaption.said{font-family:var(--ui);font-size:12px;letter-spacing:0;text-transform:none;line-height:1.45;color:var(--ink-2);max-width:34ch}
 .dia{width:100%;max-width:340px;height:auto;display:block;margin:0 auto;color:var(--ink-3)}
 .dl{font-family:var(--mono);font-size:8px;fill:currentColor}
 .chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(172px,1fr));gap:14px}

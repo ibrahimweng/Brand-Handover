@@ -4,6 +4,7 @@
 // manual has no use for at all. It also runs in the brand's own colours,
 // because a presentation is brand expression where a manual is reference.
 const b = require('./blocks');
+const M = require('../editor/model');
 
 const CSS = (t) => `
 :root{--deep:${t.primary};--ink2:${t.secondary};--accent:${t.accent};--ground:${t.ground};
@@ -103,8 +104,41 @@ function deck(ctx) {
   const plate = (inner) => (b.worstOn(markWay, slideHex, ctx) >= b.SEEN ? inner
     : `<span style="background:${show.ground.hex};padding:2.6cqw;display:inline-flex;align-items:center">${inner}</span>`);
 
+  // The title slide set the positioning statement as its headline. h1 is 7cqw
+  // on a 15ch measure, and a slide is 56.25cqw tall with the mark and the
+  // caption on it too, so about three lines of headline fit — roughly 45
+  // characters. Every fixture's positioning was one word, so nothing had ever
+  // handed it a sentence: 330 characters ran 657px past the bottom of the
+  // slide, and the slide opened in the middle of the word "Street".
+  //
+  // A statement longer than the headline holds is not a headline. Set the name
+  // as the headline and the statement underneath, at reading size, where it is
+  // meant to be read anyway.
+  // A statement longer than the headline holds is not a headline: set the name
+  // as the headline and the statement underneath, at reading size.
+  //
+  // Then the name itself has to fit. h1 measures 15ch and the lede 44ch, both
+  // set in `ch`, so how many lines each takes does not change with the type
+  // size — only how tall those lines are. A slide is 56.25cqw; the mark, the
+  // caption and the margins take about 26 of that, so the two together have
+  // about 30 to live in. Step both down until they do. "Beaumont & Whitcombe
+  // Rare Books" is three lines of headline where "Meridian" is one.
+  const HEAD_CH = 15, LEDE_CH = 44, BUDGET = 44, GAP = 2.2;
+  const linesIn = (t, ch) => M.textLines(t, { size: 1, leading: 1 }, ch * M.CHAR_EM);
+  const stated = c.positioning || '';
+  const headline = linesIn(stated, HEAD_CH) <= 3 ? (stated || p.brand) : p.brand;
+  const lede = headline === stated ? '' : stated;
+  const L1 = linesIn(headline, HEAD_CH), L2 = lede ? linesIn(lede, LEDE_CH) : 0;
+  let h1Size = 7, ledeSize = 2.2;
+  for (const s1 of [7, 5.6, 4.4, 3.4]) {
+    for (const s2 of [2.2, 1.9, 1.6]) {
+      h1Size = s1; ledeSize = s2;
+      if (L1 * s1 * 1.02 + (L2 ? GAP + L2 * s2 * 1.5 : 0) <= BUDGET) break;
+    }
+    if (L1 * h1Size * 1.02 + (L2 ? GAP + L2 * ledeSize * 1.5 : 0) <= BUDGET) break;
+  }
   add('Title', `<div class="hero" style="justify-content:flex-start;margin-bottom:3.4cqw">${plate(b.scaled(ctx.variantFor('horizontal', markWay.name), 360))}</div>
-    <h1>${b.esc(c.positioning || p.brand)}</h1>
+    <h1${h1Size === 7 ? '' : ` style="font-size:${h1Size}cqw"`}>${b.esc(headline)}</h1>${lede ? `\n    <p class="lede"${ledeSize === 2.2 ? '' : ` style="font-size:${ledeSize}cqw"`}>${b.esc(lede)}</p>` : ''}
     <p class="cap" style="margin-top:3.4cqw">${b.esc(p.brand)} ${b.esc(p.version)} · built from one master file</p>`);
 
   div('01', 'The mark', ['Construction', 'Clear space', 'Minimum size', 'The lockups', 'Misuse']);

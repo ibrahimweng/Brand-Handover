@@ -1,0 +1,232 @@
+{
+  "brand": "Beaumont & Whitcombe Rare Books",
+  "version": "2.1.0",
+  "assets": {
+    "mark": "mark.svg",
+    "wordmark": "wordmark.svg"
+  },
+  "tokens": {
+    "colour": {
+      "ink": {
+        "hex": "#1A1714",
+        "role": "primary",
+        "pantone": "Black 4 C",
+        "cmyk": [
+          58,
+          58,
+          62,
+          72
+        ]
+      },
+      "paper": {
+        "hex": "#EFEADF",
+        "role": "ground",
+        "pantone": "9182 C",
+        "cmyk": [
+          5,
+          5,
+          12,
+          0
+        ]
+      },
+      "correction": {
+        "hex": "#A8342A",
+        "role": "accent",
+        "pantone": "1805 C",
+        "cmyk": [
+          22,
+          92,
+          88,
+          12
+        ]
+      },
+      "board": {
+        "hex": "#7A7266",
+        "role": "secondary",
+        "pantone": "403 C",
+        "cmyk": [
+          48,
+          44,
+          52,
+          12
+        ]
+      },
+      "gilt": {
+        "hex": "#9A7B3F",
+        "role": "neutral",
+        "pantone": "4515 C",
+        "cmyk": [
+          36,
+          46,
+          82,
+          14
+        ]
+      }
+    },
+    "type": {
+      "families": {
+        "display": {
+          "family": "Literata",
+          "fallback": "Georgia, serif",
+          "weights": [
+            500,
+            700
+          ],
+          "google": true
+        },
+        "text": {
+          "family": "Archivo",
+          "fallback": "Helvetica, Arial, sans-serif",
+          "weights": [
+            400,
+            500
+          ],
+          "google": true
+        }
+      },
+      "scale": [
+        {
+          "name": "Display",
+          "family": "display",
+          "size": 58,
+          "leading": 64,
+          "weight": 700
+        },
+        {
+          "name": "H1",
+          "family": "display",
+          "size": 34,
+          "leading": 41,
+          "weight": 700
+        },
+        {
+          "name": "H2",
+          "family": "display",
+          "size": 23,
+          "leading": 30,
+          "weight": 500
+        },
+        {
+          "name": "H3",
+          "family": "display",
+          "size": 18,
+          "leading": 26,
+          "weight": 500
+        },
+        {
+          "name": "Body",
+          "family": "text",
+          "size": 16,
+          "leading": 27,
+          "weight": 400
+        },
+        {
+          "name": "Small",
+          "family": "text",
+          "size": 13,
+          "leading": 21,
+          "weight": 400
+        },
+        {
+          "name": "Caption",
+          "family": "text",
+          "size": 11,
+          "leading": 16,
+          "weight": 500
+        }
+      ]
+    }
+  },
+  "rules": {
+    "clearSpaceRatio": 0.25,
+    "minStrokePx": 3,
+    "minStrokeMm": 0.8,
+    "lockupGapRatio": 0.3,
+    "wordmarkHeightRatio": 0.3,
+    "naming": "{brand}-{lockup}-{colourway}",
+    "lockups": [
+      "horizontal",
+      "stacked",
+      "mark",
+      "wordmark"
+    ],
+    "formats": [
+      "svg",
+      "png",
+      "pdf"
+    ],
+    "pngWidths": [
+      400,
+      1600
+    ],
+    "stock": "uncoated",
+    "colourways": [
+      {
+        "name": "ink",
+        "on": "paper",
+        "slots": {
+          "plate": "#1A1714",
+          "band": "#1A1714",
+          "mark": "#1A1714",
+          "word": "#1A1714"
+        }
+      },
+      {
+        "name": "reverse",
+        "on": "ink",
+        "slots": {
+          "plate": "#EFEADF",
+          "band": "#EFEADF",
+          "mark": "#EFEADF",
+          "word": "#EFEADF"
+        }
+      },
+      {
+        "name": "gilt",
+        "on": "ink",
+        "slots": {
+          "plate": "#9A7B3F",
+          "band": "#9A7B3F",
+          "mark": "#9A7B3F",
+          "word": "#EFEADF"
+        }
+      }
+    ],
+    "iconInk": "#EFEADF",
+    "iconBg": "#1A1714",
+    "iconSizes": [
+      1024,
+      180
+    ],
+    "faviconSizes": [
+      16,
+      32
+    ],
+    "social": {
+      "profile": {
+        "w": 400,
+        "h": 400
+      },
+      "og image": {
+        "w": 1200,
+        "h": 630
+      }
+    }
+  },
+  "content": {
+    "positioning": "Beaumont & Whitcombe have sold and restored rare books from the same three rooms on Bury Street since 1874, and this identity is built for a shop that expects to be there in another hundred and fifty years. It is quiet on purpose: the books are the thing worth looking at, and a mark that competes with a nineteenth century binding will lose.",
+    "introduction": "This manual describes how the identity is put together and how to keep it consistent across a catalogue, a shopfront, a bookplate and a website. Every number in it was measured off the master artwork rather than typed in, so when the artwork changes the numbers change with it and this document does not go quietly out of date.",
+    "markRationale": "The mark is a bookplate device rather than a picture of a book, because the shop sells the contents and not the object. It reads at the size of a spine label and at the size of a shopfront, and it was drawn to survive blind embossing into leather, which is the one reproduction that cannot be corrected afterwards. The band is not decoration: it is the shelf, and it is what keeps the roundel from reading as a full stop at small sizes.",
+    "colourRationale": "The palette comes from the endpapers of the 1902 catalogue. An ink that is almost but not quite black, a paper that is warm rather than white, and a single red used only for correction marks and never for anything decorative. There is no secondary palette, because a second palette is how an identity stops being one. Gilt is for foil and for nothing else; it is listed here so that nobody invents their own.",
+    "typeRationale": "The display face is a transitional serif, which is what the shop has set its catalogues in since the second world war, and the text face is a grotesque chosen because it stays legible at eight point on the cheap paper a catalogue is actually printed on. Nothing is set in the display face below eighteen point and nothing is set in the text face above twenty four; between those two sizes the two faces are interchangeable and the choice is yours.",
+    "constructionNotes": "The device sits on a twelve unit grid and the ring is a constant eight units. The gap between the ring and the band is the same eight units, which is what keeps the counter open when the mark is blind embossed and there is no ink to help. Do not redraw the ring to a lighter weight to make a particular size work: move to the next size up instead, or use the wordmark on its own, which is what it is there for.",
+    "misuse": [
+      "Do not stretch or condense the mark to fit a space. Use the stacked lockup instead, which was drawn for spaces that are narrower than they are tall.",
+      "Do not rotate the mark, including to run it up the spine of a catalogue, where the wordmark set vertically is the correct solution and the one the binder expects.",
+      "Do not recolour the mark into anything outside the palette, and never into the correction red, which means one thing in this identity and should go on meaning it.",
+      "Do not add a drop shadow, a bevel, an outer glow or any other effect that assumes the mark is sitting on top of the page rather than printed into it.",
+      "Do not crowd the mark. Clear space is a measured rule and it is in this manual because crowding a mark is the most common thing that happens to one.",
+      "Do not outline the mark to make it work on a busy background. Use the reverse colourway on a solid panel, which is exactly what that colourway is for."
+    ]
+  }
+}

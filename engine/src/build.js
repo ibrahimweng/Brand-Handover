@@ -443,12 +443,23 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     write('deck.html', deck(ctx));
     const { editorHtml } = require('./editor/emit');
     const { bundle: mkBundle, starterDoc } = require('./editor/bundle');
+    const EM = require('./editor/model');
     const { publish } = require('./editor/publish');
     const bu = mkBundle(project, measured, written.slice());
     const document = starterDoc(bu);
     write('editor.html', editorHtml(project, measured, written.slice()));
     write('document.json', JSON.stringify(document, null, 2));
     write('published.html', publish(document, bu, { title: 'Guidelines' }));
+    // A block is a rectangle somebody drew and the words are somebody's
+    // writing, and nothing had ever asked whether the second fits the first.
+    // On screen the surplus was swallowed; in print it ran through whatever was
+    // underneath. Say which block, on which page, and by how much.
+    for (const t of EM.overfullText(document, project.tokens.type)) {
+      warnings.push(`on page ${t.page} ("${t.pageName}") the ${t.style} text needs about `
+        + `${t.lines} lines — ${t.needs} units of height against the ${t.has} its block has — so `
+        + `"${t.text}…" runs past the bottom of it and over whatever is below. Make the block `
+        + `${t.over} units taller, or set it in a smaller step.`);
+    }
   }
 
   // ---- what the client owns, and what there is to bill for ----

@@ -130,7 +130,12 @@
   }
 
   const BLOCK = {
-    text: (b, bu) => `<div class="hb-text" style="${typeStyle(bu, b.props.style)}color:${colour(bu, b.props.colour)};text-align:${b.props.align};width:100%;height:100%;overflow:hidden">${esc(b.props.text).replace(/\n/g, '<br>')}</div>`,
+    // overflow:hidden here swallowed whatever did not fit, so a paragraph too
+    // long for its block lost its last half on screen and printed straight
+    // through the block underneath it, because Typst has no such rule. Let it
+    // show, the way it prints: a page that looks wrong gets fixed, and a page
+    // that quietly drops a sentence does not.
+    text: (b, bu) => `<div class="hb-text" style="${typeStyle(bu, b.props.style)}color:${colour(bu, b.props.colour)};text-align:${b.props.align};width:100%;min-height:100%">${esc(b.props.text).replace(/\n/g, '<br>')}</div>`,
     rule: (b, bu) => `<div style="width:100%;height:${b.props.weight}px;background:${colour(bu, b.props.colour)}"></div>`,
     fill: (b, bu) => `<div style="width:100%;height:100%;background:${colour(bu, b.props.colour)}"></div>`,
     // An image slot holds an id. The bytes come off the bundle, which is how
@@ -402,5 +407,5 @@
     `<div class="hb-page" data-page="${p.id}" style="position:relative;width:${size.w}px;height:${size.h}px;background:${bundle.roles.ground.hex};overflow:hidden">`
     + p.blocks.map((b) => positioned(b, bundle)).join('') + `</div>`;
 
-  return { block, positioned, page, colour, typeStyle, esc, construction, clearSpace, BLOCK };
+  return { block, positioned, page, colour, cwName, typeStyle, esc, construction, clearSpace, BLOCK };
 }));
