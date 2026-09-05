@@ -32,6 +32,20 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   const ink = cmyk.inkMap(inkTable);
   const inkFindings = cmyk.check(inkTable, { stock: rules.stock, forPress: false });
   for (const f of inkFindings) warnings.push(`${f.what} ${f.how}`);
+  const saidMissing = new Set();
+  // what the master itself paints each slot, so a slot nobody recoloured can be
+  // reported as the colour it actually came out
+  const masterInks = {};
+  {
+    const md = svgu.parse(project.assets.mark.source);
+    (function walk(n) {
+      if (n.nodeType === 1) {
+        const sl = n.getAttribute('data-slot'), f = n.getAttribute('fill') || n.getAttribute('stroke');
+        if (sl && f && f !== 'none' && !masterInks[sl]) masterInks[sl] = f;
+        for (let c = n.firstChild; c; c = c.nextSibling) walk(c);
+      }
+    }(md.documentElement));
+  }
   for (const lockup of rules.lockups) {
     for (const colourway of rules.colourways) {
       const v = buildVariant({
@@ -40,7 +54,17 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
         lockup, colourway, rules, measured,
       });
       if (v.missing.length) {
-        warnings.push(`colourway "${colourway.name}" does not give a colour for slot(s): ${v.missing.join(', ')}`);
+        // once per colourway, not once per lockup — and say what happened to
+        // the slot, because "does not give a colour" does not explain why the
+        // file that was written anyway is the colour it is
+        const key = `${colourway.name}:${v.missing.join(',')}`;
+        if (!saidMissing.has(key)) {
+          saidMissing.add(key);
+          const kept = v.missing.map((sl) => `${sl} (${(masterInks[sl] || 'its master colour')})`).join(', ');
+          warnings.push(`colourway "${colourway.name}" gives no colour for ${v.missing.join(', ')}, `
+            + `so every file in it keeps what the master was painted: ${kept}. `
+            + `Add the slot to the colourway, or remove it from the artwork.`);
+        }
       }
       const base = naming.fileName(rules.naming, { brand: project.brand, lockup, colourway: colourway.name });
       const dir = naming.folderFor(lockup);

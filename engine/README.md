@@ -9,7 +9,7 @@ around it.
 
     cd engine
     npm install
-    npm test                                            # 261 checks
+    npm test                                            # 266 checks
     node test/print-check.mjs                           # prints, and measures the paper
     node test/treatment-check.mjs                       # renders, and reads the pixels back
     node test/typst-check.mjs                           # the printed piece against the published page
@@ -25,6 +25,7 @@ around it.
     node src/cli.js build   projects/halyard/project.json  -o out-halyard
     node src/cli.js build   projects/kvist/project.json    -o out-kvist
     node src/cli.js build   projects/hallward/project.json -o out-hallward
+    node src/cli.js build   projects/northline/project.json -o out-northline
 
 The Meridian example writes 136 files in about six seconds, including both
 documents, the editor, the document it opens with, that document published, and
@@ -43,6 +44,10 @@ six, a name that is not spellable in ASCII, and no mark lockup at all. See
 Hallward Press is the fourth, and it is the one with nothing in it: an ink, a
 paper, one colourway, one typeface, no system block, and a seal drawn in a 2048
 unit box. See [A fourth identity](#a-fourth-identity).
+
+Northline is the fifth and the opposite: twelve colours, eight colourways, four
+typefaces, 245 files, and a mark written the way a drawing tool actually writes
+a repeated element. See [A fifth identity](#a-fifth-identity).
 
 ## What it measures
 
@@ -1145,6 +1150,78 @@ pattern that never mentions the colourway, an absent `social` section, and
 eighteen rotate transforms flattened out of the artwork. All of those were
 already right, and none of them had been tried.
 
+## A fifth identity
+
+Hallward was built by taking everything optional away. **Northline** is the
+opposite: a transit authority with twelve colours, eight colourways, four
+typefaces, four PNG widths, four social crops, 245 files in the package, one
+colourway that leaves a slot out on purpose, and a mark drawn the way a drawing
+tool actually writes a repeated element — once, in `defs`, placed three times
+with `<use>`.
+
+Six more things were wrong, and two of them were already shipping.
+
+**`<use>` is a reference, and nothing here had ever heard of one.** Every drawing
+tool writes a repeated element that way: the shape lives in `defs` and each use
+places a copy. Both emitters walk the tree looking for geometry, so both found
+the original sitting in `defs` and drew it **once, at the coordinates it is
+defined at rather than placed at, in black rather than in the colour the `<use>`
+carries.** The printed piece showed one misplaced black bar where there should
+have been three brand-coloured ones; the PDF drew one shape and never filled it.
+Teaching each consumer about references would have meant teaching all of them,
+so it is resolved at the front door instead: the normaliser places the copies
+and hands everything downstream plain geometry. A `<use>`-written master and a
+plain-path master now produce byte-identical output, which is the test.
+
+**And walking `defs` at all was drawing things that must never appear.** A
+clipping path lives in `defs` and describes a shape that exists to hide other
+shapes. **Kvist's printed piece has been carrying a solid rectangle the size of
+its own artboard** ever since Kvist was added, because `defs` was being treated
+as an ordinary group. `typst-check` never caught it: it compares the mark
+redrawn against the mark rendered, and it only ever ran on Meridian, which has
+no `defs` in it.
+
+**Five of the six misuse cells were invisible.** They were painted in the colour
+in the primary role, on a stage whose colour belongs to the page — and the
+page's flips with the reader's light or dark setting, so no fixed brand ink can
+read on both. **Halyard's have been blank since the day it was added**, at 1.01
+to 1, and Northline's the same. This is the third place the same root cause has
+turned up — an ink taken from a role without anybody checking it can be seen —
+and the second time it was already in a shipped document. The cells have a
+ground of the brand's own now, and an ink measured against it.
+
+**The sixth misuse cell had no treatment at all.** Six captions, four
+treatments: one showed the mark plainly correct under a caption saying not to do
+it, in every manual the engine has ever built. It is hollowed out and outlined
+now. The deeper problem is left standing and worth naming: the grid pairs a
+fixed sequence of treatments with whatever six strings the project lists, so the
+pictures match the words only because every project here happens to list its
+misuses in the order the engine assumes. Meridian's sixth is *do not retype the
+wordmark*, for which no fixed treatment is right. That pairing should be the
+project's to state, and it is not, yet.
+
+**A wrong colour nobody can see makes no point either.** The recolouring cell is
+deliberately painted in a colour plainly outside the palette, which was a fixed
+magenta — 2.96 to 1 on Meridian's dark ground. It is chosen against the ground
+now, from a set of colours no identity would own.
+
+**A colourway that leaves a slot out warned once per lockup and never said what
+it did.** Three identical lines for one problem, and the thing a designer needs
+to know is missing from all three: the slot keeps whatever the *master* was
+painted, which is a colour from some other colourway, and the files are written
+anyway. It is said once now, with the colour named.
+
+There was also a defect of my own from an hour earlier: the new message read
+*"Placed 4 referenced copy copies"*, and a dangling `<use>` pointing at nothing
+was removed from the artwork and then the edit thrown away, because only placed
+copies counted as a change. Both fixed, and a reference to artwork that is not
+in the file is now a warning of its own.
+
+What did **not** break: twelve colours reached the palette with roles and line
+colours laid out together, eight colourways across four lockups produced 245
+files with no name collisions, four typefaces produced four font requests, and
+the excess touched nothing in the documents.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.
@@ -1180,6 +1257,7 @@ already right, and none of them had been tried.
     projects/halyard/   the second: filled artwork, two inks, four faults left in
     projects/kvist/     the third: fills and a stroke, a 252x90 box, a name in Norwegian
     projects/hallward/  the fourth: two colours, one colourway, a seal in a 2048 box
+    projects/northline/ the fifth: twelve colours, eight colourways, a mark drawn with <use>
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package

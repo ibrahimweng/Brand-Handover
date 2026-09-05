@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="160" height="160" viewBox="0 0 160 160">
+  <defs>
+    <path id="tick" d="M0 0h56v10H0z"/>
+    <g id="pair">
+      <use xlink:href="#tick" y="0"/>
+      <use xlink:href="#tick" y="22"/>
+    </g>
+  </defs>
+  <g data-slot="route">
+    <path d="M18 132 L60 132 L102 40 L142 40" fill="none" stroke="#1B3A6B" stroke-width="14"
+          stroke-linecap="square" stroke-linejoin="miter"/>
+  </g>
+  <use xlink:href="#pair" data-slot="ticks" x="18" y="16" fill="#D8442F"/>
+  <use xlink:href="#tick" data-slot="ticks" x="86" y="94" fill="#D8442F"/>
+</svg>

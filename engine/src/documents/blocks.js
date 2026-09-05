@@ -188,10 +188,48 @@ function lockups(ctx) {
 function misuse(ctx) {
   const list = (ctx.project.content && ctx.project.content.misuse) || [];
   const styles = ['transform:scaleX(1.5)', 'transform:rotate(16deg)', '', 'filter:drop-shadow(3px 4px 4px rgba(0,0,0,.45))', '', ''];
-  const inks = [ctx.primary.hex, ctx.primary.hex, '#B0439A', ctx.primary.hex, ctx.primary.hex, ctx.primary.hex];
-  return `<div class="row3">` + list.slice(0, 6).map((why, i) =>
-    `<figure><div class="stage tight dont${i === 4 ? ' busy' : ''}"><span style="${styles[i]}">${scaled(inked(ctx, inks[i]), 62)}</span></div>
-     <figcaption>${esc(why)}</figcaption></figure>`).join('') + `</div>`;
+
+  // These cells were painted in the colour in the primary role, on a stage
+  // whose colour is the page's rather than the brand's — and the page's flips
+  // with the reader's light or dark setting, so no fixed ink can read on both.
+  // Five of Halyard's six cells have been blank since the day it was added,
+  // and Northline's the same: near-white artwork on a near-white stage at
+  // 1.01 to 1. Give the cells a ground of the brand's own and an ink that
+  // reads on it, the way the specimen does.
+  const s = showOn(ctx);
+  const inks = Object.values(s.colourway.slots);
+  const best = inks.slice().sort((a, b) =>
+    contrast.ratio(b, s.ground.hex) - contrast.ratio(a, s.ground.hex))[0] || ctx.primary.hex;
+  // the busy cell paints its own stripes over the ground, so measure against
+  // the darker of them rather than against what is behind it
+  const BUSY = '#5E6B5B';
+  const onBusy = contrast.ratio(best, BUSY) >= SEEN ? best
+    : (inks.slice().sort((a, b) => contrast.ratio(b, BUSY) - contrast.ratio(a, BUSY))[0] || best);
+
+  // Six captions and four treatments: the fifth cell has the busy ground and
+  // the sixth had nothing at all, so one cell in every manual ever built showed
+  // a perfectly correct mark under a caption saying not to do it.
+  // the third cell is the mark in a colour that is plainly not the brand's,
+  // and a wrong colour nobody can see makes no point at all: Meridian's fixed
+  // magenta sits at 2.96 to 1 on its own dark ground
+  const WRONG = ['#B0439A', '#E86FD0', '#7CE04B', '#F2C230'];
+  const wrong = WRONG.slice().sort((a, b) =>
+    contrast.ratio(b, s.ground.hex) - contrast.ratio(a, s.ground.hex))
+    .find((h) => contrast.ratio(h, s.ground.hex) >= SEEN) || WRONG[0];
+
+  const outline = `filter:drop-shadow(1px 0 0 ${best}) drop-shadow(-1px 0 0 ${best})`
+    + ` drop-shadow(0 1px 0 ${best}) drop-shadow(0 -1px 0 ${best})`;
+
+  return `<div class="row3">` + list.slice(0, 6).map((why, i) => {
+    const busy = i === 4;
+    // the third cell is deliberately the wrong colour, which is its whole point,
+    // and the sixth is the mark hollowed out, which is what outlining it means
+    const ink = i === 2 ? wrong : i === 5 ? s.ground.hex : busy ? onBusy : best;
+    const style = i === 5 ? outline : styles[i];
+    const ground = busy ? '' : `background:${s.ground.hex};`;
+    return `<figure><div class="stage tight dont${busy ? ' busy' : ''}" style="${ground}"><span style="${style}">${scaled(inked(ctx, ink), 62)}</span></div>
+     <figcaption>${esc(why)}</figcaption></figure>`;
+  }).join('') + `</div>`;
 }
 
 // ---------------------------------------------------------------- colour

@@ -376,7 +376,7 @@ the measuring engine, the packager, both documents, the canvas editor,
 publishing, all three kinds of block, image slots, page sizes and the
 photography treatment, print work with bleed, CMYK, and a printed piece through
 Typst, mockups, and the licence half of accounts. 138 files from one master,
-261 tests, and three more identities in the repo that the engine had not been
+266 tests, and four more identities in the repo that the engine had not been
 written against.
 
 Three things the plan had wrong, found by building rather than by thinking.
@@ -623,6 +623,29 @@ no document was calling it. The lesson is not "check contrast"; it is that a
 verification suite drifts toward the properties that are cheap to assert, and
 the way out is to ask, periodically and deliberately, what a reader would notice
 in one second that no assertion currently covers.
+
+**The same defect turned up for the third time, and that is the finding.** The
+fourth round found the manual showing the mark on a ground it could not be seen
+on. The fifth found five of six misuse cells blank for the same reason — an ink
+taken from a colour role, put on a ground nobody had measured it against. Twice
+now the instance found in a new project turned out to have been shipping in an
+old one: Halyard's title slide, then Halyard's misuse grid. A defect that recurs
+in three places is not three defects, it is one missing rule, and the rule is
+that no document may pick an ink and a ground independently. Fixing instances
+will keep finding instances. What is wanted is for the choice to be impossible
+to make wrongly — one function that returns a pair, never two lookups that
+happen to be used together — and that is a design change, not a bug fix. It is
+partly done: `showOn` exists and three places now call it. Nothing yet stops a
+fourth place being written without it.
+
+**Two rounds running, the new project's most valuable find was in the old
+projects.** Kvist's printed piece has been carrying a solid rectangle the size of
+its artboard since Kvist was added, because the Typst emitter walked into `defs`.
+The check that exists precisely to catch that — redraw the mark, compare it with
+the render — only ever ran on Meridian, which has no `defs` in it. The lesson is
+not about `defs`. It is that a check pinned to one fixture tests that fixture,
+and every check in this repo that takes a project as input should run over all of
+them; the ones that do not are the ones with findings hiding behind them.
 
 **A defect that only prints an error to a console is still a defect.** Every
 scaled drawing in every document carried `height="auto"`, which is not a length

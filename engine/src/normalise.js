@@ -205,6 +205,58 @@ function assignSlots(doc, used, tokens) {
 }
 
 // ---------- the whole pass ----------
+// <use> is how every drawing tool writes a repeated element, and it is a
+// reference rather than a drawing: the shape lives in defs and each use places
+// a copy of it. Consumers that walk the tree looking for geometry therefore see
+// the original once, at the coordinates it is defined at rather than placed at,
+// wearing none of the paint the use carries. Both emitters here did exactly
+// that — the printed piece drew one black bar where there should have been
+// three brand-coloured ones, and the PDF drew one shape and never filled it.
+// Rather than teach every consumer about references, resolve them here, once,
+// so that everything downstream only ever sees plain geometry.
+const USE_PAINT = ['fill', 'stroke', 'stroke-width', 'stroke-opacity', 'fill-opacity',
+  'opacity', 'stroke-linecap', 'stroke-linejoin', 'data-slot'];
+
+function expandUse(doc) {
+  const byId = {};
+  eachEl(doc, (el) => { const id = el.getAttribute('id'); if (id) byId[id] = el; });
+
+  let done = 0, dropped = 0;
+  for (let pass = 0; pass < 6; pass++) {         // a use may reference a use
+    const uses = [];
+    eachEl(doc, (el) => {
+      if (String(el.nodeName).toLowerCase() === 'use') uses.push(el);
+    });
+    if (!uses.length) break;
+    for (const u of uses) {
+      if (!u.parentNode) continue;
+      const href = (u.getAttribute('href') || u.getAttribute('xlink:href') || '').trim();
+      const id = (/^#(.+)$/.exec(href) || [])[1];
+      const ref = id ? byId[id] : null;
+      // a reference to nothing draws nothing, which is what it did before
+      if (!ref || ref === u || (ref.contains && ref.contains(u))) {
+        u.parentNode.removeChild(u); dropped++; continue;
+      }
+      const clone = ref.cloneNode(true);
+      clone.removeAttribute('id');
+      for (const a of USE_PAINT) {
+        const v = u.getAttribute(a);
+        if (v != null && v !== '' && !clone.getAttribute(a)) clone.setAttribute(a, v);
+      }
+      const dx = Number(u.getAttribute('x') || 0), dy = Number(u.getAttribute('y') || 0);
+      const move = dx || dy ? `translate(${dx} ${dy})` : '';
+      const outer = [u.getAttribute('transform') || '', move].filter(Boolean).join(' ');
+      if (outer) {
+        const own = clone.getAttribute('transform');
+        clone.setAttribute('transform', own ? `${outer} ${own}` : outer);
+      }
+      u.parentNode.replaceChild(clone, u);
+      done++;
+    }
+  }
+  return { placed: done, dropped };
+}
+
 // Rules that survive the inlining pass are rules that match nothing: the
 // inliner has already moved every rule that had an element to move it to. A
 // stylesheet is also the one thing in an SVG that nothing downstream here
@@ -233,8 +285,19 @@ function normalise(source, { tokens } = {}) {
 
   const before = source.length;
   const stripped = preClean(source);
+  // resolve references into geometry before the cleaner runs, so the transform
+  // each one carries gets flattened along with every other transform
+  let placed = 0, dangling = 0, forClean = stripped.source;
+  try {
+    const pre = svgu.parse(forClean);
+    const r = expandUse(pre);
+    placed = r.placed; dangling = r.dropped;
+    // a removal is a change too: counting only the copies meant a file whose
+    // only reference pointed at nothing had its edit quietly thrown away
+    if (placed || dangling) forClean = svgu.serialize(pre);
+  } catch (_) { placed = 0; dangling = 0; }
   let cleaned;
-  try { cleaned = optimize(stripped.source, SVGO).data; }
+  try { cleaned = optimize(forClean, SVGO).data; }
   catch (e) {
     findings.push(finding('blocker', 'clean-failed', 'This file could not be cleaned up.',
       `The tidy-up step stopped with: ${e.message}`, 'Re-export it and try again.'));
@@ -250,6 +313,15 @@ function normalise(source, { tokens } = {}) {
   if (stripped.removed) findings.push(finding('fixed', 'editor-metadata',
     `Removed ${stripped.removed} block${stripped.removed > 1 ? 's' : ''} of editor metadata.`,
     'Illustrator writes a metadata block that refers to entities it never declares, which stops a strict parser before it reaches any of your artwork. None of it draws anything.', null));
+
+  if (placed) findings.push(finding('fixed', 'expanded-use',
+    `Placed ${placed} referenced ${placed > 1 ? 'copies' : 'copy'} into the artwork.`,
+    'A repeated element is written as a reference to one kept aside. That is fine in a browser and nothing else here reads it, so the copies were being drawn once, in the wrong place, in the wrong colour.', null));
+
+  if (dangling) findings.push(finding('warning', 'dangling-use',
+    `${dangling} reference${dangling > 1 ? 's point' : ' points'} at artwork that is not in the file.`,
+    'Something was deleted and the copies of it were left behind. They drew nothing, so the mark is missing a part it was drawn with.',
+    'Check the mark against the original, and put back whatever was removed.'));
 
   if (dead.blocks) findings.push(finding('fixed', 'dead-styles',
     `Removed ${dead.rules} style rule${dead.rules === 1 ? '' : 's'} that matched nothing.`,

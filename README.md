@@ -71,7 +71,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 136 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 261 tests.
+of it. 266 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -205,7 +205,29 @@ all four read between 12.9 and 18.0 to 1. The fifth: a part-transparent shape
 was counted by the ink box, invisible to the stem scan, and unprintable in a
 spot ink, three defensible decisions never reconciled and never mentioned.
 
-Still to do: a run on **your** identity job. Four identities the engine had not
-seen is worth a great deal more than four passes over one, but none of them came
+A fifth, **Northline**, is Hallward's opposite: twelve colours, eight
+colourways, four typefaces, 245 files, and a mark written the way a drawing tool
+actually writes a repeated element — once, in `defs`, placed with `<use>`. Six
+more defects, and two were already shipping. Nothing here had ever heard of a
+reference: both emitters found the original sitting in `defs` and drew it once,
+at the coordinates it is defined at rather than placed at, in black rather than
+the colour the `<use>` carries. And walking `defs` at all draws things that must
+never appear — **Kvist's printed piece has been carrying a solid rectangle the
+size of its own artboard** since the day Kvist was added, which the Typst check
+missed because it only ever ran on Meridian, which has no `defs`. References are
+resolved at the front door now, so a `<use>`-written master and a plain-path
+master produce byte-identical output.
+
+The third was the same root cause as the fourth round's, for the third time:
+**five of the six misuse cells were invisible** — painted in the colour in the
+primary role on a stage whose colour belongs to the page, which flips with the
+reader's light or dark setting. Halyard's have been blank since the day it was
+added. The sixth cell had no treatment at all, so one cell in every manual ever
+built showed a plainly correct mark under a caption saying not to do it. Then a
+deliberately-wrong colour too dark to see on its own ground, and a colourway
+missing a slot that warned three times without ever saying what it did instead.
+
+Still to do: a run on **your** identity job. Five identities the engine had not
+seen is worth a great deal more than five passes over one, but none of them came
 out of your exporter — and the normaliser is the part that most needs to meet
 one.

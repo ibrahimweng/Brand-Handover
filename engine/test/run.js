@@ -2364,6 +2364,154 @@ test('an identity of two colours and one colourway still builds', () => {
     `a missing system block rendered as ${photo.slice(0, 80)}`);
 });
 
+console.log('\na fifth identity');
+// Hallward was built by taking everything optional away. Northline is the
+// opposite: twelve colours, eight colourways, four typefaces, four lockups,
+// four PNG widths, four social crops, a colourway that leaves a slot out, and
+// a mark drawn the way a drawing tool actually writes a repeated element —
+// once, in defs, placed with <use>.
+const NL = projectLoader.load(path.join(__dirname, '..', 'projects', 'northline', 'project.json'));
+const nlM = measure(NL);
+
+test('a referenced copy is placed, not drawn once where it is defined', () => {
+  // <use> is a reference. Both emitters walked the tree looking for geometry,
+  // found the original sitting in defs, and drew it once, at the coordinates
+  // it is defined at rather than placed at, in black rather than in the colour
+  // the <use> carries. Resolving it here means nothing downstream has to know.
+  const norm = require('../src/normalise');
+  const plain = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">'
+    + '<path data-slot="ink" fill="#0A2A33" d="M20 20h80v10H20z"/>'
+    + '<path data-slot="ink" fill="#0A2A33" d="M20 50h80v10H20z"/>'
+    + '<path data-slot="ink" fill="#0A2A33" d="M20 80h80v10H20z"/></svg>';
+  const viaUse = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 120">'
+    + '<defs><path id="bar" d="M0 0h80v10H0z"/></defs>'
+    + '<use xlink:href="#bar" data-slot="ink" x="20" y="20" fill="#0A2A33"/>'
+    + '<use xlink:href="#bar" data-slot="ink" x="20" y="50" fill="#0A2A33"/>'
+    + '<use xlink:href="#bar" data-slot="ink" x="20" y="80" fill="#0A2A33"/></svg>';
+  const a = norm.normalise(plain, { tokens: NL.tokens });
+  const b = norm.normalise(viaUse, { tokens: NL.tokens });
+  assert.ok(!/<use|<defs/.test(b.svg), `a reference survived: ${b.svg.slice(0, 160)}`);
+  assert.ok(b.findings.some((f) => f.code === 'expanded-use'), 'nothing was said about it');
+  // the two masters describe the same drawing, so they must measure the same
+  const box = { x: 0, y: 0, w: 120, h: 120 };
+  assert.deepStrictEqual(geo.inkBox(b.svg), geo.inkBox(a.svg));
+  // and print the same
+  const typst = require('../src/typst');
+  const ta = typst.artwork(a.svg, box, { colours: {} }, new Set());
+  const tb = typst.artwork(b.svg, box, { colours: {} }, new Set());
+  assert.strictEqual(tb.replace(/\s+/g, ' ').trim(), ta.replace(/\s+/g, ' ').trim(),
+    'the same drawing printed differently depending on how it was written');
+  // the cleaner merges three identical bars into one path of three subpaths,
+  // so the copies show up as subpaths rather than as separate placements
+  assert.strictEqual((tb.match(/curve\.move/g) || []).length, 3, 'not every copy was placed');
+  // a reference to nothing draws nothing rather than throwing
+  const dangling = norm.normalise('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">'
+    + '<path data-slot="ink" fill="#0A2A33" d="M20 20h80v10H20z"/><use href="#gone" x="0" y="0"/></svg>',
+  { tokens: NL.tokens });
+  assert.ok(dangling.ok && !/<use/.test(dangling.svg));
+  // the fixture nests one inside another, which has to resolve too
+  assert.deepStrictEqual(nlM.slots, ['route', 'ticks']);
+  assert.ok(!/<use|<defs/.test(NL.assets.mark.source), 'the fixture kept a reference');
+});
+
+test('nothing inside defs is ever drawn', () => {
+  // a clipPath lives in defs and describes a shape that must not appear.
+  // Kvist's printed piece has been carrying a solid rectangle the size of its
+  // own artboard, because defs was being walked like an ordinary group.
+  const typst = require('../src/typst');
+  const svgu2 = require('../src/svg');
+  for (const proj of [project, HAL, KV, HW, NL]) {
+    const src = proj.assets.mark.source;
+    let drawable = 0;
+    (function walk(n, hidden) {
+      for (let c = n.firstChild; c; c = c.nextSibling) {
+        if (c.nodeType !== 1) continue;
+        const t = String(c.nodeName).toLowerCase();
+        const h = hidden || ['defs', 'clippath', 'mask', 'symbol', 'marker', 'pattern'].indexOf(t) > -1;
+        if (t === 'path' && !h) drawable++;
+        walk(c, h);
+      }
+    }(svgu2.parse(src).documentElement, false));
+    const out = typst.artwork(src, { x: 0, y: 0, w: 100, h: 100 }, { colours: {} }, new Set());
+    // one #place per path; curve.move counts subpaths, and an evenodd ring has two
+    assert.strictEqual((out.match(/#place\(/g) || []).length, drawable,
+      `${proj.brand}: printed ${(out.match(/#place\(/g) || []).length} shapes where ${drawable} are drawable`);
+  }
+});
+
+test('every misuse cell shows the mark, and shows it misused', () => {
+  // the cells were painted in the colour in the primary role on a stage whose
+  // colour belongs to the page and flips with the reader's light or dark
+  // setting, so no fixed ink could read on both. Five of Halyard's six have
+  // been blank since the day it was added, at 1.01 to 1.
+  const docs = require('../src/documents');
+  const b = require('../src/documents/blocks');
+  const contrast = require('../src/contrast');
+  for (const [proj, meas] of [[project, m], [HAL, halM], [KV, kvM], [HW, hwM], [NL, nlM]]) {
+    const ctx = docs.context(proj, meas, [], {});
+    const html = b.misuse(ctx);
+    const cells = html.split('<figure>').slice(1);
+    assert.strictEqual(cells.length, 6, `${proj.brand} drew ${cells.length} cells`);
+    const ground = b.showOn(ctx).ground.hex;
+    cells.forEach((cell, i) => {
+      const fill = (/fill="(#[0-9A-Fa-f]{6})"/.exec(cell) || [])[1];
+      assert.ok(fill, `${proj.brand} cell ${i} paints nothing`);
+      if (i === 4) return;                       // the busy cell has its own ground
+      if (i === 5) {                             // hollowed out, outlined in the ink
+        assert.strictEqual(fill.toUpperCase(), ground.toUpperCase(),
+          `${proj.brand} cell 5 is not hollow`);
+        assert.ok(/drop-shadow/.test(cell), `${proj.brand} cell 5 has no outline`);
+        return;
+      }
+      assert.ok(contrast.ratio(fill, ground) >= b.SEEN,
+        `${proj.brand} cell ${i}: ${fill} on ${ground} is ${contrast.ratio(fill, ground).toFixed(2)}:1`);
+    });
+    // no cell may show a correct mark under a caption saying not to. A cell is
+    // treated if it is deformed or filtered, sits on the busy ground, or is
+    // painted in something other than the ink the mark is properly drawn in.
+    const proper = (/fill="(#[0-9A-Fa-f]{6})"/.exec(cells[0]) || [])[1].toUpperCase();
+    cells.forEach((cell, i) => {
+      const style = (/<span style="([^"]*)"/.exec(cell) || [])[1] || '';
+      const fill = ((/fill="(#[0-9A-Fa-f]{6})"/.exec(cell) || [])[1] || '').toUpperCase();
+      const treated = style.trim() !== '' || /class="[^"]*\bbusy\b/.test(cell) || fill !== proper;
+      assert.ok(treated,
+        `${proj.brand} cell ${i} shows a correct mark under a caption saying not to`);
+    });
+  }
+});
+
+test('a colourway that leaves a slot out is reported once, with what it did', () => {
+  const outline = NL.rules.colourways.find((c) => c.name === 'outline');
+  assert.ok(outline && !outline.slots.ticks, 'this fixture is meant to omit a slot');
+  const { buildVariant } = require('../src/variants');
+  const v = buildVariant({ markSrc: NL.assets.mark.source,
+    wordmarkSrc: NL.assets.wordmark.source, lockup: 'mark',
+    colourway: outline, rules: NL.rules, measured: nlM });
+  assert.deepStrictEqual(v.missing, ['ticks']);
+  // the slot keeps whatever the master painted it, which is why the file looks
+  // like it does, and that is the part the warning has to say
+  assert.ok(v.svg.includes('#D8442F'), 'the master colour did not survive');
+});
+
+test('excess does not break anything that density touches', () => {
+  assert.strictEqual(Object.keys(NL.tokens.colour).length, 12);
+  assert.strictEqual(NL.rules.colourways.length, 8);
+  assert.strictEqual(Object.keys(NL.tokens.type.families).length, 4);
+  const docs = require('../src/documents');
+  const ctx = docs.context(NL, nlM, [], {});
+  const html = docs.guidelines(ctx);
+  assert.ok(!/hb-missing/.test(html), 'a hole in the manual');
+  // every colour reaches the palette, roles and line colours alike
+  for (const name of Object.keys(NL.tokens.colour)) {
+    assert.ok(html.includes(NL.tokens.colour[name].hex), `${name} is missing from the manual`);
+  }
+  // four families means four font requests and no more
+  const link = (/<link rel="stylesheet" href="(https:\/\/fonts[^"]*)"/.exec(html) || [])[1] || '';
+  for (const f of ['Archivo', 'Literata', 'Spline+Sans+Mono', 'Archivo+Narrow']) {
+    assert.ok(link.includes(f) || html.includes(f.replace(/\+/g, ' ')), `${f} is not asked for`);
+  }
+});
+
 drain().then(() => {
   for (const d of [out, out2]) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);

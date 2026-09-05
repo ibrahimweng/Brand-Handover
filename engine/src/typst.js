@@ -90,10 +90,36 @@ function artwork(svg, box, bundle, seen) {
   const out = [];
   const PAINT = ['fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin'];
 
+  // Things that hold artwork without drawing it. Walking into them paints the
+  // shape of a clipping mask onto the page: Kvist's printed piece carried a
+  // solid rectangle the size of its own artboard, because a clipPath lives in
+  // defs and defs was being treated as an ordinary group.
+  const HIDDEN = ['defs', 'clippath', 'mask', 'symbol', 'marker', 'pattern',
+    'metadata', 'title', 'desc', 'style'];
+
+  // <use> is how every drawing tool writes a repeated element, and this walker
+  // had never heard of one: it drew the original out of defs, once, at the
+  // coordinates it is defined at rather than the ones it is placed at, in
+  // black rather than in the colour the <use> carries.
+  const byId = {};
+  (function index(n) {
+    if (n.nodeType === 1) {
+      const id = n.getAttribute('id');
+      if (id) byId[id] = n;
+      for (let c = n.firstChild; c; c = c.nextSibling) index(c);
+    }
+  }(doc.documentElement));
+  const target = (node) => {
+    const href = node.getAttribute('href') || node.getAttribute('xlink:href') || '';
+    const m = /^#(.+)$/.exec(href.trim());
+    return m ? byId[m[1]] : null;
+  };
+
   // A lockup is a composition, so its parts sit inside transformed groups and
   // inherit their paint from them. Scraping the paths out on their own draws
   // them in the wrong place in the wrong colour, which is the same lesson the
   // icon check learned the hard way.
+  const seenUse = [];
   (function walk(node, matrix, paint) {
     if (node.nodeType !== 1) return;
     const local = node.nodeName.replace(/^.*:/, '');
@@ -103,6 +129,20 @@ function artwork(svg, box, bundle, seen) {
     const m = node.getAttribute('transform')
       ? paths.multiply(matrix, paths.parseTransform(node.getAttribute('transform')))
       : matrix;
+
+    if (HIDDEN.indexOf(local.toLowerCase()) > -1) return;
+
+    if (local === 'use') {
+      const ref = target(node);
+      if (ref && seenUse.indexOf(ref) < 0) {          // a <use> of itself draws nothing
+        const dx = Number(node.getAttribute('x') || 0), dy = Number(node.getAttribute('y') || 0);
+        const at = dx || dy ? paths.multiply(m, [1, 0, 0, 1, dx, dy]) : m;
+        seenUse.push(ref);
+        walk(ref, at, here);
+        seenUse.pop();
+      }
+      return;
+    }
 
     if (local === 'path') {
       const d = node.getAttribute('d');

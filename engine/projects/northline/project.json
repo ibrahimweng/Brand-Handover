@@ -1,0 +1,389 @@
+{
+  "brand": "Northline",
+  "version": "4.2.0",
+  "assets": {
+    "mark": "mark.svg",
+    "wordmark": "wordmark.svg"
+  },
+  "tokens": {
+    "colour": {
+      "slate": {
+        "hex": "#1B3A6B",
+        "role": "ground",
+        "pantone": "294 C",
+        "cmyk": [
+          100,
+          78,
+          18,
+          5
+        ]
+      },
+      "chalk": {
+        "hex": "#F4F2EC",
+        "role": "primary",
+        "pantone": "7527 C",
+        "cmyk": [
+          3,
+          3,
+          7,
+          0
+        ]
+      },
+      "signal": {
+        "hex": "#D8442F",
+        "role": "accent",
+        "pantone": "180 C",
+        "cmyk": [
+          8,
+          88,
+          90,
+          1
+        ]
+      },
+      "steel": {
+        "hex": "#5C6B7A",
+        "role": "secondary",
+        "pantone": "5415 C",
+        "cmyk": [
+          62,
+          44,
+          33,
+          5
+        ]
+      },
+      "ash": {
+        "hex": "#9AA3AB",
+        "role": "neutral",
+        "pantone": "429 C",
+        "cmyk": [
+          42,
+          30,
+          26,
+          1
+        ]
+      },
+      "north": {
+        "hex": "#0E7C4A",
+        "pantone": "line",
+        "cmyk": [
+          88,
+          17,
+          86,
+          3
+        ]
+      },
+      "east": {
+        "hex": "#C8102E",
+        "pantone": "line",
+        "cmyk": [
+          8,
+          100,
+          86,
+          1
+        ]
+      },
+      "west": {
+        "hex": "#7A4FA3",
+        "pantone": "line",
+        "cmyk": [
+          62,
+          79,
+          0,
+          0
+        ]
+      },
+      "coast": {
+        "hex": "#0093B2",
+        "pantone": "line",
+        "cmyk": [
+          82,
+          20,
+          20,
+          0
+        ]
+      },
+      "loop": {
+        "hex": "#E8A33D",
+        "pantone": "line",
+        "cmyk": [
+          7,
+          39,
+          86,
+          0
+        ]
+      },
+      "quay": {
+        "hex": "#8C6239",
+        "pantone": "line",
+        "cmyk": [
+          38,
+          58,
+          80,
+          26
+        ]
+      },
+      "spur": {
+        "hex": "#5A6670",
+        "pantone": "line",
+        "cmyk": [
+          62,
+          48,
+          42,
+          12
+        ]
+      }
+    },
+    "type": {
+      "families": {
+        "display": {
+          "family": "Archivo",
+          "fallback": "Helvetica, Arial, sans-serif",
+          "weights": [
+            600,
+            700
+          ],
+          "google": true
+        },
+        "text": {
+          "family": "Literata",
+          "fallback": "Georgia, serif",
+          "weights": [
+            400,
+            500
+          ],
+          "google": true
+        },
+        "mono": {
+          "family": "Spline Sans Mono",
+          "fallback": "ui-monospace, Menlo, monospace",
+          "weights": [
+            400,
+            500
+          ],
+          "google": true
+        },
+        "condensed": {
+          "family": "Archivo Narrow",
+          "fallback": "'Arial Narrow', sans-serif",
+          "weights": [
+            500,
+            700
+          ],
+          "google": true
+        }
+      },
+      "scale": [
+        {
+          "name": "Display",
+          "family": "condensed",
+          "size": 80,
+          "leading": 82,
+          "weight": 700,
+          "tracking": -0.02
+        },
+        {
+          "name": "H1",
+          "family": "display",
+          "size": 42,
+          "leading": 48,
+          "weight": 700,
+          "tracking": -0.015
+        },
+        {
+          "name": "H2",
+          "family": "display",
+          "size": 27,
+          "leading": 33,
+          "weight": 600
+        },
+        {
+          "name": "H3",
+          "family": "condensed",
+          "size": 20,
+          "leading": 27,
+          "weight": 700
+        },
+        {
+          "name": "Body",
+          "family": "text",
+          "size": 16,
+          "leading": 26,
+          "weight": 400
+        },
+        {
+          "name": "Small",
+          "family": "text",
+          "size": 13,
+          "leading": 20,
+          "weight": 400
+        },
+        {
+          "name": "Data",
+          "family": "mono",
+          "size": 13,
+          "leading": 19,
+          "weight": 500
+        },
+        {
+          "name": "Caption",
+          "family": "mono",
+          "size": 11,
+          "leading": 15,
+          "weight": 400,
+          "tracking": 0.06
+        }
+      ]
+    }
+  },
+  "rules": {
+    "clearSpaceRatio": 0.35,
+    "minStrokePx": 3,
+    "minStrokeMm": 0.8,
+    "lockupGapRatio": 0.26,
+    "wordmarkHeightRatio": 0.46,
+    "naming": "{brand}_{lockup}_{colourway}",
+    "lockups": [
+      "horizontal",
+      "stacked",
+      "mark",
+      "wordmark"
+    ],
+    "formats": [
+      "svg",
+      "png",
+      "pdf",
+      "ai"
+    ],
+    "pngWidths": [
+      400,
+      800,
+      1600,
+      3200
+    ],
+    "stock": "coated",
+    "colourways": [
+      {
+        "name": "full",
+        "on": "slate",
+        "slots": {
+          "route": "#F4F2EC",
+          "ticks": "#D8442F"
+        }
+      },
+      {
+        "name": "chalk-on-slate",
+        "on": "slate",
+        "slots": {
+          "route": "#F4F2EC",
+          "ticks": "#F4F2EC"
+        }
+      },
+      {
+        "name": "slate-on-chalk",
+        "on": "chalk",
+        "slots": {
+          "route": "#1B3A6B",
+          "ticks": "#1B3A6B"
+        }
+      },
+      {
+        "name": "reverse",
+        "on": "chalk",
+        "slots": {
+          "route": "#1B3A6B",
+          "ticks": "#D8442F"
+        }
+      },
+      {
+        "name": "north",
+        "on": "chalk",
+        "slots": {
+          "route": "#0E7C4A",
+          "ticks": "#D8442F"
+        }
+      },
+      {
+        "name": "east",
+        "on": "chalk",
+        "slots": {
+          "route": "#C8102E",
+          "ticks": "#1B3A6B"
+        }
+      },
+      {
+        "name": "west",
+        "on": "chalk",
+        "slots": {
+          "route": "#7A4FA3",
+          "ticks": "#D8442F"
+        }
+      },
+      {
+        "name": "outline",
+        "on": "chalk",
+        "slots": {
+          "route": "#1B3A6B"
+        }
+      }
+    ],
+    "iconInk": "#F4F2EC",
+    "iconBg": "#1B3A6B",
+    "iconSizes": [
+      1024,
+      512,
+      180
+    ],
+    "faviconSizes": [
+      16,
+      32,
+      48
+    ],
+    "social": {
+      "profile": {
+        "w": 400,
+        "h": 400
+      },
+      "og image": {
+        "w": 1200,
+        "h": 630
+      },
+      "banner": {
+        "w": 1500,
+        "h": 500
+      },
+      "story": {
+        "w": 1080,
+        "h": 1920
+      }
+    }
+  },
+  "content": {
+    "positioning": "Northline",
+    "misuse": [
+      "Do not stretch it",
+      "Do not rotate it",
+      "Do not recolour the ticks",
+      "Do not add a shadow",
+      "Do not crowd it",
+      "Do not outline it"
+    ]
+  },
+  "system": {
+    "photography": {
+      "duotone": {
+        "shadow": "ground",
+        "highlight": "primary",
+        "amount": 0.6
+      },
+      "scrim": {
+        "colour": "ground",
+        "opacity": 0.5,
+        "direction": "bottom"
+      },
+      "ratios": [
+        "16:9",
+        "1:1"
+      ]
+    }
+  }
+}
