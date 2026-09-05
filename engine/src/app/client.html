@@ -171,6 +171,8 @@ select{font:400 14px Archivo,system-ui,sans-serif;color:var(--ink);background:va
 @media (prefers-reduced-motion:reduce){.spin{animation-duration:2.4s}}
 footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);
   color:var(--faint);font:400 13px/1.6 Archivo,system-ui,sans-serif}
+footer p{margin:0 0 6px}
+footer a{color:var(--link)}
 </style></head><body>
 
 <div class="wrap">
@@ -280,17 +282,20 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);
     <a class="go" id="btnZip" href="#">Download the package</a>
     <button class="flat" id="btnAgain">Start again</button>
   </div>
+  <p class="ct" id="openNote" style="margin:14px 0 0" hidden></p>
 
   <div id="buildNotes" class="finds"></div>
 </section>
 
 <footer>
-  Everything above was derived from the artwork you dropped. Nothing was uploaded:
-  this runs on your machine and the files never leave it.
+  <p id="privacy">Everything above was derived from the artwork you dropped.</p>
+  <p>Sixteen identities have already been through this engine, each one built to break it
+  a different way — <a href="/gallery/">see what it made of them</a>.</p>
 </footer>
 </div>
 
 <script src="/contrast.js"></script>
+<script src="/jszip.min.js"></script>
 <script>
 (function () {
   'use strict';
@@ -396,6 +401,13 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);
 
   wireDrop($('dropMark'), $('fileMark'), 'mark');
   wireDrop($('dropWord'), $('fileWord'), 'word');
+
+  // Where this is running changes what is true about the artwork, and the page
+  // says whichever is true rather than the flattering one.
+  const local = /^(localhost|127\.|\[::1\])/.test(location.hostname) || location.protocol === 'file:';
+  $('privacy').textContent = local
+    ? 'Everything above was derived from the artwork you dropped. Nothing was uploaded: this runs on your machine and the files never leave it.'
+    : 'Everything above was derived from the artwork you dropped. This copy is hosted, so the artwork is sent to a server that builds it and keeps nothing. Run it yourself with `handover serve` and it never leaves your machine at all.';
 
   // ---- step 1: read it ---------------------------------------------------
   async function post(url, body) {
@@ -620,7 +632,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);
         slots: state.slots,
       });
       state.build = r;
-      done(r);
+      await done(r);
       step(3);
     } catch (err) {
       findings($('buildErr'), (err && err.findings) || [{ level: 'blocker', what: 'The build stopped.',
@@ -640,7 +652,27 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);
     'editor.html': ['Canvas', 'Drag blocks, drop a photograph, lay out a page. No server.'],
   };
 
-  function done(r) {
+  // Where the documents come from depends on where this is running, and that is
+  // an honest difference rather than a leak. A server with a filesystem keeps
+  // the package and hands back URLs you can reload, bookmark and send. A hosted
+  // function has no filesystem it can share with the next request, so it sends
+  // the zip — which is the package, compressed, in one piece — and the browser
+  // opens the documents out of it.
+  async function openable(r) {
+    if (r.base) return { url: (f) => r.base + f, zip: r.zip ? r.base + r.zip + '?download' : null };
+    const bytes = Uint8Array.from(atob(r.zipBase64), (c) => c.charCodeAt(0));
+    const blobUrl = (data, type) => URL.createObjectURL(new Blob([data], { type }));
+    const zip = await JSZip.loadAsync(bytes);
+    const urls = {};
+    for (const f of r.documents) {
+      const entry = zip.file(f);
+      if (entry) urls[f] = blobUrl(await entry.async('uint8array'), 'text/html');
+    }
+    return { url: (f) => urls[f] || '#', zip: blobUrl(bytes, 'application/zip'), name: r.zipName };
+  }
+
+  async function done(r) {
+    const at = await openable(r);
     $('doneTitle').textContent = r.brand + ' is built';
     $('doneSub').textContent = 'Everything below came out of the artwork you dropped. '
       + 'Open the canvas to lay something out, or take the zip to your client.';
@@ -653,11 +685,17 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);
     ].map(([h]) => '<span>' + h + '</span>').join('');
     $('cards').innerHTML = r.documents.map((f) => {
       const c = CARDS[f] || [f, ''];
-      return '<a href="' + esc(r.base + f) + '" target="_blank" rel="noopener">'
+      return '<a href="' + esc(at.url(f)) + '" target="_blank" rel="noopener">'
         + '<b>' + esc(c[0]) + '</b><span>' + esc(c[1]) + '</span></a>';
     }).join('');
-    $('btnZip').href = r.zip ? esc(r.base + r.zip) + '?download' : '#';
-    $('btnZip').hidden = !r.zip;
+    $('btnZip').href = at.zip || '#';
+    if (at.name) $('btnZip').setAttribute('download', at.name);
+    $('btnZip').hidden = !at.zip;
+    $('openNote').hidden = !!r.base;
+    $('openNote').textContent = r.base ? ''
+      : 'These open in a new tab from this page\u2019s memory, so they will not survive a reload or a '
+        + 'pasted link, and the tabs close when this one does. The zip has all of them, and running it '
+        + 'yourself with `handover serve` gives them real URLs.';
     const notes = [].concat(
       (r.warnings || []).map((w) => ({ level: 'warning', what: w })),
       (r.notes || []).map((n) => ({ level: 'fixed', what: n })));

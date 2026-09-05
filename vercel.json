@@ -1,7 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "cd engine && npm ci",
-  "buildCommand": "node site/build.js",
-  "outputDirectory": "site/out"
+  "installCommand": "npm ci",
+  "buildCommand": "npm run build",
+  "outputDirectory": "site/out",
+  "functions": {
+    "api/*.js": {
+      "maxDuration": 60,
+      "includeFiles": "node_modules/@resvg/**"
+    }
+  }
 }

@@ -67,8 +67,8 @@ run locally.
 
 ## Using it
 
-    cd engine && npm install
-    node src/cli.js serve     # then open http://localhost:3000
+    npm install
+    npm run serve             # then open http://localhost:3000
 
 Drop your logo on it. It reads the file first — what was in the export, what was
 cleaned out of it, the ink box, the clear space, the smallest the mark can go on
@@ -86,16 +86,28 @@ It listens on localhost and nothing is uploaded. Brand artwork is usually under
 an NDA before it is under anything else, and a tool that measures it should not
 be the reason it leaves the building.
 
-## Seeing it
+## Hosting it
 
-    node site/build.js       # builds every identity into site/out, with an index
+    npm run build            # the app, and every identity, into site/out
 
-`site/out/index.html` lists all sixteen and links to each one's manual, deck,
-cover, canvas and zip. Nothing in it is committed: the repository holds sixteen
-master files and sixteen project files, and the site is what the engine makes of
-them, rebuilt from scratch on every deploy. `vercel.json` wires that up — install
-the engine's dependencies, run the builder, serve `site/out` — so a push to
-`main` redeploys a site that was derived rather than saved.
+The same app runs on Vercel. `vercel.json` wires it up: install, build, serve
+`site/out`, and put `api/inspect.js` and `api/build.js` on the two endpoints the
+page calls. They are wrappers — the work is the same `engine/src/app/handlers.js`
+the local server calls, so the hosted app and the one on your own machine cannot
+answer differently.
+
+One thing does differ, and the page says so rather than hiding it. A serverless
+function has no filesystem it can share with the next request, so a hosted build
+cannot serve a package file by file the way the local server does. It sends the
+zip — the package, compressed, in one answer, about 300 KB for a plain identity
+— and the browser opens the documents out of it. They open in a tab; they will
+not survive a reload, because they live in the page's memory. Run it yourself
+and they get real URLs.
+
+`/gallery/` is the sixteen identities the engine has already been through, each
+built to break it a different way. Nothing in it is committed: the repository
+holds sixteen master files and sixteen project files, and the site is what the
+engine makes of them, rebuilt from scratch on every deploy.
 
 The four links per identity are the four things worth opening. **Manual** and
 **Deck** are the two client-facing documents. **Cover** is a page published out
@@ -110,7 +122,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 138 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 345 tests.
+of it. 347 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space

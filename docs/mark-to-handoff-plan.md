@@ -377,7 +377,7 @@ publishing, all three kinds of block, image slots, page sizes and the
 photography treatment, print work with bleed, CMYK, and a printed piece through
 Typst, mockups, the licence half of accounts, and a local app that takes artwork
 and gives back the package without anybody writing a project file. 138 files from one master,
-345 tests, and fifteen more identities in the repo that the engine had not been
+347 tests, and fifteen more identities in the repo that the engine had not been
 written against.
 
 Three things the plan had wrong, found by building rather than by thinking.
@@ -1091,6 +1091,23 @@ manual prints. Copying `contrast.js` into the page would have been the obvious
 thing and would have drifted within a round. The server hands the page the
 engine's own module instead — it has been isomorphic since the canvas needed it,
 so there was nothing to do but route it.
+
+**Two different things under one key is a defect waiting for the day they are
+both set.** The build handler returns `zip` meaning the file's name, which is
+what the local server needs for a URL. The hosted function added `zip` meaning
+the bytes. `Object.assign({ zip: bytes }, r)` put the name over them, and a 412
+KB answer arrived as 562 bytes with nothing in it to say it had been truncated —
+no error, no exception, a `200` and a field of the right type holding the wrong
+thing. Argument order was the mechanism; the name was the cause. The fix is not
+to reorder the assign, it is to call the payload something else.
+
+**Where two hosts differ, say which one you are on rather than picking the
+flattering sentence.** The page's footer said "nothing was uploaded", which is
+true on a machine of your own and false on a deployment. It reads the location
+and says whichever is true. The same for the documents: locally they are URLs
+that reload and can be sent to somebody; hosted they are blobs that open once
+and die with the tab, and the page says so on the screen where you would
+otherwise find out by refreshing.
 
 ---
 

@@ -92,6 +92,14 @@ function handler(req, res) {
     return serveFile(res, path.join(__dirname, 'client.html'));
   }
 
+  // The page asks for this whether it needs it or not: hosted, it opens the
+  // documents out of the zip because a function has no filesystem to serve
+  // them from; here it does not have to, and a 404 on a script tag is still a
+  // 404. It is a dependency already, so it is served rather than fetched.
+  if (req.method === 'GET' && p === '/jszip.min.js') {
+    return serveFile(res, require.resolve('jszip/dist/jszip.min.js'));
+  }
+
   // A tab icon, because a 404 in the console on every load is a defect even
   // when nothing depends on it.
   if (req.method === 'GET' && (p === '/favicon.svg' || p === '/favicon.ico')) {
@@ -155,7 +163,7 @@ function serve({ port = 3000, host = '127.0.0.1', log = console.log } = {}) {
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { sweep(); process.exit(0); });
 process.on('exit', sweep);
 
-module.exports = { serve, handler, builds };
+module.exports = { serve, handler, builds, FAVICON };
 
 if (require.main === module) {
   const i = process.argv.indexOf('--port');

@@ -1965,6 +1965,14 @@ CLI does, so what the app reports is what the command line reports. It listens
 on localhost and uploads nothing, which is not a limitation: brand artwork is
 usually under an NDA before it is under anything else.
 
+The same app runs hosted, off `api/inspect.js` and `api/build.js`, which are
+wrappers around those same handlers. One thing genuinely differs there and the
+page says so rather than hiding it: a serverless function has no filesystem it
+can share with the next request, so it cannot serve a package file by file. It
+sends the zip — the package, compressed, in one answer, about 300 KB for a plain
+identity — and the browser opens the documents out of it. They open in a tab and
+do not survive a reload, because they live in the page's memory.
+
 Two defects the app found in its first hour, both in itself:
 
 **A lone logotype was built as a mark called one.** `assets.mark` was always
@@ -1978,6 +1986,13 @@ read.** The CMYK finding said to "put it in the project as `cmyk`: [c, m, y,
 k]", which is right in a text editor and meaningless in a browser where the
 field is on the screen in front of you. A `how` written for one host is wrong
 on the other; it names the four numbers now and not where they get typed.
+
+And one more, from hosting it. **The build answer called two different things
+`zip`** — the file's name, which the local server needs for a URL, and the bytes
+the hosted function sends. `Object.assign({ zip: bytes }, r)` put the name over
+them, and a 412 KB response arrived as 562 bytes: no error, no exception, a
+`200`, and a field of the right type holding the wrong thing. Argument order was
+the mechanism. The name was the cause, and renaming the payload is the fix.
 
 ## What it does not do yet
 
@@ -2032,4 +2047,5 @@ on the other; it names the four numbers now and not where they get typed.
     src/build.js      write the package, brand.json and the read me
     src/cli.js        check, measure, build, edit and publish
     src/app/          the front door: handlers.js, server.js, client.html
+    ../api/           the same two handlers, as functions, for hosting it
     ../site/build.js  every identity, built into one site, index and all

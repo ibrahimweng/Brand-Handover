@@ -4349,6 +4349,68 @@ test('four numbers from a printer reach the package, and anything else does not'
   }
 });
 
+// ---- the same app, hosted ----
+// A serverless function has no filesystem it can share with the next request,
+// so the hosted build cannot serve a package file by file the way the local
+// server does. It sends the zip instead and the browser opens the documents out
+// of it. These check the contract that difference rests on.
+
+const fn = (name) => require(path.join(__dirname, '..', '..', 'api', `${name}.js`));
+function callFn(name, body) {
+  const req = { method: 'POST', body };
+  let code = 0, sent = null;
+  const res = { setHeader() {}, status(c) { code = c; return res; }, json(o) { sent = o; return res; } };
+  return Promise.resolve(fn(name)(req, res)).then(() => ({ code, body: sent }));
+}
+
+test('the hosted functions answer with what the local handlers answer', async () => {
+  const mark = markSrc();
+  const seen = await callFn('inspect', { brand: 'Hosted', mark });
+  assert.strictEqual(seen.code, 200);
+  assert.deepStrictEqual(seen.body.measured, APP.inspect({ brand: 'Hosted', mark }).measured);
+
+  // and a refusal is a refusal there too, in the same shape
+  const no = await callFn('inspect', { mark: 'this is not an svg' });
+  assert.strictEqual(no.code, 400);
+  assert.strictEqual(no.body.ok, false);
+  for (const k of ['what', 'why', 'how']) assert.ok(no.body.findings[0][k], `a hosted refusal has no ${k}`);
+
+  const wrong = await new Promise((resolve) => {
+    let code = 0, sent = null;
+    const res = { setHeader() {}, status(c) { code = c; return res; }, json(o) { sent = o; resolve({ code, body: sent }); return res; } };
+    fn('inspect')({ method: 'GET' }, res);
+  });
+  assert.strictEqual(wrong.code, 405);
+});
+
+test('the hosted build sends the package back whole', async () => {
+  const r = await callFn('build', {
+    brand: 'Hosted', mark: markSrc(),
+    colours: [{ name: 'ink', hex: '#0A2A33', role: 'primary' }, { name: 'paper', hex: '#FFFFFF', role: 'ground' }],
+    lockups: ['mark'], slots: ['ink'],
+  });
+  assert.strictEqual(r.code, 200, JSON.stringify(r.body && r.body.findings));
+
+  // The payload is not called `zip`: the handler already uses that name for the
+  // file, Object.assign put the name over the bytes, and a 412 KB answer
+  // arrived as 562 bytes with nothing in it to say so. Two different things
+  // under one key is the defect, and this is the check that it is gone.
+  assert.strictEqual(typeof r.body.zipBase64, 'string');
+  assert.ok(r.body.zipBase64.length > 1000, 'the package came back as a name rather than as bytes');
+  const bytes = Buffer.from(r.body.zipBase64, 'base64');
+  assert.strictEqual(bytes.length, r.body.zipBytes, 'it reported a size it did not send');
+  assert.strictEqual(bytes.slice(0, 2).toString('latin1'), 'PK', 'that is not a zip');
+  assert.ok(/\.zip$/.test(r.body.zipName));
+
+  // every document the answer promises has to be inside the zip, because that
+  // is the only place the browser can get it from
+  const central = bytes.toString('latin1');
+  for (const f of r.body.documents) assert.ok(central.indexOf(f) > -1, `${f} was promised and is not in the zip`);
+
+  // and a response has a ceiling, so the size that decides it is measured
+  assert.ok(r.body.zipBytes < 4 * 1024 * 1024, `a plain identity came to ${r.body.zipBytes} bytes`);
+});
+
 drain().then(() => {
   for (const d of [out, out2]) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);

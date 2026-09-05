@@ -39,7 +39,7 @@ function projects(ax) {
 }
 
 function buildOne(name) {
-  const outDir = path.join(OUT, name);
+  const outDir = path.join(OUT, 'gallery', name);
   execFileSync(process.execPath, ['src/cli.js', 'build', `projects/${name}/project.json`, '-o', outDir],
     { cwd: ENGINE, stdio: 'inherit' });
   const files = [];
@@ -127,24 +127,40 @@ file — and the system-drawn ones refuse edits that would make them lie.</p>
 <p>Thicken a stroke in any <code>mark.svg</code>, redeploy, and the clear space, the minimum
 size, the icon grid and every diagram in the manual and the deck move with it, while a block
 somebody nudged stays where they put it.</p>
-<p><a href="https://github.com/ibrahimweng/Brand-Handover">Source on GitHub</a></p>
+<p><a href="/">Put your own artwork through it</a> · <a href="https://github.com/ibrahimweng/Brand-Handover">Source on GitHub</a></p>
 </footer>
 </div></body></html>
 `;
 }
 
+// The app is the front page, because it is the thing to use; the sixteen
+// identities are what it can do, which is a page you look at once. Hosted, the
+// app's two endpoints are serverless functions under /api and the page opens
+// its documents out of the zip they return, because a function has no
+// filesystem to serve them from. Everything else about it is the same file.
+function app() {
+  const src = path.join(ENGINE, 'src', 'app');
+  // The same page the local server serves, byte for byte. What the local
+  // server answers as routes are files beside it here.
+  fs.copyFileSync(path.join(src, 'client.html'), path.join(OUT, 'index.html'));
+  fs.copyFileSync(path.join(ENGINE, 'src', 'contrast.js'), path.join(OUT, 'contrast.js'));
+  fs.copyFileSync(require.resolve('jszip/dist/jszip.min.js'), path.join(OUT, 'jszip.min.js'));
+  fs.writeFileSync(path.join(OUT, 'favicon.svg'), require(path.join(src, 'server.js')).FAVICON);
+}
+
 function main() {
   fs.rmSync(OUT, { recursive: true, force: true });
-  fs.mkdirSync(OUT, { recursive: true });
+  fs.mkdirSync(path.join(OUT, 'gallery'), { recursive: true });
   const ax = axes();
   const rows = [];
   for (const name of projects(ax)) {
     process.stdout.write(`\n— ${name}\n`);
     rows.push(buildOne(name));
   }
-  fs.writeFileSync(path.join(OUT, 'index.html'), index(rows, ax));
+  fs.writeFileSync(path.join(OUT, 'gallery', 'index.html'), index(rows, ax));
+  app();
   const files = rows.reduce((n, r) => n + r.files.length, 0);
-  console.log(`\nsite: ${rows.length} identities, ${files} files, into ${path.relative(ROOT, OUT)}`);
+  console.log(`\nsite: the app at /, ${rows.length} identities at /gallery/, ${files} files, into ${path.relative(ROOT, OUT)}`);
 }
 
 main();

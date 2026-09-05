@@ -1,0 +1,13 @@
+{
+  "name": "brand-handover",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Derives a whole brand package from one master mark.",
+  "workspaces": ["engine"],
+  "scripts": {
+    "build": "node site/build.js",
+    "serve": "node engine/src/cli.js serve",
+    "test": "node engine/test/run.js"
+  },
+  "engines": { "node": ">=20" }
+}
