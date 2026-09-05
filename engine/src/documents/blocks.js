@@ -74,20 +74,25 @@ function construction(ctx, opts = {}) {
   const paint = opts.ink || 'currentColor';
   const line = opts.line || 'currentColor';
   const vb = ctx.measured.markViewBox, ink = ctx.measured.markInk;
-  const S = 260, pad = 30, k = (S - pad * 2) / Math.max(vb.w, vb.h);
+  // The drawing area is square only because the first two marks were. A mark
+  // 252 wide and 90 tall then sat in a strip across the top with its own
+  // caption 261 px below it and nothing in between. Fit to the longer side as
+  // before, but let the canvas take the shape of what is drawn on it.
+  const S = 260, pad = 30, CAP = 26, k = (S - pad * 2) / Math.max(vb.w, vb.h);
+  const W = svgu.round(pad * 2 + vb.w * k), H = svgu.round(pad * 2 + vb.h * k);
   const X = (v) => svgu.round(pad + (v - vb.x) * k), Y = (v) => svgu.round(pad + (v - vb.y) * k);
   const grid = [];
   for (let i = 0; i <= 6; i++) {
     const gx = X(vb.x + (vb.w / 6) * i), gy = Y(vb.y + (vb.h / 6) * i);
     grid.push(`<path d="M${gx} ${Y(vb.y)}V${Y(vb.y + vb.h)}"/><path d="M${X(vb.x)} ${gy}H${X(vb.x + vb.w)}"/>`);
   }
-  return `<svg viewBox="0 0 ${S} ${S + 26}" class="dia" role="img" aria-label="The mark on its construction grid, showing the ${vb.w} unit box, the ${ink.w} by ${ink.h} area it actually fills, and the margin between them.">
+  return `<svg viewBox="0 0 ${W} ${H + CAP}" class="dia" role="img" aria-label="The mark on its construction grid, showing the ${vb.w} unit box, the ${ink.w} by ${ink.h} area it actually fills, and the margin between them.">
     <g stroke="${line}" stroke-width=".5" opacity=".22">${grid.join('')}</g>
     <rect x="${X(vb.x)}" y="${Y(vb.y)}" width="${svgu.round(vb.w * k)}" height="${svgu.round(vb.h * k)}" fill="none" stroke="${line}" stroke-width=".9" opacity=".55"/>
     <rect x="${X(ink.x)}" y="${Y(ink.y)}" width="${svgu.round(ink.w * k)}" height="${svgu.round(ink.h * k)}" fill="none" stroke="${ctx.accent.hex}" stroke-width="1" stroke-dasharray="4 3"/>
     <g transform="translate(${X(vb.x)} ${Y(vb.y)}) scale(${svgu.round(k, 6)})">${svgu.innerXML(svgu.parse(inked(ctx, paint)))}</g>
-    <text x="${S / 2}" y="16" ${TXT} fill="${line}" text-anchor="middle">${vb.w} unit box</text>
-    <text x="${S / 2}" y="${S + 16}" ${TXT} fill="${ctx.accent.hex}" text-anchor="middle">fills ${ink.w} × ${ink.h} · ${ctx.measured.minimumSize.from === 'stem' ? 'narrowest stem' : 'stroke'} ${ctx.measured.minimumSize.thinnestStroke}</text>
+    <text x="${W / 2}" y="16" ${TXT} fill="${line}" text-anchor="middle">${vb.w} unit box</text>
+    <text x="${W / 2}" y="${H + 16}" ${TXT} fill="${ctx.accent.hex}" text-anchor="middle">fills ${ink.w} × ${ink.h} · ${ctx.measured.minimumSize.from === 'stem' ? 'narrowest stem' : 'stroke'} ${ctx.measured.minimumSize.thinnestStroke}</text>
   </svg>`;
 }
 
@@ -95,16 +100,23 @@ function clearSpace(ctx, opts = {}) {
   const paint = opts.ink || 'currentColor';
   const line = opts.line || 'currentColor';
   const ink = ctx.measured.markInk, x = ctx.measured.clearSpace;
-  const total = ink.w + x * 2, S = 260, k = S / (total * 1.12), o = (S - total * k) / 2;
-  const P = (v) => svgu.round(o + v * k);
-  return `<svg viewBox="0 0 ${S} ${S + 22}" class="dia" role="img" aria-label="Clear space of ${x} units on every side, which is ${ctx.project.rules.clearSpaceRatio} of the mark's height.">
-    <rect x="${P(0)}" y="${P(0)}" width="${svgu.round(total * k)}" height="${svgu.round(total * k)}" fill="none" stroke="${line}" stroke-width="1" stroke-dasharray="4 3" opacity=".5"/>
-    <g transform="translate(${P(x)} ${P(x)}) scale(${svgu.round(k, 6)}) translate(${-ink.x} ${-ink.y})">${svgu.innerXML(svgu.parse(inked(ctx, paint)))}</g>
+  // Clear space is x on every side of the ink box, so the box it makes is the
+  // shape of the ink box grown by 2x — not a square. Drawing it square was
+  // right for a mark measuring 109 by 109 and quietly wrong for one measuring
+  // 228 by 49, where the manual then showed a rule nobody could follow.
+  const tw = ink.w + x * 2, th = ink.h + x * 2;
+  const S = 260, CAP = 22, k = S / (Math.max(tw, th) * 1.12);
+  const W = svgu.round(tw * k + (S - Math.max(tw, th) * k)), H = svgu.round(th * k + (S - Math.max(tw, th) * k));
+  const ox = (W - tw * k) / 2, oy = (H - th * k) / 2;
+  const PX = (v) => svgu.round(ox + v * k), PY = (v) => svgu.round(oy + v * k);
+  return `<svg viewBox="0 0 ${W} ${H + CAP}" class="dia" role="img" aria-label="Clear space of ${x} units on every side, which is ${ctx.project.rules.clearSpaceRatio} of the mark's height.">
+    <rect x="${PX(0)}" y="${PY(0)}" width="${svgu.round(tw * k)}" height="${svgu.round(th * k)}" fill="none" stroke="${line}" stroke-width="1" stroke-dasharray="4 3" opacity=".5"/>
+    <g transform="translate(${PX(x)} ${PY(x)}) scale(${svgu.round(k, 6)}) translate(${-ink.x} ${-ink.y})">${svgu.innerXML(svgu.parse(inked(ctx, paint)))}</g>
     <g stroke="${ctx.accent.hex}" stroke-width="1.1">
-      <path d="M${P(0)} ${P(total / 2)}H${P(x)}"/><path d="M${P(0)} ${P(total / 2) - 5}v10"/><path d="M${P(x)} ${P(total / 2) - 5}v10"/>
+      <path d="M${PX(0)} ${PY(th / 2)}H${PX(x)}"/><path d="M${PX(0)} ${PY(th / 2) - 5}v10"/><path d="M${PX(x)} ${PY(th / 2) - 5}v10"/>
     </g>
-    <text x="${P(x / 2)}" y="${P(total / 2) - 9}" ${TXT} fill="${ctx.accent.hex}" text-anchor="middle">x</text>
-    <text x="${S / 2}" y="${S + 14}" ${TXT} fill="${line}" text-anchor="middle">x = ${x} units · ${ctx.project.rules.clearSpaceRatio} of the mark's height</text>
+    <text x="${PX(x / 2)}" y="${PY(th / 2) - 9}" ${TXT} fill="${ctx.accent.hex}" text-anchor="middle">x</text>
+    <text x="${W / 2}" y="${H + 14}" ${TXT} fill="${line}" text-anchor="middle">x = ${x} units · ${ctx.project.rules.clearSpaceRatio} of the mark's height</text>
   </svg>`;
 }
 

@@ -67,23 +67,39 @@ const STEM_RENDER_PX = 600;
 // Scan the rendered artwork line by line and collect every unbroken run of
 // ink, keeping where each run sits so neighbouring lines can be compared.
 function inkRuns(pixels, width, height) {
-  const ink = (x, y) => pixels[(y * width + x) * 4 + 3] > 127;
+  const alpha = (x, y) => pixels[(y * width + x) * 4 + 3] / 255;
+  // The threshold puts the edge at half coverage, which is the true edge, but
+  // it then rounds the run to whole pixels. That is invisible on a 120 unit
+  // box rendered 600 wide and it is not on a 252 unit one, where a 7 unit bar
+  // measured 6.72. The partly covered pixel at each end carries the remainder,
+  // so add it back and the measurement stops depending on the render scale.
   const sweep = (outer, inner, at) => {
     const lines = [];
     for (let a = 0; a < outer; a++) {
       const line = [];
       let n = 0;
+      const close = (end) => {
+        const start = end - n;
+        // coverage, not a pixel count: a boundary pixel that is 80% inked is
+        // 0.8 of a unit of width, and counting it as a whole one is the error
+        // that made the answer depend on how large the artwork was rendered
+        let len = 0;
+        for (let b = start - 1; b <= end; b++) {
+          if (b >= 0 && b < inner) len += at(a, b);
+        }
+        line.push({ start, len });
+      };
       for (let b = 0; b < inner; b++) {
-        if (at(a, b)) n++;
-        else { if (n) line.push({ start: b - n, len: n }); n = 0; }
+        if (at(a, b) > 0.5) n++;
+        else { if (n) close(b); n = 0; }
       }
-      if (n) line.push({ start: inner - n, len: n });
+      if (n) close(inner);
       lines.push(line);
     }
     return lines;
   };
-  return [sweep(height, width, (y, x) => ink(x, y)),
-    sweep(width, height, (x, y) => ink(x, y))];
+  return [sweep(height, width, (y, x) => alpha(x, y)),
+    sweep(width, height, (x, y) => alpha(x, y))];
 }
 
 // A stem is a place where the artwork is locally at its narrowest and stays
@@ -132,22 +148,32 @@ function thinnestFeature(svgString, viewBox) {
 function minimumSize(svgString, rules) {
   const doc = svgu.parse(svgString);
   const vb = svgu.viewBox(doc);
+  // What disappears first decides the floor, and it can be either a stroke or
+  // a filled stem. Trusting the stroke whenever there was one meant a mark
+  // that is mostly fills never had its fills measured: three 7 unit boards
+  // under a 12 unit strap reported 12, and the floor came out at 63 px where
+  // the boards render 1.75 px wide. Measure both and believe the thinner.
   const stroke = svgu.thinnestStroke(doc);
-  const measured = stroke || thinnestFeature(svgString, vb);
+  const feature = thinnestFeature(svgString, vb);
+  const measured = stroke == null ? feature
+    : feature == null ? stroke : Math.min(stroke, feature);
   if (!measured) {
     return { screenPx: null, printMm: null, thinnestStroke: null,
       note: 'nothing is painted, so nothing limits the size' };
   }
   const ratio = vb.w / measured;               // how many stem widths wide the box is
-  const how = stroke ? 'stroke' : 'stem';
+  // a stroke measured off the render agrees with its own declared width, so
+  // only call it a stem when the render found something the stroke did not
+  const how = stroke != null && measured === stroke ? 'stroke' : 'stem';
   return {
     thinnestStroke: measured,
     from: how,
     screenPx: Math.ceil(ratio * rules.minStrokePx),
     printMm: svgu.round(ratio * rules.minStrokeMm, 1),
-    basis: stroke
+    basis: how === 'stroke'
       ? `box ${vb.w} ÷ stroke ${measured} = ${svgu.round(ratio, 2)} stroke widths across`
-      : `box ${vb.w} ÷ narrowest stem ${measured} = ${svgu.round(ratio, 2)} stems across, measured off the artwork`,
+      : `box ${vb.w} ÷ narrowest stem ${measured} = ${svgu.round(ratio, 2)} stems across, measured off the artwork`
+        + (stroke != null ? `, which is thinner than the ${stroke} stroke` : ''),
   };
 }
 

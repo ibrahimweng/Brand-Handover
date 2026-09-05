@@ -6,6 +6,10 @@ const path = require('path');
 const { bundle, starterDoc } = require('./bundle');
 
 const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
+
+// A brand name is project text, and it is allowed to contain an ampersand.
+const esc = (s) => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const fontLink = (type) => {
   const fams = Object.values((type && type.families) || {}).filter((f) => f.google)
     .map((f) => `family=${encodeURIComponent(f.family).replace(/%20/g, '+')}:wght@${(f.weights || [400]).join(';')}`);
@@ -156,12 +160,12 @@ function editorHtml(project, measured, files) {
   const doc = starterDoc(bu);
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${bu.brand} · editor</title>
+<title>${esc(bu.brand)} · editor</title>
 ${fontLink(bu.type)}
 <style>${CSS}</style></head><body>
 <div class="app">
   <div class="bar">
-    <span class="brand">${bu.brand}</span><span class="ver">${bu.version}</span>
+    <span class="brand">${esc(bu.brand)}</span><span class="ver">${esc(bu.version)}</span>
     <button id="undo" title="Undo (Cmd Z)">Undo</button>
     <button id="redo" title="Redo (Cmd Shift Z)">Redo</button>
     <span class="sp"></span>

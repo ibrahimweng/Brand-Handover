@@ -6,9 +6,16 @@ const { toPdf } = require('./pdf');
 
 // An icon is the mark centred on a square of brand colour, with a safe area so
 // no platform's rounding can clip it.
+// Paint the whole mark one colour, whatever its slots are called. Repainting a
+// slot literally named "ink" worked for two projects that happened to have one
+// and silently did nothing for a third, so every icon, favicon and social crop
+// came out as a bare square with whatever the master was painted in.
+const oneColour = (doc, hex) =>
+  svgu.applyColourway(doc, Object.fromEntries(svgu.slotsUsed(doc).map((s) => [s, hex])));
+
 function iconSquare(markSvg, { size, background, ink, safeArea = 0.68, radius = 0 }) {
   const doc = svgu.parse(markSvg);
-  svgu.applyColourway(doc, { ink });
+  oneColour(doc, ink);
   const box = geo.inkBox(markSvg);
   const scale = (size * safeArea) / Math.max(box.w, box.h);
   const x = (size - box.w * scale) / 2 - box.x * scale;
@@ -24,7 +31,7 @@ function iconSquare(markSvg, { size, background, ink, safeArea = 0.68, radius = 
 // that every platform leaves uncropped.
 function banner(markSvg, { width, height, background, ink, heightRatio = 0.42 }) {
   const doc = svgu.parse(markSvg);
-  svgu.applyColourway(doc, { ink });
+  oneColour(doc, ink);
   const box = geo.inkBox(markSvg);
   const scale = (height * heightRatio) / box.h;
   const x = (width - box.w * scale) / 2 - box.x * scale;

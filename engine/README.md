@@ -9,7 +9,7 @@ around it.
 
     cd engine
     npm install
-    npm test                                            # 246 checks
+    npm test                                            # 255 checks
     node test/print-check.mjs                           # prints, and measures the paper
     node test/treatment-check.mjs                       # renders, and reads the pixels back
     node test/typst-check.mjs                           # the printed piece against the published page
@@ -23,6 +23,7 @@ around it.
     node src/cli.js edit    projects/meridian/project.json -o editor.html
     node src/cli.js publish projects/meridian/project.json out/document.json -o page.html
     node src/cli.js build   projects/halyard/project.json  -o out-halyard
+    node src/cli.js build   projects/kvist/project.json    -o out-kvist
 
 The Meridian example writes 136 files in about six seconds, including both
 documents, the editor, the document it opens with, that document published, and
@@ -32,6 +33,11 @@ Halyard is the second identity, kept in the repo because everything above was
 written against the first one. It has four faults left in on purpose and it
 writes 62 files, saying what each fault is and what to do about it. See
 [A second identity](#a-second-identity).
+
+Kvist & Sønn is the third, and it is the one that is shaped wrong on purpose:
+fills and a stroke in the same mark, a box 252 by 90 with its origin at minus
+six, a name that is not spellable in ASCII, and no mark lockup at all. See
+[A third identity](#a-third-identity).
 
 ## What it measures
 
@@ -982,6 +988,90 @@ the colourways.
 None of these were visible with one project in the repo. They are all in the
 suite now, each one pinned to the case that found it.
 
+## A third identity
+
+Two projects is better than one and it is still not many. Both of the first two
+draw the mark in a square box with its origin at zero, name themselves in plain
+ASCII, and cut a colourway for each colour role. **Kvist & Sønn** is the third,
+and every one of those is deliberately untrue of it: a mark 252 units wide and
+90 tall with its origin at minus six on both axes, fills and a stroke together
+in the same artwork, an o with a stroke through it in the name, an ampersand,
+two colourways rather than five, no mark lockup at all, and a leftover Illustrator
+stylesheet at the top of the file.
+
+Eight more things were wrong. Two of them put a wrong number in front of a
+designer, one stopped the build outright, and one made every icon in the package
+come out blank.
+
+**The floor was set by the stroke whenever there was one.** Kvist is three 7
+unit boards under a 12 unit strap, and a mark with any stroke in it had never
+had its fills measured, because the stroke width was always believed first. So
+the engine reported 12, put the floor at 63 px, and at 63 px those boards are
+1.75 px wide — the smallest size the manual permits is one where the mark's own
+subject has disappeared. Both are measured now and the thinner wins, which puts
+Kvist at 110 px and leaves Meridian, whose stroke really is its thinnest part,
+exactly where it was.
+
+**The measurement depended on how large the artwork happened to be rendered.**
+The scan counts a run of ink in pixels and converts back to units, and it was
+counting whole pixels, so the boundary pixel — half covered, half not — was
+worth either one or nothing. On a 120 unit box rendered 600 wide that is a
+fortieth of a unit and invisible. On a 252 unit box it is a quarter, and the
+same 7 unit bar read 7 in the first and 6.72 in the second. Summing coverage
+rather than counting pixels makes the answer the same at any scale, which is
+what a measurement has to be.
+
+**A style rule that matches nothing survived cleaning and stopped the build.**
+Illustrator leaves one behind whenever artwork that used a class has since been
+deleted, and the inliner keeps unmatched rules because in a browser they might
+still match something later. Nothing here reads CSS — the measuring, the
+recolouring and the PDF writer all work off attributes — but the PDF writer does
+not ignore a stylesheet, it hands it to a browser to parse, and on a machine with
+no browser in it the whole build stops with `CSSStyleSheet is not defined` and
+no mention of which file or why. Dead rules are dropped now and reported as
+dropped. Rules the artwork actually uses were always inlined correctly, and
+still are.
+
+**A brand name that is not spellable in ASCII was mangled rather than
+transliterated.** `Kvist & Sønn` became `kvist-s-nn`: the ø is not in a-z, so
+it was replaced with a separator and split a word down the middle. Every file in
+the package, and the zip around them, carried it. Accents decompose and drop, but
+the letters that are letters in their own right have to be spelled out — ø as o,
+æ as ae, ß as ss, ł as l. It is `kvist-and-sonn` now. A name with no latin in it
+at all asks for a `latinName` rather than writing a file called `-`.
+
+**Two of the four emitters escaped the brand name and two did not.** The deck and
+the published page did; the manual and the editor put it in a `<title>` raw. An
+ampersand in a brand name is not exotic.
+
+**The clear space box was drawn square.** Clear space is x on every side of the
+ink box, so the box it makes is the ink box grown by 2x — the same shape, not a
+square. Drawing it square is correct for a mark measuring 109 by 109 and 2%
+wrong for one measuring 92 by 96, which is why it survived two projects. For a
+mark measuring 228 by 49 the manual was showing a rule nobody could have
+followed. This one is not a layout complaint: it was a false statement in the
+document the client is handed.
+
+**And the diagrams were drawn on a square canvas** whatever shape the artwork
+was, so the same wide mark sat in a strip across the top with its own caption
+261 px below it and nothing in between.
+
+**Every icon, favicon and social crop came out blank.** The icon writer repainted
+a slot literally named `ink`, and both earlier projects have one. Kvist's slots
+are `board` and `strap`, so nothing was repainted at all: the mark kept its
+master colours, the boards happened to be the same brown as the icon background,
+and what a client would have installed on their phone is a brown square with one
+orange mark in the corner of it. It paints every slot now, whatever they are
+called.
+
+Worth recording what did **not** break, because it is the first evidence that
+any of this generalises: the negative viewBox origin was handled correctly
+everywhere it was used — the ink box, the clear space, the lockups, the printed
+piece and the canvas all read 228 × 49 at 0, 0 out of a box starting at −6, −9.
+A mark with no mark lockup, a project with two colourways, and an Illustrator
+export that puts all its paint in CSS classes rather than attributes were all
+already right.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.
@@ -1015,6 +1105,7 @@ suite now, each one pinned to the case that found it.
     src/documents/    blocks.js, chrome.js, index.js (manual), deck.js
     projects/meridian/  the first identity: one stroked mark, one ink
     projects/halyard/   the second: filled artwork, two inks, four faults left in
+    projects/kvist/     the third: fills and a stroke, a 252x90 box, a name in Norwegian
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package

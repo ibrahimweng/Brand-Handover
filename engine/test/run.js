@@ -2098,6 +2098,144 @@ test('a rule set once still follows the master, because it was derived from it',
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+console.log('\na third identity');
+// Meridian is a stroke in a square box. Halyard is fills in a square box. Both
+// are called something spellable in ASCII and both cut a colourway per role.
+// Kvist & Sonn is the third: fills and a stroke together, a box 252 by 90 with
+// its origin at minus six, an o with a stroke through it in the name, and no
+// mark lockup at all. Six more things were wrong.
+const KV = projectLoader.load(path.join(__dirname, '..', 'projects', 'kvist', 'project.json'));
+const kvM = measure(KV);
+
+test('the floor is set by the thinnest thing, stroke or fill', () => {
+  // trusting the stroke whenever there was one meant the fills were never
+  // measured. Kvist has three 7 unit boards under a 12 unit strap: the engine
+  // said 12, put the floor at 63 px, and at 63 px the boards are 1.75 px wide.
+  assert.strictEqual(svgu.thinnestStroke(svgu.parse(KV.assets.mark.source)), 12,
+    'this fixture is meant to carry a 12 unit stroke');
+  assert.strictEqual(kvM.minimumSize.from, 'stem', 'the stroke won again');
+  assert.ok(Math.abs(kvM.minimumSize.thinnestStroke - 7) < 0.15,
+    `the boards are 7 units and it measured ${kvM.minimumSize.thinnestStroke}`);
+  assert.ok(kvM.minimumSize.screenPx > 100 && kvM.minimumSize.screenPx < 116,
+    `the floor came out ${kvM.minimumSize.screenPx} px, and 7 units of 252 needs about 108`);
+  assert.ok(/thinner than the 12 stroke/.test(kvM.minimumSize.basis), kvM.minimumSize.basis);
+  // and a mark that really is stroke-limited still says so
+  assert.strictEqual(m.minimumSize.from, 'stroke');
+  assert.strictEqual(m.minimumSize.thinnestStroke, 9);
+});
+
+test('a run of ink measures the same however large it was rendered', () => {
+  // counting whole pixels made the answer depend on the render scale: the same
+  // 7 unit bar read 7 in a 120 unit box and 6.72 in a 252 unit one. Coverage
+  // does not care how many pixels it was spread over.
+  const bar = (box) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${box} ${box}">`
+    + `<rect x="0" y="${box / 2}" width="${box}" height="7" fill="#000"/></svg>`;
+  for (const box of [120, 252, 480]) {
+    const got = geo.thinnestFeature(bar(box), { x: 0, y: 0, w: box, h: box });
+    assert.ok(Math.abs(got - 7) < 0.15, `a 7 unit bar in a ${box} box measured ${got}`);
+  }
+});
+
+test('a style rule that matches nothing is removed, and said so', () => {
+  // it draws nothing, and it stops the PDF writer dead with "CSSStyleSheet is
+  // not defined" because that writer asks a browser to parse it.
+  const norm = require('../src/normalise');
+  const withDead = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">'
+    + '<style type="text/css">.st0{fill:#3E2B1F;}.st1{fill:none;}</style>'
+    + '<rect data-slot="ink" x="0" y="0" width="100" height="7" fill="#3E2B1F"/></svg>';
+  const r = norm.normalise(withDead, { tokens: KV.tokens });
+  assert.ok(r.ok && !/<style/.test(r.svg), 'the stylesheet survived');
+  const said = r.findings.find((f) => f.code === 'dead-styles');
+  assert.ok(said && /2 style rules/.test(said.what), JSON.stringify(said));
+  // a rule the artwork actually uses is still inlined onto it, not thrown away
+  const used = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">'
+    + '<style type="text/css">.st0{fill:#3E2B1F;}</style>'
+    + '<rect class="st0" data-slot="ink" x="0" y="0" width="100" height="7"/></svg>';
+  const r2 = norm.normalise(used, { tokens: KV.tokens });
+  assert.ok(/fill="#3E2B1F"/.test(r2.svg), 'the class was dropped instead of inlined');
+  assert.ok(!r2.findings.some((f) => f.code === 'dead-styles'), 'a live rule was called dead');
+});
+
+test('a brand name that is not ASCII still names its files', () => {
+  const naming = require('../src/naming');
+  assert.strictEqual(naming.slug('Kvist & Sønn'), 'kvist-and-sonn');
+  assert.strictEqual(naming.slug('Blåbær AS'), 'blabaer-as');
+  assert.strictEqual(naming.slug('Müller & Söhne'), 'muller-and-sohne');
+  assert.strictEqual(naming.slug('Łódź Studio'), 'lodz-studio');
+  assert.strictEqual(naming.slug('Grüße'), 'grusse');
+  assert.strictEqual(naming.fileName('{brand}_{lockup}', { brand: 'Kvist & Sønn', lockup: 'stacked' }),
+    'kvist-and-sonn_stacked');
+  // and a name with no latin in it asks rather than writing a file called "-"
+  assert.throws(() => naming.fileName('{brand}', { brand: '東京' }), /latinName/);
+});
+
+test('every emitter escapes the brand name', () => {
+  // two of the four did. A brand name is allowed to contain an ampersand.
+  const docs = require('../src/documents');
+  const emit = require('../src/editor/emit');
+  const { deck } = require('../src/documents/deck');
+  const pages = [docs.guidelines(docs.context(KV, kvM, [], {})),
+    deck(docs.context(KV, kvM, [], {})),
+    emit.editorHtml(KV, kvM, [])];
+  for (const html of pages) {
+    const title = (/<title>([\s\S]*?)<\/title>/.exec(html) || [])[1] || '';
+    assert.ok(/Kvist &amp; S/.test(title), `a title reads ${JSON.stringify(title)}`);
+    assert.ok(!/Kvist & S/.test(title), `a title has a bare ampersand: ${JSON.stringify(title)}`);
+  }
+});
+
+test('the clear space box is the shape the rule makes it', () => {
+  // it was drawn square, which is right only when the ink box is. Kvist's ink
+  // is 228 by 49, so the manual was showing a rule nobody could have followed.
+  const docs = require('../src/documents');
+  const b = require('../src/documents/blocks');
+  for (const [proj, meas] of [[project, m], [HAL, halM], [KV, kvM]]) {
+    const ctx = docs.context(proj, meas, [], {});
+    const svg = b.clearSpace(ctx);
+    const r = /<rect x="([\d.-]+)" y="([\d.-]+)" width="([\d.]+)" height="([\d.]+)"[^>]*stroke-dasharray/.exec(svg);
+    assert.ok(r, `no clear space box drawn for ${proj.brand}`);
+    const ink = meas.markInk, x = meas.clearSpace;
+    const want = (ink.w + 2 * x) / (ink.h + 2 * x);
+    const got = Number(r[3]) / Number(r[4]);
+    assert.ok(Math.abs(got - want) / want < 0.02,
+      `${proj.brand}: drew ${got.toFixed(3)} where the rule makes ${want.toFixed(3)}`);
+  }
+});
+
+test('a diagram is the shape of what is drawn on it', () => {
+  // a 252 by 90 mark sat in a strip with its caption 261 px below it
+  const docs = require('../src/documents');
+  const b = require('../src/documents/blocks');
+  const box = (svg) => (/viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(svg) || []).slice(1).map(Number);
+  const sq = box(b.construction(docs.context(project, m, [], {})));
+  const wide = box(b.construction(docs.context(KV, kvM, [], {})));
+  assert.ok(Math.abs(sq[0] / sq[1] - 260 / 286) < 0.01, `a square mark moved: ${sq}`);
+  assert.ok(wide[1] < sq[1] * 0.75, `a 2.8:1 mark still got a ${wide[1]} tall canvas`);
+});
+
+test('an icon paints every slot, whatever the slots are called', () => {
+  // repainting a slot literally named "ink" did nothing at all to a mark whose
+  // slots are board and strap, so every icon and social crop came out bare.
+  const exp = require('../src/export');
+  const icon = exp.iconSquare(KV.assets.mark.source,
+    { size: 180, background: '#3E2B1F', ink: '#EFE9DD' });
+  assert.deepStrictEqual(kvM.slots, ['board', 'strap']);
+  assert.ok(!icon.includes('#B4632A'), 'the strap kept its master colour in the icon');
+  assert.ok(icon.split('#EFE9DD').length - 1 >= 2, 'not every slot took the icon ink');
+  const og = exp.banner(KV.assets.mark.source,
+    { width: 1200, height: 630, background: '#3E2B1F', ink: '#EFE9DD' });
+  assert.ok(!og.includes('#B4632A'), 'the social crop kept a master colour');
+});
+
+test('a project with no mark lockup builds anyway', () => {
+  assert.ok(!KV.rules.lockups.includes('mark'), 'this fixture is meant to have no mark lockup');
+  assert.deepStrictEqual(KV.rules.lockups, ['horizontal', 'stacked', 'wordmark']);
+  assert.strictEqual(KV.rules.colourways.length, 2);
+  const docs = require('../src/documents');
+  const html = docs.guidelines(docs.context(KV, kvM, [], {}));
+  assert.ok(html.length > 5000 && !/hb-missing/.test(html), 'the manual came out short or holed');
+});
+
 drain().then(() => {
   for (const d of [out, out2]) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);

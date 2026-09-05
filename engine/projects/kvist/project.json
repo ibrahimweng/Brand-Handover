@@ -1,0 +1,61 @@
+{
+  "brand": "Kvist & Sønn",
+  "version": "2.1.0",
+  "assets": { "mark": "mark.svg", "wordmark": "wordmark.svg" },
+  "tokens": {
+    "colour": {
+      "timber": { "hex": "#3E2B1F", "role": "ground",    "pantone": "476 C",  "cmyk": [52, 66, 74, 63] },
+      "chalk":  { "hex": "#EFE9DD", "role": "primary",   "pantone": "9184 C", "cmyk": [5, 5, 11, 0] },
+      "rust":   { "hex": "#B4632A", "role": "accent",    "pantone": "7586 C", "cmyk": [22, 70, 95, 8] },
+      "moss":   { "hex": "#5C6B4A", "role": "secondary", "pantone": "5763 C", "cmyk": [58, 36, 74, 18] },
+      "slate":  { "hex": "#7C7A75", "role": "neutral",   "pantone": "403 C",  "cmyk": [48, 42, 45, 8] }
+    },
+    "type": {
+      "families": {
+        "display": { "family": "Literata", "fallback": "Georgia, serif", "weights": [500, 700], "google": true },
+        "text":    { "family": "Archivo",  "fallback": "Helvetica, Arial, sans-serif", "weights": [400, 500], "google": true }
+      },
+      "scale": [
+        { "name": "Display", "family": "display", "size": 68, "leading": 72, "weight": 700, "tracking": -0.02 },
+        { "name": "H1",      "family": "display", "size": 38, "leading": 44, "weight": 700, "tracking": -0.01 },
+        { "name": "H2",      "family": "display", "size": 25, "leading": 31, "weight": 500 },
+        { "name": "H3",      "family": "display", "size": 18, "leading": 25, "weight": 500 },
+        { "name": "Body",    "family": "text",    "size": 16, "leading": 26, "weight": 400 },
+        { "name": "Small",   "family": "text",    "size": 13, "leading": 20, "weight": 400 },
+        { "name": "Caption", "family": "text",    "size": 11, "leading": 15, "weight": 500, "tracking": 0.08 }
+      ]
+    }
+  },
+  "rules": {
+    "clearSpaceRatio": 0.3,
+    "minStrokePx": 3,
+    "minStrokeMm": 0.8,
+    "lockupGapRatio": 0.24,
+    "wordmarkHeightRatio": 0.5,
+    "naming": "{brand}.{lockup}.{colourway}",
+    "lockups": ["horizontal", "stacked", "wordmark"],
+    "formats": ["svg", "png", "pdf", "ai"],
+    "pngWidths": [400, 1600],
+    "stock": "coated",
+    "colourways": [
+      { "name": "solid",   "on": "chalk",  "slots": { "board": "#3E2B1F", "strap": "#B4632A" } },
+      { "name": "reverse", "on": "timber", "slots": { "board": "#EFE9DD", "strap": "#B4632A" } }
+    ],
+    "iconInk": "#EFE9DD",
+    "iconBg": "#3E2B1F",
+    "iconSizes": [1024, 180],
+    "faviconSizes": [16, 32],
+    "social": { "profile": { "w": 400, "h": 400 }, "og image": { "w": 1200, "h": 630 } }
+  },
+  "content": {
+    "positioning": "Kvist & Sønn",
+    "misuse": ["Do not stretch it", "Do not rotate it", "Do not recolour the strap", "Do not add a shadow", "Do not crowd it", "Do not outline it"]
+  },
+  "system": {
+    "photography": {
+      "duotone": { "shadow": "ground", "highlight": "primary", "amount": 0.65 },
+      "scrim": { "colour": "ground", "opacity": 0.45, "direction": "bottom" },
+      "ratios": ["3:2", "1:1"]
+    }
+  }
+}

@@ -71,7 +71,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 136 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 246 tests.
+of it. 255 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -157,7 +157,29 @@ fill; and the deck fell over on a ground colour that is not one of the
 colourways. All ten are fixed and each is pinned in the suite to the case that
 found it. `engine/README.md` has the detail.
 
-Still to do: a run on **your** identity job. Halyard is artwork the engine had
-not seen, which is worth a great deal more than a second pass over Meridian, but
-it is still not a file that came out of your exporter — and the normaliser is
-the part that most needs to meet one.
+A third followed, because two projects that agree about something is not
+evidence. **Kvist & Sønn** breaks every assumption the first two share: a mark
+252 units wide and 90 tall with its origin at minus six, fills and a stroke in
+the same artwork, a name that is not spellable in ASCII, two colourways rather
+than five, no mark lockup, and a leftover Illustrator stylesheet in the file.
+Eight more defects, and this time two of them put a wrong number in front of a
+designer rather than a wrong pixel: the minimum size was read off the stroke
+whenever there was one, so a mark that is mostly fills declared a floor at which
+its own subject is 1.75 px wide; and the clear space box was drawn as a square,
+which is a false statement about the rule in the document the client is handed.
+One more stopped the build outright — a CSS rule matching nothing, which the PDF
+writer hands to a browser that is not there. One made every icon and social
+crop in the package come out blank. The rest: a measurement that changed with
+the render scale, a Norwegian name mangled into `kvist-s-nn`, two of four
+emitters not escaping the brand name, and diagrams drawn on a square canvas
+whatever shape the mark is. All eight are fixed and pinned in the suite.
+
+It also produced the first evidence that any of this generalises. A viewBox with
+a negative origin, a project with no mark lockup, two colourways instead of
+five, and an Illustrator export that puts all its paint in CSS classes were
+already handled correctly, everywhere they were used.
+
+Still to do: a run on **your** identity job. Three identities the engine had not
+seen is worth a great deal more than three passes over one, but none of them
+came out of your exporter — and the normaliser is the part that most needs to
+meet one.

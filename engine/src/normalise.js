@@ -196,6 +196,27 @@ function assignSlots(doc, used, tokens) {
 }
 
 // ---------- the whole pass ----------
+// Rules that survive the inlining pass are rules that match nothing: the
+// inliner has already moved every rule that had an element to move it to. A
+// stylesheet is also the one thing in an SVG that nothing downstream here
+// reads — the measuring, the recolouring and the PDF writer all work off
+// attributes — and the PDF writer does not merely ignore it, it asks the
+// browser to parse it and stops the whole build with "CSSStyleSheet is not
+// defined" on a machine that has no browser in it. Illustrator leaves one
+// behind whenever artwork that used a class has since been deleted.
+function dropDeadStyles(doc) {
+  const dead = [];
+  eachEl(doc, (el) => {
+    if (String(el.nodeName).toLowerCase() === 'style') dead.push(el);
+  });
+  let rules = 0;
+  for (const el of dead) {
+    rules += (el.textContent.match(/\{/g) || []).length;
+    if (el.parentNode) el.parentNode.removeChild(el);
+  }
+  return { blocks: dead.length, rules };
+}
+
 function normalise(source, { tokens } = {}) {
   const { found, doc: pre, counts } = inspect(source);
   const findings = [...found];
@@ -212,6 +233,7 @@ function normalise(source, { tokens } = {}) {
   }
 
   const doc = svgu.parse(cleaned);
+  const dead = dropDeadStyles(doc);
   const already = svgu.slotsUsed(doc);
   const colour = colourPass(doc, tokens);
   const assigned = already.length ? { slots: already, tagged: 0 } : assignSlots(doc, colour.used, tokens);
@@ -219,6 +241,10 @@ function normalise(source, { tokens } = {}) {
   if (stripped.removed) findings.push(finding('fixed', 'editor-metadata',
     `Removed ${stripped.removed} block${stripped.removed > 1 ? 's' : ''} of editor metadata.`,
     'Illustrator writes a metadata block that refers to entities it never declares, which stops a strict parser before it reaches any of your artwork. None of it draws anything.', null));
+
+  if (dead.blocks) findings.push(finding('fixed', 'dead-styles',
+    `Removed ${dead.rules} style rule${dead.rules === 1 ? '' : 's'} that matched nothing.`,
+    'Left over from artwork that has since been deleted. They drew nothing, and a stylesheet inside a mark stops the PDF writer outright.', null));
 
   if (counts.transform) findings.push(finding('fixed', 'transforms',
     `Flattened ${counts.transform} transform${counts.transform > 1 ? 's' : ''} into the artwork.`,

@@ -79,10 +79,17 @@ footer{margin-top:70px;padding-top:22px;border-top:2px solid var(--ink);font-fam
 @media (max-width:700px){.page{padding:0 18px 60px}.ctr{grid-template-columns:56px 1fr 60px}.ctr i{grid-column:2/-1;text-align:left}.ctr.head{display:none}.sr{grid-template-columns:1fr;gap:6px}.sr em{text-align:left}}
 `;
 
+// The brand name reaches this from the project, and a brand name is allowed to
+// contain an ampersand. Two of the four emitters escaped it and two did not,
+// which nothing noticed until a project was called Kvist & Sonn. The body is
+// already-built markup and stays untouched; the title is text.
+const escText = (s) => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
 const shell = ({ title, type, body, favicon }) => `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${title}</title>${favicon ? `\n<link rel="icon" href="${favicon}">` : ''}
+<title>${escText(title)}</title>${favicon ? `\n<link rel="icon" href="${favicon}">` : ''}
 ${fontLink(type)}
 <style>${CSS}</style></head><body><div class="page">${body}</div></body></html>`;
 
-module.exports = { shell, CSS, fontLink };
+module.exports = { shell, CSS, fontLink, escText };

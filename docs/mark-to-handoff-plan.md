@@ -376,7 +376,7 @@ the measuring engine, the packager, both documents, the canvas editor,
 publishing, all three kinds of block, image slots, page sizes and the
 photography treatment, print work with bleed, CMYK, and a printed piece through
 Typst, mockups, and the licence half of accounts. 138 files from one master,
-246 tests, and a second identity in the repo that the engine had not been
+255 tests, and two more identities in the repo that the engine had not been
 written against.
 
 Three things the plan had wrong, found by building rather than by thinking.
@@ -555,6 +555,39 @@ produced was actually right, and then measuring the estimator against seven
 shapes whose answers are known by construction — a ring 16 thick, a cross of 12,
 bars of 12 and 7, a disc with no thin part in it at all. A new project tells you
 where to look. It does not tell you whether what you find there is correct.
+
+**The third project found eight more, and the second could not have found
+them.** The obvious reading of the Halyard run is that a second project is the
+instrument and a third is a formality. It is not what happened. Halyard is
+filled artwork in a square 120 unit box with an English name — it differs from
+Meridian in exactly the ways it was built to differ, and it therefore shares
+every assumption neither project was built to question. Both put the origin of
+the mark's box at zero. Both name themselves in ASCII. Both cut a colourway for
+each colour role. Both have an ink box within a few per cent of square. Kvist &
+Sønn is none of those, and eight things broke — including the clear space box,
+which had been drawn as a square since the first week and is a false statement
+about the rule in every manual the system had ever produced.
+
+So the lesson is not "test on a second project". It is that each new project
+only reaches the assumptions it happens to violate, and you get to choose which
+ones by choosing the project. The third was designed by listing what the first
+two silently agreed about and contradicting the list. That is a repeatable
+method and it is much better than waiting for a client file to find them.
+
+**A wrong number is a different kind of defect from a wrong pixel, and the
+system had no way to tell them apart.** Of the eight, two put a number in front
+of a designer that was simply false: a minimum size at which the mark's own
+subject renders 1.75 px wide, and a clear space diagram showing a square where
+the rule makes a 4.7:1 rectangle. Both were produced by code that ran without
+error, both were rendered beautifully, and both would have been read as
+authoritative precisely because the whole argument of the system is that its
+numbers are measured rather than typed. Nothing in the test suite or the browser
+checks could have caught either, because both were internally consistent. What
+caught them was designing the fixture so the right answer was known by
+construction before the engine was asked — three 7 unit boards, an ink box of
+228 by 49 — and then comparing. A system that derives its numbers needs fixtures
+whose numbers are known independently of it, or it can only ever check itself
+for consistency.
 
 **A defect that only prints an error to a console is still a defect.** Every
 scaled drawing in every document carried `height="auto"`, which is not a length
