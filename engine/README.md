@@ -1991,3 +1991,4 @@ by the time it gets there, so it becomes part of the picture here.
     src/naming.js     one naming rule for the whole package
     src/build.js      write the package, brand.json and the read me
     src/cli.js        check, measure, build, edit and publish
+    ../site/build.js  every identity, built into one site, index and all

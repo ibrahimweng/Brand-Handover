@@ -4232,6 +4232,28 @@ test('the cover the engine writes uses a photograph where there is one', async (
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+// ---- the site the repository deploys ----
+
+test('every identity in the repo is named in the README, and named once', () => {
+  // The site's front page takes both the list of identities and the line under
+  // each name out of engine/README.md, and takes its order from there too. That
+  // only holds while the README knows about every project directory. A round
+  // that adds a fixture and forgets the line would put a card on the deployed
+  // page reading "no line for this one", which is the kind of absence that has
+  // no symptom until somebody looks.
+  const md = fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8');
+  const named = [...md.matchAll(/^[ \t]*projects\/([a-z0-9-]+)\/[ \t]+([^\n]+?)[ \t]*$/gm)].map((m) => m[1]);
+  const dir = path.join(__dirname, '..', 'projects');
+  const onDisk = fs.readdirSync(dir).filter((n) => fs.existsSync(path.join(dir, n, 'project.json'))).sort();
+
+  const missing = onDisk.filter((n) => !named.includes(n));
+  assert.deepStrictEqual(missing, [], `not named in engine/README.md: ${missing.join(', ')}`);
+  const ghosts = named.filter((n) => !onDisk.includes(n));
+  assert.deepStrictEqual(ghosts, [], `named in engine/README.md but not in projects/: ${ghosts.join(', ')}`);
+  const dupes = named.filter((n, i) => named.indexOf(n) !== i);
+  assert.deepStrictEqual(dupes, [], `named twice, so the order is ambiguous: ${dupes.join(', ')}`);
+});
+
 drain().then(() => {
   for (const d of [out, out2]) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);

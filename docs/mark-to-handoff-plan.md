@@ -376,7 +376,7 @@ the measuring engine, the packager, both documents, the canvas editor,
 publishing, all three kinds of block, image slots, page sizes and the
 photography treatment, print work with bleed, CMYK, and a printed piece through
 Typst, mockups, and the licence half of accounts. 138 files from one master,
-339 tests, and fifteen more identities in the repo that the engine had not been
+340 tests, and fifteen more identities in the repo that the engine had not been
 written against.
 
 Three things the plan had wrong, found by building rather than by thinking.
@@ -1042,6 +1042,29 @@ approximate. But a translucent wash over a photograph is not something a press
 does with an ink: by the time the file goes out, the scrim has to be part of the
 picture. The refusal was describing the physical situation correctly, and the
 code was the thing that was wrong.
+
+**`\s` crosses newlines, so a pattern anchored with `/m` can still swallow the
+line below.** The site's front page derives both its list of identities and the
+order it shows them in from the fixture table in `engine/README.md`, rather than
+keeping a second copy that would be wrong within a round. The pattern read
+`^\s*projects\/([a-z0-9-]+)\/\s+(.+?)\s*$` — and `\s+` after the directory
+name matched a newline and the indentation of the next line, so the layout
+sketch elsewhere in the file (`projects/meridian/` with its contents listed
+beneath) produced a second, bogus entry. It happened to come out right, because
+the later real entry overwrote it and the accidental order matched the intended
+one. The check that found it was not the site: it was a test asking whether every
+project directory is named in the README exactly once, which is worth having on
+its own — a fixture added without a line would put a card on the deployed page
+with nothing under its name. Horizontal whitespace is `[ \t]`, and a description
+that must stay on one line is `[^\n]+?`.
+
+**A dependency that arrives through somebody else's package is not declared.**
+`fast-png` was required directly by the treatment code and appeared nowhere in
+`engine/package.json`; it was in `node_modules` only because `jspdf` depends on
+it. Everything worked, and would have kept working until jspdf changed its mind
+or somebody installed with a resolver that does not flatten. Deploying the thing
+is what surfaced it — a fresh `npm ci` in a build image is the first honest test
+of what a repository actually declares.
 
 ---
 

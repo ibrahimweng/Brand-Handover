@@ -65,13 +65,31 @@ Everything sits on one SVG parser, and all of it is MIT or Apache 2.0.
 Nothing here needs a paid API. Two optional models, for depth maps and cutouts,
 run locally.
 
+## Seeing it
+
+    node site/build.js       # builds every identity into site/out, with an index
+
+`site/out/index.html` lists all sixteen and links to each one's manual, deck,
+cover, canvas and zip. Nothing in it is committed: the repository holds sixteen
+master files and sixteen project files, and the site is what the engine makes of
+them, rebuilt from scratch on every deploy. `vercel.json` wires that up — install
+the engine's dependencies, run the builder, serve `site/out` — so a push to
+`main` redeploys a site that was derived rather than saved.
+
+The four links per identity are the four things worth opening. **Manual** and
+**Deck** are the two client-facing documents. **Cover** is a page published out
+of the canvas. **Canvas** is the editor itself: one self-contained HTML file,
+no server, where you drag blocks, drop a photograph on an image slot and undo
+with ⌘Z, and where the system-drawn blocks refuse edits that would make them
+lie.
+
 ## Status
 
 The engine runs. `engine/` takes one master SVG and a project file and writes
 138 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 339 tests.
+of it. 340 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
