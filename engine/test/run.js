@@ -2236,6 +2236,134 @@ test('a project with no mark lockup builds anyway', () => {
   assert.ok(html.length > 5000 && !/hb-missing/.test(html), 'the manual came out short or holed');
 });
 
+console.log('\na fourth identity');
+// Three projects agreeing is still three projects. All of them have five
+// colours filling all five roles, two type families, a system block, and a
+// mark drawn in a few hundred units. Hallward Press is a monochrome seal: an
+// ink and a paper and nothing else, one colourway, one typeface, no system
+// block at all, twenty-three paths, and a 2048 unit box.
+const HW = projectLoader.load(path.join(__dirname, '..', 'projects', 'hallward', 'project.json'));
+const hwM = measure(HW);
+
+test('a measurement does not cost more because the units are bigger', () => {
+  // a viewBox is a unit system, not a resolution. Rendering six pixels to the
+  // unit made a 2048 box render 12288 square — 151 million pixels and six
+  // seconds — every time an ink box was wanted, and the build took 45 seconds.
+  const t = Date.now();
+  const box = geo.inkBox(HW.assets.mark.source);
+  const ms = Date.now() - t;
+  assert.ok(ms < 1500, `one ink box of a 2048 unit mark took ${ms} ms`);
+  assert.ok(Math.abs(box.w - 1966) < 2 && Math.abs(box.h - 1993) < 2, JSON.stringify(box));
+  // and the bound is on area, so a wide flat wordmark is not penalised for it
+  const wm = geo.inkBox(project.assets.wordmark.source);
+  assert.ok(Math.abs(wm.w - 653.47) < 0.01 && Math.abs(wm.x - 9.18) < 0.01,
+    `the wordmark ink box moved to ${JSON.stringify(wm)}`);
+});
+
+test('the stem scan looks closer when the thing it found is tiny', () => {
+  // Hallward's inner ring is 8 units in a 2048 unit box, which is 2.3 pixels
+  // at a fixed 600 wide render. It measured 7.7. A fixed render width assumes
+  // the artwork's units are of a familiar size and nothing says they are.
+  assert.strictEqual(hwM.minimumSize.from, 'stem');
+  assert.ok(Math.abs(hwM.minimumSize.thinnestStroke - 8) < 0.2,
+    `the 8 unit ring measured ${hwM.minimumSize.thinnestStroke}`);
+  // the three that were already right are still right, and still cheap
+  assert.strictEqual(m.minimumSize.thinnestStroke, 9);
+  assert.strictEqual(halM.minimumSize.thinnestStroke, 12);
+  assert.ok(Math.abs(kvM.minimumSize.thinnestStroke - 7) < 0.15);
+});
+
+test('the mark is never shown on a ground it cannot be seen on', () => {
+  // the specimen put the mark on the colour in the primary role, which is a
+  // colour to present on in an identity that has a palette and is the mark's
+  // own ink in one built from an ink and a paper. Hallward's headline specimen
+  // was a plain black rectangle at 1.00 to 1.
+  const docs = require('../src/documents');
+  const b = require('../src/documents/blocks');
+  const contrast = require('../src/contrast');
+  for (const [proj, meas] of [[project, m], [HAL, halM], [KV, kvM], [HW, hwM]]) {
+    const ctx = docs.context(proj, meas, [], {});
+    const s = b.showOn(ctx);
+    assert.ok(s.worst >= b.SEEN,
+      `${proj.brand} shows its mark at ${s.worst.toFixed(2)}:1 on ${s.ground.name}`);
+    // and the specimen really does use that pair
+    const html = b.markSpecimen(ctx);
+    assert.ok(html.includes(`background:${s.ground.hex}`), `${proj.brand}: specimen ground`);
+    const inks = Object.values(s.colourway.slots);
+    assert.ok(inks.some((h) => html.toUpperCase().includes(h.toUpperCase())),
+      `${proj.brand}: the specimen is not painted in the colourway that reads`);
+    assert.ok(inks.every((h) => contrast.ratio(h, s.ground.hex) >= b.SEEN),
+      `${proj.brand}: an ink in the shown colourway does not read on its ground`);
+  }
+});
+
+test('a deck slide that cannot show the mark puts it on a plate', () => {
+  // every slide is painted in the primary role. Four of Hallward's were black
+  // rectangles; and the lockup slides asked for a colourway named after the
+  // ground role, which is a colourway name in Meridian alone, by coincidence,
+  // so Halyard had been drawing bone on bone since the day it was added.
+  const docs = require('../src/documents');
+  const b = require('../src/documents/blocks');
+  const { deck } = require('../src/documents/deck');
+  for (const [proj, meas] of [[project, m], [HAL, halM], [KV, kvM], [HW, hwM]]) {
+    const ctx = docs.context(proj, meas, [], {});
+    const slide = ctx.primary.hex;
+    const named = (proj.rules.colourways || []).find((c) => c.name === ctx.ground.name);
+    const way = named && b.worstOn(named, slide) >= b.SEEN ? named
+      : (b.readsOn(ctx, slide) || {}).worst >= b.SEEN ? b.readsOn(ctx, slide).colourway
+        : b.showOn(ctx).colourway;
+    const html = deck(ctx);
+    if (b.worstOn(way, slide) >= b.SEEN) {
+      // it reads on the slide itself, so no plate is wanted
+      assert.ok(!html.includes(`background:${b.showOn(ctx).ground.hex};padding:2.6cqw`),
+        `${proj.brand} plated a mark that could already be seen`);
+    } else {
+      assert.ok(html.includes(`background:${b.showOn(ctx).ground.hex};padding:2.6cqw`),
+        `${proj.brand} left the mark invisible on the slide`);
+    }
+  }
+  // the choice the deck was already making is kept wherever it works: pushing
+  // for maximum contrast would move Meridian off its own off-white onto white
+  const ctxM = docs.context(project, m, [], {});
+  const best = b.readsOn(ctxM, ctxM.primary.hex);
+  assert.strictEqual(best.colourway.name, 'white', 'this fixture is meant to have a whiter option');
+  assert.ok(deck(ctxM).includes('#EFEDE4'), 'Meridian was moved off chalk');
+});
+
+test('a part transparent shape is called out rather than measured three ways', () => {
+  // the ink box counts it, the stem scan cannot see it at all, and a printer
+  // cannot lay down 35 percent of a spot ink without a tint screen
+  const norm = require('../src/normalise');
+  const w = (body) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">${body}</svg>`;
+  const r = norm.normalise(w('<rect data-slot="ink" x="10" y="10" width="100" height="40" fill="#14110E"/>'
+    + '<rect data-slot="ink" x="10" y="60" width="100" height="40" fill="#14110E" fill-opacity="0.35"/>'), { tokens: HW.tokens });
+  const said = r.findings.find((f) => f.code === 'translucent');
+  assert.ok(said && said.level === 'warning', JSON.stringify(r.findings.map((f) => f.code)));
+  // a solid mark is not accused of it, and opacity="0" is still a leftover
+  const clean = norm.normalise(w('<rect data-slot="ink" x="10" y="10" width="100" height="40" fill="#14110E"/>'), { tokens: HW.tokens });
+  assert.ok(!clean.findings.some((f) => f.code === 'translucent'));
+  // the real mark carries one, so the project says so
+  assert.ok(HW.assets.mark.source.includes('fill-opacity'), 'this fixture is meant to carry one');
+});
+
+test('an identity of two colours and one colourway still builds', () => {
+  assert.strictEqual(Object.keys(HW.tokens.colour).length, 2);
+  assert.strictEqual(HW.rules.colourways.length, 1);
+  assert.strictEqual(Object.keys(HW.tokens.type.families).length, 1);
+  assert.ok(!HW.system || !HW.system.photography, 'this fixture is meant to have no system block');
+  const docs = require('../src/documents');
+  const ctx = docs.context(HW, hwM, [], {});
+  // the roles that are absent fall back rather than throwing
+  assert.strictEqual(ctx.accent.hex, ctx.primary.hex);
+  const html = docs.guidelines(ctx);
+  assert.ok(html.length > 5000, 'the manual came out short');
+  assert.ok(!/hb-missing/.test(html), 'the manual has an unexplained hole in it');
+  // and a block that needs the system block it does not have refuses in words
+  const photo = ER.block({ id: 'p', type: 'photography', props: {} }, bundleOf(HW, hwM));
+  assert.ok(/No photography treatment yet/.test(photo),
+    `a missing system block rendered as ${photo.slice(0, 80)}`);
+});
+
 drain().then(() => {
   for (const d of [out, out2]) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);

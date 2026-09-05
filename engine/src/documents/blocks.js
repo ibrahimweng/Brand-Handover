@@ -52,11 +52,59 @@ function asColourway(ctx, colourway, which = 'mark') {
 const onGround = (ctx, groundName) =>
   (ctx.project.rules.colourways || []).find((c) => c.on === groundName) || ctx.primaryColourway;
 
+// How well one colourway reads on a ground: its worst ink against it.
+function worstOn(cw, groundHex) {
+  const inks = cw && cw.slots ? Object.values(cw.slots) : [];
+  if (!inks.length) return 0;
+  return Math.min(...inks.map((h) => contrast.ratio(h, groundHex)));
+}
+
+// The colourway that reads best on a given ground, and how well, which is
+// arithmetic rather than an opinion.
+function readsOn(ctx, groundHex) {
+  let best = null;
+  for (const cw of ctx.project.rules.colourways || []) {
+    const inks = Object.values(cw.slots);
+    if (!inks.length) continue;
+    const worst = Math.min(...inks.map((h) => contrast.ratio(h, groundHex)));
+    if (!best || worst > best.worst) best = { colourway: cw, worst };
+  }
+  return best;
+}
+
+// A ground to present the mark on, and the colourway cut for it.
+//
+// Presenting on the colour in the primary role assumes the palette holds a
+// colour to put the mark on that is not the mark's own ink. An identity built
+// from an ink and a paper does not: for Hallward the primary role IS the ink,
+// so the manual's headline specimen and four slides of the deck came out as
+// plain black rectangles, at 1.00 to 1, with nothing said about it.
+const SEEN = 3;                       // a mark needs about this much to read
+
+function showOn(ctx) {
+  const hexOf = (n) => (ctx.colours[n] || {}).hex;
+  const seen = [];
+  for (const cw of ctx.project.rules.colourways || []) {
+    const inks = Object.values(cw.slots);
+    if (!inks.length) continue;
+    const name = cw.on || ctx.ground.name;
+    const hex = hexOf(name) || ctx.ground.hex;
+    seen.push({ ground: { name, hex }, colourway: cw,
+      worst: Math.min(...inks.map((h) => contrast.ratio(h, hex))) });
+  }
+  if (!seen.length) return { ground: ctx.primary, colourway: ctx.primaryColourway, worst: 0 };
+  // keep the choice that was being made wherever it actually works, so an
+  // identity that was fine stays exactly as it was
+  const before = seen.find((s) => s.ground.hex === ctx.primary.hex);
+  if (before && before.worst >= SEEN) return before;
+  return seen.slice().sort((a, b) => b.worst - a.worst)[0];
+}
+
 // ---------------------------------------------------------------- the mark
 const markSpecimen = (ctx) => {
-  const on = ctx.primary;
-  return `<div class="stage" style="background:${on.hex}">`
-    + `${scaled(asColourway(ctx, onGround(ctx, on.name)), 150)}</div>`;
+  const s = showOn(ctx);
+  return `<div class="stage" style="background:${s.ground.hex}">`
+    + `${scaled(asColourway(ctx, s.colourway), 150)}</div>`;
 };
 
 const lockupRow = (ctx, colourwayName, bg) =>
@@ -208,5 +256,5 @@ function assetIndex(ctx) {
 
 const brandJsonBlock = (ctx) => `<pre>${esc(JSON.stringify(ctx.brandJson, null, 2))}</pre>`;
 
-module.exports = { TXT, esc, inked, asColourway, onGround, scaled, markSpecimen, lockupRow, construction, clearSpace,
+module.exports = { TXT, esc, inked, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, markSpecimen, lockupRow, construction, clearSpace,
   minimumSize, lockups, misuse, palette, contrastTable, typeSpecimen, typeScale, assetIndex, brandJsonBlock };

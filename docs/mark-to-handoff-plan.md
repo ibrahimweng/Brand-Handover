@@ -376,7 +376,7 @@ the measuring engine, the packager, both documents, the canvas editor,
 publishing, all three kinds of block, image slots, page sizes and the
 photography treatment, print work with bleed, CMYK, and a printed piece through
 Typst, mockups, and the licence half of accounts. 138 files from one master,
-255 tests, and two more identities in the repo that the engine had not been
+261 tests, and three more identities in the repo that the engine had not been
 written against.
 
 Three things the plan had wrong, found by building rather than by thinking.
@@ -588,6 +588,41 @@ construction before the engine was asked — three 7 unit boards, an ink box of
 228 by 49 — and then comparing. A system that derives its numbers needs fixtures
 whose numbers are known independently of it, or it can only ever check itself
 for consistency.
+
+**The fourth project worked by subtraction, and that is a separate instrument.**
+Kvist was built by listing what the first two agreed about and contradicting the
+list — a different shape, a different alphabet, a different mix of fills and
+strokes. Hallward was built by *taking things away*: no third colour, no second
+colourway, no second typeface, no system block. Those are not exotic
+configurations, they are the most ordinary identity there is — an ink, a paper
+and one serif — and they had never been run, because every fixture in the repo
+was made by someone who knew what the engine wanted. Adding an unusual project
+tests the code that runs. Removing everything optional tests the code that
+assumes, which is a different set of lines.
+
+**Two of the five defects were about a number nobody had classified as a
+number.** The viewBox is a unit system: 120, 252 and 2048 can describe the same
+drawing at the same size. The engine had two places that quietly treated it as a
+resolution — one rendering six pixels per unit, so cost grew with a number the
+designer picked arbitrarily and a 2048 box took 45 seconds; the other rendering
+to a fixed width, so precision *shrank* with that same number and an 8 unit
+hairline measured 7.7. The same misconception, inverted, in two modules, each
+looking locally reasonable. Neither would ever surface in a project whose units
+happened to be of a familiar size, and every fixture's were, because the person
+writing the fixtures also wrote the code.
+
+**And the third lesson is about the checks, not the code.** Three of the five
+were the same defect wearing different clothes: nothing anywhere was asking
+whether the mark could be seen on what it was sitting on. The manual's headline
+specimen was a black rectangle. So were four slides of the deck. So — it turned
+out — had Halyard's title slide been, for two whole rounds of this exercise,
+while browser checks measured console errors, missing renderers, and geometric
+overflow, and passed it every time. The checks measured what was easy to
+measure. A contrast module had been sitting in the repo since the first week and
+no document was calling it. The lesson is not "check contrast"; it is that a
+verification suite drifts toward the properties that are cheap to assert, and
+the way out is to ask, periodically and deliberately, what a reader would notice
+in one second that no assertion currently covers.
 
 **A defect that only prints an error to a console is still a defect.** Every
 scaled drawing in every document carried `height="auto"`, which is not a length

@@ -83,12 +83,32 @@ function deck(ctx) {
   const div = (no, name, subs) => add(`${no} · ${name}`,
     `<p class="chno">${no}</p><h2 class="chname">${b.esc(name)}</h2><ul class="sub">${subs.map((s) => `<li>${b.esc(s)}</li>`).join('')}</ul>`, 'div');
 
-  add('Title', `<div class="hero" style="justify-content:flex-start;margin-bottom:3.4cqw">${b.scaled(ctx.variantFor('horizontal', ctx.ground.name), 360)}</div>
+  // Every slide is painted in the primary role, which is a colour to present
+  // on in an identity that has one and is the mark's own ink in an identity
+  // built from an ink and a paper. Four slides of Hallward's deck were black
+  // rectangles. Where the slide itself reads, nothing changes; where it does
+  // not, the mark goes on a plate of a ground it was actually cut for.
+  //
+  // Keep the colourway the deck was already asking for wherever it reads —
+  // maximising contrast instead would quietly move an identity off its own
+  // off-white and onto pure white, which is not an improvement, it is a
+  // different decision taken by a machine.
+  const slideHex = ctx.primary.hex;
+  const named = (p.rules.colourways || []).find((c) => c.name === ctx.ground.name);
+  const onSlide = b.readsOn(ctx, slideHex);
+  const show = b.showOn(ctx);
+  const markWay = named && b.worstOn(named, slideHex) >= b.SEEN ? named
+    : onSlide && onSlide.worst >= b.SEEN ? onSlide.colourway
+      : show.colourway;
+  const plate = (inner) => (b.worstOn(markWay, slideHex) >= b.SEEN ? inner
+    : `<span style="background:${show.ground.hex};padding:2.6cqw;display:inline-flex;align-items:center">${inner}</span>`);
+
+  add('Title', `<div class="hero" style="justify-content:flex-start;margin-bottom:3.4cqw">${plate(b.scaled(ctx.variantFor('horizontal', markWay.name), 360))}</div>
     <h1>${b.esc(c.positioning || p.brand)}</h1>
     <p class="cap" style="margin-top:3.4cqw">${b.esc(p.brand)} ${b.esc(p.version)} · built from one master file</p>`);
 
   div('01', 'The mark', ['Construction', 'Clear space', 'Minimum size', 'The lockups', 'Misuse']);
-  add('The mark', `<div class="hero">${b.scaled(b.asColourway(ctx, b.onGround(ctx, ctx.primary.name)), 260)}</div>
+  add('The mark', `<div class="hero">${plate(b.scaled(b.asColourway(ctx, markWay), 260))}</div>
     <p class="cap" style="text-align:center;margin-top:4cqw">${b.esc(p.brand)} · primary mark</p>`);
   add('Construction', `<div class="two wide"><div><span class="bdg">The system</span>
     <h2 style="margin-top:2cqw">Measured, not decided</h2>
@@ -103,11 +123,11 @@ function deck(ctx) {
     <p class="lede">The stroke is what fails first. ${b.esc(m.minimumSize.basis)}, so holding it at ${p.rules.minStrokePx} px puts the floor there.</p>
     <div class="four" style="margin-top:3.4cqw">${[2, 1.4, 1, 0.6].map((f) => {
       const px = Math.round(m.minimumSize.screenPx * f);
-      return `<div class="cell">${b.scaled(b.asColourway(ctx, b.onGround(ctx, ctx.primary.name)), px)}<p class="cap">${px} px${f === 1 ? ' · floor' : f < 1 ? ' · too small' : ''}</p></div>`;
+      return `<div class="cell">${plate(b.scaled(b.asColourway(ctx, markWay), px))}<p class="cap">${px} px${f === 1 ? ' · floor' : f < 1 ? ' · too small' : ''}</p></div>`;
     }).join('')}</div>`);
   add('The lockups', `<span class="bdg">The system</span><h2 style="margin-top:2cqw">${p.rules.lockups.length} arrangements, ${p.rules.colourways.length} colourways</h2>
     <div class="four" style="margin-top:3.4cqw">${p.rules.lockups.map((l) =>
-      `<div class="cell">${b.scaled(ctx.variantFor(l, ctx.ground.name), 190)}<p class="cap">${b.esc(l)}</p></div>`).join('')}</div>
+      `<div class="cell">${plate(b.scaled(ctx.variantFor(l, markWay.name), 190))}<p class="cap">${b.esc(l)}</p></div>`).join('')}</div>
     <p class="sm">All ${p.rules.lockups.length * p.rules.colourways.length} cut from one master, so none of them can fall out of step with the others.</p>`);
   const dontStyles = ['transform:scaleX(1.5)', 'transform:rotate(16deg)', '', 'filter:drop-shadow(3px 4px 4px rgba(0,0,0,.5))', '', ''];
   add('Misuse', `<span class="bdg">The system</span><h2 style="margin-top:2cqw">Six ways it breaks</h2>

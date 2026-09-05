@@ -71,7 +71,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 136 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 255 tests.
+of it. 261 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -179,7 +179,33 @@ a negative origin, a project with no mark lockup, two colourways instead of
 five, and an Illustrator export that puts all its paint in CSS classes were
 already handled correctly, everywhere they were used.
 
-Still to do: a run on **your** identity job. Three identities the engine had not
-seen is worth a great deal more than three passes over one, but none of them
-came out of your exporter — and the normaliser is the part that most needs to
-meet one.
+A fourth, **Hallward Press**, took away everything the first three have in
+common rather than adding something new: an ink and a paper and no third colour,
+one colourway, one typeface, no photography block, and a monochrome seal drawn
+in a 2048 unit box. Five more defects. Two were about a number nobody had
+thought of as a number — a viewBox is a unit system, not a resolution, and the
+engine was rendering six pixels to the unit, so a mark drawn at 2048 rendered
+12288 across, 151 million pixels, and the build took 45 seconds instead of two;
+while the stem scan, rendering at a fixed width, gave that same mark's hairlines
+two pixels and measured them wrong. Both are bounded properly now, 45 s to 2.5 s,
+with every existing measurement byte-identical.
+
+The other three were about the same thing from different angles: **nobody was
+asking whether the mark could be seen.** The manual's headline specimen, the
+first picture in the document, puts the mark on the colour in the primary role —
+which is a colour to present on in an identity with a palette and is the mark's
+own ink in one built from an ink and a paper. Hallward's specimen was a plain
+black rectangle at 1.00 to 1. Four slides of its deck were the same, and chasing
+that turned up an older one: Halyard's title slide had been drawing bone on bone
+since the day Halyard was added, through two rounds of browser checks that
+looked for console errors, missing renderers and overflow and never once asked
+whether anything was visible. Contrast is arithmetic and the module for it has
+been in the repo since the first week. It is asked now, on every document, and
+all four read between 12.9 and 18.0 to 1. The fifth: a part-transparent shape
+was counted by the ink box, invisible to the stem scan, and unprintable in a
+spot ink, three defensible decisions never reconciled and never mentioned.
+
+Still to do: a run on **your** identity job. Four identities the engine had not
+seen is worth a great deal more than four passes over one, but none of them came
+out of your exporter — and the normaliser is the part that most needs to meet
+one.

@@ -55,7 +55,7 @@ function inspect(source) {
     return { found, doc: null };
   }
 
-  const counts = { text: 0, image: 0, clip: 0, mask: 0, filter: 0, transform: 0, hidden: 0, zero: 0, gradient: 0, nonScaling: 0 };
+  const counts = { text: 0, image: 0, clip: 0, mask: 0, filter: 0, transform: 0, hidden: 0, zero: 0, gradient: 0, nonScaling: 0, translucent: 0 };
   eachEl(doc, (el) => {
     const tag = String(el.nodeName).toLowerCase();
     if (tag === 'text' || tag === 'tspan') counts.text++;
@@ -66,6 +66,10 @@ function inspect(source) {
     if (tag === 'lineargradient' || tag === 'radialgradient') counts.gradient++;
     if (el.getAttribute('transform')) counts.transform++;
     if (el.getAttribute('vector-effect') === 'non-scaling-stroke') counts.nonScaling++;
+    for (const a of ['opacity', 'fill-opacity', 'stroke-opacity']) {
+      const v = parseFloat(el.getAttribute(a));
+      if (Number.isFinite(v) && v > 0 && v < 1) { counts.translucent++; break; }
+    }
     const style = el.getAttribute('style') || '';
     if (el.getAttribute('display') === 'none' || /display\s*:\s*none/.test(style)
         || el.getAttribute('opacity') === '0' || el.getAttribute('visibility') === 'hidden') counts.hidden++;
@@ -111,6 +115,11 @@ function inspect(source) {
     `${counts.gradient} gradient${counts.gradient > 1 ? 's' : ''}.`,
     'Colourways repaint flat colours. A gradient cannot be swapped for a single brand colour, so those parts will not change between colourways.',
     'Use flat colour, or accept that this part stays the same in every colourway.'));
+
+  if (counts.translucent) found.push(finding('warning', 'translucent',
+    `${counts.translucent} shape${counts.translucent > 1 ? 's are' : ' is'} partly transparent.`,
+    'A spot ink cannot be printed at 35 percent without a tint screen, and a mark with a see-through part changes colour depending on what is behind it. It also measures oddly here: the ink box counts it, and the minimum size cannot see it, so the size at which the mark stops working is calculated as if it were not there.',
+    'Make it solid, or repaint it as a flat tint of the colour it is meant to look like.'));
 
   if (counts.nonScaling) found.push(finding('warning', 'non-scaling-stroke',
     `${counts.nonScaling} stroke${counts.nonScaling > 1 ? 's' : ''} set not to scale.`,

@@ -9,7 +9,7 @@ around it.
 
     cd engine
     npm install
-    npm test                                            # 255 checks
+    npm test                                            # 261 checks
     node test/print-check.mjs                           # prints, and measures the paper
     node test/treatment-check.mjs                       # renders, and reads the pixels back
     node test/typst-check.mjs                           # the printed piece against the published page
@@ -24,6 +24,7 @@ around it.
     node src/cli.js publish projects/meridian/project.json out/document.json -o page.html
     node src/cli.js build   projects/halyard/project.json  -o out-halyard
     node src/cli.js build   projects/kvist/project.json    -o out-kvist
+    node src/cli.js build   projects/hallward/project.json -o out-hallward
 
 The Meridian example writes 136 files in about six seconds, including both
 documents, the editor, the document it opens with, that document published, and
@@ -38,6 +39,10 @@ Kvist & Sønn is the third, and it is the one that is shaped wrong on purpose:
 fills and a stroke in the same mark, a box 252 by 90 with its origin at minus
 six, a name that is not spellable in ASCII, and no mark lockup at all. See
 [A third identity](#a-third-identity).
+
+Hallward Press is the fourth, and it is the one with nothing in it: an ink, a
+paper, one colourway, one typeface, no system block, and a seal drawn in a 2048
+unit box. See [A fourth identity](#a-fourth-identity).
 
 ## What it measures
 
@@ -1072,6 +1077,74 @@ A mark with no mark lockup, a project with two colourways, and an Illustrator
 export that puts all its paint in CSS classes rather than attributes were all
 already right.
 
+## A fourth identity
+
+The first three all have five colours filling all five roles, two type
+families, a photography block, and a mark drawn in a few hundred units.
+**Hallward Press** has none of that: an ink and a paper and no third colour, one
+colourway, one typeface used for everything, no `system` block at all, and a
+monochrome seal of twenty-three paths — two rings, an inner ring exactly 8 units
+thick, and its name set around the circumference — drawn in a 2048 unit box with
+one part-transparent shape in it.
+
+Five more things were wrong. Two of them are about a number nobody had thought
+of as a number.
+
+**A viewBox is a unit system, not a resolution, and the engine was treating it
+as one.** The ink box is measured by rendering the artwork and reading the alpha
+channel, at six pixels to the unit — so a mark drawn in 120 units rendered 720
+across and a mark drawn in 2048 units rendered 12288 across, which is 151
+million pixels and about 600 MB, every single time an ink box was wanted. The
+Hallward build took **45 seconds** where the others take two or three, and a
+mark exported at 10000 units would simply have run out of memory. Nobody chose
+2048; Figma did. The measurement needs enough pixels to find an edge, which is a
+resolution, so it is bounded as one — and bounded on area rather than width,
+because the cost is width times height and a wordmark 657 units wide by 77 tall
+is cheap at any scale. 45 s → 2.5 s, and every existing measurement is
+byte-identical.
+
+**And the same assumption, inverted, in the other direction.** The stem scan
+renders at a *fixed* 600 pixels wide, so the finer the units the fewer pixels a
+feature gets: Hallward's 8 unit ring lands on 2.3 pixels and measured 7.7. It
+now looks at what it found, and if the thinnest thing is only a couple of pixels
+across it renders again large enough to see it properly. 7.7 → 8.03. The other
+three are unchanged, and only pay for the second look if they need it.
+
+**The manual showed the mark on a ground it cannot be seen on.** The headline
+specimen — the first picture in the document, captioned *the primary mark* —
+puts the artwork on the colour in the primary role. That is a colour to present
+on in an identity with a palette, and it is the mark's own ink in an identity
+built from an ink and a paper. Hallward's specimen was a **plain black
+rectangle**, mark and ground both `#14110E`, 1.00 to 1. Contrast is arithmetic,
+the module for it has been in this repo since the first week, and nothing was
+asking it. It asks now, and keeps the choice that was being made wherever that
+choice works.
+
+**Four slides of the deck were the same rectangle**, and finding out why turned
+up an older one. Every slide is painted in the primary role, and the lockup
+slides ask for the variant cut for the colourway *named after the ground role* —
+which is a colourway name in Meridian and in no other project, by coincidence.
+Everywhere else that lookup was falling back to whatever existed. Halyard's
+title slide has therefore been drawing bone on bone, at 1.00 to 1, since the day
+Halyard was added, through two rounds of browser checks that looked for console
+errors, missing renderers and overflow, and never once asked whether the mark
+could be seen. It can be seen now, on all four, at 12.86, 15.87, 17.37 and 18.02
+to 1, and that is a check rather than a claim.
+
+**A part-transparent shape passed without comment, and was measured three
+different ways.** The ink box counts it, because alpha above a nudge is ink. The
+stem scan cannot see it at all, because it thresholds at half coverage — so the
+size at which the mark stops working is calculated as though the shape were not
+there. And a printer cannot lay down 35 percent of a spot ink without a tint
+screen. Three defensible decisions taken separately and never reconciled. It is
+a warning now, in the same voice as the gradient one, saying all three.
+
+What did **not** break is worth as much: two colours with three of the five
+roles simply absent, one colourway, one type family, no `system` block, a naming
+pattern that never mentions the colourway, an absent `social` section, and
+eighteen rotate transforms flattened out of the artwork. All of those were
+already right, and none of them had been tried.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.
@@ -1106,6 +1179,7 @@ already right.
     projects/meridian/  the first identity: one stroked mark, one ink
     projects/halyard/   the second: filled artwork, two inks, four faults left in
     projects/kvist/     the third: fills and a stroke, a 252x90 box, a name in Norwegian
+    projects/hallward/  the fourth: two colours, one colourway, a seal in a 2048 box
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package

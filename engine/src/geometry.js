@@ -8,11 +8,25 @@ const svgu = require('./svg');
 // The bounding box of everything that actually puts ink on the page, in the
 // document's own user units. Measured by rendering and reading the alpha
 // channel, so strokes, round caps and overlaps are all accounted for.
+// A viewBox is a unit system, not a resolution: 120 and 2048 can describe the
+// same drawing. Rendering at six pixels per unit therefore made the cost of a
+// measurement depend on a number the designer picked arbitrarily — a 2048 unit
+// box rendered 12288 square, which is 151 million pixels and six seconds, every
+// time an ink box was wanted. What the measurement needs is enough pixels to
+// find an edge, and that is a resolution, so cap it as one.
+// The cost is area, not width, so bound the area: a wordmark 657 units wide and
+// 77 tall is cheap at six pixels a unit and a 2048 square seal is not.
+const INK_MAX_AREA = 6e6;
+
 function inkBox(svgString, scale = 6) {
   const doc = svgu.parse(svgString);
   const vb = svgu.viewBox(doc);
+  const natural = Math.max(1, Math.round(vb.w * scale));
+  const area = natural * Math.max(1, Math.round(vb.h * scale));
+  const wide = area > INK_MAX_AREA
+    ? Math.max(1, Math.round(natural * Math.sqrt(INK_MAX_AREA / area))) : natural;
   const r = new Resvg(svgString, {
-    fitTo: { mode: 'width', value: Math.max(1, Math.round(vb.w * scale)) },
+    fitTo: { mode: 'width', value: wide },
     background: 'rgba(0,0,0,0)',
   });
   const img = r.render();
@@ -63,6 +77,8 @@ const clearSpace = (box, ratio) => svgu.round(box.h * ratio);
 // resolutions and, on artwork whose stroke width is known, returns it exactly.
 const STEM_PERCENTILE = 0.05;
 const STEM_RENDER_PX = 600;
+const STEM_MIN_SAMPLES = 14;    // pixels across the thinnest thing before the answer is trusted
+const STEM_MAX_PX = 2600;
 
 // Scan the rendered artwork line by line and collect every unbroken run of
 // ink, keeping where each run sits so neighbouring lines can be compared.
@@ -128,8 +144,8 @@ function stems(lines) {
   return found;
 }
 
-function thinnestFeature(svgString, viewBox) {
-  const r = new Resvg(svgString, { fitTo: { mode: 'width', value: STEM_RENDER_PX },
+function scanAt(svgString, viewBox, wide) {
+  const r = new Resvg(svgString, { fitTo: { mode: 'width', value: wide },
     background: 'rgba(0,0,0,0)' }).render();
   const { pixels, width, height } = r;
   const scans = inkRuns(pixels, width, height);
@@ -142,7 +158,23 @@ function thinnestFeature(svgString, viewBox) {
   if (!runs.length) return null;
   runs.sort((a, b) => a - b);
   const px = runs[Math.min(runs.length - 1, Math.floor(runs.length * STEM_PERCENTILE))];
-  return svgu.round(px * (viewBox.w / width), 2);
+  return { units: svgu.round(px * (viewBox.w / width), 2), px };
+}
+
+function thinnestFeature(svgString, viewBox) {
+  const first = scanAt(svgString, viewBox, STEM_RENDER_PX);
+  if (!first) return null;
+  // A feature two pixels across is mostly quantisation, whatever arithmetic is
+  // done to it: a seal drawn in a 2048 unit box has hairlines that land on
+  // about two pixels at this size, and its 8 unit ring measured 7.7. Rendering
+  // to a fixed width assumes the artwork's units are of a familiar size, and
+  // nothing says they are. Look again, large enough to see.
+  if (first.px >= STEM_MIN_SAMPLES) return first.units;
+  const want = Math.min(STEM_MAX_PX,
+    Math.ceil(STEM_RENDER_PX * (STEM_MIN_SAMPLES / Math.max(first.px, 0.5))));
+  if (want <= STEM_RENDER_PX) return first.units;
+  const again = scanAt(svgString, viewBox, want);
+  return again ? again.units : first.units;
 }
 
 function minimumSize(svgString, rules) {
