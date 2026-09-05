@@ -9,7 +9,7 @@ around it.
 
     cd engine
     npm install
-    npm test                                            # 218 checks
+    npm test                                            # 234 checks
     node test/print-check.mjs                           # prints, and measures the paper
     node test/treatment-check.mjs                       # renders, and reads the pixels back
     node test/typst-check.mjs                           # the printed piece against the published page
@@ -17,6 +17,7 @@ around it.
     node src/cli.js check   my-icon.svg --icon projects/meridian/project.json
     node src/cli.js check   projects/meridian/project.json --print
     node src/cli.js print   projects/meridian/project.json out/document.json -o print
+    node src/cli.js licence
     node src/cli.js measure projects/meridian/project.json
     node src/cli.js build   projects/meridian/project.json -o out
     node src/cli.js edit    projects/meridian/project.json -o editor.html
@@ -121,6 +122,92 @@ classes, a hidden layer, a zero-size rectangle, bad metadata and an off-by-one
 colour, normalises to measure **exactly** the same as the clean hand-written
 master. Same 109 × 109 ink box, same stroke of 9, same 32 px and 9 mm floor.
 
+## Licences, and what the client owns
+
+**There is no server in this project, so there is no billing in it.** Sign up,
+take a card, handle a webhook, revoke on non-payment: all of that is a server,
+and none of it is here. What is here is the half that has to be settled before
+a server is worth writing — what the plans are, what each permits, how a
+permission is proved, and what the client ends up owning.
+
+**With no vendor key set, nothing is limited.** That is deliberate rather than a
+gap. This is being built for one studio's own work first, and a tool that
+refuses to run your own job on your own machine because nobody has decided to
+sell it yet is a tool you route around. Set `HANDOVER_LICENCE_KEY` to a public
+key and the limits below become real, everywhere at once.
+
+    handover licence --keypair ~/keys          # once, for whoever issues licences
+    handover licence --issue --key ~/keys/handover-licence.key \
+      --holder "Weng Studio" --plan solo --expires 2027-09-01
+    handover licence                           # what this engine thinks it has
+
+    trial      1 projects,   2 colourways,   2 lockups  publish
+    solo       8 projects,   6 colourways,   6 lockups  print, mockups, publish
+    studio   any projects, any colourways, any lockups  print, mockups, publish
+
+A licence is signed with Ed25519, so it cannot be forged or edited. Change the
+plan from `solo` to `studio` in the file and the engine says so:
+
+    The signature does not match what the licence says, so one of them has
+    been edited since it was issued.
+
+Every field is covered, not just the plan — a test walks the holder, the expiry,
+the seat count and the email and checks each one breaks the signature. And
+running out is reported as a different thing from being forged, because those
+are two different support conversations.
+
+A limit that is hit reads like every other refusal in this engine, because it is
+one:
+
+    ✗ This project has 5 colourways, and Trial covers 2.
+      Trial is enough to run one identity end to end and see whether the
+      thing works.
+      → Cut it to 2, or move to a plan that carries more.
+
+### What this is not
+
+**A signature is not a lock.** The engine runs on the designer's own machine, so
+anybody can edit it, and a determined person will. What a signature buys is that
+a licence cannot be forged or quietly upgraded, so a support conversation is
+about facts rather than claims. Real enforcement, on the day it matters, is a
+server refusing to generate the package at all — and that is also where the card
+gets taken.
+
+**What a server would still need**, in the order it would get written:
+
+- accounts, sessions, and a project store, so a licence attaches to somebody
+- a payment provider's checkout and its webhooks, so a plan changes when a card
+  does, and lapses when it does not
+- the build running server side, so the entitlement check is somewhere the
+  customer cannot edit
+- a licence endpoint the engine can ask, with an offline grace period, so a
+  designer on a train is not locked out of their own work
+
+None of that is written, and none of it should be until there is a reason.
+
+### What the client gets
+
+The whole argument against the tools this replaces is that **the client inherits
+the designer's subscription**. So the package says, in the package, that they do
+not. Every build writes `LICENCE.txt`:
+
+    WHAT YOU HAVE
+      Every file in this package is yours. [...] Nothing here calls home and
+      nothing stops working.
+
+    WHAT YOU DO NOT NEED
+      An account. A subscription. This tool. [...] It is not inherited by you,
+      and it does not expire.
+
+    WHAT IS NOT OURS TO GIVE
+      Typefaces are licensed separately by whoever made them [...] The same
+      goes for any Pantone reference quoted in the documents.
+
+Beside it, `usage.json`: what was actually made, counted off the build rather
+than estimated, so an invoice and the package agree with each other. And
+`brand.json` records the plan and licence fingerprint a package was built under,
+or `null` when nothing was enforcing.
+
 ## The package
 
 Every file is cut from the master when you press build.
@@ -130,6 +217,8 @@ Every file is cut from the master when you press build.
     06-social/      profile, header and open graph crops
     07-pattern/     the pattern, every density in every colourway
     brand.json      the whole system, machine readable
+    LICENCE.txt     what the client owns, which is all of it
+    usage.json      what was made, for whoever is invoicing
     guidelines.html the manual
     deck.html       the presentation
     README.txt      which file to use where, in plain words
@@ -834,6 +923,7 @@ correction that can only be made once the browser has laid the new size out.
     src/paths.js      svg path data reduced to move, line and cubic
     src/typst.js      a printed piece, in ink, for Typst to compile
     src/surface.js    the mark mapped into a surface, and whether it reads there
+    src/licence.js    plans, signed licences, and what the client owns
     src/pattern.js    seamless tiles cut from the shape you marked
     src/documents/    blocks.js, chrome.js, index.js (manual), deck.js
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js

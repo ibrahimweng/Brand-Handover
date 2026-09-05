@@ -71,7 +71,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 136 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 218 tests.
+of it. 234 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -130,6 +130,13 @@ blended so the photograph's own shading comes through it. The editor then
 samples the surface and tells you when the artwork cannot be seen on it, which
 is most often because multiply can only darken and the artwork is lighter than
 what it is sitting on.
+
+There are plans and signed licences, and a package that tells the client they
+own it outright. No billing, though, and none is possible here: taking a card
+is a server, and there is no server in this. What is built is the half that has
+to be settled first, and with no vendor key set nothing is limited at all,
+because a tool that refuses to run your own job on your own machine is one you
+route around.
 
 Still to do: a run on a real identity job. That is the whole of what is left,
 and it matters more than any feature.

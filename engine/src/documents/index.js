@@ -27,8 +27,18 @@ function context(project, measured, files, brandJson) {
       }).svg;
     }
   }
+  // A document asks for a lockup in a colourway, and the colourway it wants may
+  // not be one the project cuts: nothing says the ground colour has to be among
+  // them. Falling back beats a document that will not build at all, and it beats
+  // a document with a hole in it.
+  const variantFor = (lockup, prefer) => variants[`${lockup}:${prefer}`]
+    || variants[`${lockup}:${primaryColourway.name}`]
+    || variants[Object.keys(variants).find((k) => k.startsWith(`${lockup}:`))]
+    || variants[Object.keys(variants)[0]]
+    || null;
+
   return { project, measured, colours, primary, ground, accent, primaryColourway,
-    variants, files, brandJson, contrast: contrast.matrix(colours),
+    variants, variantFor, files, brandJson, contrast: contrast.matrix(colours),
     content: project.content || {} };
 }
 

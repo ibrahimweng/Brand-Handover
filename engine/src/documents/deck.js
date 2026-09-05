@@ -83,7 +83,7 @@ function deck(ctx) {
   const div = (no, name, subs) => add(`${no} · ${name}`,
     `<p class="chno">${no}</p><h2 class="chname">${b.esc(name)}</h2><ul class="sub">${subs.map((s) => `<li>${b.esc(s)}</li>`).join('')}</ul>`, 'div');
 
-  add('Title', `<div class="hero" style="justify-content:flex-start;margin-bottom:3.4cqw">${b.scaled(ctx.variants[`horizontal:${ctx.ground.name}`] || ctx.variants[Object.keys(ctx.variants)[0]], 360)}</div>
+  add('Title', `<div class="hero" style="justify-content:flex-start;margin-bottom:3.4cqw">${b.scaled(ctx.variantFor('horizontal', ctx.ground.name), 360)}</div>
     <h1>${b.esc(c.positioning || p.brand)}</h1>
     <p class="cap" style="margin-top:3.4cqw">${b.esc(p.brand)} ${b.esc(p.version)} · built from one master file</p>`);
 
@@ -107,7 +107,7 @@ function deck(ctx) {
     }).join('')}</div>`);
   add('The lockups', `<span class="bdg">The system</span><h2 style="margin-top:2cqw">${p.rules.lockups.length} arrangements, ${p.rules.colourways.length} colourways</h2>
     <div class="four" style="margin-top:3.4cqw">${p.rules.lockups.map((l) =>
-      `<div class="cell">${b.scaled(ctx.variants[`${l}:${ctx.ground.name}`], 190)}<p class="cap">${b.esc(l)}</p></div>`).join('')}</div>
+      `<div class="cell">${b.scaled(ctx.variantFor(l, ctx.ground.name), 190)}<p class="cap">${b.esc(l)}</p></div>`).join('')}</div>
     <p class="sm">All ${p.rules.lockups.length * p.rules.colourways.length} cut from one master, so none of them can fall out of step with the others.</p>`);
   const dontStyles = ['transform:scaleX(1.5)', 'transform:rotate(16deg)', '', 'filter:drop-shadow(3px 4px 4px rgba(0,0,0,.5))', '', ''];
   add('Misuse', `<span class="bdg">The system</span><h2 style="margin-top:2cqw">Six ways it breaks</h2>

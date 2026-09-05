@@ -21,12 +21,33 @@ handover — derives a whole logo package from one master mark
                                            publish an edited document as a page
   handover print <project.json> [doc.json] [-o dir] [--fonts dir]
                                            a printed piece, in ink, through Typst
+  handover licence [licence.json]          what your plan covers, and whether it checks out
+  handover licence --keypair [dir]         make an issuing keypair
+  handover licence --issue --key k --holder "Name" --plan solo [--expires YYYY-MM-DD]
 
 Both documents and every file come out of the same project, so a change to the
 master shows up in all of them at once.
 
 Every number in the output is read off the artwork. None of it is typed in.
 `;
+
+// The licence this run is operating under, and what it permits. One place, so
+// build, print and publish cannot disagree about it.
+function entitlement(argv, project, want) {
+  const L = require('./licence');
+  const cfg = L.config(process.env, fs, path);
+  const li = argv.indexOf('--licence');
+  const got = L.load(fs, path, {
+    file: li > -1 ? argv[li + 1] : null,
+    env: process.env.HANDOVER_LICENCE,
+    dir: project && project.dir,
+  });
+  // with no vendor key there is nothing to verify against and nothing is limited
+  if (!cfg.enforcing) return { enforcing: false, result: null, findings: [], licence: got.licence };
+  const result = L.verify(got.licence, cfg.publicKey);
+  return { enforcing: true, result, licence: got.licence,
+    findings: L.check(result, project, want) };
+}
 
 // the first typst on PATH, without shelling out to a shell
 function which(name) {
@@ -41,7 +62,71 @@ function which(name) {
 async function main(argv) {
   const [cmd, file] = argv;
   if (!cmd || cmd === '-h' || cmd === '--help') { console.log(USAGE.trim()); return 0; }
-  if (!file) { console.error('Which project file? Pass a path to project.json.'); return 1; }
+  // licence is the one command that is about the engine rather than a project
+  const NO_PROJECT = ['licence', 'license'];
+  if (!file && NO_PROJECT.indexOf(cmd) < 0) {
+    console.error('Which project file? Pass a path to project.json.'); return 1;
+  }
+
+  // ---- licences: what a plan permits, and proving which plan you have ----
+  if (cmd === 'licence' || cmd === 'license') {
+    const L = require('./licence');
+    if (argv.includes('--keypair')) {
+      const kp = L.keypair();
+      const dir = path.resolve(argv[argv.indexOf('--keypair') + 1] || '.');
+      fs.writeFileSync(path.join(dir, 'handover-licence.key'), kp.privateKey, { mode: 0o600 });
+      fs.writeFileSync(path.join(dir, 'handover-licence.pub'), kp.publicKey);
+      console.log(`  wrote handover-licence.key and .pub to ${path.relative(process.cwd(), dir) || '.'}`);
+      console.log('  Keep the .key off every machine but the one that issues licences.');
+      console.log('  Put the .pub on the engines: HANDOVER_LICENCE_KEY=/path/to/handover-licence.pub');
+      return 0;
+    }
+    if (argv.includes('--issue')) {
+      const need = (flag) => { const i = argv.indexOf(flag); return i > -1 ? argv[i + 1] : null; };
+      const keyPath = need('--key');
+      if (!keyPath) { console.error('which key signs it? pass --key handover-licence.key'); return 1; }
+      const licence = L.sign({
+        holder: need('--holder') || '', email: need('--email') || '',
+        plan: need('--plan') || 'solo', seats: Number(need('--seats') || 1),
+        issued: new Date().toISOString().slice(0, 10),
+        expires: need('--expires') || '',
+      }, fs.readFileSync(keyPath, 'utf8'));
+      const out = need('-o') || 'licence.json';
+      fs.writeFileSync(out, JSON.stringify(licence, null, 2));
+      console.log(`  issued ${licence.plan} to ${licence.holder || '(nobody named)'}`
+        + `${licence.expires ? `, until ${licence.expires}` : ', with no end date'}`);
+      console.log(`  ${path.relative(process.cwd(), out)}  fingerprint ${L.fingerprint(licence)}`);
+      return 0;
+    }
+
+    const cfg = L.config(process.env, fs, path);
+    const got = L.load(fs, path, { file: argv[1] && !argv[1].startsWith('-') ? argv[1] : null,
+      env: process.env.HANDOVER_LICENCE, dir: process.cwd() });
+    if (!cfg.enforcing) {
+      console.log('  No vendor key is set, so nothing is limited.');
+      console.log('  This engine runs everything. Set HANDOVER_LICENCE_KEY to a public key');
+      console.log('  and the plan limits below start applying.\n');
+    }
+    if (!got.licence) {
+      console.log(`  No licence found${cfg.enforcing ? ', so this engine is on Trial' : ''}.`);
+    } else {
+      const r = cfg.publicKey ? L.verify(got.licence, cfg.publicKey) : null;
+      console.log(`  ${got.from}`);
+      console.log(`  ${got.licence.holder || '(nobody named)'}  ${got.licence.plan}`
+        + `${got.licence.expires ? `  until ${got.licence.expires}` : '  no end date'}`
+        + `  fingerprint ${L.fingerprint(got.licence)}`);
+      if (r) console.log(`  ${r.ok ? 'Good.' : r.why}`);
+      else console.log('  Not checked: no vendor key set, so the signature means nothing here.');
+    }
+    console.log('\n  The plans');
+    for (const [key, p] of Object.entries(L.PLANS)) {
+      const n = (v) => (v === Infinity ? 'any' : String(v));
+      console.log(`    ${key.padEnd(8)} ${n(p.projects).padStart(3)} projects, `
+        + `${n(p.colourways).padStart(3)} colourways, ${n(p.lockups).padStart(3)} lockups`
+        + `  ${['print', 'mockups', 'publish'].filter((f) => p[f]).join(', ') || 'documents only'}`);
+    }
+    return 0;
+  }
 
   // everything that has to be true before a file goes to a press
   if (cmd === 'check' && argv.includes('--print')) {
@@ -152,6 +237,12 @@ async function main(argv) {
   }
 
   if (cmd === 'publish') {
+    const gate = entitlement(argv, project, { publish: true });
+    if (gate.findings.some((f) => f.level === 'blocker')) {
+      const { format } = require('./report');
+      console.log(format(gate.findings, { name: `${project.brand} on ${require('./licence').planOf(gate.result).name}` }));
+      return 1;
+    }
     const { measure } = require('./variants');
     const { bundle, starterDoc } = require('./editor/bundle');
     const { publish } = require('./editor/publish');
@@ -185,6 +276,12 @@ async function main(argv) {
 
   // a printed piece, as Typst source and, if a typst binary is about, as a PDF
   if (cmd === 'print') {
+    const gate = entitlement(argv, project, { print: true });
+    if (gate.findings.some((f) => f.level === 'blocker')) {
+      const { format } = require('./report');
+      console.log(format(gate.findings, { name: `${project.brand} on ${require('./licence').planOf(gate.result).name}` }));
+      return 1;
+    }
     const { measure } = require('./variants');
     const { bundle, starterDoc } = require('./editor/bundle');
     const typst = require('./typst');
@@ -253,9 +350,19 @@ async function main(argv) {
   const outDir = path.resolve(oi > -1 && argv[oi + 1] ? argv[oi + 1] : 'out');
   fs.rmSync(outDir, { recursive: true, force: true });
 
+  // a build asks for nothing beyond the plan's own numbers: a trial should be
+  // able to make a package, just a smaller one. The print path and publishing
+  // ask for themselves, where they are used.
+  const ent = entitlement(argv, project, {});
+  if (ent.findings.length) {
+    const { format } = require('./report');
+    console.log(format(ent.findings, { name: `${project.brand} on ${require('./licence').planOf(ent.result).name}` }));
+    if (ent.findings.some((f) => f.level === 'blocker')) return 1;
+  }
+
   const started = Date.now();
   let result;
-  try { result = await build(project, outDir, { log: (m) => console.log(`  ${m}`) }); }
+  try { result = await build(project, outDir, { log: (m) => console.log(`  ${m}`), licence: ent.result }); }
   catch (e) { console.error(e.message); return 1; }
 
   const bytes = result.written.reduce((n, f) => n + f.bytes, 0);

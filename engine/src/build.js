@@ -8,7 +8,7 @@ const { buildVariant, measure } = require('./variants');
 const exp = require('./export');
 const contrast = require('./contrast');
 
-async function build(project, outDir, { log = () => {} } = {}) {
+async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   const measured = measure(project);
   log(`measured the master: ink ${measured.markInk.w} × ${measured.markInk.h}, ` +
       `clear space ${measured.clearSpace}, floor ${measured.minimumSize.screenPx} px / ${measured.minimumSize.printMm} mm`);
@@ -27,6 +27,7 @@ async function build(project, outDir, { log = () => {} } = {}) {
   // screen, and what it becomes in ink depends on a press and a paper that no
   // formula knows about.
   const cmyk = require('./cmyk');
+  const lic0 = require('./licence');
   const inkTable = cmyk.table(project.tokens.colour || {});
   const ink = cmyk.inkMap(inkTable);
   const inkFindings = cmyk.check(inkTable, { stock: rules.stock, forPress: false });
@@ -130,7 +131,8 @@ async function build(project, outDir, { log = () => {} } = {}) {
       motion: sys.motion,
       photography: sys.photography,
     },
-    generated: { measuredFrom: path.basename(project.assets.mark.path), files: written.length + 1 },
+    generated: { measuredFrom: path.basename(project.assets.mark.path), files: written.length + 1,
+      builtUnder: licence && licence.ok ? { plan: licence.licence.plan, fingerprint: lic0.fingerprint(licence.licence) } : null },
   };
   write('brand.json', JSON.stringify(brandJson, null, 2));
 
@@ -171,6 +173,14 @@ async function build(project, outDir, { log = () => {} } = {}) {
     write('document.json', JSON.stringify(document, null, 2));
     write('published.html', publish(document, bu, { title: 'Guidelines' }));
   }
+
+  // ---- what the client owns, and what there is to bill for ----
+  // The whole argument against the tools this replaces is that the client
+  // inherits the designer's subscription. So the package says, in the package,
+  // that they do not.
+  const lic = require('./licence');
+  write('LICENCE.txt', lic.clientLicence(project, licence));
+  write('usage.json', JSON.stringify(lic.usage(licence, project, { written }), null, 2));
 
   // ---- one zip the client keeps, whoever is paying for what ----
   if (rules.zip !== false) {

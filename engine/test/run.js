@@ -118,7 +118,7 @@ test('the file count is exactly what the rules ask for', () => {
     + (r.faviconSizes || []).length + ((r.faviconSizes || []).length ? 1 : 0)  // favicons plus the .ico
     + Object.keys(r.social || {}).length                    // social crops
     + patternTiles()                                        // the pattern, at every density, in every colourway
-    + 2                                                     // brand.json and README.txt
+    + 4                                                     // brand.json, README.txt, LICENCE.txt and usage.json
     + (r.documents === false ? 0 : 5)                       // manual, deck, editor, document.json, published.html
     + (r.zip === false ? 0 : 1);                            // the package itself
   assert.strictEqual(result.written.length, expected, `expected ${expected} files, got ${result.written.length}`);
@@ -1040,6 +1040,130 @@ test('the manual will not present a guess as a fact', () => {
       { tide: { hex: '#1E7A8C', role: 'secondary' } }) }) });
   const ctx = docs.context(thin, m, [], {});
   assert.ok(/tide.*no build yet/s.test(docs.guidelines(ctx)), 'a missing build is not called out by name');
+});
+
+console.log('\nlicences');
+const LIC = require('../src/licence');
+const KEYS = LIC.keypair();
+const issue = (over) => LIC.sign(Object.assign({ holder: 'Weng Studio', plan: 'solo',
+  issued: '2026-01-01', expires: '2027-01-01', seats: 1 }, over), KEYS.privateKey);
+
+test('a licence that has not been touched checks out', () => {
+  const r = LIC.verify(issue(), KEYS.publicKey, new Date('2026-06-01'));
+  assert.strictEqual(r.state, 'good');
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(r.licence.holder, 'Weng Studio');
+  assert.strictEqual(LIC.planOf(r).name, 'Solo');
+});
+test('a licence edited to a better plan is caught, and says which of the two moved', () => {
+  const upgraded = Object.assign({}, issue(), { plan: 'studio' });
+  const r = LIC.verify(upgraded, KEYS.publicKey, new Date('2026-06-01'));
+  assert.strictEqual(r.ok, false);
+  assert.strictEqual(r.state, 'altered');
+  assert.ok(/edited since it was issued/.test(r.why));
+  assert.strictEqual(LIC.planOf(r).name, 'Trial', 'an altered licence should fall back, not be believed');
+});
+test('every field is covered by the signature, not just the plan', () => {
+  for (const [k, v] of Object.entries({ holder: 'Somebody Else', expires: '2099-01-01', seats: 500, email: 'x@y' })) {
+    const changed = Object.assign({}, issue(), { [k]: v });
+    assert.strictEqual(LIC.verify(changed, KEYS.publicKey, new Date('2026-06-01')).state, 'altered',
+      `${k} can be edited without breaking the signature`);
+  }
+});
+test('a licence signed by somebody else is not a licence', () => {
+  const other = LIC.keypair();
+  assert.strictEqual(LIC.verify(issue(), other.publicKey, new Date('2026-06-01')).state, 'altered');
+});
+test('running out is a different conversation from being forged', () => {
+  const r = LIC.verify(issue(), KEYS.publicKey, new Date('2027-06-01'));
+  assert.strictEqual(r.state, 'expired');
+  assert.ok(/ran out on 2027-01-01/.test(r.why));
+  // and a licence with no end date does not run out
+  assert.strictEqual(LIC.verify(issue({ expires: '' }), KEYS.publicKey, new Date('2099-01-01')).state, 'good');
+});
+test('missing, unsigned and unreadable are told apart', () => {
+  assert.strictEqual(LIC.verify(null, KEYS.publicKey).state, 'missing');
+  assert.strictEqual(LIC.verify({ plan: 'studio' }, KEYS.publicKey).state, 'unsigned');
+  assert.strictEqual(LIC.verify(issue(), 'not a key').state, 'unreadable');
+});
+
+test('a plan limit is a finding, in the same voice as everything else', () => {
+  const r = LIC.verify(issue({ plan: 'trial' }), KEYS.publicKey, new Date('2026-06-01'));
+  const f = LIC.check(r, project, {});
+  const ways = f.find((x) => /colourways/.test(x.what));
+  assert.ok(ways, 'five colourways passed on Trial');
+  assert.strictEqual(ways.level, 'blocker');
+  assert.ok(ways.what.includes('5') && ways.what.includes('2'), ways.what);
+  assert.ok(ways.why && ways.how, 'a limit needs a why and a how like any other finding');
+  assert.ok(/move to a plan/i.test(ways.how));
+});
+test('a feature the plan does not carry is refused by name', () => {
+  const r = LIC.verify(issue({ plan: 'trial' }), KEYS.publicKey, new Date('2026-06-01'));
+  const f = LIC.check(r, { rules: { colourways: [], lockups: [] } }, { print: true });
+  assert.strictEqual(f.length, 1);
+  assert.ok(/does not include the print path/.test(f[0].what), f[0].what);
+  // and Solo carries it
+  assert.deepStrictEqual(LIC.check(LIC.verify(issue(), KEYS.publicKey, new Date('2026-06-01')),
+    { rules: { colourways: [], lockups: [] } }, { print: true, mockups: true, publish: true }), []);
+});
+test('an unlimited plan is unlimited', () => {
+  const r = LIC.verify(issue({ plan: 'studio' }), KEYS.publicKey, new Date('2026-06-01'));
+  assert.deepStrictEqual(LIC.check(r, project, { print: true, mockups: true, publish: true }), []);
+  assert.strictEqual(LIC.PLANS.studio.colourways, Infinity);
+});
+test('a broken licence explains itself before the limits do', () => {
+  const r = LIC.verify(Object.assign({}, issue(), { plan: 'studio' }), KEYS.publicKey, new Date('2026-06-01'));
+  const f = LIC.check(r, project, {});
+  assert.ok(/edited since it was issued/.test(f[0].what), 'the tampering should be the first thing said');
+  assert.ok(/Trial limits/.test(f[0].why));
+});
+
+test('with no vendor key nothing is limited, which is the point', () => {
+  const cfg = LIC.config({}, fs, path);
+  assert.strictEqual(cfg.enforcing, false);
+  assert.strictEqual(cfg.publicKey, null);
+  const withKey = LIC.config({ HANDOVER_LICENCE_KEY: KEYS.publicKey }, fs, path);
+  assert.strictEqual(withKey.enforcing, true);
+});
+test('a usage record counts what was made rather than guessing', () => {
+  const r = LIC.verify(issue(), KEYS.publicKey, new Date('2026-06-01'));
+  const u = LIC.usage(r, project, { written: [{ bytes: 100 }, { bytes: 50 }] });
+  assert.strictEqual(u.files, 2);
+  assert.strictEqual(u.bytes, 150);
+  assert.strictEqual(u.holder, 'Weng Studio');
+  assert.strictEqual(u.plan, 'solo');
+  assert.strictEqual(u.colourways, project.rules.colourways.length);
+  // and with nothing enforcing it says so rather than claiming a plan
+  assert.strictEqual(LIC.usage(null, project, {}).plan, 'not enforced');
+  assert.strictEqual(LIC.usage(LIC.verify(null, KEYS.publicKey), project, {}).plan, 'licence missing');
+});
+test('the fingerprint is short, stable, and changes when the licence does', () => {
+  const a = issue(), b2 = issue({ holder: 'Someone Else' });
+  assert.strictEqual(LIC.fingerprint(a), LIC.fingerprint(a));
+  assert.strictEqual(LIC.fingerprint(a).length, 12);
+  assert.notStrictEqual(LIC.fingerprint(a), LIC.fingerprint(b2));
+  assert.strictEqual(LIC.fingerprint({}), null);
+});
+
+test('the client owns the package outright, and the package says so', () => {
+  const txt = fs.readFileSync(path.join(out, 'LICENCE.txt'), 'utf8');
+  assert.ok(/Every file in this package is yours/.test(txt));
+  assert.ok(/It is not inherited by you, and it does not expire/.test(txt),
+    'the whole argument against the tools this replaces is the inherited subscription');
+  assert.ok(/Typefaces are licensed separately/.test(txt), 'it should not give away what is not ours');
+  assert.ok(/Pantone/.test(txt));
+});
+test('the package carries a usage record to invoice from', () => {
+  const u = JSON.parse(fs.readFileSync(path.join(out, 'usage.json'), 'utf8'));
+  assert.strictEqual(u.brand, 'Meridian');
+  assert.strictEqual(u.colourways, project.rules.colourways.length);
+  assert.ok(u.files > 100 && u.bytes > 0);
+  assert.ok(u.at, 'an invoice line needs a date');
+});
+test('brand.json says which licence the package was built under, or that none was', () => {
+  const bj = JSON.parse(fs.readFileSync(path.join(out, 'brand.json'), 'utf8'));
+  assert.ok('builtUnder' in bj.generated, 'a package should say what it was built under');
+  assert.strictEqual(bj.generated.builtUnder, null, 'nothing is enforcing in the test run, so it should say so');
 });
 
 console.log('\nmockups');

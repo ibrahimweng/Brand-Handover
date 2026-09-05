@@ -375,7 +375,8 @@ out to be cheap once the renderer was shared. What is running: the normaliser,
 the measuring engine, the packager, both documents, the canvas editor,
 publishing, all three kinds of block, image slots, page sizes and the
 photography treatment, print work with bleed, CMYK, and a printed piece through
-Typst, and mockups. 136 files from one master, 218 tests.
+Typst, mockups, and the licence half of accounts. 138 files from one master,
+234 tests.
 
 Three things the plan had wrong, found by building rather than by thinking.
 
@@ -422,6 +423,28 @@ as markup a browser paints and once as arithmetic the editor reasons with, and
 the two must agree. So there is a check that renders through the real filter and
 reads the pixels back. It caught a flat scrim painting solid while the numbers
 assumed 42% on its first run.
+
+**Accounts and billing split cleanly in two, and only one half is buildable
+without a server.** This plan put them last, on the day you decide to sell, and
+that was right. What it did not say is that the half worth doing early is not
+the payments. It is deciding what the plans are, what each permits, how a
+permission is proved, and what the client ends up owning — because the last of
+those is the product's whole argument. Every tool this replaces leaves the
+client inheriting the designer's subscription. Writing the opposite into the
+package, in the package, is a one-file job that makes the positioning real
+rather than a line in a pitch.
+
+The rest is a server and should stay unwritten until there is a reason. Worth
+being blunt about the limit: a licence check that runs on the customer's own
+machine is a speed bump, not a lock. What a signature buys is that a licence
+cannot be forged or quietly upgraded, so a support conversation is about facts.
+Real enforcement is a server refusing to generate the package, which is the same
+place the card gets taken, which is why the two arrive together or not at all.
+
+One decision that looks small and is not: with no vendor key set, nothing is
+limited. A tool that refuses to run your own job on your own machine because
+nobody has decided to sell it yet is a tool you route around, and a tool the
+author routes around stops being tested.
 
 **The mockup engine turned out to be arithmetic, which the plan did not expect.**
 It was filed after the print path as though it were an asset library: pictures

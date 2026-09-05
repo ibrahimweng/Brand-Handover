@@ -21,6 +21,8 @@ function inked(ctx, hex, which = 'mark') {
 }
 
 function scaled(svg, width) {
+  // a document should not fail to build because one variant is absent
+  if (!svg) return `<div style="width:${width}px;height:${Math.round(width / 3)}px"></div>`;
   return svg.replace(/<svg([^>]*)>/, (m, attrs) =>
     `<svg${attrs.replace(/\s(width|height)="[^"]*"/g, '')} width="${width}" height="auto" style="width:${width}px;height:auto;display:block">`);
 }
@@ -88,7 +90,7 @@ function minimumSize(ctx) {
 
 function lockups(ctx) {
   return `<div class="row2">` + ctx.project.rules.lockups.map((l) => {
-    const v = ctx.variants[`${l}:${ctx.primaryColourway.name}`];
+    const v = ctx.variantFor(l, ctx.primaryColourway.name);
     return `<figure><div class="stage">${scaled(v, 190)}</div><figcaption>${esc(l)}</figcaption></figure>`;
   }).join('') + `</div>`;
 }
