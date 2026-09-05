@@ -91,8 +91,37 @@ const pageSize = (doc, page) => {
 const PAGE = sheet('slide-16x9');
 const GRID = 8;
 
+// Ids were a counter plus the clock, and the clock was doing real work: the
+// counter restarts at zero every session, so a document loaded from disk and
+// then added to would have handed out b1 twice. It also meant two builds of an
+// unchanged master produced two different documents — different ids in
+// document.json, in the editor and in the published page, and therefore a
+// different zip. 45 of Meridian's 138 files changed on every run, which makes
+// the one thing this project asks you to do — change the master, rebuild, diff
+// — impossible. Counting on from what a document already holds does the same
+// job and can be repeated.
 let seq = 0;
-const id = (p) => `${p}${(++seq).toString(36)}${Date.now().toString(36).slice(-3)}`;
+const id = (p) => `${p}${(++seq).toString(36)}`;
+
+// Continue past every id a document already carries, so ids stay unique across
+// a save and a reload without having to be unpredictable.
+function resetIds() { seq = 0; }
+
+function seedIds(doc) {
+  let top = 0;
+  const look = (v) => {
+    const m = /^[a-z]+([0-9a-z]+)$/.exec(String(v || ''));
+    if (!m) return;
+    const n = parseInt(m[1], 36);
+    if (Number.isFinite(n) && n > top) top = n;
+  };
+  for (const page of (doc && doc.pages) || []) {
+    look(page.id);
+    for (const b of page.blocks || []) look(b.id);
+  }
+  seq = Math.max(seq, top);
+  return seq;
+}
 
 const DEFAULTS = {
   text: { text: 'Double click to edit', style: 'body', align: 'left', colour: 'primary' },
@@ -282,7 +311,7 @@ function history(initial, limit = 60) {
   };
 }
 
-return { PLAIN, DERIVED, RULE, KINDS, kindOf, DEFAULTS, SIZES, PAGE, GRID,
+return { PLAIN, DERIVED, RULE, KINDS, kindOf, DEFAULTS, SIZES, PAGE, GRID, seedIds, resetIds,
   SHEETS, sheet, pageSize, printSpec, toPx, reflow, recognise,
   makeBlock, makePage, emptyDoc, ops, history, clone, snap, findPage };
 }));

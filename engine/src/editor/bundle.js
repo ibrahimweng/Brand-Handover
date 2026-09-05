@@ -104,6 +104,9 @@ function bundle(project, measured, files = []) {
 // beginner meets the editor with something already on it.
 function starterDoc(bu) {
   const M = require('./model');
+  // ids start again for each document, so building the same project twice in
+  // one run gives the same document rather than a second range of numbers
+  M.resetIds();
   const doc = M.emptyDoc(bu.brand);
   const P = doc.page;
   const cover = doc.pages[0];

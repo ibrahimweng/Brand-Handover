@@ -21,6 +21,13 @@ function findSource(markSource) {
 
 // Measure the marked shape on its own, so the tile is built from its real
 // bounds rather than the whole mark's.
+// a small stable hash, so a tile's id depends on the tile and nothing else
+function hash(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h | 0;
+}
+
 function sourceGeometry(markSource) {
   const { node, viewBox } = findSource(markSource);
   if (!node) {
@@ -89,7 +96,8 @@ function everyTile(markSource, rules, colourways, contrastPairs) {
 function swatch(markSource, rules, ink, on, w, h, id) {
   const t = tile(markSource, rules, ink);
   if (!t.ok) return null;
-  const pid = 'pat-' + (id || Math.random().toString(36).slice(2, 8));
+  // a random id makes the same pattern a different file every time it is written
+  const pid = 'pat-' + (id || ('t' + Math.abs(hash(String(rules.tile) + rules.weight + colour)).toString(36)));
   return `<svg xmlns="${svgu.NS}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="width:100%;height:100%;display:block">`
     + `<defs><pattern id="${pid}" width="${t.width}" height="${t.height}" patternUnits="userSpaceOnUse">${t.body}</pattern></defs>`
     + `<rect width="${w}" height="${h}" fill="${on}"/><rect width="${w}" height="${h}" fill="url(#${pid})"/></svg>`;

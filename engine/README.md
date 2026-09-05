@@ -9,7 +9,7 @@ around it.
 
     cd engine
     npm install
-    npm test                                            # 288 checks
+    npm test                                            # 290 checks
     node test/print-check.mjs                           # prints, and measures the paper
     node test/treatment-check.mjs                       # renders, and reads the pixels back
     node test/typst-check.mjs                           # the printed piece against the published page
@@ -1453,6 +1453,39 @@ With the tiles readable, the module's own claim could finally be checked: *a
 tile that repeats seamlessly in both directions.* It does. Four by four, the
 arcs run continuously across every boundary and the field reads as a scale
 pattern rather than as a grid of cut-off pieces.
+
+## Building the same thing twice
+
+Ten identities in, the axis that was left had nothing to do with identities. The
+whole argument of this engine is *change the master, rebuild, and everything
+follows* — and the way you would actually check that is to build, change one
+thing, build again, and diff the two packages. **That did not work.** Two builds
+of an entirely unchanged master produced 45 different files out of Meridian's
+138, so the noise swamped whatever signal a real change would have made.
+
+Four separate causes, none of them the artwork:
+
+- **The block ids in the starter document were a counter plus the clock.** The
+  clock was doing real work — the counter restarts at zero every session, so a
+  document loaded from disk and added to would have handed out `b1` twice — but
+  it meant `document.json`, the editor and the published page were different
+  every run. Counting on from the ids a document already holds does the same job
+  and can be repeated.
+- **Every PDF carried a creation date and a freshly generated file identifier**,
+  so the same artwork written twice was two different files.
+- **`usage.json` recorded the moment it was written.**
+- **The zip stamped the mtime of every entry**, including the folder entries
+  JSZip creates for itself, which do not take the option the files do.
+
+`SOURCE_DATE_EPOCH` is the usual way to ask for a build you can compare, so it is
+honoured: set it and all ten projects build byte-identically. Leave it unset and
+a package still records when it was made, which is worth knowing.
+
+With that working, the claim can be watched rather than asserted. Thicken
+Meridian's ring from 9 to 14, rebuild, and **96 of 138 files change while 42 stay
+untouched** — and the 42 are exactly the wordmark-only files, which do not depend
+on the mark. That is a far better demonstration than any number of assertions,
+and it was not possible to run until now.
 
 ## What it does not do yet
 

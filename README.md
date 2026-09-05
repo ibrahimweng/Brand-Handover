@@ -71,7 +71,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 136 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 288 tests.
+of it. 290 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -309,6 +309,17 @@ part all halve while the smallest usable size doubles — on every project whose
 artwork fits its artboard. Writing that test found one more thing, in a fixture
 shipped the round before: **Ma'ayan's ripples were sliced flat by its own
 artboard**, and the first version of the new check would have let it through.
+
+Ten identities in, the axis that was left had nothing to do with identities: two
+builds of an **unchanged** master produced 45 different files out of 138. Block
+ids mixed the clock into a counter, PDFs carried a creation date and a fresh
+random file identifier, `usage.json` recorded when it was written, and the zip
+stamped every entry. So the one thing this project asks you to do — build,
+change the master, build again, diff — was impossible, because everything
+changed every time. `SOURCE_DATE_EPOCH` is honoured now and all ten projects
+build byte-identically. Thicken Meridian's ring from 9 to 14 and **96 of 138
+files change while 42 stay untouched**, and the 42 are exactly the wordmark
+files that do not depend on the mark.
 
 Still to do: a run on **your** identity job. Eight identities the engine had not
 seen is worth a great deal more than eight passes over one, but none of them

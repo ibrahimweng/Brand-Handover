@@ -21,6 +21,16 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // nothing noticed, because nothing ever tried to read back what it wrote.
   // Every SVG this writes, it now reads.
   const unreadable = [];
+  // Two builds of an unchanged master were not byte-identical: the PDFs carry a
+  // creation date, the zip carries the mtime of every entry, and the documents
+  // carry the moment they were made. The artwork was the same every time — but
+  // 45 of Meridian's 138 files changed on every run, which makes the one thing
+  // this project asks you to do impossible: change the master, rebuild, and
+  // diff the two packages to see what moved. SOURCE_DATE_EPOCH is the usual
+  // way to ask for a build that can be compared, so it is honoured here.
+  const pinned = process.env.SOURCE_DATE_EPOCH;
+  const clock = pinned ? new Date(Number(pinned) * 1000) : new Date();
+
   const write = (rel, data) => {
     const p = path.join(outDir, rel);
     fs.mkdirSync(path.dirname(p), { recursive: true });
@@ -269,7 +279,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     const buf = await exp.zip(written.map((f) => ({
       path: f.path,
       data: fs.readFileSync(path.join(outDir, f.path)),
-    })));
+    })), pinned ? clock : undefined);
     for (const u of unreadable) {
       warnings.push(`this wrote a file it cannot read back: ${u}. That is a defect in the engine,`
         + ' not in your artwork — please report it with the project that produced it.');

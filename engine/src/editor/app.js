@@ -16,6 +16,9 @@
   let doc = null;
   try { const saved = localStorage.getItem(KEY); if (saved) doc = JSON.parse(saved); } catch (_) {}
   if (!doc || !doc.pages || !doc.pages.length) doc = window.HANDOVER_DOC;
+  // ids count on from whatever this document already holds, so a reload never
+  // hands out one that is already in use
+  M.seedIds(doc);
 
   // Images live beside the document, never in it, so undo clones a small object
   // and a nudge does not rewrite a photograph. See editor/images.js.

@@ -3008,6 +3008,55 @@ test('a project with a pattern still measures like any other', () => {
   assert.strictEqual(faM.clearSpace, 24);
 });
 
+console.log('\nbuilding the same thing twice');
+test('two builds of an unchanged master are the same package', () => {
+  // they were not, and it defeated the one thing this project asks you to do.
+  // 45 of Meridian's 138 files changed on every run: the block ids in the
+  // starter document were a counter plus the clock, the PDFs carried a
+  // creation date and a fresh random file identifier, usage.json carried the
+  // moment it was written, and the zip carried the mtime of every entry — so
+  // you could not build twice and diff to see what a change to the master did.
+  const runs = [];
+  const was = process.env.SOURCE_DATE_EPOCH;
+  process.env.SOURCE_DATE_EPOCH = '1700000000';
+  try {
+    for (let i = 0; i < 2; i++) {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-repeat-'));
+      runs.push(dir);
+      const emit = require('../src/editor/emit');
+      const docs = require('../src/documents');
+      // the parts that were carrying a clock or a random number
+      fs.writeFileSync(path.join(dir, 'editor.html'), emit.editorHtml(project, m, []));
+      fs.writeFileSync(path.join(dir, 'guidelines.html'), docs.guidelines(docs.context(project, m, [], {})));
+      fs.writeFileSync(path.join(dir, 'doc.json'),
+        JSON.stringify(require('../src/editor/bundle').starterDoc(bundleOf(project, m))));
+    }
+    for (const f of ['editor.html', 'guidelines.html', 'doc.json']) {
+      assert.ok(fs.readFileSync(path.join(runs[0], f)).equals(fs.readFileSync(path.join(runs[1], f))),
+        `${f} came out different the second time`);
+    }
+  } finally {
+    if (was === undefined) delete process.env.SOURCE_DATE_EPOCH; else process.env.SOURCE_DATE_EPOCH = was;
+    for (const d of runs) fs.rmSync(d, { recursive: true, force: true });
+  }
+});
+
+test('block ids are stable, and still unique after a reload', () => {
+  // the clock in the id was doing real work: the counter restarts at zero every
+  // session, so a document loaded from disk and added to would hand out b1
+  // twice. Counting on from what the document already holds does the same job.
+  const first = EM.resetIds() === undefined && require('../src/editor/bundle').starterDoc(bu);
+  const second = require('../src/editor/bundle').starterDoc(bu);
+  assert.deepStrictEqual(first.pages.map((p) => p.blocks.map((b) => b.id)),
+    second.pages.map((p) => p.blocks.map((b) => b.id)), 'the same document twice, different ids');
+  // now reload it and add: the new id must not already be in use
+  EM.seedIds(first);
+  const existing = new Set();
+  for (const p of first.pages) { existing.add(p.id); for (const b of p.blocks) existing.add(b.id); }
+  const fresh = EM.makeBlock('text', { x: 0, y: 0 }, first.pages[0]);
+  assert.ok(!existing.has(fresh.id), `a reload handed out ${fresh.id}, which is already in the document`);
+});
+
 drain().then(() => {
   for (const d of [out, out2]) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);

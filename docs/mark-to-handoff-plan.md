@@ -376,7 +376,7 @@ the measuring engine, the packager, both documents, the canvas editor,
 publishing, all three kinds of block, image slots, page sizes and the
 photography treatment, print work with bleed, CMYK, and a printed piece through
 Typst, mockups, and the licence half of accounts. 138 files from one master,
-288 tests, and nine more identities in the repo that the engine had not been
+290 tests, and nine more identities in the repo that the engine had not been
 written against.
 
 Three things the plan had wrong, found by building rather than by thinking.
@@ -738,6 +738,21 @@ solution that did not exist, this round a function raised a refusal it then
 overruled. Both are cheap to make and invisible to any test that checks the
 finding rather than the outcome. The rule is the same in both cases: assert on
 what happens, not on what is said.
+
+**Ten identities in, the axis that was left had nothing to do with identities.**
+Each new project had been a way of finding assumptions, and by the tenth the
+returns had shifted: Fathom's find was a module no fixture had ever reached
+rather than an assumption no fixture had ever broken — a coverage gap, not a
+generality gap. The thing still untested was not a kind of identity at all. It
+was whether building the same project twice produces the same package. It did
+not: 45 of Meridian's 138 files changed on every run, from four separate causes,
+none of them the artwork. That matters here more than it would elsewhere,
+because the entire argument of this engine is "change the master and everything
+follows", and the only honest way to watch that happen is to build, change one
+thing, build again, and diff — which the noise made impossible. With it fixed,
+one edit to the ring changes 96 files and leaves 42 alone, and the 42 are
+exactly the wordmark files that do not depend on the mark. A demonstration you
+can run beats an assertion you have to trust.
 
 **A defect that only prints an error to a console is still a defect.** Every
 scaled drawing in every document carried `height="auto"`, which is not a length

@@ -144,7 +144,9 @@ const marks = (result) => planOf(result).mark;
 function usage(result, project, built) {
   const rules = (project && project.rules) || {};
   return {
-    at: new Date().toISOString(),
+    // pinned when a repeatable build is asked for, so two packages can be diffed
+    at: (typeof process !== 'undefined' && process.env && process.env.SOURCE_DATE_EPOCH
+      ? new Date(Number(process.env.SOURCE_DATE_EPOCH) * 1000) : new Date()).toISOString(),
     holder: (result && result.ok && result.licence.holder) || null,
     // "not enforced" rather than "trial": with no vendor key there is no plan
     // in force at all, and an invoice built on a guess is worse than none

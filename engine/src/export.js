@@ -61,10 +61,15 @@ function ico(pngs) {
   return Buffer.concat([dir, ...pngs.map((p) => p.data)]);
 }
 
-async function zip(files) {
+// `date` pins the mtime of every entry: without it a zip of identical files is
+// a different zip every time, and two packages cannot be compared.
+async function zip(files, date) {
   const JSZip = require('jszip');
   const z = new JSZip();
-  for (const f of files) z.file(f.path, f.data);
+  for (const f of files) z.file(f.path, f.data, date ? { date } : undefined);
+  // the folder entries jszip creates for itself do not take the option, and
+  // they carry the clock, so the archive still changed between builds
+  if (date) for (const name of Object.keys(z.files)) z.files[name].date = date;
   return z.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 6 } });
 }
 

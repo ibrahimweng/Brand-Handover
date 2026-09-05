@@ -86,6 +86,18 @@ async function toPdf(svgString, opts) {
   if (!el) throw new Error('no <svg> element found to turn into a PDF');
 
   const doc = new jsPDF({ unit: 'pt', format: [vb.w, vb.h], compress: true });
+  // a PDF stamps the moment it was made, so the same artwork written twice is
+  // two different files and two packages cannot be diffed. Pin it when asked.
+  if (process.env.SOURCE_DATE_EPOCH) {
+    if (doc.setCreationDate) doc.setCreationDate(new Date(Number(process.env.SOURCE_DATE_EPOCH) * 1000));
+    // the file identifier is generated fresh for every document, so two PDFs of
+    // the same artwork are two different files. Pin it to the artwork itself.
+    if (doc.setFileId) {
+      let h = 2166136261;
+      for (let i = 0; i < svgString.length; i++) { h ^= svgString.charCodeAt(i); h = Math.imul(h, 16777619); }
+      doc.setFileId(Math.abs(h).toString(16).toUpperCase().padStart(8, '0').repeat(4).slice(0, 32));
+    }
+  }
   const count = useInk(doc, o.ink);
   await doc.svg(el, { x: 0, y: 0, width: vb.w, height: vb.h });
   const buf = Buffer.from(doc.output('arraybuffer'));

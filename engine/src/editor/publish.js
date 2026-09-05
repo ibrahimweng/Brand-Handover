@@ -173,7 +173,8 @@ ${fontLink(bundle.type)}
   <b>${esc(bundle.brand)}</b><span>${esc(bundle.version)}</span>
   <span>${doc.pages.length} page${doc.pages.length === 1 ? '' : 's'}</span>
   <span class="sp"></span>
-  <span>built ${esc(o.builtAt || new Date().toISOString().slice(0, 10))}</span>
+  <span>built ${esc(o.builtAt || (typeof process !== 'undefined' && process.env && process.env.SOURCE_DATE_EPOCH
+    ? new Date(Number(process.env.SOURCE_DATE_EPOCH) * 1000) : new Date()).toISOString().slice(0, 10))}</span>
   <button onclick="print()">Print or save as PDF</button>
 </div>
 <main class="hp-doc">
