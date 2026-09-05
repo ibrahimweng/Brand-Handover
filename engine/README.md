@@ -9,7 +9,7 @@ around it.
 
     cd engine
     npm install
-    npm test                                            # 271 checks
+    npm test                                            # 275 checks
     node test/print-check.mjs                           # prints, and measures the paper
     node test/treatment-check.mjs                       # renders, and reads the pixels back
     node test/typst-check.mjs                           # the printed piece against the published page
@@ -27,6 +27,7 @@ around it.
     node src/cli.js build   projects/hallward/project.json -o out-hallward
     node src/cli.js build   projects/northline/project.json -o out-northline
     node src/cli.js build   projects/perigee/project.json   -o out-perigee
+    node src/cli.js build   projects/maayan/project.json    -o out-maayan
 
 The Meridian example writes 136 files in about six seconds, including both
 documents, the editor, the document it opens with, that document published, and
@@ -53,6 +54,9 @@ a repeated element. See [A fifth identity](#a-fifth-identity).
 Perigee is the sixth, and it differs in what the *file* is rather than what the
 identity is: a mark exported the way a web tool writes one. See
 [A sixth identity](#a-sixth-identity).
+
+מעיין is the seventh: named in Hebrew, written in Hebrew, and reading right to
+left. See [A seventh identity](#a-seventh-identity).
 
 ## What it measures
 
@@ -1284,6 +1288,48 @@ in the repo rather than the first one: twelve assets, and Perigee's relative
 smooth curves and arcs redraw with zero structural difference, which is the
 first real evidence the path parser is right rather than merely untested.
 
+## A seventh identity
+
+Six identities, all named in letters a filename can carry, all written in a
+language the documents already assumed. **מעיין** (Ma'ayan, a wellspring) is
+named in Hebrew, its words are Hebrew, and it reads right to left.
+
+**It could not be built at all, and the reason was a promise nobody kept.** Two
+rounds ago the namer learned to refuse a brand name with no latin in it, and the
+message it gave said: *give the project a "latinName" the package can be named
+after.* Nothing anywhere read `latinName`. The message named a solution that did
+not exist, a test asserted the wording of that message, and the whole class of
+identity — every brand named in Hebrew, Greek, Cyrillic, Arabic, Thai, Japanese
+— was locked out by an escape hatch that was only ever a sentence. It is real
+now. Romanising a name is a decision, not an algorithm, so the project states
+it; the files are named `maayan-*` and every document keeps the real name. And
+it is settled when the project loads rather than three quarters of the way
+through writing a package.
+
+**The printed piece was writing itself to `-.typ`.** A second place that turns
+the brand into a filename, which never learned about the latin name either.
+
+**Every document declared itself English and laid itself out left to right.**
+Four emitters, four hardcoded `<html lang="en">`, no `dir` anywhere. A Hebrew
+manual told a screen reader to say Hebrew in an English voice and set the
+paragraphs flush left. The language belongs to the project now, the direction
+follows from it unless stated, and the six that were already right are
+byte-identical. The chrome of these documents is written in English and
+translating it is not done — that is a real limit, and it is better stated than
+hidden behind a document that at least admits what language it is in.
+
+**A colourway that cannot be seen on the ground it names was never reported.**
+Every colourway declares the ground it is cut for. Whether its inks can actually
+be seen there is arithmetic, and the contrast module has been in this repo since
+the first week — but nothing was asking it that question. The documents had
+learned to quietly show a *different* colourway instead, which is how it stayed
+hidden, and every file for the unreadable one was written and shipped anyway.
+**Three of the seven projects here had one**, and two of those three I wrote
+myself in the two previous rounds, while working directly on the code that picks
+what can be seen. That is the honest measure of how invisible an unasked
+question is. It is a warning now, naming the colourway, the slot, the ground and
+the ratio.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.
@@ -1321,6 +1367,7 @@ first real evidence the path parser is right rather than merely untested.
     projects/hallward/  the fourth: two colours, one colourway, a seal in a 2048 box
     projects/northline/ the fifth: twelve colours, eight colourways, a mark drawn with <use>
     projects/perigee/   the sixth: a web export — hsl(), a named colour, no slots at all
+    projects/maayan/    the seventh: named in Hebrew, written in Hebrew, reads right to left
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package

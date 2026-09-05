@@ -70,6 +70,7 @@ function bundle(project, measured, files = []) {
 
   return {
     brand: project.brand, version: project.version,
+    language: project.language || 'en', direction: project.direction || 'ltr',
     system: {
       icons: rules.icons,
       pattern: Object.assign({}, rules.pattern, { available: gen.ok, why: gen.ok ? null : gen.why, how: gen.ok ? null : gen.how }),

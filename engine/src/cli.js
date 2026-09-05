@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const projectLoader = require('./project');
+const naming = require('./naming');
 const { build } = require('./build');
 const { measure } = require('./variants');
 
@@ -302,7 +303,9 @@ async function main(argv) {
     const dir = path.resolve(oi > -1 && argv[oi + 1] ? argv[oi + 1] : 'print');
     fs.mkdirSync(dir, { recursive: true });
     const out = typst.emit(document, bu, {});
-    const stem = project.brand.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    // the printed piece is a file too, and a brand not named in a-z was
+    // writing itself to "-.typ"
+    const stem = naming.slug(project.latinName || project.brand) || 'piece';
     fs.writeFileSync(path.join(dir, `${stem}.typ`), out.source);
     for (const [name, bytes] of Object.entries(out.files)) fs.writeFileSync(path.join(dir, name), bytes);
 

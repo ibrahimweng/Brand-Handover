@@ -86,8 +86,8 @@ footer{margin-top:70px;padding-top:22px;border-top:2px solid var(--ink);font-fam
 const escText = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-const shell = ({ title, type, body, favicon }) => `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+const shell = ({ title, type, body, favicon, language = 'en', direction = 'ltr' }) => `<!doctype html>
+<html lang="${escText(language)}" dir="${escText(direction)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${escText(title)}</title>${favicon ? `\n<link rel="icon" href="${favicon}">` : ''}
 ${fontLink(type)}
 <style>${CSS}</style></head><body><div class="page">${body}</div></body></html>`;

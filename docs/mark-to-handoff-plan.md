@@ -376,7 +376,7 @@ the measuring engine, the packager, both documents, the canvas editor,
 publishing, all three kinds of block, image slots, page sizes and the
 photography treatment, print work with bleed, CMYK, and a printed piece through
 Typst, mockups, and the licence half of accounts. 138 files from one master,
-271 tests, and five more identities in the repo that the engine had not been
+275 tests, and six more identities in the repo that the engine had not been
 written against.
 
 Three things the plan had wrong, found by building rather than by thinking.
@@ -681,6 +681,29 @@ project in the repo. Both were written down as things not done; both were cheap
 once they were named. The general lesson is that a note saying "this is the real
 problem and I have not fixed it" is worth more than it looks, because it is the
 thing you can act on next time without rediscovering it.
+
+**An error message that names a solution is a promise, and this one was not
+kept.** The namer learned to refuse a brand with no latin letters in it and to
+say "give the project a latinName". Nothing read `latinName`. A test asserted
+that the message contained the word. So the refusal was correct, the wording was
+helpful, the test passed, and the feature did not exist — every identity named
+in Hebrew, Greek, Cyrillic, Arabic or Japanese was locked out by a sentence. The
+rule that falls out is narrow and worth keeping: when a refusal tells the user
+what to do instead, the thing it tells them to do is part of the change, and a
+test that asserts the wording of a message is not a test that the message is
+true.
+
+**The most invisible defect is an unasked question, and the proof is that I
+wrote two of them myself.** A colourway declares the ground it is cut for.
+Whether its inks can be seen there is arithmetic and the module for it has been
+in the repo since the first week — but nothing ever asked. Three of seven
+projects carried an unreadable colourway, and two of those three were written by
+me in the two rounds immediately before, while working directly on the code that
+chooses what can be seen. Nothing failed, because the documents had already
+learned to show a different colourway instead: the workaround for the symptom
+was hiding the cause. That is worth stating as a general shape — when a system
+gets good at routing around a bad input, it stops reporting that the input is
+bad, and the better the routing the quieter the failure.
 
 **A defect that only prints an error to a console is still a defect.** Every
 scaled drawing in every document carried `height="auto"`, which is not a length

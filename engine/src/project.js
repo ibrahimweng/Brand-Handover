@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { normalise } = require('./normalise');
 const contrast = require('./contrast');
+const naming = require('./naming');
 
 const DEFAULTS = {
   clearSpaceRatio: 0.25,
@@ -57,6 +58,30 @@ function load(file) {
     if (raw.rules && raw.rules[key]) raw.rules[key] = canon(raw.rules[key], `rules.${key}`);
   }
 
+  // A brand name does not have to be spellable in a-z. The namer already knew
+  // that and told the designer to "give the project a latinName" — which
+  // nothing read, so an identity named in Hebrew, Greek, Cyrillic, Arabic or
+  // anything else could not be built at all, and was told to do something that
+  // would not have helped. Romanising a name is the designer's decision, not
+  // an algorithm's, so it is asked for and used, and asked for here rather
+  // than three quarters of the way through writing a package.
+  const latinName = raw.latinName || (naming.slug(raw.brand) ? raw.brand : null);
+  if (!latinName) {
+    throw new Error(`the brand name "${raw.brand}" has no letters a file name can carry.`
+      + ' Add "latinName" to the project — the roman spelling the files should be named after,'
+      + ' for example "latinName": "Maayan". It names files only; the documents keep the real name.');
+  }
+
+  // Every document declared itself English and laid itself out left to right,
+  // whatever was in it. A Hebrew manual told a screen reader to say Hebrew in
+  // an English voice. The chrome of these documents is written in English and
+  // translating it is not done here — but the language of the identity's own
+  // words, and the direction they read in, belong to the project.
+  const RTL = ['he', 'iw', 'ar', 'fa', 'ur', 'yi', 'ps', 'dv', 'ckb', 'sd', 'ug'];
+  const language = raw.language || 'en';
+  const direction = raw.direction
+    || (RTL.indexOf(String(language).toLowerCase().split('-')[0]) > -1 ? 'rtl' : 'ltr');
+
   const rules = Object.assign({}, DEFAULTS, raw.rules);
   const assets = {};
   for (const [key, rel] of Object.entries(raw.assets)) {
@@ -89,7 +114,7 @@ function load(file) {
   // here, which meant every rule override in a project file was read as absent
   // and the defaults quietly won. Nothing complained, because a default is a
   // perfectly good answer right up until somebody wanted a different one.
-  return { brand: raw.brand, version: raw.version || '0.0.0', dir, tokens, assets, rules,
+  return { brand: raw.brand, latinName, language, direction, version: raw.version || '0.0.0', dir, tokens, assets, rules,
     system: raw.system || {}, content: raw.content || {}, report };
 }
 

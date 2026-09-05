@@ -71,7 +71,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 136 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 271 tests.
+of it. 275 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -257,7 +257,31 @@ round, now shared; and a warning of mine that only looked at the mark.
 The check that only knew Meridian now knows all of them: the path translation
 runs over every project, twelve assets, all with zero structural difference.
 
-Still to do: a run on **your** identity job. Six identities the engine had not
-seen is worth a great deal more than six passes over one, but none of them came
-out of your exporter — and the normaliser is the part that most needs to meet
-one.
+A seventh, **מעיין**, is named in Hebrew, written in Hebrew, and reads right to
+left. It could not be built at all, and the reason is the sharpest thing found
+in the whole exercise: two rounds earlier the namer had learned to refuse a
+brand with no latin in it, and to say *give the project a "latinName"* — which
+nothing anywhere read. A test asserted the wording of that message. So every
+brand named in Hebrew, Greek, Cyrillic, Arabic or Japanese was locked out by an
+escape hatch that was only ever a sentence. It is real now, and settled when the
+project loads rather than three quarters of the way through a build. A second
+place that turns a brand into a filename was writing the printed piece to
+`-.typ`.
+
+Every document also declared itself English and laid itself out left to right —
+four emitters, four hardcoded `lang="en"`, no `dir` anywhere. That comes from
+the project now.
+
+And a colourway that cannot be seen on the ground it names was never reported.
+The contrast module has been in the repo since the first week; nothing was
+asking it that question. The documents had learned to quietly show a different
+colourway instead, which is exactly how it stayed hidden, and every file for the
+unreadable one shipped anyway. Three of the seven projects had one — **two of
+them written by me in the two previous rounds, while working on the code that
+picks what can be seen.** That is the honest measure of how invisible an unasked
+question is.
+
+Still to do: a run on **your** identity job. Seven identities the engine had not
+seen is worth a great deal more than seven passes over one, but none of them
+came out of your exporter — and the normaliser is the part that most needs to
+meet one.

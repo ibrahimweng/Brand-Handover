@@ -2577,7 +2577,8 @@ test('a palette written in any notation reaches the documents as hex', () => {
   assert.strictEqual(PG.tokens.colour.paper.hex, '#F7F6F3');
   assert.strictEqual(PG.tokens.colour.orbit.hex, '#144167');
   assert.strictEqual(PG.rules.iconBg, '#112233');
-  assert.strictEqual(PG.rules.colourways[0].slots.orbit, '#144167');
+  assert.strictEqual(PG.rules.colourways[0].slots.orbit, '#F7F6F3');   // written rgb()
+  assert.strictEqual(PG.rules.colourways[1].slots.orbit, '#112233');   // written #123
   // so no measurement anywhere comes back unknown
   const docs = require('../src/documents');
   const ctx = docs.context(PG, pgM, [], {});
@@ -2639,6 +2640,101 @@ test('a wordmark slot is named in the warning too, not just the mark', () => {
   }
   assert.ok(painted.ink, 'the wordmark slot has no colour to report');
   assert.ok(painted.orbit && painted.flare, JSON.stringify(painted));
+});
+
+console.log('\na seventh identity');
+// Six identities, all named in letters a filename can carry, all written in a
+// language the documents already assumed. Ma'ayan is named מעיין, its words are
+// Hebrew, and it reads right to left.
+const MY = projectLoader.load(path.join(__dirname, '..', 'projects', 'maayan', 'project.json'));
+const myM = measure(MY);
+
+test('a brand not named in a-z can be built at all', () => {
+  // the namer told the designer to "give the project a latinName", which
+  // nothing anywhere read. An identity named in Hebrew, Greek, Cyrillic or
+  // Arabic could not be packaged, and was told to do something that would not
+  // have helped. The escape hatch is real now, and it is checked at load
+  // rather than three quarters of the way through writing a package.
+  assert.strictEqual(MY.brand, 'מעיין');
+  assert.strictEqual(MY.latinName, 'Maayan');
+  const naming = require('../src/naming');
+  assert.strictEqual(naming.fileName(MY.rules.naming,
+    { brand: MY.latinName, lockup: 'mark', colourway: 'full' }), 'maayan-mark-full');
+  // and a project that has neither is refused, by name, when it is loaded
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-latin-'));
+  const bad = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'projects', 'maayan', 'project.json'), 'utf8'));
+  delete bad.latinName;
+  fs.writeFileSync(path.join(dir, 'project.json'), JSON.stringify(bad));
+  for (const f of ['mark.svg', 'wordmark.svg']) {
+    fs.copyFileSync(path.join(__dirname, '..', 'projects', 'maayan', f), path.join(dir, f));
+  }
+  assert.throws(() => projectLoader.load(path.join(dir, 'project.json')), /latinName/);
+  fs.rmSync(dir, { recursive: true, force: true });
+  // a brand that is already latin needs nothing and keeps its own name
+  assert.strictEqual(project.latinName, project.brand);
+});
+
+test('a document says what language it is in and which way it reads', () => {
+  // every one of the four declared itself English and laid itself out left to
+  // right, whatever was in it: a Hebrew manual told a screen reader to say
+  // Hebrew in an English voice.
+  assert.strictEqual(MY.language, 'he');
+  assert.strictEqual(MY.direction, 'rtl');       // derived, not stated
+  const docs = require('../src/documents');
+  const { deck } = require('../src/documents/deck');
+  const emit = require('../src/editor/emit');
+  const ctx = docs.context(MY, myM, [], {});
+  for (const html of [docs.guidelines(ctx), deck(ctx), emit.editorHtml(MY, myM, [])]) {
+    const tag = (/<html[^>]*>/.exec(html) || [])[0];
+    assert.ok(/lang="he"/.test(tag) && /dir="rtl"/.test(tag), `a document says ${tag}`);
+  }
+  // and the six that were already right are still right
+  for (const p of [project, HAL, KV, HW, NL, PG]) {
+    assert.strictEqual(p.language, 'en');
+    assert.strictEqual(p.direction, 'ltr');
+    const tag = (/<html[^>]*>/.exec(docs.guidelines(docs.context(p, measure(p), [], {}))) || [])[0];
+    assert.ok(/lang="en"/.test(tag) && /dir="ltr"/.test(tag), `${p.brand} says ${tag}`);
+  }
+});
+
+test('a colourway that cannot be seen on its own ground is reported', () => {
+  // a colourway names the ground it is cut for, and whether its inks can be
+  // seen there is arithmetic. Nothing was asking: the documents quietly showed
+  // a different colourway and every file for the unreadable one shipped.
+  const contrast = require('../src/contrast');
+  const worstOnGround = (p) => (p.rules.colourways || []).map((cw) => {
+    const g = cw.on && p.tokens.colour[cw.on];
+    if (!g) return null;
+    const inks = Object.values(cw.slots || {});
+    if (!inks.length) return null;
+    return { name: cw.name, worst: Math.min(...inks.map((h) => contrast.ratio(h, g.hex))) };
+  }).filter(Boolean);
+  // the six that are meant to be clean are clean
+  for (const p of [project, HAL, KV, HW, NL, PG]) {
+    for (const c of worstOnGround(p)) {
+      assert.ok(c.worst >= 3, `${p.brand}: colourway ${c.name} is ${c.worst.toFixed(2)}:1 on its ground`);
+    }
+  }
+  // and the one that carries the fault on purpose is caught
+  const bad = worstOnGround(MY).filter((c) => c.worst < 3);
+  assert.strictEqual(bad.length, 1, JSON.stringify(worstOnGround(MY)));
+  assert.strictEqual(bad[0].name, 'full');
+});
+
+test('non-latin words survive into every document', () => {
+  const docs = require('../src/documents');
+  const { deck } = require('../src/documents/deck');
+  const ctx = docs.context(MY, myM, [], {});
+  const heb = /[֐-׿]/;
+  for (const [what, html] of [['the manual', docs.guidelines(ctx)], ['the deck', deck(ctx)]]) {
+    assert.ok(heb.test(html), `${what} lost the Hebrew`);
+    for (const caption of MY.content.misuse) {
+      assert.ok(html.includes(caption), `${what} is missing "${caption}"`);
+    }
+  }
+  // the files are named in roman letters, and nothing in them is
+  assert.ok(/^[a-z0-9._-]+$/.test(require('../src/naming')
+    .fileName(MY.rules.naming, { brand: MY.latinName, lockup: 'stacked', colourway: 'reverse' })));
 });
 
 drain().then(() => {

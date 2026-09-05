@@ -164,7 +164,7 @@ html,body{margin:0;background:var(--shell);color:var(--ink);font-family:ui-sans-
         + (o.captions === false ? '' : `<p class="hp-cap">${String(i + 1).padStart(2, '0')} · ${esc(p.name)}${sh.list.length > 1 ? ' · ' + esc(e.sheet.name) : ''}</p>`);
     }).join('\n');
 
-    return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+    return `<!doctype html><html lang="${esc(bundle.language || 'en')}" dir="${esc(bundle.direction || 'ltr')}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(bundle.brand)}${o.title ? ' · ' + esc(o.title) : ''}</title>
 ${fontLink(bundle.type)}

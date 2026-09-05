@@ -32,6 +32,29 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   const ink = cmyk.inkMap(inkTable);
   const inkFindings = cmyk.check(inkTable, { stock: rules.stock, forPress: false });
   for (const f of inkFindings) warnings.push(`${f.what} ${f.how}`);
+  // A colourway names the ground it is cut for. Whether its inks can actually
+  // be seen on that ground is arithmetic, and the contrast module has been here
+  // since the first week — but nothing was asking it about colourways. The
+  // documents quietly showed a different one instead, and every file for the
+  // unreadable one was written anyway. Three of the seven projects in this repo
+  // had one, including two written while looking straight at the problem.
+  for (const cw of rules.colourways) {
+    const ground = cw.on && project.tokens.colour[cw.on];
+    if (!ground) continue;
+    const inks = Object.entries(cw.slots || {});
+    if (!inks.length) continue;
+    const worst = inks
+      .map(([slot, hex]) => ({ slot, hex, r: contrast.ratio(hex, ground.hex) }))
+      .filter((x) => x.r != null)
+      .sort((a, b) => a.r - b.r)[0];
+    if (worst && worst.r < 3) {
+      warnings.push(`colourway "${cw.name}" is cut for ${cw.on}, and its ${worst.slot} `
+        + `measures ${worst.r}:1 against it. Below about 3:1 the mark stops being a shape `
+        + `anyone can make out. Darken or lighten ${worst.slot}, or cut this colourway for `
+        + `a different ground.`);
+    }
+  }
+
   const saidMissing = new Set();
   // what the master itself paints each slot, so a slot nobody recoloured can be
   // reported as the colour it actually came out
@@ -64,7 +87,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
             + `Add the slot to the colourway, or remove it from the artwork.`);
         }
       }
-      const base = naming.fileName(rules.naming, { brand: project.brand, lockup, colourway: colourway.name });
+      const base = naming.fileName(rules.naming, { brand: project.latinName, lockup, colourway: colourway.name });
       const dir = naming.folderFor(lockup);
 
       if (rules.formats.includes('svg')) write(`${dir}/${base}.svg`, v.svg);
@@ -212,7 +235,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       path: f.path,
       data: fs.readFileSync(path.join(outDir, f.path)),
     })));
-    const zipName = `${naming.slug(project.brand)}-brand-package.zip`;
+    const zipName = `${naming.slug(project.latinName)}-brand-package.zip`;
     fs.writeFileSync(path.join(outDir, zipName), buf);
     written.push({ path: zipName, bytes: buf.length });
   }

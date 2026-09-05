@@ -178,7 +178,7 @@ function deck(ctx) {
     text: `'${((p.tokens.type || {}).families || {}).text?.family || 'Georgia'}',Georgia,serif`,
   };
   const { fontLink } = require('./chrome');
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  return `<!doctype html><html lang="${b.esc(p.language || 'en')}" dir="${b.esc(p.direction || 'ltr')}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${b.esc(p.brand)} Brand Deck</title>
 ${fontLink(p.tokens.type)}<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spline+Sans+Mono:wght@400;500&display=swap">
 <style>${CSS(t)}</style></head><body>

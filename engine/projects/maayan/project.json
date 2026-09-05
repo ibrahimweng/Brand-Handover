@@ -1,92 +1,84 @@
 {
-  "brand": "Perigee",
-  "version": "0.4.0",
+  "brand": "מעיין",
+  "latinName": "Maayan",
+  "language": "he",
+  "version": "3.0.0",
   "assets": {
     "mark": "mark.svg",
     "wordmark": "wordmark.svg"
   },
   "tokens": {
     "colour": {
-      "deep": {
-        "hex": "#123",
+      "spring": {
+        "hex": "#123B3A",
         "role": "ground",
-        "pantone": "533 C",
+        "pantone": "5535 C",
         "cmyk": [
-          92,
-          74,
-          42,
-          33
+          82,
+          52,
+          60,
+          40
         ]
       },
-      "paper": {
-        "hex": "rgb(247, 246, 243)",
+      "chalk": {
+        "hex": "#F7F5F0",
         "role": "primary",
-        "pantone": "11-0602",
+        "pantone": "11-0601",
         "cmyk": [
           2,
           2,
-          4,
+          5,
           0
         ]
       },
-      "flare": {
-        "hex": "#F63",
+      "clay": {
+        "hex": "#C8873A",
         "role": "accent",
-        "pantone": "165 C",
+        "pantone": "1385 C",
         "cmyk": [
-          0,
-          78,
-          90,
-          0
+          18,
+          52,
+          88,
+          3
         ]
       },
-      "orbit": {
-        "hex": "hsl(207, 68%, 24%)",
+      "reed": {
+        "hex": "#6E8168",
         "role": "secondary",
-        "pantone": "302 C",
+        "pantone": "5773 C",
         "cmyk": [
-          96,
-          66,
-          32,
-          15
+          55,
+          33,
+          63,
+          10
         ]
       },
-      "dust": {
-        "hex": "#8A9299",
+      "stone": {
+        "hex": "#8E8C86",
         "role": "neutral",
-        "pantone": "429 C",
+        "pantone": "409 C",
         "cmyk": [
+          45,
+          40,
           44,
-          32,
-          28,
-          2
-        ]
-      },
-      "void": {
-        "hex": "rgb(0, 0, 0)",
-        "pantone": "Black 6 C",
-        "cmyk": [
-          75,
-          68,
-          67,
-          90
+          6
         ]
       }
     },
     "type": {
       "families": {
         "display": {
-          "family": "Archivo",
-          "fallback": "Helvetica, Arial, sans-serif",
+          "family": "Heebo",
+          "fallback": "'Noto Sans Hebrew', Arial, sans-serif",
           "weights": [
-            600,
+            500,
             700
           ],
           "google": true
         },
         "text": {
-          "family": "Literata",
-          "fallback": "Georgia, serif",
+          "family": "Frank Ruhl Libre",
+          "fallback": "'Noto Serif Hebrew', Georgia, serif",
           "weights": [
             400,
             500
@@ -98,53 +90,51 @@
         {
           "name": "Display",
           "family": "display",
-          "size": 72,
-          "leading": 76,
-          "weight": 700,
-          "tracking": -0.02
+          "size": 70,
+          "leading": 78,
+          "weight": 700
         },
         {
           "name": "H1",
           "family": "display",
           "size": 38,
-          "leading": 44,
+          "leading": 46,
           "weight": 700
         },
         {
           "name": "H2",
           "family": "display",
           "size": 25,
-          "leading": 31,
-          "weight": 600
+          "leading": 33,
+          "weight": 500
         },
         {
           "name": "H3",
           "family": "display",
           "size": 18,
-          "leading": 25,
-          "weight": 600
+          "leading": 26,
+          "weight": 500
         },
         {
           "name": "Body",
           "family": "text",
-          "size": 16,
-          "leading": 26,
+          "size": 17,
+          "leading": 29,
           "weight": 400
         },
         {
           "name": "Small",
           "family": "text",
-          "size": 13,
-          "leading": 20,
+          "size": 14,
+          "leading": 22,
           "weight": 400
         },
         {
           "name": "Caption",
           "family": "display",
-          "size": 11,
-          "leading": 15,
-          "weight": 500,
-          "tracking": 0.06
+          "size": 12,
+          "leading": 17,
+          "weight": 500
         }
       ]
     }
@@ -153,8 +143,8 @@
     "clearSpaceRatio": 0.3,
     "minStrokePx": 3,
     "minStrokeMm": 0.8,
-    "lockupGapRatio": 0.26,
-    "wordmarkHeightRatio": 0.44,
+    "lockupGapRatio": 0.28,
+    "wordmarkHeightRatio": 0.5,
     "naming": "{brand}-{lockup}-{colourway}",
     "lockups": [
       "horizontal",
@@ -168,43 +158,37 @@
     ],
     "pngWidths": [
       512,
-      1024
+      1600
     ],
     "stock": "coated",
     "colourways": [
       {
         "name": "full",
-        "on": "deep",
+        "on": "chalk",
         "slots": {
-          "orbit": "rgb(247, 246, 243)",
-          "void": "rgb(247, 246, 243)",
-          "flare": "#F63",
-          "ink": "rgb(247, 246, 243)"
+          "ink": "#123B3A",
+          "ripple": "#C8873A"
         }
       },
       {
         "name": "reverse",
-        "on": "paper",
+        "on": "spring",
         "slots": {
-          "orbit": "#123",
-          "void": "#123",
-          "flare": "#123",
-          "ink": "#123"
+          "ink": "#F7F5F0",
+          "ripple": "#C8873A"
         }
       },
       {
         "name": "flat",
-        "on": "paper",
+        "on": "chalk",
         "slots": {
-          "orbit": "#123",
-          "void": "#123",
-          "flare": "#123",
-          "ink": "#123"
+          "ink": "#123B3A",
+          "ripple": "#123B3A"
         }
       }
     ],
-    "iconInk": "rgb(247, 246, 243)",
-    "iconBg": "#123",
+    "iconInk": "#F7F5F0",
+    "iconBg": "#123B3A",
     "iconSizes": [
       1024,
       180
@@ -225,14 +209,14 @@
     }
   },
   "content": {
-    "positioning": "Perigee",
+    "positioning": "מעיין",
     "misuse": [
-      "Do not stretch it",
-      "Do not rotate it",
-      "Do not recolour the perigee",
-      "Do not add a shadow",
-      "Do not crowd it",
-      "Do not outline it"
+      "אין למתוח",
+      "אין לסובב",
+      "אין לשנות את הצבע",
+      "אין להוסיף צל",
+      "אין לצופף",
+      "אין להוסיף מתאר"
     ]
   }
 }
