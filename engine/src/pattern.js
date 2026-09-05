@@ -47,7 +47,13 @@ function tile(markSource, rules, colour) {
   // place the shape with its own left edge at x, its middle on the row
   const place = (x, y) =>
     `<g transform="translate(${svgu.round(x - g.box.x * scale)} ${svgu.round(y - (g.box.y + g.box.h / 2) * scale)}) scale(${svgu.round(scale, 6)})">`
-    + g.markup.replace(/\s(fill|stroke)="[^"]*"/g, '')
+    // Strip every way of saying paint, not just fill and stroke: the source
+    // shape's own stroke-width and stroke-linecap survived the first version,
+    // so the tile came out with the attribute written twice — which is not
+    // valid SVG, and no renderer would open the nine files it wrote. The
+    // duplicate stroke-width also overrode the weight the pattern rules set.
+    + g.markup.replace(/\s(?:fill|stroke)(?:-[a-z-]+)?="[^"]*"/g, '')
+        .replace(/\sxmlns="[^"]*"/g, '')
         .replace(/<(\w+)/, `<$1 fill="none" stroke="${colour}" stroke-width="${svgu.round(rules.weight / scale, 3)}" stroke-linecap="${rules.cap}"`)
     + `</g>`;
 

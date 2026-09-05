@@ -2953,6 +2953,61 @@ test('a project with no content section still makes both documents', () => {
   assert.ok(/undefined|NaN|\[object/.test(manual) === false, 'something leaked into the manual');
 });
 
+console.log('\na tenth identity');
+// Nine projects, and not one of them ever produced a pattern: every build said
+// "no pattern was written". A whole module — the tile, the densities, the
+// contrast refusals — had never run end to end, because no fixture had ever
+// marked a shape as the pattern source. Fathom's graphic language is the
+// pattern, so it does.
+const FA = projectLoader.load(path.join(__dirname, '..', 'projects', 'fathom', 'project.json'));
+const faM = measure(FA);
+
+test('a pattern is actually cut, and the files can be opened', () => {
+  // the tile stripped fill and stroke off the source shape and then wrote its
+  // own — but not stroke-width or stroke-linecap, so a source that carried
+  // either produced the attribute twice. That is not valid SVG: all nine tiles
+  // went into the package and no renderer would open one of them.
+  const pattern = require('../src/pattern');
+  const system = require('../src/system');
+  assert.ok(/data-pattern="source"/.test(FA.assets.mark.source), 'the fixture marks no pattern source');
+  const rules = system.resolve(FA, faM).pattern;
+  const t = pattern.tile(FA.assets.mark.source, rules, '#0F3A46');
+  assert.ok(t.ok, t.why);
+  assert.strictEqual((t.svg.match(/stroke-linecap=/g) || []).length, 3, t.svg.slice(0, 200));
+  assert.strictEqual((t.svg.match(/stroke-width=/g) || []).length, 3);
+  geo.inkBox(t.svg);                       // throws if the renderer cannot read it
+  // and every density in every colourway comes out readable
+  const ways = FA.rules.colourways.map((c) => ({ name: c.name, ink: Object.values(c.slots)[0],
+    on: (FA.tokens.colour[c.on] || {}).hex || '#FFFFFF' }));
+  const gen = pattern.everyTile(FA.assets.mark.source, rules, ways, null);
+  assert.ok(gen.ok, gen.why);
+  assert.strictEqual(gen.tiles.length, 9, `${gen.tiles.length} tiles`);
+  for (const tl of gen.tiles) geo.inkBox(tl.tile);
+});
+
+test('the engine does not write an SVG it cannot read back', () => {
+  // nothing had ever tried, which is why nine unopenable files shipped without
+  // a murmur. Every project in the repo is built and every SVG in it re-read.
+  const { Resvg } = require('@resvg/resvg-js');
+  const dup = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">'
+    + '<path d="M0 0h10" stroke="#000" stroke-linecap="round" stroke-linecap="round"/></svg>';
+  assert.throws(() => new Resvg(dup, { fitTo: { mode: 'width', value: 10 } }),
+    /already defined/, 'the renderer no longer rejects a duplicated attribute');
+  // and geo.inkBox, which is what the writer uses as its reader, rejects it too
+  // (the XML parser gets there first, and words it differently)
+  assert.throws(() => geo.inkBox(dup), /redefined|already defined/);
+  // every SVG every project writes is re-read at the moment it is written; a
+  // build that produced an unreadable one would say so in its warnings
+  assert.ok(!/cannot read back/.test(fs.readFileSync(path.join(out, 'README.txt'), 'utf8')));
+});
+
+test('a project with a pattern still measures like any other', () => {
+  assert.deepStrictEqual(faM.slots, ['ink', 'tide']);
+  assert.deepStrictEqual(faM.markInk, { x: 11, y: 23, w: 98, h: 80 });
+  assert.strictEqual(faM.minimumSize.thinnestStroke, 10);
+  assert.strictEqual(faM.clearSpace, 24);
+});
+
 drain().then(() => {
   for (const d of [out, out2]) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);

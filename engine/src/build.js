@@ -16,9 +16,22 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   const { rules } = project;
   const warnings = [];
   const written = [];
+  // Nine pattern tiles went into a package with the same attribute written
+  // twice, which is not valid SVG and which no renderer would open — and
+  // nothing noticed, because nothing ever tried to read back what it wrote.
+  // Every SVG this writes, it now reads.
+  const unreadable = [];
   const write = (rel, data) => {
     const p = path.join(outDir, rel);
     fs.mkdirSync(path.dirname(p), { recursive: true });
+    if (rel.endsWith('.svg')) {
+      try { geo.inkBox(String(data)); }
+      catch (e) {
+        // an empty drawing is a thing this legitimately writes; a file the
+        // renderer cannot parse at all is not
+        if (!/renders empty/.test(e.message)) unreadable.push(`${rel}: ${e.message}`);
+      }
+    }
     fs.writeFileSync(p, data);
     written.push({ path: rel, bytes: data.length });
   };
@@ -257,6 +270,10 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       path: f.path,
       data: fs.readFileSync(path.join(outDir, f.path)),
     })));
+    for (const u of unreadable) {
+      warnings.push(`this wrote a file it cannot read back: ${u}. That is a defect in the engine,`
+        + ' not in your artwork — please report it with the project that produced it.');
+    }
     const zipName = `${naming.slug(project.latinName)}-brand-package.zip`;
     fs.writeFileSync(path.join(outDir, zipName), buf);
     written.push({ path: zipName, bytes: buf.length });

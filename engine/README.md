@@ -9,7 +9,7 @@ around it.
 
     cd engine
     npm install
-    npm test                                            # 285 checks
+    npm test                                            # 288 checks
     node test/print-check.mjs                           # prints, and measures the paper
     node test/treatment-check.mjs                       # renders, and reads the pixels back
     node test/typst-check.mjs                           # the printed piece against the published page
@@ -30,6 +30,7 @@ around it.
     node src/cli.js build   projects/maayan/project.json    -o out-maayan
     node src/cli.js build   projects/thornbury/project.json -o out-thornbury
     node src/cli.js build   projects/cusp/project.json      -o out-cusp
+    node src/cli.js build   projects/fathom/project.json    -o out-fathom
 
 The Meridian example writes 136 files in about six seconds, including both
 documents, the editor, the document it opens with, that document published, and
@@ -1421,6 +1422,38 @@ resolved as a palette colour *or* a plain one — Meridian legitimately cuts
 colourways for `white` and `black`, which are paper and ink rather than brand
 colours — and anything that is neither is said out loud, with the palette listed.
 
+## A tenth identity
+
+Nine projects, and not one of them had ever produced a pattern. Every build said
+*no pattern was written* — because a pattern needs a shape marked
+`data-pattern="source"` in the master, it is a decision the engine will not make
+for you, and no fixture had ever made it. So `src/pattern.js` — the tile, the
+three densities, the contrast refusals — had never once run end to end. It was
+tested, and it was not exercised, and those are different things.
+
+**Fathom** is a marine institute whose graphic language *is* the pattern, so it
+marks one. The nine tiles it produced were **invalid SVG, and no renderer would
+open any of them.**
+
+The tile builder strips the source shape's own `fill` and `stroke` and writes
+its own — but the regex it used to strip them does not match `stroke-width` or
+`stroke-linecap`, so a source that carries either ends up with the attribute
+written twice. That is malformed, `resvg` refuses to parse it, and the duplicate
+`stroke-width` also silently overrode the weight the pattern rules had set. Nine
+files went into the package and into the zip, and the build reported success.
+
+The fix in `pattern.js` is one character class. The fix that matters is
+elsewhere: **the engine now reads back every SVG it writes.** Nothing had ever
+tried, which is exactly why nine unopenable files could ship without a murmur —
+every check in this repo looked at things the engine had computed, and none at
+the bytes it had actually put on disk. A file it cannot re-read is reported as
+a defect in the engine rather than in your artwork, and says so.
+
+With the tiles readable, the module's own claim could finally be checked: *a
+tile that repeats seamlessly in both directions.* It does. Four by four, the
+arcs run continuously across every boundary and the field reads as a scale
+pattern rather than as a grid of cut-off pieces.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.
@@ -1461,6 +1494,7 @@ colours — and anything that is neither is said out loud, with the palette list
     projects/maayan/    the seventh: named in Hebrew, written in Hebrew, reads right to left
     projects/thornbury/ the eighth: a file edited by three people since 1998
     projects/cusp/      the ninth: the project file is the thin part, not the artwork
+    projects/fathom/    the tenth: the graphic language is the pattern
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package

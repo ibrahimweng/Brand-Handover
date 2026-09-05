@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+  <path data-slot="ink" data-pattern="source" d="M16 74a44 44 0 0 1 88 0" fill="none"
+        stroke="#0F3A46" stroke-width="10" stroke-linecap="round"/>
+  <path data-slot="ink" d="M16 98a44 44 0 0 1 88 0" fill="none"
+        stroke="#0F3A46" stroke-width="10" stroke-linecap="round"/>
+  <circle data-slot="tide" cx="60" cy="34" r="11" fill="#C56A2E"/>
+</svg>
