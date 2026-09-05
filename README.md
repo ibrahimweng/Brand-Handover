@@ -71,7 +71,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 136 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 290 tests.
+of it. 293 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -320,6 +320,13 @@ changed every time. `SOURCE_DATE_EPOCH` is honoured now and all ten projects
 build byte-identically. Thicken Meridian's ring from 9 to 14 and **96 of 138
 files change while 42 stay untouched**, and the 42 are exactly the wordmark
 files that do not depend on the mark.
+
+The last thing found was of a different kind again, and it was found by asking
+what a project can declare that nothing reads. `system.icons` is what the engine
+reads; written beside `system.pattern` and `system.photography` the natural
+spelling is `system.icon`, which did nothing at all — no override, no warning,
+the manual showing the default. So does any mis-cased rule. A setting nothing
+reads is reported now, with the nearest real one named.
 
 Still to do: a run on **your** identity job. Eight identities the engine had not
 seen is worth a great deal more than eight passes over one, but none of them

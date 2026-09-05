@@ -3057,6 +3057,67 @@ test('block ids are stable, and still unique after a reload', () => {
   assert.ok(!existing.has(fresh.id), `a reload handed out ${fresh.id}, which is already in the document`);
 });
 
+console.log('\nsettings the engine ignores');
+test('a setting nothing reads is reported, with the nearest real one', () => {
+  // a key the engine does not read is a rule the designer set and the engine
+  // ignored: the manual quietly shows the default and there is no way to tell
+  // from the outside that anything was dropped.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-typo-'));
+  const src = path.join(__dirname, '..', 'projects', 'meridian');
+  for (const f of fs.readdirSync(src)) if (f.endsWith('.svg')) fs.copyFileSync(path.join(src, f), path.join(dir, f));
+  const p = JSON.parse(fs.readFileSync(path.join(src, 'project.json'), 'utf8'));
+  p.rules.clearspaceRatio = 0.9;          // wrong case
+  p.rules.sausages = true;                // nothing like it
+  fs.writeFileSync(path.join(dir, 'project.json'), JSON.stringify(p));
+  const loaded = projectLoader.load(path.join(dir, 'project.json'));
+  const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-typo-out-'));
+  return require('../src/build').build(loaded, outDir, { log: () => {} }).then((r) => {
+    const said = r.warnings.filter((w) => /nothing reads it/.test(w));
+    assert.strictEqual(said.length, 2, JSON.stringify(said));
+    assert.ok(said.some((w) => /clearspaceRatio.*Did you mean rules\.clearSpaceRatio/.test(w)), said[0]);
+    assert.ok(said.some((w) => /sausages/.test(w) && !/Did you mean/.test(w)), said[1]);
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(outDir, { recursive: true, force: true });
+  });
+});
+
+test('the icon rules can be set, spelled either way', () => {
+  // the engine reads system.icons; a designer writing it beside system.pattern
+  // and system.photography writes system.icon, and got nothing, silently
+  const system = require('../src/system');
+  const base = system.resolve(project, m).icons;
+  assert.strictEqual(base.box, 24);
+  for (const key of ['icons', 'icon']) {
+    const over = system.resolve(Object.assign({}, project, { system: { [key]: { box: 32 } } }), m).icons;
+    assert.strictEqual(over.box, 32, `system.${key} was ignored`);
+    // and the rest is still derived from the mark, not replaced by the override
+    assert.strictEqual(over.derivedFrom.markStroke, base.derivedFrom.markStroke);
+  }
+});
+
+test('every project in the repo sets only things that are read', () => {
+  // the check is worth nothing if the fixtures themselves trip it
+  const names = fs.readdirSync(path.join(__dirname, '..', 'projects'))
+    .filter((d) => fs.existsSync(path.join(__dirname, '..', 'projects', d, 'project.json')));
+  assert.ok(names.length >= 10, `${names.length} projects`);
+  const READS = {
+    rules: ['clearSpaceRatio', 'minStrokePx', 'minStrokeMm', 'lockupGapRatio', 'wordmarkHeightRatio',
+      'naming', 'lockups', 'formats', 'pngWidths', 'stock', 'colourways', 'iconInk', 'iconBg',
+      'iconSizes', 'faviconSizes', 'social'],
+    system: ['icons', 'icon', 'pattern', 'motion', 'photography'],
+  };
+  for (const n of names) {
+    const p = projectLoader.load(path.join(__dirname, '..', 'projects', n, 'project.json'));
+    for (const [where, allowed] of Object.entries(READS)) {
+      const obj = where === 'rules' ? p.rules : (p.system || {});
+      for (const key of Object.keys(obj || {})) {
+        if (where === 'rules' && ['pattern'].indexOf(key) > -1) continue;
+        assert.ok(allowed.indexOf(key) > -1, `${n} sets ${where}.${key}, which nothing reads`);
+      }
+    }
+  }
+});
+
 drain().then(() => {
   for (const d of [out, out2]) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);

@@ -9,7 +9,7 @@ around it.
 
     cd engine
     npm install
-    npm test                                            # 290 checks
+    npm test                                            # 293 checks
     node test/print-check.mjs                           # prints, and measures the paper
     node test/treatment-check.mjs                       # renders, and reads the pixels back
     node test/typst-check.mjs                           # the printed piece against the published page
@@ -1486,6 +1486,33 @@ Meridian's ring from 9 to 14, rebuild, and **96 of 138 files change while 42 sta
 untouched** — and the 42 are exactly the wordmark-only files, which do not depend
 on the mark. That is a far better demonstration than any number of assertions,
 and it was not possible to run until now.
+
+## Settings the engine ignores
+
+By this point a new identity was finding coverage gaps rather than broken
+assumptions, so the question became a different one: **is there anything a
+project can declare that nothing reads?** Every rule the engine defaults is set
+by all ten projects and both `system` blocks are exercised, so the answer looked
+like no. It was not.
+
+`system.icons` is what the engine reads. Beside `system.pattern` and
+`system.photography`, the natural thing to write is `system.icon`, and that did
+nothing at all — no icon grid override, no warning, the manual showing the
+default. The same is true of any mis-cased rule: `clearspaceRatio`,
+`minStrokePX`, `lockUps` are all silently dropped, and the designer sees a
+number they did not set and has no way to find out why.
+
+A key nothing reads is now reported at build time, with the nearest real one
+named and the consequence spelled out:
+
+    rules.clearspaceRatio is set, and nothing reads it. Did you mean
+    rules.clearSpaceRatio? Whatever you meant it to change is still on
+    its default.
+
+Only `rules` and `system` are checked. `content` is the designer's own prose and
+it is none of the engine's business what else they keep in it — which is worth
+saying because the first version of this check did police it, and refused
+Meridian for carrying three keys the documents do read.
 
 ## What it does not do yet
 

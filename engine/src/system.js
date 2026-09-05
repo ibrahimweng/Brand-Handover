@@ -198,7 +198,9 @@ const round = (n, dp = 2) => Number(n.toFixed(dp));
 function resolve(project, measured) {
   const sys = project.system || {};
   return {
-    icons: iconRules(measured, sys.icons),
+    // written beside system.pattern and system.photography, the natural
+    // spelling is the singular, so both are accepted
+    icons: iconRules(measured, sys.icons || sys.icon),
     pattern: patternRules(sys.pattern),
     motion: motionRules(sys.motion),
     photography: require('./photography').rules(sys.photography),

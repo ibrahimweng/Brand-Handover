@@ -376,7 +376,7 @@ the measuring engine, the packager, both documents, the canvas editor,
 publishing, all three kinds of block, image slots, page sizes and the
 photography treatment, print work with bleed, CMYK, and a printed piece through
 Typst, mockups, and the licence half of accounts. 138 files from one master,
-290 tests, and nine more identities in the repo that the engine had not been
+293 tests, and nine more identities in the repo that the engine had not been
 written against.
 
 Three things the plan had wrong, found by building rather than by thinking.
@@ -753,6 +753,19 @@ thing, build again, and diff — which the noise made impossible. With it fixed,
 one edit to the ring changes 96 files and leaves 42 alone, and the 42 are
 exactly the wordmark files that do not depend on the mark. A demonstration you
 can run beats an assertion you have to trust.
+
+**The instrument was exhausted before the defects were, and the way to tell was
+to stop guessing.** By the tenth identity the returns had changed character:
+Fathom found a module no fixture had reached rather than an assumption no
+fixture had broken. The question "would an eleventh identity find anything?"
+is not answerable by intuition, but it is answerable: list every key a project
+can declare, and count how many of the ten set each one. Every rule the engine
+defaults was set by all ten, and both system blocks were exercised — so the
+identity axis really was spent. What that listing turned up instead was that
+`system.icons` is what the engine reads while `system.icon` is what a designer
+writes beside `system.pattern`, and that any mis-cased rule is dropped in
+silence. A defect found by auditing what the code *offers* rather than by
+inventing another input, which is what you do when the inputs stop paying.
 
 **A defect that only prints an error to a console is still a defect.** Every
 scaled drawing in every document carried `height="auto"`, which is not a length

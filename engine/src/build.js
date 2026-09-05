@@ -100,6 +100,47 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       + `you meant — it is a fraction of the mark, not a multiple of it.`);
   }
 
+  // A key the engine does not read is a setting the designer wrote and the
+  // engine ignored. system.icon does nothing, because the engine reads
+  // system.icons; clearspaceRatio does nothing, because it is clearSpaceRatio.
+  // In both cases the manual quietly shows the default and there is no way to
+  // tell from the outside that anything was dropped. Only rules and system are
+  // checked: content is the designer's own prose and none of the engine's
+  // business what else they keep in it.
+  const READS = {
+    rules: ['clearSpaceRatio', 'minStrokePx', 'minStrokeMm', 'lockupGapRatio', 'wordmarkHeightRatio',
+      'naming', 'lockups', 'formats', 'pngWidths', 'stock', 'colourways', 'iconInk', 'iconBg',
+      'iconSizes', 'faviconSizes', 'social'],
+    system: ['icons', 'icon', 'pattern', 'motion', 'photography'],
+  };
+  const nearest = (key, options) => {
+    const dist = (a, b) => {
+      const m2 = [[]];
+      for (let i = 0; i <= a.length; i++) m2[i] = [i];
+      for (let j = 0; j <= b.length; j++) m2[0][j] = j;
+      for (let i = 1; i <= a.length; i++) {
+        for (let j = 1; j <= b.length; j++) {
+          m2[i][j] = a[i - 1] === b[j - 1] ? m2[i - 1][j - 1]
+            : 1 + Math.min(m2[i - 1][j], m2[i][j - 1], m2[i - 1][j - 1]);
+        }
+      }
+      return m2[a.length][b.length];
+    };
+    const hit = options.map((o) => ({ o, d: dist(key.toLowerCase(), o.toLowerCase()) }))
+      .sort((a, b) => a.d - b.d)[0];
+    return hit && hit.d <= Math.max(2, Math.round(key.length / 3)) ? hit.o : null;
+  };
+  for (const [where, allowed] of Object.entries(READS)) {
+    const obj = where === 'rules' ? project.rules : (project.system || {});
+    for (const key of Object.keys(obj || {})) {
+      if (allowed.indexOf(key) > -1) continue;
+      const guess = nearest(key, allowed);
+      warnings.push(`${where}.${key} is set, and nothing reads it`
+        + (guess ? `. Did you mean ${where}.${guess}?` : '.')
+        + ' Whatever you meant it to change is still on its default.');
+    }
+  }
+
   const saidMissing = new Set();
   // what the master itself paints each slot, so a slot nobody recoloured can be
   // reported as the colour it actually came out
