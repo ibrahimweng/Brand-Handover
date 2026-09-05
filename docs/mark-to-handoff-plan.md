@@ -377,7 +377,7 @@ publishing, all three kinds of block, image slots, page sizes and the
 photography treatment, print work with bleed, CMYK, and a printed piece through
 Typst, mockups, the licence half of accounts, and a local app that takes artwork
 and gives back the package without anybody writing a project file. 138 files from one master,
-347 tests, and fifteen more identities in the repo that the engine had not been
+348 tests, and fifteen more identities in the repo that the engine had not been
 written against.
 
 Three things the plan had wrong, found by building rather than by thinking.
@@ -1108,6 +1108,24 @@ and says whichever is true. The same for the documents: locally they are URLs
 that reload and can be sent to somebody; hosted they are blobs that open once
 and die with the tab, and the page says so on the screen where you would
 otherwise find out by refreshing.
+
+**A deploy uploads what its tracer can see, and a tracer sees `require`.** The
+editor is assembled by reading nine files as text and inlining them — that is
+the whole point of it, one self-contained HTML file with no build step. Eight of
+those nine are also `require`d somewhere else in the engine, so a hosted
+function was given them by accident. `app.js` is required by nothing, because it
+is browser code, so nothing traced it, so it was not uploaded, and the first
+hosted build died on `ENOENT /var/task/engine/src/editor/app.js`. The eight that
+worked were luck, not a rule. Anything read at run time has to be named to the
+deploy, and the check is not "does it work here" but "is every path this reads
+inside the directory the deploy was told to carry".
+
+**The thing a local run cannot test is what a local run has lying around.** Every
+test passed, both hosts were driven in a browser, and the defect was a file that
+is simply always present on a machine with a checkout on it. The way to catch
+that class before shipping is to build the tree the deploy would actually get —
+the functions, the dependencies, and nothing else — and run from inside it. That
+directory reproduced the exact error, to the byte, and then proved the fix.
 
 ---
 

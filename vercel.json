@@ -7,7 +7,7 @@
   "functions": {
     "api/*.js": {
       "maxDuration": 60,
-      "includeFiles": "node_modules/@resvg/**"
+      "includeFiles": "engine/src/**"
     }
   }
 }

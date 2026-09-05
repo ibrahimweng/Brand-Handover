@@ -1987,7 +1987,15 @@ k]", which is right in a text editor and meaningless in a browser where the
 field is on the screen in front of you. A `how` written for one host is wrong
 on the other; it names the four numbers now and not where they get typed.
 
-And one more, from hosting it. **The build answer called two different things
+And two more, from hosting it. **A deploy uploads what its tracer can see, and a
+tracer sees `require`.** The editor is assembled by reading nine files as text
+and inlining them; eight are `require`d elsewhere in the engine and so were
+uploaded by accident, and `app.js` is required by nothing because it is browser
+code. Nothing traced it, nothing uploaded it, and the first hosted build died on
+`ENOENT /var/task/engine/src/editor/app.js`. `vercel.json` names `engine/src/**`
+now, and a test asserts that every path `emit.js` reads is inside it.
+
+**The build answer called two different things
 `zip`** — the file's name, which the local server needs for a URL, and the bytes
 the hosted function sends. `Object.assign({ zip: bytes }, r)` put the name over
 them, and a 412 KB response arrived as 562 bytes: no error, no exception, a

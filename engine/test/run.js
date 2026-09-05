@@ -4411,6 +4411,33 @@ test('the hosted build sends the package back whole', async () => {
   assert.ok(r.body.zipBytes < 4 * 1024 * 1024, `a plain identity came to ${r.body.zipBytes} bytes`);
 });
 
+test('every file the engine reads at run time is one the deploy is told to carry', () => {
+  // A hosted deploy uploads what its tracer can see, and a tracer sees
+  // `require`. The editor is assembled by reading nine files as text and
+  // inlining them, and app.js is required by nothing — so it was traced by
+  // nothing, was not uploaded, and the first hosted build died on
+  // ENOENT /var/task/engine/src/editor/app.js. The other eight survived only
+  // because each happens to be required somewhere else, which is luck rather
+  // than a rule.
+  const emit = fs.readFileSync(path.join(__dirname, '..', 'src', 'editor', 'emit.js'), 'utf8');
+  const reads = [...emit.matchAll(/\bread\('([^']+)'\)/g)].map((m) => m[1]);
+  assert.ok(reads.length >= 9, `only ${reads.length} inlined files found — has emit.js changed shape?`);
+
+  const src = path.join(__dirname, '..', 'src');
+  for (const rel of reads) {
+    const file = path.join(src, 'editor', rel);
+    assert.ok(fs.existsSync(file), `emit.js reads ${rel} and it is not there`);
+    // and it has to sit under what vercel.json includes, or the deploy loses it
+    assert.ok(!path.relative(src, file).startsWith('..'),
+      `${rel} is outside engine/src, which is the directory the deploy is told to carry`);
+  }
+
+  const vercel = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'vercel.json'), 'utf8'));
+  const carried = ((vercel.functions || {})['api/*.js'] || {}).includeFiles;
+  assert.strictEqual(carried, 'engine/src/**',
+    'vercel.json no longer carries engine/src, so the files above would not reach a function');
+});
+
 drain().then(() => {
   for (const d of [out, out2]) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);
