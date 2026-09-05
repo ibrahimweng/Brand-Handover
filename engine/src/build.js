@@ -39,7 +39,18 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // unreadable one was written anyway. Three of the seven projects in this repo
   // had one, including two written while looking straight at the problem.
   for (const cw of rules.colourways) {
-    const ground = cw.on && project.tokens.colour[cw.on];
+    // a ground is a palette colour, or a plain one: "white" and "black" mean
+    // paper and ink, and an identity is entitled to cut a colourway for them
+    // without calling them brand colours
+    const named = cw.on && project.tokens.colour[cw.on];
+    const plain = !named && cw.on && contrast.toHex(cw.on);
+    const ground = named || (plain ? { hex: plain } : null);
+    if (cw.on && !ground) {
+      // it names a ground that is not in the palette, so nothing could check it
+      warnings.push(`colourway "${cw.name}" is cut for "${cw.on}", and there is no colour called `
+        + `"${cw.on}" in the palette. Nothing can work out whether the mark can be seen on it. `
+        + `Name one of ${Object.keys(project.tokens.colour).join(', ')}, or add "${cw.on}" to the palette.`);
+    }
     if (!ground) continue;
     const inks = Object.entries(cw.slots || {});
     if (!inks.length) continue;
@@ -53,6 +64,17 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
         + `anyone can make out. Darken or lighten ${worst.slot}, or cut this colourway for `
         + `a different ground.`);
     }
+  }
+
+  // clear space is a fraction of the mark's own height, and a fraction much
+  // larger than the mark stops being clear space and becomes a rule nobody can
+  // follow: at 2.5 the mark occupies a thirty-sixth of its own exclusion zone.
+  if (rules.clearSpaceRatio > 2) {
+    warnings.push(`clear space is ${rules.clearSpaceRatio} times the mark's own height on every `
+      + `side, so the mark takes up about a ${Math.round((1 + 2 * rules.clearSpaceRatio) ** 2)}th `
+      + `of the space it reserves. That is ${measured.clearSpace} units around a mark `
+      + `${measured.markInk.w} by ${measured.markInk.h}. Check rules.clearSpaceRatio is the number `
+      + `you meant — it is a fraction of the mark, not a multiple of it.`);
   }
 
   const saidMissing = new Set();

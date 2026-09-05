@@ -2859,6 +2859,100 @@ test('change the master and every number follows it, in all eight', () => {
   }
 });
 
+console.log('\na ninth identity');
+// Eight rounds spent checking the artwork. Cusp is a project whose *file* is
+// the thin part: one lockup, one colourway, two colours, no content section,
+// clear space set to a multiple rather than a fraction, and a colourway cut
+// for a ground that is not in the palette.
+const CU = projectLoader.load(path.join(__dirname, '..', 'projects', 'cusp', 'project.json'));
+const cuM = measure(CU);
+
+const tmpProject = (mut, from = 'meridian') => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-rules-'));
+  const src = path.join(__dirname, '..', 'projects', from);
+  for (const f of fs.readdirSync(src)) if (f.endsWith('.svg')) fs.copyFileSync(path.join(src, f), path.join(dir, f));
+  const p = JSON.parse(fs.readFileSync(path.join(src, 'project.json'), 'utf8'));
+  mut(p);
+  fs.writeFileSync(path.join(dir, 'project.json'), JSON.stringify(p));
+  return dir;
+};
+
+test('a rule that cannot be true is refused, like a mark that cannot be drawn', () => {
+  // the engine checked the artwork exhaustively and took its own numbers
+  // entirely on faith: minStrokePx of -3 gave a smallest usable size of -40 px,
+  // and a clearSpaceRatio of -0.5 gave negative clear space, both reported as
+  // measurements.
+  const refuses = (mut, pattern) => {
+    const dir = tmpProject(mut);
+    assert.throws(() => projectLoader.load(path.join(dir, 'project.json')), pattern);
+    fs.rmSync(dir, { recursive: true, force: true });
+  };
+  refuses((p) => { p.rules.minStrokePx = 0; }, /minStrokePx is 0/);
+  refuses((p) => { p.rules.minStrokePx = -3; }, /minStrokePx is -3/);
+  refuses((p) => { p.rules.minStrokeMm = 0; }, /minStrokeMm/);
+  refuses((p) => { p.rules.clearSpaceRatio = -0.5; }, /clearSpaceRatio is -0.5/);
+  refuses((p) => { p.rules.wordmarkHeightRatio = 0; }, /wordmarkHeightRatio is 0/);
+  refuses((p) => { p.rules.lockupGapRatio = -1; }, /on top of the mark/);
+  refuses((p) => { p.rules.pngWidths = [0]; }, /not a width/);
+  // and every real project still loads
+  for (const p of ['meridian', 'halyard', 'kvist', 'hallward', 'northline', 'perigee', 'maayan', 'thornbury', 'cusp']) {
+    assert.ok(projectLoader.load(path.join(__dirname, '..', 'projects', p, 'project.json')).brand);
+  }
+});
+
+test('a naming pattern that cannot tell the files apart is refused', () => {
+  // five colourways of a lockup all written to one filename: the client gets
+  // one file where the manual promises five, and nothing says so.
+  const dir = tmpProject((p) => { p.rules.naming = '{brand}-{lockup}'; });
+  assert.throws(() => projectLoader.load(path.join(dir, 'project.json')), /does not tell the files apart/);
+  fs.rmSync(dir, { recursive: true, force: true });
+  const dupe = tmpProject((p) => { p.rules.colourways[1].name = p.rules.colourways[0].name; });
+  assert.throws(() => projectLoader.load(path.join(dupe, 'project.json')), /both called/);
+  fs.rmSync(dupe, { recursive: true, force: true });
+  // one lockup and one colourway need neither in the pattern, and Cusp has both
+  assert.strictEqual(CU.rules.naming, '{brand}');
+  assert.strictEqual(CU.rules.lockups.length, 1);
+  assert.strictEqual(CU.rules.colourways.length, 1);
+});
+
+test('a ground is a palette colour or a plain one, and anything else is said', () => {
+  // Meridian cuts colourways for "white" and "black", which are paper and ink
+  // rather than brand colours, and is entitled to. Cusp names "bone", which is
+  // neither, and nothing could work out whether its mark could be seen on it.
+  const contrast = require('../src/contrast');
+  assert.ok(project.rules.colourways.some((c) => c.on === 'white'));
+  assert.strictEqual(contrast.toHex('white'), '#FFFFFF');
+  assert.strictEqual(CU.rules.colourways[0].on, 'bone');
+  assert.strictEqual(contrast.toHex('bone'), null);
+  assert.ok(!CU.tokens.colour.bone);
+  // and the specimen still finds a ground the mark can be seen on
+  const docs = require('../src/documents');
+  const b = require('../src/documents/blocks');
+  const s = b.showOn(docs.context(CU, cuM, [], {}));
+  assert.ok(s.worst >= b.SEEN, `Cusp shows its mark at ${s.worst.toFixed(2)}:1 on ${s.ground.name}`);
+  assert.strictEqual(s.ground.name, 'shell');
+});
+
+test('clear space set as a multiple rather than a fraction is questioned', () => {
+  // 2.5 makes the mark a thirty-sixth of the space it reserves
+  assert.strictEqual(CU.rules.clearSpaceRatio, 2.5);
+  assert.ok(cuM.clearSpace > cuM.markInk.h * 2, 'this fixture is meant to reserve too much');
+  for (const p of [project, HAL, KV, HW, NL, PG, MY, TH]) {
+    assert.ok(p.rules.clearSpaceRatio <= 2, `${p.brand} reserves ${p.rules.clearSpaceRatio} times the mark`);
+  }
+});
+
+test('a project with no content section still makes both documents', () => {
+  assert.ok(!CU.content || !CU.content.misuse, 'this fixture is meant to have no content');
+  const docs = require('../src/documents');
+  const { deck } = require('../src/documents/deck');
+  const ctx = docs.context(CU, cuM, [], {});
+  const manual = docs.guidelines(ctx);
+  assert.ok(manual.length > 4000 && !/hb-missing/.test(manual), 'the manual came out short or holed');
+  assert.ok(deck(ctx).length > 4000);
+  assert.ok(/undefined|NaN|\[object/.test(manual) === false, 'something leaked into the manual');
+});
+
 drain().then(() => {
   for (const d of [out, out2]) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);

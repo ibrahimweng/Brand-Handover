@@ -1,0 +1,39 @@
+{
+  "brand": "Cusp",
+  "version": "0.1.0",
+  "assets": { "mark": "mark.svg", "wordmark": "wordmark.svg" },
+  "tokens": {
+    "colour": {
+      "char":  { "hex": "#221F1C", "role": "ground",  "cmyk": [66, 60, 62, 87] },
+      "shell": { "hex": "#F2EFE9", "role": "primary", "cmyk": [4, 4, 8, 0] }
+    },
+    "type": {
+      "families": {
+        "display": { "family": "Archivo", "fallback": "Helvetica, Arial, sans-serif", "weights": [600, 700], "google": true }
+      },
+      "scale": [
+        { "name": "Display", "family": "display", "size": 60, "leading": 66, "weight": 700 },
+        { "name": "H1",      "family": "display", "size": 34, "leading": 40, "weight": 700 },
+        { "name": "H2",      "family": "display", "size": 22, "leading": 29, "weight": 600 },
+        { "name": "H3",      "family": "display", "size": 17, "leading": 24, "weight": 600 },
+        { "name": "Body",    "family": "display", "size": 16, "leading": 26, "weight": 400 },
+        { "name": "Small",   "family": "display", "size": 13, "leading": 20, "weight": 400 },
+        { "name": "Caption", "family": "display", "size": 11, "leading": 15, "weight": 600 }
+      ]
+    }
+  },
+  "rules": {
+    "clearSpaceRatio": 2.5, "minStrokePx": 3, "minStrokeMm": 0.8,
+    "lockupGapRatio": 0.3, "wordmarkHeightRatio": 0.45,
+    "naming": "{brand}",
+    "lockups": ["horizontal"],
+    "formats": ["svg", "png"],
+    "pngWidths": [1024],
+    "stock": "coated",
+    "colourways": [
+      { "name": "ink", "on": "bone", "slots": { "ink": "#221F1C" } }
+    ],
+    "iconInk": "#F2EFE9", "iconBg": "#221F1C",
+    "iconSizes": [512], "faviconSizes": [32]
+  }
+}

@@ -9,7 +9,7 @@ around it.
 
     cd engine
     npm install
-    npm test                                            # 280 checks
+    npm test                                            # 285 checks
     node test/print-check.mjs                           # prints, and measures the paper
     node test/treatment-check.mjs                       # renders, and reads the pixels back
     node test/typst-check.mjs                           # the printed piece against the published page
@@ -29,6 +29,7 @@ around it.
     node src/cli.js build   projects/perigee/project.json   -o out-perigee
     node src/cli.js build   projects/maayan/project.json    -o out-maayan
     node src/cli.js build   projects/thornbury/project.json -o out-thornbury
+    node src/cli.js build   projects/cusp/project.json      -o out-cusp
 
 The Meridian example writes 136 files in about six seconds, including both
 documents, the editor, the document it opens with, that document published, and
@@ -1392,6 +1393,34 @@ unit, which is the parser's rounding and nothing more. The ripples have been
 brought inside the box; the mark is a slightly different shape than it was, and
 a better one.
 
+## A ninth identity
+
+Eight rounds spent checking the artwork. The engine reads a mark with real
+suspicion — its element types, its colours, its slots, and since the last round
+its coordinates — and it had been taking **its own numbers entirely on faith**.
+
+`minStrokePx: -3` gave a smallest usable size of **−40 px**. `clearSpaceRatio:
+-0.5` gave **negative clear space**. `wordmarkHeightRatio: 0` shrank the
+wordmark to nothing. `lockupGapRatio: -1` sat it on top of the mark. All of them
+loaded without a word and were reported as measurements.
+
+The worst was quieter. A naming pattern with no `{colourway}` in it writes every
+colourway of a lockup to the same filename, so **five files become one** and the
+client receives a package whose manual promises five colourways and whose folder
+holds one. Two colourways sharing a name do the same. Both are refused now, and
+so is every rule that cannot be true — with the same voice used for a mark that
+cannot be drawn, because a rule that cannot be true is the same kind of defect.
+
+**Cusp** is the fixture: one lockup, one colourway, two colours, no content
+section at all, clear space set to 2.5 — a multiple of the mark rather than a
+fraction of it, which reserves thirty-six times the area the mark occupies — and
+a colourway cut for a ground called `bone` that is not in the palette. The last
+one had a consequence: the ground could not be resolved, the fallback landed on
+the ink itself, and the specimen was drawn at **1.00 to 1**. A ground is now
+resolved as a palette colour *or* a plain one — Meridian legitimately cuts
+colourways for `white` and `black`, which are paper and ink rather than brand
+colours — and anything that is neither is said out loud, with the palette listed.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.
@@ -1431,6 +1460,7 @@ a better one.
     projects/perigee/   the sixth: a web export — hsl(), a named colour, no slots at all
     projects/maayan/    the seventh: named in Hebrew, written in Hebrew, reads right to left
     projects/thornbury/ the eighth: a file edited by three people since 1998
+    projects/cusp/      the ninth: the project file is the thin part, not the artwork
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package

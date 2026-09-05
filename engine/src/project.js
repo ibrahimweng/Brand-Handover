@@ -31,6 +31,52 @@ function load(file) {
   if (!raw.rules || !Array.isArray(raw.rules.lockups) || !raw.rules.lockups.length) {
     problems.push('the project defines no lockups (rules.lockups)');
   }
+  // Eight rounds of checking the artwork, and the engine took its own numbers
+  // entirely on faith. minStrokePx of -3 gave a smallest usable size of -40 px;
+  // a clearSpaceRatio of -0.5 gave negative clear space; and a naming pattern
+  // with no {colourway} in it wrote all five colourways of a lockup to the same
+  // filename, so the client got one file where the manual promised five, with
+  // nothing said. A rule that cannot be true is as much a defect as a mark that
+  // cannot be drawn, and it was the half nobody was reading.
+  const r = raw.rules || {};
+  const positive = {
+    minStrokePx: 'the smallest a stroke may be on screen',
+    minStrokeMm: 'the smallest a stroke may be in print',
+    clearSpaceRatio: 'clear space, as a fraction of the mark',
+    wordmarkHeightRatio: 'how tall the wordmark sits beside the mark',
+  };
+  for (const [key, what] of Object.entries(positive)) {
+    if (r[key] === undefined) continue;
+    if (!(Number(r[key]) > 0)) {
+      problems.push(`rules.${key} is ${JSON.stringify(r[key])} — ${what} has to be more than nothing.`
+        + ' Every number derived from it comes out as zero or as a negative.');
+    }
+  }
+  if (r.lockupGapRatio !== undefined && !(Number(r.lockupGapRatio) >= 0)) {
+    problems.push(`rules.lockupGapRatio is ${JSON.stringify(r.lockupGapRatio)}, which would sit the`
+      + ' wordmark on top of the mark rather than beside it.');
+  }
+  for (const w of r.pngWidths || []) {
+    if (!(Number(w) > 0)) problems.push(`rules.pngWidths contains ${JSON.stringify(w)}, which is not a width.`);
+  }
+  const names = (r.colourways || []).map((c) => c && c.name);
+  const dupe = names.find((n, i) => names.indexOf(n) !== i);
+  if (dupe !== undefined) {
+    problems.push(`two colourways are both called "${dupe}". Their files would be written over`
+      + ' each other, and the second one would be the only one that survived.');
+  }
+  // whether the pattern can actually tell the files apart
+  if (typeof r.naming === 'string' && Array.isArray(r.lockups) && Array.isArray(r.colourways)) {
+    const want = [];
+    if (r.lockups.length > 1 && !/\{lockup\}/.test(r.naming)) want.push('{lockup}');
+    if (r.colourways.length > 1 && !/\{colourway\}/.test(r.naming)) want.push('{colourway}');
+    if (want.length) {
+      problems.push(`rules.naming is "${r.naming}", which does not tell the files apart:`
+        + ` ${r.lockups.length} lockups in ${r.colourways.length} colourways would all be written`
+        + ` to the same handful of names. Put ${want.join(' and ')} in the pattern.`);
+    }
+  }
+
   if (problems.length) throw new Error('This project file is not usable yet:\n  - ' + problems.join('\n  - '));
 
   // A designer may write a colour however their tool writes it. Everything

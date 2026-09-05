@@ -87,9 +87,22 @@ function showOn(ctx) {
   for (const cw of ctx.project.rules.colourways || []) {
     const inks = Object.values(cw.slots);
     if (!inks.length) continue;
+    // a colourway may name a ground that is not in the palette at all, and
+    // falling back to "the ground role" then showed Cusp's only colourway on
+    // its own ink at 1.00 to 1. If the named ground cannot be resolved, try
+    // the colours that do exist and take one the mark can be seen on.
     const name = cw.on || ctx.ground.name;
-    const hex = hexOf(name) || ctx.ground.hex;
-    seen.push({ ground: { name, hex }, colourway: cw,
+    let hex = hexOf(name) || contrast.toHex(name);
+    let usedName = name;
+    if (!hex) {
+      const options = Object.entries(ctx.colours)
+        .map(([n, c]) => ({ n, hex: c.hex, worst: Math.min(...inks.map((h) => contrast.ratio(h, c.hex))) }))
+        .filter((o) => Number.isFinite(o.worst))
+        .sort((a, b) => b.worst - a.worst)[0];
+      hex = options ? options.hex : ctx.ground.hex;
+      usedName = options ? options.n : ctx.ground.name;
+    }
+    seen.push({ ground: { name: usedName, hex }, colourway: cw,
       worst: Math.min(...inks.map((h) => contrast.ratio(h, hex))) });
   }
   if (!seen.length) return { ground: ctx.primary, colourway: ctx.primaryColourway, worst: 0 };
