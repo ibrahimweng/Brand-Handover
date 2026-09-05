@@ -22,8 +22,23 @@
     if (bundle.colours && bundle.colours[key]) return bundle.colours[key].hex;
     return key;
   }
-  const cwName = (bundle, key) =>
-    (bundle.roles && bundle.roles[key] && bundle.roles[key].name) || key;
+  // Which colourway to actually draw.
+  //
+  // A block asks for one by role — "the ground colourway" — and nothing says a
+  // project cuts one named after each colour role. Meridian happens to; Halyard
+  // does not, and three separate renderers dropped or mis-drew the mark because
+  // of it before this was fixed in one place. Where the asked-for colourway is
+  // not cut, take one meant for the ground it is going onto, and only then the
+  // first that exists.
+  function cwName(bundle, key, onKey) {
+    const named = (bundle.roles && bundle.roles[key] && bundle.roles[key].name) || key;
+    const have = bundle.colourways || [];
+    if (!have.length || have.indexOf(named) > -1) return named;
+    if (have.indexOf(key) > -1) return key;
+    const onName = (bundle.roles && bundle.roles[onKey] && bundle.roles[onKey].name) || onKey;
+    const forGround = have.find((n) => (bundle.colourwayOn || {})[n] === onName);
+    return forGround || have[0];
+  }
 
   function typeStyle(bundle, name) {
     const t = bundle.type || {};
@@ -165,10 +180,10 @@
     },
 
     mark: (b, bu) => `<div style="width:100%;height:100%;background:${colour(bu, b.props.on)};display:flex;align-items:center;justify-content:center">
-      ${fitSvg(bu.marks[cwName(bu, b.props.colourway)] || Object.values(bu.marks)[0], 14)}</div>`,
+      ${fitSvg(bu.marks[cwName(bu, b.props.colourway, b.props.on)] || Object.values(bu.marks)[0], 14)}</div>`,
 
     lockup: (b, bu) => {
-      const key = `${b.props.lockup}:${cwName(bu, b.props.colourway)}`;
+      const key = `${b.props.lockup}:${cwName(bu, b.props.colourway, b.props.on)}`;
       return `<div style="width:100%;height:100%;background:${colour(bu, b.props.on)};display:flex;align-items:center;justify-content:center">
         ${fitSvg(bu.variants[key] || bu.variants[Object.keys(bu.variants)[0]], 16)}</div>`;
     },
@@ -258,7 +273,7 @@
 
     motion: (b, bu) => {
       const mo = (bu.system || {}).motion; if (!mo) return `<div class="hb-missing">no motion rules</div>`;
-      const svg = bu.marks[cwName(bu, b.props.colourway)] || Object.values(bu.marks)[0];
+      const svg = bu.marks[cwName(bu, b.props.colourway, b.props.on)] || Object.values(bu.marks)[0];
       const inner = (svg.match(/<svg[^>]*>([\s\S]*)<\/svg>/) || [])[1] || '';
       const vb = (svg.match(/viewBox="([^"]+)"/) || [])[1] || '0 0 120 120';
       const n = vb.split(/\s+/).map(Number), vw = n[2] || 120, vh = n[3] || 120;
@@ -274,6 +289,11 @@
         const hasFill = /fill="(?!none)/.test(el);
         (hasFill && !hasStroke ? filled : outline).push(el);
       }
+      // A mark drawn entirely in fills has no outline to settle first, and
+      // that is most marks. Splitting it anyway left the whole thing in the
+      // rising half and the block came out empty. So say what is true: it
+      // arrives in one piece.
+      const onePiece = !outline.length;
       const dur = mo.durations, e = mo.easing;
       const bez = (a) => `cubic-bezier(${a.join(',')})`;
       const id = 'm' + esc(b.id);
@@ -282,7 +302,9 @@
       const box = bu.measured.markInk;
       const ms = (a) => `${a.to - a.from}ms`;
       const caption = b.props.caption === false ? '' :
-        ruleCaption(`${ms(draw)} out \u00b7 ${ms(rise)} through \u00b7 ${draw.part || 'outline'}, then ${rise.part || 'fill'}`,
+        ruleCaption(onePiece
+          ? `${ms(draw)} \u00b7 out \u00b7 one piece, no outline to draw first`
+          : `${ms(draw)} out \u00b7 ${ms(rise)} through \u00b7 ${draw.part || 'outline'}, then ${rise.part || 'fill'}`,
           colour(bu, b.props.colourway));
       return `<div style="width:100%;height:100%;background:${colour(bu, b.props.on)};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;overflow:hidden">
         <style>
@@ -294,8 +316,10 @@
         </style>
         <svg id="${id}" viewBox="${vb}" style="width:64%;height:auto" role="img" aria-label="The mark, built to the brand's own motion rules. The outline settles, then the fill rises to its line.">
           <defs><clipPath id="${id}-c"><rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}"/></clipPath></defs>
-          <g clip-path="url(#${id}-c)"><g class="hb-fill">${filled.join('')}</g></g>
-          <g class="hb-out">${outline.join('')}</g></svg>${caption}</div>`;
+          ${onePiece
+            ? `<g class="hb-out">${filled.join('')}</g>`
+            : `<g clip-path="url(#${id}-c)"><g class="hb-fill">${filled.join('')}</g></g>`
+              + `<g class="hb-out">${outline.join('')}</g>`}</svg>${caption}</div>`;
     },
 
     // The treatment stated, and shown. A ramp rather than a photograph, because

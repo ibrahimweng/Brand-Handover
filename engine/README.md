@@ -9,7 +9,7 @@ around it.
 
     cd engine
     npm install
-    npm test                                            # 234 checks
+    npm test                                            # 246 checks
     node test/print-check.mjs                           # prints, and measures the paper
     node test/treatment-check.mjs                       # renders, and reads the pixels back
     node test/typst-check.mjs                           # the printed piece against the published page
@@ -22,10 +22,16 @@ around it.
     node src/cli.js build   projects/meridian/project.json -o out
     node src/cli.js edit    projects/meridian/project.json -o editor.html
     node src/cli.js publish projects/meridian/project.json out/document.json -o page.html
+    node src/cli.js build   projects/halyard/project.json  -o out-halyard
 
 The Meridian example writes 136 files in about six seconds, including both
 documents, the editor, the document it opens with, that document published, and
 the pattern at every density in every colourway.
+
+Halyard is the second identity, kept in the repo because everything above was
+written against the first one. It has four faults left in on purpose and it
+writes 62 files, saying what each fault is and what to do about it. See
+[A second identity](#a-second-identity).
 
 ## What it measures
 
@@ -895,6 +901,87 @@ correction that can only be made once the browser has laid the new size out.
 - **No grade beyond the duotone.** Saturation and contrast as separate dials
   are not there; the duotone's `amount` is the only mixer.
 
+## A second identity
+
+Everything above was written against one mark. That is not a test, it is a
+coincidence waiting to be found out, so the engine was pointed at a second
+identity built to be unlike the first: **Halyard**, a ring and a chevron, drawn
+entirely in fills where Meridian is a stroke, two inks in the mark where
+Meridian has one, a naming pattern with underscores in it, a colourway set that
+does not line up with the colour roles, and four faults left in on purpose — a
+colour with no CMYK build, a ground that lays down 282% ink on stock that takes
+260%, a plain 0/0/0/100 black, and no shape marked as the pattern source.
+
+The four faults were all reported, in designer language, with the fix in each
+one. The interesting part is the ten things that were wrong with the engine.
+
+**The minimum size had never been measured off a fill.** Meridian's mark is a
+stroke, so `thinnestStroke` always had an answer and the fallback behind it had
+never run. Halyard has no strokes at all and the floor came back null. It is now
+measured off the rendered artwork: scan it line by line, collect every unbroken
+run of ink, and read the stem off the runs. On a stroke whose width is known the
+measurement returns that width exactly, which is the control the suite keeps.
+
+**A sharp corner is not a thin stem.** The first version of that scan took a low
+percentile of every run, which reads the point of Halyard's chevron rather than
+the bar across it: 4.8 where the answer is 12, and a floor of 36 px instead of
+30. A stem has ink on the lines either side of it and a tip does not, so only
+runs that are a local minimum with neighbours on both sides count. A ring 16
+thick measures 16, a cross of 12 measures 12, and a solid disc — which has no
+thin part anywhere — answers with its width rather than with nothing.
+
+**The mark specimen flattened two inks into one.** Every diagram painted the
+whole mark in a single colour, which is right for a construction drawing, where
+a second ink is only noise, and wrong for the page that says *this is the mark*.
+With one colour slot nobody could tell the difference. Drawing the mark as it is
+actually used is now a separate thing from drawing it as a silhouette.
+
+**A block can ask for a colourway the project does not cut.** Nothing says an
+identity names a colourway after each of its colour roles. Meridian happens to;
+Halyard does not, and the canvas, the deck and the Typst emitter each dropped or
+mis-drew the mark in their own way. The canvas now resolves it once — the name
+asked for, then the role's own name, then a colourway cut for the ground it is
+going onto, then whatever exists — and the bundle carries which ground each
+colourway was cut for so that third step can be taken.
+
+**A mark drawn entirely in fills had no motion.** The motion rule draws the
+outline and then rises the fill through it, so the renderer split the artwork in
+two. With nothing stroked, everything landed in the rising half and the block
+came out empty. It now says what is true: the mark arrives in one piece, and the
+caption says so.
+
+**The construction drawings were painted in a brand role.** `primary` is the
+dark one in Meridian and the light one in Halyard, so a diagram drawn in it
+disappeared on a light page. Diagrams take `currentColor` and inherit the ink of
+whatever page they are on; the deck, which is not that page, passes its own.
+
+**The naming pattern's separators were being thrown away.** The whole assembled
+name was slugged at the end, so a studio that writes `{brand}_{colourway}` got
+hyphens anyway and was never told. The pattern belongs to the project, which
+means its separators do too. Case is still normalised, deliberately: lowercase
+survives a case-insensitive filesystem, a URL and a stylesheet without anybody
+having to think about it.
+
+**`height="auto"` is not a length, so it is not an SVG attribute.** Every scaled
+drawing carried one, and the style beside it did the work, so the only sign was
+an error in the console per drawing. A page that lost its styles would have lost
+the proportion with it. The viewBox knows the ratio, so the height is stated
+outright.
+
+**The words did not follow the measurement.** The manual, the deck and the CLI
+all said *thinnest stroke* even when the number had come off a fill, and
+`brand.json` gave the floor with no account of where it came from. It now
+carries the width, whether it was a stroke or a stem, and the arithmetic:
+
+    "minSize": { "screenPx": 30, "printMm": 8, "from": "stem", "width": 12,
+      "basis": "box 120 ÷ narrowest stem 12 = 10 stems across, measured off the artwork" }
+
+**And the deck fell over** when a project's ground colour is not itself one of
+the colourways.
+
+None of these were visible with one project in the repo. They are all in the
+suite now, each one pinned to the case that found it.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.
@@ -926,6 +1013,8 @@ correction that can only be made once the browser has laid the new size out.
     src/licence.js    plans, signed licences, and what the client owns
     src/pattern.js    seamless tiles cut from the shape you marked
     src/documents/    blocks.js, chrome.js, index.js (manual), deck.js
+    projects/meridian/  the first identity: one stroked mark, one ink
+    projects/halyard/   the second: filled artwork, two inks, four faults left in
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package

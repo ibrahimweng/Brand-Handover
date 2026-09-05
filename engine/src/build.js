@@ -120,7 +120,9 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     logo: {
       clearSpace: `${rules.clearSpaceRatio} * inkHeight`,
       clearSpaceUnits: measured.clearSpace,
-      minSize: { screenPx: measured.minimumSize.screenPx, printMm: measured.minimumSize.printMm },
+      minSize: { screenPx: measured.minimumSize.screenPx, printMm: measured.minimumSize.printMm,
+        from: measured.minimumSize.from, width: measured.minimumSize.thinnestStroke,
+        basis: measured.minimumSize.basis },
       lockups: rules.lockups,
       colourways: rules.colourways.map((c) => c.name),
     },

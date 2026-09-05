@@ -1,0 +1,62 @@
+{
+  "brand": "Halyard",
+  "version": "0.9.0",
+  "assets": { "mark": "mark.svg", "wordmark": "wordmark.svg" },
+  "tokens": {
+    "colour": {
+      "pitch":  { "hex": "#101820", "role": "ground",    "pantone": "Black 6 C", "cmyk": [78, 62, 50, 92] },
+      "bone":   { "hex": "#F5F1E8", "role": "primary",   "pantone": "7527 C",    "cmyk": [3, 4, 9, 0] },
+      "flare":  { "hex": "#C6442E", "role": "accent",    "pantone": "1795 C",    "cmyk": [12, 88, 92, 3] },
+      "rope":   { "hex": "#8A7A5E", "role": "secondary", "pantone": "4515 C" },
+      "fog":    { "hex": "#6E7B82", "role": "neutral",   "cmyk": [0, 0, 0, 100] }
+    },
+    "type": {
+      "families": {
+        "display": { "family": "Archivo", "fallback": "Helvetica, Arial, sans-serif", "weights": [600, 700], "google": true },
+        "text":    { "family": "Literata", "fallback": "Georgia, serif", "weights": [400, 500], "google": true }
+      },
+      "scale": [
+        { "name": "Display", "family": "display", "size": 76, "leading": 80, "weight": 700, "tracking": -0.02 },
+        { "name": "H1",      "family": "display", "size": 40, "leading": 46, "weight": 700, "tracking": -0.015 },
+        { "name": "H2",      "family": "display", "size": 26, "leading": 32, "weight": 600 },
+        { "name": "H3",      "family": "display", "size": 19, "leading": 26, "weight": 600 },
+        { "name": "Body",    "family": "text",    "size": 16, "leading": 26, "weight": 400 },
+        { "name": "Small",   "family": "text",    "size": 13, "leading": 20, "weight": 400 },
+        { "name": "Caption", "family": "display", "size": 11, "leading": 15, "weight": 500, "tracking": 0.1 }
+      ]
+    }
+  },
+  "rules": {
+    "clearSpaceRatio": 0.4,
+    "minStrokePx": 3,
+    "minStrokeMm": 0.8,
+    "lockupGapRatio": 0.28,
+    "wordmarkHeightRatio": 0.42,
+    "naming": "{brand}_{colourway}_{lockup}",
+    "lockups": ["horizontal", "stacked", "mark"],
+    "formats": ["svg", "png", "pdf", "ai"],
+    "pngWidths": [400, 1600],
+    "stock": "uncoated",
+    "colourways": [
+      { "name": "full",    "on": "pitch", "slots": { "ink": "#F5F1E8", "mark": "#C6442E" } },
+      { "name": "bone",    "on": "pitch", "slots": { "ink": "#F5F1E8", "mark": "#F5F1E8" } },
+      { "name": "reverse", "on": "bone",  "slots": { "ink": "#101820", "mark": "#C6442E" } }
+    ],
+    "iconInk": "#F5F1E8",
+    "iconBg": "#101820",
+    "iconSizes": [1024, 180],
+    "faviconSizes": [16, 32],
+    "social": { "profile": { "w": 400, "h": 400 }, "og image": { "w": 1200, "h": 630 } }
+  },
+  "content": {
+    "positioning": "Halyard",
+    "misuse": ["Do not stretch it", "Do not rotate it", "Do not recolour the pin", "Do not add a shadow", "Do not crowd it", "Do not outline it"]
+  },
+  "system": {
+    "photography": {
+      "duotone": { "shadow": "ground", "highlight": "primary", "amount": 0.7 },
+      "scrim": { "colour": "ground", "opacity": 0.5, "direction": "bottom" },
+      "ratios": ["4:5", "1:1"]
+    }
+  }
+}

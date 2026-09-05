@@ -88,11 +88,11 @@ function deck(ctx) {
     <p class="cap" style="margin-top:3.4cqw">${b.esc(p.brand)} ${b.esc(p.version)} · built from one master file</p>`);
 
   div('01', 'The mark', ['Construction', 'Clear space', 'Minimum size', 'The lockups', 'Misuse']);
-  add('The mark', `<div class="hero">${b.scaled(b.inked(ctx, ctx.ground.hex), 260)}</div>
+  add('The mark', `<div class="hero">${b.scaled(b.asColourway(ctx, b.onGround(ctx, ctx.primary.name)), 260)}</div>
     <p class="cap" style="text-align:center;margin-top:4cqw">${b.esc(p.brand)} · primary mark</p>`);
   add('Construction', `<div class="two wide"><div><span class="bdg">The system</span>
     <h2 style="margin-top:2cqw">Measured, not decided</h2>
-    <p class="lede">The box is ${m.markViewBox.w} units and the artwork fills ${m.markInk.w} of them. The thinnest stroke is ${m.minimumSize.thinnestStroke}.</p>
+    <p class="lede">The box is ${m.markViewBox.w} units and the artwork fills ${m.markInk.w} of them. The ${m.minimumSize.from === 'stem' ? 'narrowest stem' : 'thinnest stroke'} is ${m.minimumSize.thinnestStroke}.</p>
     <p class="sm">${b.esc(c.constructionNotes || 'Every number here was read off the artwork when this deck was built.')}</p></div>
     <div>${b.construction(ctx, { ink: ctx.ground.hex, line: ctx.ground.hex })}</div></div>`);
   add('Clear space', `<div class="two"><div><span class="bdg">The system</span>
@@ -103,7 +103,7 @@ function deck(ctx) {
     <p class="lede">The stroke is what fails first. ${b.esc(m.minimumSize.basis)}, so holding it at ${p.rules.minStrokePx} px puts the floor there.</p>
     <div class="four" style="margin-top:3.4cqw">${[2, 1.4, 1, 0.6].map((f) => {
       const px = Math.round(m.minimumSize.screenPx * f);
-      return `<div class="cell">${b.scaled(b.inked(ctx, ctx.ground.hex), px)}<p class="cap">${px} px${f === 1 ? ' · floor' : f < 1 ? ' · too small' : ''}</p></div>`;
+      return `<div class="cell">${b.scaled(b.asColourway(ctx, b.onGround(ctx, ctx.primary.name)), px)}<p class="cap">${px} px${f === 1 ? ' · floor' : f < 1 ? ' · too small' : ''}</p></div>`;
     }).join('')}</div>`);
   add('The lockups', `<span class="bdg">The system</span><h2 style="margin-top:2cqw">${p.rules.lockups.length} arrangements, ${p.rules.colourways.length} colourways</h2>
     <div class="four" style="margin-top:3.4cqw">${p.rules.lockups.map((l) =>

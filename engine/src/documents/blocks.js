@@ -13,7 +13,8 @@ const TXT = 'font-family="ui-monospace, Menlo, monospace" font-size="8"';
 const esc = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-// paint a copy of the master in one colour and hand back the markup
+// A silhouette: every slot in one colour. Right for the diagrams, where the
+// point is the geometry and a second ink would only be noise.
 function inked(ctx, hex, which = 'mark') {
   const doc = svgu.parse(ctx.project.assets[which].source);
   svgu.applyColourway(doc, Object.fromEntries(ctx.measured.slots.map((s) => [s, hex])));
@@ -23,25 +24,54 @@ function inked(ctx, hex, which = 'mark') {
 function scaled(svg, width) {
   // a document should not fail to build because one variant is absent
   if (!svg) return `<div style="width:${width}px;height:${Math.round(width / 3)}px"></div>`;
-  return svg.replace(/<svg([^>]*)>/, (m, attrs) =>
-    `<svg${attrs.replace(/\s(width|height)="[^"]*"/g, '')} width="${width}" height="auto" style="width:${width}px;height:auto;display:block">`);
+  return svg.replace(/<svg([^>]*)>/, (m, attrs) => {
+    // height="auto" is not a length, so it is not an SVG attribute. The style
+    // beside it was doing the work and the attribute was only ever an error in
+    // the console — but a page that loses its styles would then have lost the
+    // proportion too. The viewBox knows the ratio, so say the height outright.
+    const vb = /viewBox="\s*([-\d.eE]+)[,\s]+([-\d.eE]+)[,\s]+([-\d.eE]+)[,\s]+([-\d.eE]+)/.exec(attrs);
+    const h = vb && Number(vb[3]) > 0
+      ? ` height="${svgu.round(width * (Number(vb[4]) / Number(vb[3])), 2)}"` : '';
+    return `<svg${attrs.replace(/\s(width|height)="[^"]*"/g, '')} width="${width}"${h}`
+      + ` style="width:${width}px;height:auto;display:block">`;
+  });
 }
+
+// The mark as it is actually used: every slot in the ink its colourway gives
+// it. A mark with two inks in it is not the same mark drawn in one, and
+// flattening it was invisible until a project arrived that had two — which is
+// what one project's worth of testing buys you.
+function asColourway(ctx, colourway, which = 'mark') {
+  const cw = colourway || ctx.primaryColourway;
+  const doc = svgu.parse(ctx.project.assets[which].source);
+  svgu.applyColourway(doc, cw.slots);
+  return svgu.serialize(doc);
+}
+
+// the colourway meant to sit on a given ground, by the project's own account
+const onGround = (ctx, groundName) =>
+  (ctx.project.rules.colourways || []).find((c) => c.on === groundName) || ctx.primaryColourway;
 
 // ---------------------------------------------------------------- the mark
 const markSpecimen = (ctx) => {
-  const on = ctx.primary.hex, ink = ctx.ground.hex;
-  return `<div class="stage" style="background:${on}">${scaled(inked(ctx, ink), 150)}</div>`;
+  const on = ctx.primary;
+  return `<div class="stage" style="background:${on.hex}">`
+    + `${scaled(asColourway(ctx, onGround(ctx, on.name)), 150)}</div>`;
 };
 
-const lockupRow = (ctx, hex, bg) =>
-  `<div class="stage" style="background:${bg}">${scaled(inked(ctx, hex), 120)}</div>`;
+const lockupRow = (ctx, colourwayName, bg) =>
+  `<div class="stage" style="background:${bg}">`
+  + `${scaled(asColourway(ctx, (ctx.project.rules.colourways || []).find((c) => c.name === colourwayName)), 120)}</div>`;
 
 // The generic construction drawing: the box the artwork sits in, what it
 // actually fills, the margin between the two, and the stroke that sets the
 // floor. The reasoning behind those choices is the designer's, and it comes
 // from the project content.
 function construction(ctx, opts = {}) {
-  const paint = opts.ink || ctx.primary.hex;
+  // currentColor, not a brand role: the role called "primary" is the light one
+  // in some identities, and a diagram drawn in it disappears on a light page.
+  // The deck passes its own ink, because a slide is not this page.
+  const paint = opts.ink || 'currentColor';
   const line = opts.line || 'currentColor';
   const vb = ctx.measured.markViewBox, ink = ctx.measured.markInk;
   const S = 260, pad = 30, k = (S - pad * 2) / Math.max(vb.w, vb.h);
@@ -57,12 +87,12 @@ function construction(ctx, opts = {}) {
     <rect x="${X(ink.x)}" y="${Y(ink.y)}" width="${svgu.round(ink.w * k)}" height="${svgu.round(ink.h * k)}" fill="none" stroke="${ctx.accent.hex}" stroke-width="1" stroke-dasharray="4 3"/>
     <g transform="translate(${X(vb.x)} ${Y(vb.y)}) scale(${svgu.round(k, 6)})">${svgu.innerXML(svgu.parse(inked(ctx, paint)))}</g>
     <text x="${S / 2}" y="16" ${TXT} fill="${line}" text-anchor="middle">${vb.w} unit box</text>
-    <text x="${S / 2}" y="${S + 16}" ${TXT} fill="${ctx.accent.hex}" text-anchor="middle">fills ${ink.w} × ${ink.h} · stroke ${ctx.measured.minimumSize.thinnestStroke}</text>
+    <text x="${S / 2}" y="${S + 16}" ${TXT} fill="${ctx.accent.hex}" text-anchor="middle">fills ${ink.w} × ${ink.h} · ${ctx.measured.minimumSize.from === 'stem' ? 'narrowest stem' : 'stroke'} ${ctx.measured.minimumSize.thinnestStroke}</text>
   </svg>`;
 }
 
 function clearSpace(ctx, opts = {}) {
-  const paint = opts.ink || ctx.primary.hex;
+  const paint = opts.ink || 'currentColor';
   const line = opts.line || 'currentColor';
   const ink = ctx.measured.markInk, x = ctx.measured.clearSpace;
   const total = ink.w + x * 2, S = 260, k = S / (total * 1.12), o = (S - total * k) / 2;
@@ -83,7 +113,7 @@ function minimumSize(ctx) {
   const sizes = [m.screenPx * 2, m.screenPx, Math.round(m.screenPx * 0.6)];
   const label = ['comfortable', 'the floor', 'below the floor'];
   return `<div class="row3">` + sizes.map((s, i) =>
-    `<figure><div class="stage tight">${scaled(inked(ctx, ctx.primary.hex), s)}</div>
+    `<figure><div class="stage tight">${scaled(asColourway(ctx, onGround(ctx, ctx.ground.name)), s)}</div>
      <figcaption>${s} px · ${label[i]}</figcaption></figure>`).join('') + `</div>
     <p class="note"><b>${m.screenPx} px on screen and ${m.printMm} mm in print.</b> ${esc(m.basis)}, so holding the stroke at ${ctx.project.rules.minStrokePx} px and ${ctx.project.rules.minStrokeMm} mm puts the floor there. Move either rule and the floor moves with it.</p>`;
 }
@@ -166,5 +196,5 @@ function assetIndex(ctx) {
 
 const brandJsonBlock = (ctx) => `<pre>${esc(JSON.stringify(ctx.brandJson, null, 2))}</pre>`;
 
-module.exports = { TXT, esc, inked, scaled, markSpecimen, lockupRow, construction, clearSpace,
+module.exports = { TXT, esc, inked, asColourway, onGround, scaled, markSpecimen, lockupRow, construction, clearSpace,
   minimumSize, lockups, misuse, palette, contrastTable, typeSpecimen, typeScale, assetIndex, brandJsonBlock };

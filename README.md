@@ -71,7 +71,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 136 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 234 tests.
+of it. 246 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -138,5 +138,26 @@ to be settled first, and with no vendor key set nothing is limited at all,
 because a tool that refuses to run your own job on your own machine is one you
 route around.
 
-Still to do: a run on a real identity job. That is the whole of what is left,
-and it matters more than any feature.
+The whole thing had been written against one mark, which is a coincidence
+rather than a test, so it has now been run on a second identity: **Halyard**,
+built to be unlike the first — filled artwork where Meridian is a stroke, two
+inks in the mark where Meridian has one, underscores in its naming pattern,
+colourways that do not line up with the colour roles, and four faults left in on
+purpose. All four were reported with the fix in each. Ten things were wrong with
+the engine, and none of them could have been seen with one project in the repo:
+the minimum size had never been measured off a fill; a sharp corner read as a
+thin stem and put the floor 20% too high; the mark specimen flattened two inks
+into one; three separate renderers dropped the mark when a block asked for a
+colourway the project does not cut; a mark drawn entirely in fills had no
+motion; the construction diagrams were painted in a brand role that vanishes on
+a light page; the naming pattern's own separators were being thrown away
+silently; `height="auto"` was on every scaled drawing and is not a length; the
+manual, the deck and the CLI all said *thinnest stroke* for a number read off a
+fill; and the deck fell over on a ground colour that is not one of the
+colourways. All ten are fixed and each is pinned in the suite to the case that
+found it. `engine/README.md` has the detail.
+
+Still to do: a run on **your** identity job. Halyard is artwork the engine had
+not seen, which is worth a great deal more than a second pass over Meridian, but
+it is still not a file that came out of your exporter — and the normaliser is
+the part that most needs to meet one.

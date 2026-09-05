@@ -48,17 +48,106 @@ const clearSpace = (box, ratio) => svgu.round(box.h * ratio);
 
 // The stroke is the first thing to fail as a mark gets smaller. Below these
 // sizes it thins past what a screen or a press can hold.
+// The narrowest place in filled artwork.
+//
+// A declared stroke width is a fact and is used when there is one. Most real
+// marks do not have one: an outlined wordmark has no strokes at all, and
+// neither does any logo drawn as filled shapes. Without this the minimum size —
+// the whole point of the measurement — is simply absent for the commonest kind
+// of artwork, which is what a first run on somebody else's logo turned up.
+//
+// So it is measured. Every row and every column of a render is scanned for
+// unbroken runs of ink, and the fifth percentile of those runs is the stem.
+// Not the minimum: a mitred corner and the tip of a curve taper to nothing, and
+// they are not what a reader loses first. The fifth percentile is stable across
+// resolutions and, on artwork whose stroke width is known, returns it exactly.
+const STEM_PERCENTILE = 0.05;
+const STEM_RENDER_PX = 600;
+
+// Scan the rendered artwork line by line and collect every unbroken run of
+// ink, keeping where each run sits so neighbouring lines can be compared.
+function inkRuns(pixels, width, height) {
+  const ink = (x, y) => pixels[(y * width + x) * 4 + 3] > 127;
+  const sweep = (outer, inner, at) => {
+    const lines = [];
+    for (let a = 0; a < outer; a++) {
+      const line = [];
+      let n = 0;
+      for (let b = 0; b < inner; b++) {
+        if (at(a, b)) n++;
+        else { if (n) line.push({ start: b - n, len: n }); n = 0; }
+      }
+      if (n) line.push({ start: inner - n, len: n });
+      lines.push(line);
+    }
+    return lines;
+  };
+  return [sweep(height, width, (y, x) => ink(x, y)),
+    sweep(width, height, (x, y) => ink(x, y))];
+}
+
+// A stem is a place where the artwork is locally at its narrowest and stays
+// narrow either side of that line. A tip is not: it is where the shape runs
+// out. Taking a low percentile of every run confuses the two, and a mark with
+// a sharp corner in it then reports a stem far thinner than anything you could
+// point at — a chevron measured 4.8 where the bar across it is 12. So keep
+// only runs that are a local minimum with ink on both neighbouring lines, and
+// take the percentile of those.
+function stems(lines) {
+  const found = [];
+  for (let i = 1; i < lines.length - 1; i++) {
+    for (const run of lines[i]) {
+      const widest = (line) => {
+        let w = 0;
+        for (const o of line) {
+          if (o.start < run.start + run.len && o.start + o.len > run.start) w = Math.max(w, o.len);
+        }
+        return w;
+      };
+      const before = widest(lines[i - 1]), after = widest(lines[i + 1]);
+      if (!before || !after) continue;                  // a tip, not a stem
+      if (run.len <= before && run.len <= after) found.push(run.len);
+    }
+  }
+  return found;
+}
+
+function thinnestFeature(svgString, viewBox) {
+  const r = new Resvg(svgString, { fitTo: { mode: 'width', value: STEM_RENDER_PX },
+    background: 'rgba(0,0,0,0)' }).render();
+  const { pixels, width, height } = r;
+  const scans = inkRuns(pixels, width, height);
+  let runs = stems(scans[0]).concat(stems(scans[1]));
+  if (!runs.length) {
+    // nothing narrows anywhere — a solid blob, or a shape one line thick.
+    // Fall back to the plain runs so the answer is a width, not a null.
+    runs = scans[0].concat(scans[1]).flat().map((o) => o.len);
+  }
+  if (!runs.length) return null;
+  runs.sort((a, b) => a - b);
+  const px = runs[Math.min(runs.length - 1, Math.floor(runs.length * STEM_PERCENTILE))];
+  return svgu.round(px * (viewBox.w / width), 2);
+}
+
 function minimumSize(svgString, rules) {
   const doc = svgu.parse(svgString);
   const vb = svgu.viewBox(doc);
   const stroke = svgu.thinnestStroke(doc);
-  if (!stroke) return { screenPx: null, printMm: null, thinnestStroke: null, note: 'no painted stroke, so nothing limits the size' };
-  const ratio = vb.w / stroke;                 // how many stroke widths wide the box is
+  const measured = stroke || thinnestFeature(svgString, vb);
+  if (!measured) {
+    return { screenPx: null, printMm: null, thinnestStroke: null,
+      note: 'nothing is painted, so nothing limits the size' };
+  }
+  const ratio = vb.w / measured;               // how many stem widths wide the box is
+  const how = stroke ? 'stroke' : 'stem';
   return {
-    thinnestStroke: stroke,
+    thinnestStroke: measured,
+    from: how,
     screenPx: Math.ceil(ratio * rules.minStrokePx),
     printMm: svgu.round(ratio * rules.minStrokeMm, 1),
-    basis: `box ${vb.w} ÷ stroke ${stroke} = ${svgu.round(ratio, 2)} stroke widths across`,
+    basis: stroke
+      ? `box ${vb.w} ÷ stroke ${measured} = ${svgu.round(ratio, 2)} stroke widths across`
+      : `box ${vb.w} ÷ narrowest stem ${measured} = ${svgu.round(ratio, 2)} stems across, measured off the artwork`,
   };
 }
 
@@ -69,4 +158,4 @@ function renderPng(svgString, widthPx) {
   }).render().asPng();
 }
 
-module.exports = { inkBox, clearSpace, minimumSize, renderPng };
+module.exports = { inkBox, clearSpace, minimumSize, thinnestFeature, renderPng };

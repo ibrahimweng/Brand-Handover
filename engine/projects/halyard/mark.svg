@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+  <path data-slot="ink" fill="#101820" fill-rule="evenodd" d="M60 12A46 46 0 1 0 60 104A46 46 0 1 0 60 12ZM60 28A30 30 0 1 1 60 88A30 30 0 1 1 60 28Z"/>
+  <path data-slot="mark" fill="#C6442E" d="M14 100 L34 66 L86 66 L106 100 L92 108 L74 78 L46 78 L28 108 Z"/>
+</svg>

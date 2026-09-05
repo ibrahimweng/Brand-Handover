@@ -376,7 +376,8 @@ the measuring engine, the packager, both documents, the canvas editor,
 publishing, all three kinds of block, image slots, page sizes and the
 photography treatment, print work with bleed, CMYK, and a printed piece through
 Typst, mockups, and the licence half of accounts. 138 files from one master,
-234 tests.
+246 tests, and a second identity in the repo that the engine had not been
+written against.
 
 Three things the plan had wrong, found by building rather than by thinking.
 
@@ -530,6 +531,40 @@ documents cloned per session is fine until one of them holds a photograph. The
 bytes had to live beside the document, and then pruning had to be moved off the
 edit path entirely, because deleting a block and pressing undo has to bring the
 picture back.
+
+**The second project found ten bugs, and nine of them were invisible with one.**
+The plan treats a run on unfamiliar artwork as validation, something you do at
+the end to confirm the thing works. It is not. It is a different instrument, and
+it measures a class of defect nothing else can reach: the branch that never ran,
+the assumption that held by coincidence, the special case that was general all
+along. Meridian's mark is a stroke, so the code that measures a filled shape had
+never executed once. Meridian has one colour slot, so painting every slot the
+same colour looked correct everywhere it appeared. Meridian cuts a colourway
+named after each colour role, so three renderers that assumed it were all right,
+every time, for months. None of these are subtle bugs. Each of them is obvious
+the moment a second project exists, and unreachable while only one does.
+
+The one bug that was not of that kind is worth separating out, because it is the
+opposite lesson. The minimum size for filled artwork is measured by scanning the
+rendered mark and reading the narrowest run of ink off it. The first version
+took a low percentile of every run, which is fine on a stroke or a bar and wrong
+on anything that comes to a point: Halyard's chevron measured 4.8 where the bar
+across it is 12, and the floor came out a fifth too high. That was not found by
+the second project. It was found by asking whether the number the second project
+produced was actually right, and then measuring the estimator against seven
+shapes whose answers are known by construction — a ring 16 thick, a cross of 12,
+bars of 12 and 7, a disc with no thin part in it at all. A new project tells you
+where to look. It does not tell you whether what you find there is correct.
+
+**A defect that only prints an error to a console is still a defect.** Every
+scaled drawing in every document carried `height="auto"`, which is not a length
+and so is not an SVG attribute. The inline style beside it did the work, the
+pages were right, and the only symptom was one console error per drawing —
+noise, in a place nobody looks. It was found by reading those errors, and the
+reason it mattered is that the style was load-bearing without anybody deciding
+it should be: a page stripped of its styles would have lost the proportion with
+it. Checking a page in a real browser means reading what the browser says about
+it, not only looking at what it drew.
 
 ---
 

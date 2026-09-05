@@ -89,6 +89,9 @@ function bundle(project, measured, files = []) {
     clearSpaceRatio: project.rules.clearSpaceRatio,
     lockups: project.rules.lockups,
     colourways: project.rules.colourways.map((c) => c.name),
+    // which ground each colourway was cut for, so a block asking for one the
+    // project does not cut can fall back to one that reads where it is going
+    colourwayOn: Object.fromEntries(project.rules.colourways.map((c) => [c.name, c.on || null])),
     marks, markInner, variants,
     contrast: contrast.matrix(cols),
     files: files.map((f) => ({ path: f.path, bytes: f.bytes })),

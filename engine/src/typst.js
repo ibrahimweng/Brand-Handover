@@ -159,10 +159,16 @@ function blockSource(b, geom, bundle, ctx) {
     }
     case 'mark':
     case 'lockup': {
-      const key = b.type === 'mark'
-        ? ((bundle.roles || {})[b.props.colourway] || {}).name || b.props.colourway
-        : `${b.props.lockup}:${((bundle.roles || {})[b.props.colourway] || {}).name || b.props.colourway}`;
-      const svg = b.type === 'mark' ? (bundle.marks || {})[key] : (bundle.variants || {})[key];
+      // The colourway a block asks for need not exist: nothing says a project
+      // cuts one named after each colour role, and this quietly dropped a
+      // lockup out of a printed piece until a second project turned up that
+      // does not. Falling back beats a hole in the page.
+      const want = ((bundle.roles || {})[b.props.colourway] || {}).name || b.props.colourway;
+      const pool = b.type === 'mark' ? (bundle.marks || {}) : (bundle.variants || {});
+      const key = b.type === 'mark' ? want : `${b.props.lockup || 'horizontal'}:${want}`;
+      const svg = pool[key]
+        || (b.type === 'lockup' && pool[Object.keys(pool).find((k) => k.startsWith(`${b.props.lockup || 'horizontal'}:`))])
+        || Object.values(pool)[0];
       if (!svg) return null;
       const ground = colour(bundle, b.props.on, ctx.seen);
       const pad = b.type === 'mark' ? 14 : 16;

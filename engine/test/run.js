@@ -92,6 +92,19 @@ test('file names carry no spaces or capitals', () => {
   const n = naming.fileName('{brand}-{lockup}-{colourway}', { brand: 'Meridian Energy', lockup: 'Horizontal', colourway: 'Deep' });
   assert.strictEqual(n, 'meridian-energy-horizontal-deep');
 });
+test('the separator in the pattern is the project\'s, and is kept', () => {
+  // regression, found by running a second project through: the whole assembled
+  // name was slugged at the end, so every separator became a hyphen and a
+  // studio's own convention was quietly overruled
+  assert.strictEqual(
+    naming.fileName('{brand}_{colourway}_{lockup}', { brand: 'Halyard', colourway: 'Full', lockup: 'Horizontal' }),
+    'halyard_full_horizontal');
+  assert.strictEqual(
+    naming.fileName('{brand}.{lockup}', { brand: 'Halyard', lockup: 'Mark' }), 'halyard.mark');
+  // and a part with a space in it is still made safe
+  assert.strictEqual(
+    naming.fileName('{brand}_{colourway}', { brand: 'Halyard', colourway: 'Bone White' }), 'halyard_bone-white');
+});
 test('a naming pattern asking for something undefined fails loudly', () => {
   assert.throws(() => naming.fileName('{brand}-{missing}', { brand: 'x' }), /does not define/);
 });
@@ -320,6 +333,7 @@ const ER = require('../src/editor/render');
 const { bundle, starterDoc } = require('../src/editor/bundle');
 const { editorHtml } = require('../src/editor/emit');
 const bu = bundle(project, m, [{ path: '01-horizontal/a.svg', bytes: 1 }, { path: 'brand.json', bytes: 2 }]);
+const bundleOf = (p, mm) => bundle(p, mm, []);
 
 console.log('\nthe document model');
 test('every block type has a size and a default', () => {
@@ -1040,6 +1054,144 @@ test('the manual will not present a guess as a fact', () => {
       { tide: { hex: '#1E7A8C', role: 'secondary' } }) }) });
   const ctx = docs.context(thin, m, [], {});
   assert.ok(/tide.*no build yet/s.test(docs.guidelines(ctx)), 'a missing build is not called out by name');
+});
+
+console.log('\na second identity');
+// Everything below came out of running the engine on a project that is not
+// Meridian. With one project, every assumption that project happens to satisfy
+// looks like a fact, and eight of them were.
+const HAL = projectLoader.load(path.join(__dirname, '..', 'projects', 'halyard', 'project.json'));
+const halM = measure(HAL);
+
+test('a mark with no strokes still has a minimum size', () => {
+  // most real marks are filled outlines, and an outlined wordmark has no
+  // strokes at all. Without this the headline measurement was simply absent.
+  assert.strictEqual(svgu.thinnestStroke(svgu.parse(HAL.assets.mark.source)), null,
+    'this fixture is meant to have no strokes');
+  assert.strictEqual(halM.minimumSize.from, 'stem');
+  assert.ok(halM.minimumSize.screenPx > 0 && halM.minimumSize.printMm > 0,
+    `filled artwork got ${JSON.stringify(halM.minimumSize)}`);
+  assert.ok(/narrowest stem/.test(halM.minimumSize.basis));
+});
+test('the stem measurement returns a known stroke width exactly', () => {
+  // the one case where the truth is known: Meridian's stroke is 9
+  assert.strictEqual(m.minimumSize.from, 'stroke');
+  const asIfFilled = geo.thinnestFeature(project.assets.mark.source, m.markViewBox);
+  assert.strictEqual(asIfFilled, 9, `measuring a 9 wide stroke gave ${asIfFilled}`);
+  // and a plain bar of a known width
+  const bar = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">'
+    + '<rect x="20" y="56.5" width="80" height="7" fill="#000"/></svg>';
+  assert.strictEqual(geo.thinnestFeature(bar, { x: 0, y: 0, w: 120, h: 120 }), 7);
+});
+test('a sharp corner is not mistaken for a thin stem', () => {
+  // the chevron in Halyard's mark comes to a point at both ends. Scanning for
+  // the narrowest ink anywhere reads those points, not the bar across the
+  // shape, and puts the minimum size far too high — 4.8 where the answer is
+  // 12. A stem has ink either side of it; a tip is where the shape runs out.
+  const box = { x: 0, y: 0, w: 120, h: 120 };
+  const wrap = (d) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">${d}</svg>`;
+  const chevron = '<path fill="#000" d="M14 100 L34 66 L86 66 L106 100'
+    + ' L92 108 L74 78 L46 78 L28 108 Z"/>';
+  assert.strictEqual(geo.thinnestFeature(wrap(chevron), box), 12);
+  // a ring is 16 thick all the way round, and its four extremes are not stems
+  const ring = '<path fill="#000" fill-rule="evenodd" d="M60 12A46 46 0 1 0 60 104'
+    + 'A46 46 0 1 0 60 12ZM60 28A30 30 0 1 1 60 88A30 30 0 1 1 60 28Z"/>';
+  assert.strictEqual(geo.thinnestFeature(wrap(ring), box), 16);
+  // the two together are still 12, because the narrowest of the two is
+  assert.strictEqual(geo.thinnestFeature(wrap(ring + chevron), box), 12);
+  // a shape that never narrows still answers with a width rather than nothing
+  const disc = '<circle cx="60" cy="60" r="46" fill="#000"/>';
+  assert.ok(geo.thinnestFeature(wrap(disc), box) > 40, 'a solid disc reported a thin stem');
+  assert.strictEqual(geo.thinnestFeature(wrap('<g></g>'), box), null);
+});
+test('a mark with two inks keeps both in the manual', () => {
+  // the specimen painted every slot one colour, which is right for a diagram
+  // and wrong for "this is the mark". Meridian has one slot, so nobody noticed.
+  assert.deepStrictEqual(halM.slots, ['ink', 'mark']);
+  const docs = require('../src/documents');
+  const ctx = docs.context(HAL, halM, [], {});
+  const specimen = require('../src/documents/blocks').markSpecimen(ctx);
+  assert.ok(specimen.includes('#C6442E'), 'the second ink was flattened out of the specimen');
+  assert.ok(specimen.includes('#101820'), 'the first ink is missing too');
+  // and the diagram is still a silhouette, which is what a diagram wants
+  const dia = require('../src/documents/blocks').construction(ctx);
+  // the accent is the diagram's own annotation ink — the ink box and its
+  // caption — so look at the artwork group alone, which is the part that
+  // would go two-coloured if the diagram ever drew the mark as it is used
+  const art = /<g transform="translate[^>]*>([\s\S]*)<\/g>\s*<text/.exec(dia);
+  assert.ok(art, 'the construction drawing has no artwork group');
+  const inks = new Set((art[1].match(/#[0-9A-Fa-f]{3,6}/g) || []));
+  assert.strictEqual(inks.size, 0, `the construction drawing gained colour: ${[...inks].join(', ')}`);
+});
+test('a scaled variant carries a height a browser will accept', () => {
+  // height="auto" is not a length. The style beside it hid that, so the only
+  // sign was a console error per drawing — and a page stripped of its styles
+  // would have lost the proportion with it.
+  const docs = require('../src/documents');
+  const b = require('../src/documents/blocks');
+  const ctx = docs.context(HAL, halM, [], {});
+  const svg = b.scaled(b.asColourway(ctx, ctx.primaryColourway), 240);
+  assert.ok(!/height="auto"/.test(svg), 'height="auto" is back on the svg element');
+  const h = /<svg[^>]*\sheight="([^"]+)"/.exec(svg);
+  assert.ok(h && Number.isFinite(Number(h[1])), `height is ${h && h[1]}`);
+  const vb = /viewBox="\s*[-\d.]+[,\s]+[-\d.]+[,\s]+([-\d.]+)[,\s]+([-\d.]+)/.exec(svg);
+  assert.ok(Math.abs(Number(h[1]) - 240 * (Number(vb[2]) / Number(vb[1]))) < 0.02,
+    'the height does not keep the artwork in proportion');
+  // and the absent variant still yields a placeholder rather than throwing
+  assert.ok(b.scaled(null, 240).includes('240px'));
+});
+test('a diagram takes its ink from the page, not from a brand role', () => {
+  const docs = require('../src/documents');
+  const dia = require('../src/documents/blocks').construction(docs.context(HAL, halM, [], {}));
+  assert.ok(dia.includes('currentColor'), 'the diagram is painted in a brand colour that may not read on the page');
+});
+test('a document survives a project whose ground is not one of its colourways', () => {
+  const docs = require('../src/documents');
+  const ctx = docs.context(HAL, halM, [], {});
+  assert.ok(!(HAL.rules.colourways || []).some((c) => c.name === ctx.ground.name),
+    'this fixture is meant to have no colourway named after its ground');
+  assert.ok(ctx.variantFor('horizontal', ctx.ground.name), 'no fallback for a colourway that is not cut');
+  assert.doesNotThrow(() => docs.guidelines(ctx));
+  assert.doesNotThrow(() => require('../src/documents/deck').deck(ctx));
+});
+test('the renderer falls back to a colourway that reads where it is going', () => {
+  const hb = bundleOf(HAL, halM);
+  assert.ok(!hb.colourways.includes('pitch'), 'this fixture has no colourway named after its ground role');
+  // a block asking for the ground colourway on a primary field gets one cut
+  // for that field, rather than the first in the list
+  const html = ER.block(EM.makeBlock('mark', { props: { colourway: 'ground', on: 'primary' } }), hb);
+  assert.ok(html.includes('#101820'), `it should pick the colourway cut for bone: ${html.slice(0, 160)}`);
+});
+test('a mark with nothing stroked animates in one piece rather than not at all', () => {
+  const hb = bundleOf(HAL, halM);
+  const html = ER.block(EM.makeBlock('motion'), hb);
+  assert.ok(/class="hb-out"/.test(html), 'nothing was put in the part that is animated');
+  assert.ok(/no outline to draw first/.test(html), 'it should say why it is one piece');
+  // Meridian is stroked, so it still splits
+  assert.ok(/class="hb-fill"/.test(ER.block(EM.makeBlock('motion'), bu)));
+});
+test('a printed piece keeps a lockup whose colourway is not cut', () => {
+  const hb = bundleOf(HAL, halM);
+  const d = EM.emptyDoc('Halyard');
+  d.pages[0].blocks.push(EM.makeBlock('lockup', { props: { lockup: 'horizontal', colourway: 'ground', on: 'primary' } }));
+  const r = require('../src/typst').emit(d, hb, {});
+  assert.deepStrictEqual(r.refused, [], 'the lockup was dropped out of the printed piece');
+  assert.ok(/curve\.move/.test(r.source));
+});
+test('the whole package builds for a project unlike the first one', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-hal-'));
+  const r = await build(HAL, dir);
+  assert.ok(r.written.length > 40, `only ${r.written.length} files`);
+  const bj = JSON.parse(fs.readFileSync(path.join(dir, 'brand.json'), 'utf8'));
+  assert.strictEqual(bj.logo.minSize.from, 'stem');
+  assert.ok(bj.logo.minSize.screenPx > 0);
+  // the things this project is deliberately wrong about are all reported
+  const w = r.warnings.join(' ');
+  assert.ok(/no CMYK: rope/.test(w), 'the undeclared build was not reported');
+  assert.ok(/282% ink/.test(w), 'the ink limit was not reported');
+  assert.ok(/plain black/.test(w), 'the plain black was not reported');
+  assert.ok(/no pattern was written/.test(w), 'the missing pattern source was not reported');
+  fs.rmSync(dir, { recursive: true, force: true });
 });
 
 console.log('\nlicences');
