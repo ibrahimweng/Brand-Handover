@@ -1939,6 +1939,46 @@ component* — which is the right refusal, because a translucent wash over a
 photograph is not something a press does with an ink. It is part of the picture
 by the time it gets there, so it becomes part of the picture here.
 
+## A front door
+
+Sixteen rounds, and the only way into the engine was to hand-write a project
+file and run a command. The artwork audit — the part that tells a designer
+something about their own export that they did not know — was a paragraph of
+terminal output nobody outside this repository had ever seen.
+
+    handover serve            # http://localhost:3000
+
+Three screens. **Drop the artwork**, and it reads the file before anything is
+decided: what the normaliser cleaned out and why, the ink box against the
+canvas the file declares, clear space, the thinnest part, the smallest the mark
+may go on screen and in print with the arithmetic that got there, and which
+parts of it carry a colour slot. **Name it and pick the ink**, starting from the
+colours already in the artwork, commonest first, with WCAG ratios recomputed as
+you type — from `contrast.js` served to the page rather than a second copy
+written into it, because two implementations of one number is two answers.
+**Take the package**: the manual, the deck, a published cover, the canvas and
+the zip, each at a real URL.
+
+Nothing here reimplements anything. Both handlers write a real project into a
+temporary directory and go through `project.load` and `build` exactly as the
+CLI does, so what the app reports is what the command line reports. It listens
+on localhost and uploads nothing, which is not a limitation: brand artwork is
+usually under an NDA before it is under anything else.
+
+Two defects the app found in its first hour, both in itself:
+
+**A lone logotype was built as a mark called one.** `assets.mark` was always
+set, because every fixture had a symbol, so a designer dropping only a wordmark
+got it in `03-mark` with the manual calling it the mark — reintroducing exactly
+the confusion the thirteenth round existed to remove. Either asset may be the
+only one now, at the front door as well as in the loader.
+
+**The advice on a warning was only true in one of the two places it could be
+read.** The CMYK finding said to "put it in the project as `cmyk`: [c, m, y,
+k]", which is right in a text editor and meaningless in a browser where the
+field is on the screen in front of you. A `how` written for one host is wrong
+on the other; it names the four numbers now and not where they get typed.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.
@@ -1991,4 +2031,5 @@ by the time it gets there, so it becomes part of the picture here.
     src/naming.js     one naming rule for the whole package
     src/build.js      write the package, brand.json and the read me
     src/cli.js        check, measure, build, edit and publish
+    src/app/          the front door: handlers.js, server.js, client.html
     ../site/build.js  every identity, built into one site, index and all

@@ -375,8 +375,9 @@ out to be cheap once the renderer was shared. What is running: the normaliser,
 the measuring engine, the packager, both documents, the canvas editor,
 publishing, all three kinds of block, image slots, page sizes and the
 photography treatment, print work with bleed, CMYK, and a printed piece through
-Typst, mockups, and the licence half of accounts. 138 files from one master,
-340 tests, and fifteen more identities in the repo that the engine had not been
+Typst, mockups, the licence half of accounts, and a local app that takes artwork
+and gives back the package without anybody writing a project file. 138 files from one master,
+345 tests, and fifteen more identities in the repo that the engine had not been
 written against.
 
 Three things the plan had wrong, found by building rather than by thinking.
@@ -1065,6 +1066,31 @@ it. Everything worked, and would have kept working until jspdf changed its mind
 or somebody installed with a resolver that does not flatten. Deploying the thing
 is what surfaced it — a fresh `npm ci` in a build image is the first honest test
 of what a repository actually declares.
+
+**A tool nobody can reach has no users to be wrong in front of.** Sixteen rounds
+of finding defects by inventing another fixture, and the front door — artwork in,
+package out, without hand-writing a project file — did not exist. Building it
+took an afternoon and found two defects in its first hour, both of the kind no
+fixture would ever have surfaced, because both are about what a *person* does
+rather than what a file contains: dropping only a logotype, and reading a
+warning in a browser rather than a terminal. The lesson is not that the app is a
+better test than a fixture. It is that "who actually touches this, and how" is a
+dimension the fixture rounds never varied, and it was the only one left that
+could still find something.
+
+**Advice is written for a place as well as for a reader.** The CMYK finding told
+you to "put it in the project as `cmyk`: [c, m, y, k]" — correct in a text
+editor, meaningless in a browser where that field is on screen in front of you.
+Every `how` in this engine now has two possible readers, and one written for
+either is wrong for the other. The fix is to say what to do and not where to
+type it: name the four numbers, and let each host say where they go.
+
+**The way not to have two implementations is not to write the second one.** The
+palette screen reports WCAG ratios as you type, which is the same arithmetic the
+manual prints. Copying `contrast.js` into the page would have been the obvious
+thing and would have drifted within a round. The server hands the page the
+engine's own module instead — it has been isomorphic since the canvas needed it,
+so there was nothing to do but route it.
 
 ---
 

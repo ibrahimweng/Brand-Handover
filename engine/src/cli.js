@@ -10,6 +10,7 @@ const { measure } = require('./variants');
 const USAGE = `
 handover — derives a whole logo package from one master mark
 
+  handover serve [--port 3000]             the app: drop your artwork in a browser
   handover build <project.json> [-o out]   write the package
   handover measure <project.json>          print what the master measures, write nothing
   handover check <artwork.svg>             report what is wrong with an export
@@ -64,9 +65,22 @@ async function main(argv) {
   const [cmd, file] = argv;
   if (!cmd || cmd === '-h' || cmd === '--help') { console.log(USAGE.trim()); return 0; }
   // licence is the one command that is about the engine rather than a project
-  const NO_PROJECT = ['licence', 'license'];
+  const NO_PROJECT = ['licence', 'license', 'serve'];
   if (!file && NO_PROJECT.indexOf(cmd) < 0) {
     console.error('Which project file? Pass a path to project.json.'); return 1;
+  }
+
+  // ---- the app: the engine with a front door, on this machine only ----
+  if (cmd === 'serve') {
+    const i = argv.indexOf('--port');
+    const { serve } = require('./app/server');
+    try { await serve({ port: Number(i > -1 ? argv[i + 1] : 0) || 3000 }); }
+    catch (e) {
+      console.error(`  could not start: ${e.message}`);
+      if (e.code === 'EADDRINUSE') console.error('  Something else is on that port. Try: handover serve --port 3100');
+      return 1;
+    }
+    return new Promise(() => {});          // it runs until it is stopped
   }
 
   // ---- licences: what a plan permits, and proving which plan you have ----

@@ -76,7 +76,10 @@
       found.push({ level: o.forPress ? 'blocker' : 'warning',
         what: `${undeclared.length} colour${undeclared.length === 1 ? ' has' : 's have'} no CMYK: ${undeclared.map((c) => c.name).join(', ')}.`,
         why: 'A hex code describes light leaving a screen. What it becomes in ink depends on the press and the paper, and no formula knows which paper. The numbers shown for these are a guess.',
-        how: 'Ask the printer for the build, or pick it off a printed swatch book, and put it in the project as "cmyk": [c, m, y, k].' });
+        // Said without naming where the four numbers get typed, because that
+        // is now two places: a project file and the app's palette. A how that
+        // is only true on one of them is a how that is wrong on the other.
+        how: 'Ask the printer for the build, or read it off a printed swatch book, and give it to the engine as four numbers. Until then anything that opens these files converts them itself.' });
     }
 
     for (const c of table) {

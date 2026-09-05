@@ -4254,6 +4254,101 @@ test('every identity in the repo is named in the README, and named once', () => 
   assert.deepStrictEqual(dupes, [], `named twice, so the order is ambiguous: ${dupes.join(', ')}`);
 });
 
+// ---- the app: the engine with a front door ----
+
+const APP = require('../src/app/handlers');
+const markSrc = () => fs.readFileSync(path.join(__dirname, '..', 'projects', 'meridian', 'mark.svg'), 'utf8');
+const wordSrc = () => fs.readFileSync(path.join(__dirname, '..', 'projects', 'meridian', 'wordmark.svg'), 'utf8');
+
+test('a package can be built from artwork nobody wrote a project file for', async () => {
+  // The whole engine was reachable only by hand-writing a project file. This is
+  // the same path — stage a real project, load it, build it — so what the app
+  // makes is what the command line makes, and there is no second loader to
+  // disagree with the first.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-appt-'));
+  const r = await APP.make({
+    brand: 'Front Door', mark: markSrc(), wordmark: wordSrc(),
+    colours: [{ name: 'ink', hex: '#0A2A33', role: 'primary' }, { name: 'paper', hex: '#FFFFFF', role: 'ground' }],
+    lockups: ['horizontal', 'stacked', 'mark', 'wordmark'], slots: ['ink'],
+  }, dir);
+  assert.ok(r.files > 20, `only ${r.files} files came out`);
+  assert.deepStrictEqual(r.documents, ['guidelines.html', 'deck.html', 'published.html', 'editor.html']);
+  for (const f of r.documents) assert.ok(fs.existsSync(path.join(dir, f)), `${f} was promised and not written`);
+  assert.ok(fs.existsSync(path.join(dir, r.zip)), 'the zip was promised and not written');
+  // the numbers it reports are the ones the engine measured, not a second guess
+  const brand = JSON.parse(fs.readFileSync(path.join(dir, 'brand.json'), 'utf8'));
+  assert.strictEqual(r.measured.clearSpace, brand.logo.clearSpaceUnits);
+  assert.strictEqual(r.measured.floorPx, `${brand.logo.minSize.screenPx} px`);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('a lone logotype is built as a logotype, not as a mark called one', async () => {
+  // Collapsing a wordmark into assets.mark because that field was always set
+  // put a logotype in 03-mark and had the manual call it the mark — the exact
+  // confusion the thirteenth round existed to remove, reintroduced by the app.
+  const wm = wordSrc();
+  const seen = APP.inspect({ brand: 'Logotype', wordmark: wm });
+  assert.strictEqual(seen.master, 'wordmark');
+  assert.deepStrictEqual(seen.lockups, ['wordmark'], 'a lockup was offered that cannot be built');
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-appt-'));
+  await APP.make({ brand: 'Logotype', wordmark: wm,
+    colours: [{ name: 'ink', hex: '#222222', role: 'primary' }, { name: 'paper', hex: '#FFFFFF', role: 'ground' }],
+    lockups: ['wordmark'] }, dir);
+  const folders = fs.readdirSync(dir).filter((f) => /^\d\d-/.test(f));
+  assert.deepStrictEqual(folders, ['04-wordmark'], `it wrote ${folders.join(', ')}`);
+  fs.rmSync(dir, { recursive: true, force: true });
+
+  // and a symbol on its own is still a symbol
+  assert.strictEqual(APP.inspect({ brand: 'Symbol', mark: markSrc() }).master, 'mark');
+});
+
+test('the app refuses what is not artwork, in the language everything else uses', () => {
+  const refused = (input) => {
+    try { APP.inspect(input); return null; }
+    catch (e) { return e.finding || null; }
+  };
+  const cases = [
+    ['a raster file', { mark: '\x89PNG\r\n\x1a\n and then some bytes' }],
+    ['nothing at all', { }],
+    ['an empty string', { mark: '   ' }],
+  ];
+  for (const [name, input] of cases) {
+    const f = refused(input);
+    assert.ok(f, `${name} was accepted`);
+    assert.strictEqual(f.level, 'blocker');
+    // what, why and how — a refusal that only says what is a refusal that helps nobody
+    for (const k of ['what', 'why', 'how']) assert.ok(f[k] && f[k].length > 10, `${name} has no ${k}`);
+    assert.ok(!/undefined|\[object|the the /.test(f.what + f.how), `${name} reads badly: ${f.how}`);
+  }
+  // artwork the normaliser refuses comes back as its own findings, not as a crash
+  const live = APP.inspect({ mark: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60">'
+    + '<text x="10" y="40" font-size="30">Acme</text></svg>' });
+  assert.strictEqual(live.ok, false);
+  assert.ok(live.findings.some((f) => /outline|text/i.test(f.what + f.how)), 'it did not mention the live text');
+});
+
+test('the palette starts from the colours already in the artwork', () => {
+  const found = APP.paletteFrom('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">'
+    + '<rect width="4" height="4" fill="#0A2A33"/><rect width="4" height="4" fill="#0A2A33"/>'
+    + '<circle r="2" style="fill:rgb(30,122,140)"/><path d="M0 0h1" stroke="#F2A007" fill="none"/>'
+    + '<rect width="1" height="1" fill="none"/></svg>');
+  // commonest first, written however the tool wrote it, and "none" is not a colour
+  assert.deepStrictEqual(found, ['#0A2A33', '#1E7A8C', '#F2A007']);
+  assert.deepStrictEqual(APP.paletteFrom('not svg at all'), []);
+});
+
+test('four numbers from a printer reach the package, and anything else does not', () => {
+  const of = (cmyk) => APP.projectJson({ brand: 'x', mark: 'x', lockups: ['mark'],
+    colours: [{ name: 'ink', hex: '#0A2A33', role: 'primary', cmyk }] }).tokens.colour.ink.cmyk;
+  assert.deepStrictEqual(of([88, 58, 45, 72]), [88, 58, 45, 72]);
+  assert.deepStrictEqual(of(['88', '58', '45', '72']), [88, 58, 45, 72], 'numbers typed into a form arrive as strings');
+  // a guess is worse than nothing here: the whole print path exists to stop one
+  for (const bad of [undefined, null, [1, 2, 3], [1, 2, 3, 4, 5], [0, 0, 0, 101], ['a', 0, 0, 0], 'blue']) {
+    assert.strictEqual(of(bad), undefined, `${JSON.stringify(bad)} was carried through as an ink build`);
+  }
+});
+
 drain().then(() => {
   for (const d of [out, out2]) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);

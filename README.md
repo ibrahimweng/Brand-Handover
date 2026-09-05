@@ -65,6 +65,27 @@ Everything sits on one SVG parser, and all of it is MIT or Apache 2.0.
 Nothing here needs a paid API. Two optional models, for depth maps and cutouts,
 run locally.
 
+## Using it
+
+    cd engine && npm install
+    node src/cli.js serve     # then open http://localhost:3000
+
+Drop your logo on it. It reads the file first — what was in the export, what was
+cleaned out of it, the ink box, the clear space, the smallest the mark can go on
+screen and in print, and which parts of it recolour — and only then asks for a
+name and a palette. The colours are the ones already in your artwork. Contrast
+is measured as you type, with the same arithmetic the manual will print. Then it
+builds: the manual, the deck, a published cover, the canvas and the zip, at real
+URLs you can open in a tab.
+
+A symbol on its own is enough. So is a logotype on its own — Google, FedEx and
+most of publishing are exactly that, and the engine builds it as a logotype
+rather than as a mark called one.
+
+It listens on localhost and nothing is uploaded. Brand artwork is usually under
+an NDA before it is under anything else, and a tool that measures it should not
+be the reason it leaves the building.
+
 ## Seeing it
 
     node site/build.js       # builds every identity into site/out, with an index
@@ -89,7 +110,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 138 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 340 tests.
+of it. 345 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space

@@ -1,0 +1,678 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Handover — your logo, and everything that comes after it</title>
+<link rel="icon" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Literata:wght@400;500&display=swap">
+<style>
+:root{
+  --ink:#15181b; --dim:#5d6870; --faint:#8b959c; --line:#e3e7ea; --line2:#eef1f3;
+  --bg:#fbfbf9; --card:#ffffff; --link:#1a5f8f; --focus:#1a5f8f;
+  --ok:#1f7a4d; --warn:#8a6100; --stop:#9b2c2c;
+  --okbg:#eaf5ef; --warnbg:#fdf5e3; --stopbg:#fbeceb;
+  --r:8px; --shadow:0 1px 2px rgba(16,24,32,.05), 0 4px 14px rgba(16,24,32,.05);
+}
+@media (prefers-color-scheme:dark){:root{
+  --ink:#e9ebed; --dim:#9aa4ac; --faint:#79838b; --line:#2b3238; --line2:#232a30;
+  --bg:#101315; --card:#171b1f; --link:#7cc2ee; --focus:#7cc2ee;
+  --ok:#6fcf97; --warn:#e8c37a; --stop:#f19d9d;
+  --okbg:#16281f; --warnbg:#2a2317; --stopbg:#2b1a1a;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.25);
+}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:400 16px/1.6 Literata,Georgia,serif;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4,button,label,th,.ui{font-family:Archivo,system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:960px;margin:0 auto;padding:0 20px 100px}
+
+/* ---- masthead and the three steps ---- */
+header{padding:40px 0 18px}
+h1{font-size:22px;font-weight:700;letter-spacing:-.01em;margin:0}
+h1 span{color:var(--dim);font-weight:500}
+.steps{display:flex;gap:0;margin:22px 0 34px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.steps b{flex:1;display:flex;align-items:center;gap:9px;padding:13px 4px;
+  font:500 13px/1 Archivo,system-ui,sans-serif;color:var(--faint)}
+.steps b i{width:21px;height:21px;border-radius:50%;border:1px solid var(--line);
+  display:grid;place-items:center;font-style:normal;font-size:11px;flex:none}
+.steps b.on{color:var(--ink)} .steps b.on i{border-color:var(--ink);background:var(--ink);color:var(--bg)}
+.steps b.done{color:var(--dim)} .steps b.done i{border-color:var(--ok);color:var(--ok)}
+
+h2{font-size:26px;font-weight:700;letter-spacing:-.015em;margin:0 0 6px}
+.sub{color:var(--dim);margin:0 0 26px;max-width:60ch}
+section[hidden]{display:none}
+
+/* ---- drop zones ---- */
+.drops{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:660px){.drops{grid-template-columns:1fr}}
+.drop{position:relative;background:var(--card);border:1.5px dashed var(--line);border-radius:var(--r);
+  padding:22px;text-align:center;transition:border-color .12s,background .12s;cursor:pointer}
+.drop:hover,.drop:focus-within{border-color:var(--link)}
+.drop.over{border-color:var(--link);border-style:solid;background:color-mix(in srgb,var(--link) 6%,var(--card))}
+.drop.has{border-style:solid;border-color:var(--line);cursor:default}
+.drop input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
+.drop.has input[type=file]{display:none}
+.drop h3{margin:0 0 3px;font-size:15px;font-weight:600}
+.drop p{margin:0;font:400 13px/1.5 Archivo,system-ui,sans-serif;color:var(--dim)}
+.pv{height:120px;display:grid;place-items:center;margin:10px 0 8px}
+.pv svg,.pv img{max-width:100%;max-height:120px;height:auto}
+.fname{font:500 12px/1.4 Archivo,system-ui,sans-serif;color:var(--dim);
+  overflow-wrap:anywhere;display:flex;gap:8px;align-items:center;justify-content:center}
+.clear{background:none;border:0;color:var(--link);font:500 12px Archivo,system-ui,sans-serif;
+  cursor:pointer;padding:2px 4px;text-decoration:underline}
+
+/* ---- buttons ---- */
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:24px}
+.go{font:600 15px/1 Archivo,system-ui,sans-serif;background:var(--ink);color:var(--bg);
+  border:0;border-radius:var(--r);padding:14px 22px;cursor:pointer}
+.go:hover{opacity:.88}
+a.go{text-decoration:none;display:inline-block}
+.go[disabled]{opacity:.4;cursor:not-allowed}
+button.flat{font:500 14px/1 Archivo,system-ui,sans-serif;background:none;border:1px solid var(--line);
+  color:var(--ink);border-radius:var(--r);padding:13px 18px;cursor:pointer}
+button.flat:hover{border-color:var(--ink)}
+a.text,button.text{color:var(--link);background:none;border:0;padding:0;cursor:pointer;
+  font:500 14px Archivo,system-ui,sans-serif;text-decoration:underline}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:3px}
+
+/* ---- findings, in the engine's own language ---- */
+.finds{margin:26px 0 0;display:grid;gap:10px}
+.f{border:1px solid var(--line);border-left-width:3px;border-radius:var(--r);padding:14px 16px;background:var(--card)}
+.f.fixed{border-left-color:var(--ok)} .f.warning{border-left-color:var(--warn)} .f.blocker{border-left-color:var(--stop)}
+.f .lvl{font:600 11px/1 Archivo,system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;
+  display:inline-block;padding:4px 7px;border-radius:4px;margin-bottom:8px}
+.f.fixed .lvl{color:var(--ok);background:var(--okbg)}
+.f.warning .lvl{color:var(--warn);background:var(--warnbg)}
+.f.blocker .lvl{color:var(--stop);background:var(--stopbg)}
+.f .on{font:500 11px/1 Archivo,system-ui,sans-serif;color:var(--faint);letter-spacing:.04em;
+  text-transform:uppercase;margin-left:8px}
+.fh{font:600 13px/1 Archivo,system-ui,sans-serif;margin:6px 0 0;color:var(--dim);letter-spacing:.02em}
+.f .what{font-weight:600;margin:0 0 4px;font-size:15px}
+.f .why{margin:0;color:var(--dim);font-size:15px}
+.f .how{margin:8px 0 0;font:400 14px/1.5 Archivo,system-ui,sans-serif;color:var(--dim)}
+.f .how::before{content:"→ ";color:var(--faint)}
+
+/* ---- measurements ---- */
+.measured{margin:26px 0 0;border:1px solid var(--line);border-radius:var(--r);background:var(--card);overflow:hidden}
+.measured h4{margin:0;padding:13px 16px;font-size:13px;font-weight:600;border-bottom:1px solid var(--line2);
+  letter-spacing:.02em;color:var(--dim)}
+.measured dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:0}
+.measured dt{padding:10px 16px;font:500 13px/1.5 Archivo,system-ui,sans-serif;color:var(--dim);
+  border-bottom:1px solid var(--line2);white-space:nowrap}
+.measured dd{margin:0;padding:10px 16px;border-bottom:1px solid var(--line2);
+  font-variant-numeric:tabular-nums;font-size:15px}
+.measured dt:last-of-type,.measured dl>dd:last-child{border-bottom:0}
+.measured .note{display:block;color:var(--faint);font-size:13px;
+  font-family:Archivo,system-ui,sans-serif}
+
+/* ---- the identity form ---- */
+.field{margin:0 0 22px}
+.field label{display:block;font:500 13px/1.5 Archivo,system-ui,sans-serif;margin-bottom:6px}
+.field .hint{color:var(--dim);font-weight:400}
+input[type=text]{width:100%;font:400 16px Literata,Georgia,serif;color:var(--ink);
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+input[type=text]:focus{border-color:var(--focus)}
+.pal{border:1px solid var(--line);border-radius:var(--r);background:var(--card);overflow:hidden}
+.pal .hd,.pal .cr{display:grid;grid-template-columns:52px 1fr 130px 1fr 34px;gap:10px;align-items:center;padding:9px 12px}
+.pal .hd{font:500 12px/1 Archivo,system-ui,sans-serif;color:var(--faint);border-bottom:1px solid var(--line2);
+  letter-spacing:.03em}
+.pal .cr{border-bottom:1px solid var(--line2)}
+.pal .cr:last-child{border-bottom:0}
+@media (max-width:660px){
+  .pal .hd{display:none}
+  .pal .cr{grid-template-columns:52px 1fr 34px;grid-template-areas:"sw nm x" "ro ro ro" "ct ct ct";gap:8px}
+  .pal .cr>*:nth-child(1){grid-area:sw}.pal .cr>*:nth-child(2){grid-area:nm}
+  .pal .cr>*:nth-child(3){grid-area:ro}.pal .cr>*:nth-child(4){grid-area:ct}
+  .pal .cr>*:nth-child(5){grid-area:x}
+}
+input[type=color]{width:52px;height:34px;padding:0;border:1px solid var(--line);border-radius:5px;
+  background:none;cursor:pointer}
+.pal input[type=text]{padding:8px 10px;font-size:14px}
+select{font:400 14px Archivo,system-ui,sans-serif;color:var(--ink);background:var(--card);
+  border:1px solid var(--line);border-radius:5px;padding:8px 10px;width:100%}
+.ct{font:400 13px/1.4 Archivo,system-ui,sans-serif;color:var(--dim);font-variant-numeric:tabular-nums}
+.ct b{font-weight:600}
+.ct.fail b{color:var(--stop)} .ct.AA b,.ct.AAA b{color:var(--ok)} .ct.AA-large b{color:var(--warn)}
+.rm{background:none;border:0;color:var(--faint);font-size:19px;line-height:1;cursor:pointer;padding:4px 6px}
+.rm:hover{color:var(--stop)}
+.inks{margin:0 0 22px;border:1px solid var(--line);border-radius:var(--r);background:var(--card);padding:14px 16px}
+.inks summary{font:500 13px/1.5 Archivo,system-ui,sans-serif;cursor:pointer}
+.inks .ir{display:grid;grid-template-columns:20px 1fr 190px;gap:10px;align-items:center;margin:0 0 8px}
+.inks .sw{width:20px;height:20px;border-radius:4px;border:1px solid var(--line)}
+.inks .nm{font:400 14px Archivo,system-ui,sans-serif;color:var(--dim);overflow-wrap:anywhere}
+.inks input{width:100%;font:400 14px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink);
+  background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:7px 10px}
+.inks input.bad{border-color:var(--stop)}
+.locks{display:flex;flex-wrap:wrap;gap:8px}
+.locks label{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:var(--r);
+  padding:11px 14px;cursor:pointer;background:var(--card);font-size:14px;margin:0}
+.locks label:has(input:checked){border-color:var(--ink)}
+.locks label:has(input:disabled){opacity:.45;cursor:not-allowed}
+
+/* ---- the package ---- */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:0 0 22px}
+.cards a{display:block;text-decoration:none;color:inherit;background:var(--card);
+  border:1px solid var(--line);border-radius:var(--r);padding:18px;box-shadow:var(--shadow)}
+.cards a:hover{border-color:var(--link)}
+.cards b{display:block;font:600 16px/1.2 Archivo,system-ui,sans-serif;margin-bottom:5px}
+.cards span{font:400 13px/1.45 Archivo,system-ui,sans-serif;color:var(--dim)}
+.tally{display:flex;flex-wrap:wrap;gap:22px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+  padding:15px 0;margin:0 0 26px;font:400 14px Archivo,system-ui,sans-serif;color:var(--dim)}
+.tally b{display:block;color:var(--ink);font-weight:600;font-size:17px;font-variant-numeric:tabular-nums}
+
+/* ---- working ---- */
+.busy{display:flex;align-items:center;gap:11px;color:var(--dim);
+  font:500 14px Archivo,system-ui,sans-serif}
+.spin{width:15px;height:15px;border:2px solid var(--line);border-top-color:var(--ink);
+  border-radius:50%;animation:sp .7s linear infinite;flex:none}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:2.4s}}
+footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);
+  color:var(--faint);font:400 13px/1.6 Archivo,system-ui,sans-serif}
+</style></head><body>
+
+<div class="wrap">
+<header>
+  <h1>Handover <span>— your logo, and everything that comes after it</span></h1>
+</header>
+
+<div class="steps ui">
+  <b id="s1" class="on"><i>1</i> Artwork</b>
+  <b id="s2"><i>2</i> Identity</b>
+  <b id="s3"><i>3</i> Package</b>
+</div>
+
+<!-- ───────────────── 1. artwork ───────────────── -->
+<section id="step1">
+  <h2>Bring your artwork</h2>
+  <p class="sub">One SVG is enough. Drop a symbol, a logotype, or both — the engine measures
+  whichever it is given and tells you what is in the file before anything is decided.</p>
+
+  <div class="drops">
+    <div class="drop" id="dropMark" tabindex="0" role="button" aria-label="Choose the mark SVG">
+      <input type="file" id="fileMark" accept=".svg,image/svg+xml">
+      <div class="pv" id="pvMark"></div>
+      <h3>The mark</h3>
+      <p id="hintMark">The symbol. Drop an SVG, or click.</p>
+    </div>
+    <div class="drop" id="dropWord" tabindex="0" role="button" aria-label="Choose the wordmark SVG">
+      <input type="file" id="fileWord" accept=".svg,image/svg+xml">
+      <div class="pv" id="pvWord"></div>
+      <h3>The wordmark <span style="color:var(--faint);font-weight:400">optional</span></h3>
+      <p id="hintWord">The name, drawn. Outline the type first.</p>
+    </div>
+  </div>
+
+  <div class="row">
+    <button class="go" id="btnRead" disabled>Read the artwork</button>
+    <span id="readBusy"></span>
+    <button class="text" id="btnSample">or try it with a sample mark</button>
+  </div>
+
+  <div id="findMark" class="finds"></div>
+  <div id="measured"></div>
+
+  <div class="row" id="toStep2" hidden>
+    <button class="go" id="btnNext">Name it and pick the colours</button>
+  </div>
+</section>
+
+<!-- ───────────────── 2. identity ───────────────── -->
+<section id="step2" hidden>
+  <h2>Name it, and pick the ink</h2>
+  <p class="sub">The colours below were read out of your artwork. Change them, name them,
+  and say which is the ink and which is the ground. Contrast is measured as you type.</p>
+
+  <div class="field">
+    <label for="brand">Brand name <span class="hint">— titles the manual, the deck and every file</span></label>
+    <input type="text" id="brand" placeholder="Meridian" autocomplete="off" spellcheck="false">
+  </div>
+
+  <div class="field" id="latinField" hidden>
+    <label for="latinName">Roman spelling <span class="hint">— for file names only; the documents keep the real name</span></label>
+    <input type="text" id="latinName" placeholder="Maayan" autocomplete="off" spellcheck="false">
+  </div>
+
+  <div class="field">
+    <label>Palette</label>
+    <div class="pal">
+      <div class="hd"><span>Colour</span><span>Name</span><span>Role</span><span>On the ground</span><span></span></div>
+      <div id="rows"></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="text" id="btnAddColour">+ add a colour</button>
+    </div>
+  </div>
+
+  <details class="inks">
+    <summary>Print inks <span class="hint">— optional, and the one thing the engine cannot work out for you</span></summary>
+    <p class="ct" style="margin:10px 0 12px">A hex value describes light leaving a screen. What it becomes in ink
+    depends on a press and a paper no formula knows about, so the engine says so rather than inventing four
+    numbers. Ask the printer, or read them off a swatch book, and the logo PDFs come out in those inks.</p>
+    <div id="inks"></div>
+  </details>
+
+  <div class="field">
+    <label>Lockups to build</label>
+    <div class="locks" id="locks"></div>
+    <p class="ct" id="lockNote" style="margin:9px 0 0"></p>
+  </div>
+
+  <div class="row">
+    <button class="go" id="btnBuild">Build the package</button>
+    <span id="buildBusy"></span>
+    <button class="text" id="btnBack">back</button>
+  </div>
+  <div id="buildErr" class="finds"></div>
+</section>
+
+<!-- ───────────────── 3. package ───────────────── -->
+<section id="step3" hidden>
+  <h2 id="doneTitle">Done</h2>
+  <p class="sub" id="doneSub"></p>
+
+  <div class="tally" id="tally"></div>
+  <div class="cards" id="cards"></div>
+
+  <div class="row" style="margin-top:0">
+    <a class="go" id="btnZip" href="#">Download the package</a>
+    <button class="flat" id="btnAgain">Start again</button>
+  </div>
+
+  <div id="buildNotes" class="finds"></div>
+</section>
+
+<footer>
+  Everything above was derived from the artwork you dropped. Nothing was uploaded:
+  this runs on your machine and the files never leave it.
+</footer>
+</div>
+
+<script src="/contrast.js"></script>
+<script>
+(function () {
+  'use strict';
+  const C = window.HandoverContrast;
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+  const state = { mark: null, markName: '', word: null, wordName: '',
+                  palette: [], slots: [], lockups: [], colours: [], build: null };
+
+  // ---- steps -------------------------------------------------------------
+  function step(n) {
+    for (const i of [1, 2, 3]) {
+      $('step' + i).hidden = i !== n;
+      const b = $('s' + i);
+      b.className = i === n ? 'on' : (i < n ? 'done' : '');
+      b.querySelector('i').textContent = i < n ? '✓' : String(i);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  const busy = (el, text) => { el.innerHTML = text ? '<span class="busy"><span class="spin"></span>' + esc(text) + '</span>' : ''; };
+
+  // ---- findings ----------------------------------------------------------
+  const LEVEL = { fixed: 'Fixed for you', warning: 'Worth a look', blocker: 'Must fix' };
+  const card = (f) => '<div class="f ' + esc(f.level) + '">'
+    + '<span class="lvl">' + esc(LEVEL[f.level] || f.level) + '</span>'
+    + (f.on ? '<span class="on">' + esc(f.on) + '</span>' : '')
+    + '<p class="what">' + esc(f.what) + '</p>'
+    + (f.why ? '<p class="why">' + esc(f.why) + '</p>' : '')
+    + (f.how ? '<p class="how">' + esc(f.how) + '</p>' : '')
+    + '</div>';
+
+  function findings(el, list, heading) {
+    if (!list || !list.length) { el.innerHTML = ''; return; }
+    el.innerHTML = (heading ? '<h3 class="fh">' + esc(heading) + '</h3>' : '') + list.map(card).join('');
+  }
+
+  // ---- step 1: the drop zones -------------------------------------------
+  function wireDrop(zone, input, which) {
+    const stop = (e) => { e.preventDefault(); e.stopPropagation(); };
+    zone.addEventListener('dragover', (e) => { stop(e); zone.classList.add('over'); });
+    zone.addEventListener('dragleave', (e) => { stop(e); zone.classList.remove('over'); });
+    zone.addEventListener('drop', (e) => {
+      stop(e); zone.classList.remove('over');
+      const f = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) read(f, which);
+    });
+    zone.addEventListener('keydown', (e) => {
+      if ((e.key === 'Enter' || e.key === ' ') && !zone.classList.contains('has')) { e.preventDefault(); input.click(); }
+    });
+    input.addEventListener('change', () => { if (input.files[0]) read(input.files[0], which); });
+  }
+
+  function read(file, which) {
+    const zone = which === 'mark' ? $('dropMark') : $('dropWord');
+    const hint = which === 'mark' ? $('hintMark') : $('hintWord');
+    if (!/\.svg$/i.test(file.name) && file.type !== 'image/svg+xml') {
+      hint.innerHTML = '<span style="color:var(--stop)">That is not an SVG. Export the vector, not a picture of it.</span>';
+      return;
+    }
+    const r = new FileReader();
+    r.onload = () => {
+      const text = String(r.result || '');
+      if (which === 'mark') { state.mark = text; state.markName = file.name; }
+      else { state.word = text; state.wordName = file.name; }
+      show(which);
+      $('btnRead').disabled = !state.mark && !state.word;
+      $('toStep2').hidden = true;
+      findings($('findMark'), []); $('measured').innerHTML = '';
+    };
+    r.readAsText(file);
+  }
+
+  function show(which) {
+    const zone = which === 'mark' ? $('dropMark') : $('dropWord');
+    const pv = which === 'mark' ? $('pvMark') : $('pvWord');
+    const hint = which === 'mark' ? $('hintMark') : $('hintWord');
+    const src = which === 'mark' ? state.mark : state.word;
+    const name = which === 'mark' ? state.markName : state.wordName;
+    if (!src) {
+      zone.classList.remove('has'); pv.innerHTML = '';
+      hint.textContent = which === 'mark' ? 'The symbol. Drop an SVG, or click.' : 'The name, drawn. Outline the type first.';
+      return;
+    }
+    zone.classList.add('has');
+    // the artwork itself, in a data URI, so nothing in it can touch this page
+    pv.innerHTML = '<img alt="" src="data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(src))) + '">';
+    hint.innerHTML = '<span class="fname">' + esc(name)
+      + '<button class="clear" data-clear="' + which + '">remove</button></span>';
+  }
+
+  document.addEventListener('click', (e) => {
+    const w = e.target.getAttribute && e.target.getAttribute('data-clear');
+    if (!w) return;
+    if (w === 'mark') { state.mark = null; state.markName = ''; $('fileMark').value = ''; }
+    else { state.word = null; state.wordName = ''; $('fileWord').value = ''; }
+    show(w);
+    $('btnRead').disabled = !state.mark && !state.word;
+    $('toStep2').hidden = true; findings($('findMark'), []); $('measured').innerHTML = '';
+  });
+
+  wireDrop($('dropMark'), $('fileMark'), 'mark');
+  wireDrop($('dropWord'), $('fileWord'), 'word');
+
+  // ---- step 1: read it ---------------------------------------------------
+  async function post(url, body) {
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body) });
+    let data;
+    try { data = await res.json(); }
+    catch (e) { throw { findings: [{ level: 'blocker', what: 'The engine did not answer.',
+      why: 'The request reached the server and nothing readable came back.',
+      how: 'Check the terminal the server is running in.' }] }; }
+    if (!res.ok || data.ok === false) throw data;
+    return data;
+  }
+
+  $('btnRead').addEventListener('click', async () => {
+    busy($('readBusy'), 'reading the artwork…');
+    $('btnRead').disabled = true;
+    findings($('findMark'), []); $('measured').innerHTML = ''; $('toStep2').hidden = true;
+    try {
+      const r = await post('/api/inspect', { brand: $('brand').value || 'Untitled',
+        mark: state.mark, wordmark: state.word });
+      state.palette = r.palette || [];
+      state.slots = r.slots || [];
+      state.lockups = r.lockups || ['mark'];
+      // which file each finding came from, because two assets often have the
+      // same thing wrong with them and two identical cards say nothing
+      const both = state.mark && state.word;
+      const label = (k) => (!both ? '' : k === 'mark' ? 'the mark' : 'the wordmark');
+      const list = [].concat(
+        (r.findings.mark || []).map((f) => Object.assign({ on: label('mark') }, f)),
+        (r.findings.wordmark || []).map((f) => Object.assign({ on: label('wordmark') }, f)));
+      findings($('findMark'), list, list.length ? 'What was in the file' : '');
+      if (!list.length) {
+        $('findMark').innerHTML = '<div class="f fixed"><span class="lvl">Clean</span>'
+          + '<p class="what">Nothing to fix and nothing to flag.</p>'
+          + '<p class="why">The export is tidy: no stray metadata, no text left live, nothing hidden.</p></div>';
+      }
+      measured(r.measured, r.slots);
+      $('toStep2').hidden = false;
+    } catch (err) {
+      findings($('findMark'), (err && err.findings) || [{ level: 'blocker', what: 'Could not read that.',
+        why: 'The engine refused the file.', how: 'Try re-exporting it as plain SVG.' }],
+        'The artwork cannot be used yet');
+    } finally {
+      busy($('readBusy'), ''); $('btnRead').disabled = false;
+    }
+  });
+
+  function measured(m, slots) {
+    if (!m) { $('measured').innerHTML = ''; return; }
+    const row = (k, v, note) => '<dt>' + esc(k) + '</dt><dd>' + esc(v)
+      + (note ? '<span class="note">' + esc(note) + '</span>' : '') + '</dd>';
+    $('measured').innerHTML = '<div class="measured"><h4>Measured off the artwork</h4><dl>'
+      + row('Ink box', m.ink.w + ' × ' + m.ink.h, 'the drawn area, not the canvas — your viewBox is ' + m.viewBox.w + ' × ' + m.viewBox.h)
+      + row('Clear space', m.clearSpace + ' units on every side')
+      + row('Thinnest part', m.thinnest)
+      + row('Smallest use', m.floorPx + ' on screen, ' + m.floorMm + ' in print', m.basis)
+      + row('Colour slots', (slots && slots.length) ? slots.join(', ') : 'none marked — the whole mark recolours as one')
+      + '</dl></div>';
+  }
+
+  // ---- the sample, for anyone with no SVG to hand ------------------------
+  $('btnSample').addEventListener('click', () => {
+    state.mark = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">'
+      + '<g fill="none" stroke="#0A2A33" stroke-width="9">'
+      + '<circle cx="60" cy="60" r="50"/>'
+      + '<path d="M14 66 C34 52, 86 52, 106 66" stroke-linecap="round"/></g></svg>';
+    state.markName = 'sample-mark.svg';
+    state.word = null; state.wordName = ''; $('fileWord').value = '';
+    show('mark'); show('word');
+    if (!$('brand').value) $('brand').value = 'Meridian';
+    $('btnRead').disabled = false;
+    $('btnRead').click();
+  });
+
+  // ---- step 2: the palette ----------------------------------------------
+  const ROLES = [['primary', 'ink'], ['ground', 'ground'], ['accent', 'accent'], ['', 'none']];
+  const NAMES = ['primary', 'ground', 'accent', 'highlight', 'shade', 'support'];
+
+  function defaults() {
+    const out = [];
+    const seen = state.palette.filter((h) => h && h.toUpperCase() !== '#FFFFFF');
+    out.push({ hex: seen[0] || '#1B3A6B', name: 'primary', role: 'primary' });
+    out.push({ hex: '#FFFFFF', name: 'ground', role: 'ground' });
+    for (let i = 1; i < Math.min(seen.length, 4); i++) {
+      out.push({ hex: seen[i], name: NAMES[i + 1] || ('colour' + (i + 1)), role: i === 1 ? 'accent' : '' });
+    }
+    return out;
+  }
+
+  function drawRows() {
+    $('rows').innerHTML = state.colours.map((c, i) =>
+      '<div class="cr" data-i="' + i + '">'
+      + '<input type="color" value="' + esc(c.hex) + '" data-k="hex" aria-label="Colour ' + (i + 1) + '">'
+      + '<input type="text" value="' + esc(c.name) + '" data-k="name" aria-label="Name of colour ' + (i + 1) + '" spellcheck="false">'
+      + '<select data-k="role" aria-label="Role of colour ' + (i + 1) + '">'
+        + ROLES.map(([v, label]) => '<option value="' + v + '"' + (c.role === v ? ' selected' : '') + '>' + label + '</option>').join('')
+      + '</select>'
+      + '<span class="ct" data-ct="' + i + '"></span>'
+      + '<button class="rm" data-rm="' + i + '" aria-label="Remove ' + esc(c.name) + '" title="remove">×</button>'
+      + '</div>').join('');
+    drawInks();
+    ratios();
+  }
+
+  // Four numbers a printer gives you, or nothing. Written the way a printer
+  // says them — "88 58 45 72" — rather than as four boxes to tab through.
+  function drawInks() {
+    $('inks').innerHTML = state.colours.map((c, i) =>
+      '<div class="ir"><span class="sw" style="background:' + esc(c.hex) + '"></span>'
+      + '<span class="nm">' + esc(c.name || 'unnamed') + '</span>'
+      + '<input type="text" data-ink="' + i + '" value="' + esc(c.cmyk || '') + '"'
+      + ' placeholder="88 58 45 72" spellcheck="false"'
+      + ' aria-label="CMYK for ' + esc(c.name || 'colour ' + (i + 1)) + '"></div>').join('');
+  }
+
+  $('inks').addEventListener('input', (e) => {
+    const i = e.target.getAttribute('data-ink');
+    if (i == null) return;
+    state.colours[Number(i)].cmyk = e.target.value;
+    e.target.classList.toggle('bad', !!e.target.value.trim() && cmyk(e.target.value) === null);
+  });
+
+  // four numbers, 0 to 100, however they were separated
+  function cmyk(v) {
+    const n = String(v).trim().split(/[\s,/]+/).filter(Boolean).map(Number);
+    if (n.length !== 4 || n.some((x) => !isFinite(x) || x < 0 || x > 100)) return null;
+    return n;
+  }
+
+  // The same arithmetic the manual will print, served from the engine rather
+  // than written again here, so the page and the document cannot disagree.
+  function ratios() {
+    const ground = state.colours.find((c) => c.role === 'ground')
+      || state.colours.find((c) => c.name === 'ground') || { hex: '#FFFFFF' };
+    for (let i = 0; i < state.colours.length; i++) {
+      const el = document.querySelector('[data-ct="' + i + '"]');
+      if (!el) continue;
+      const c = state.colours[i];
+      if (c.role === 'ground') { el.textContent = 'the ground itself'; el.className = 'ct'; continue; }
+      const r = C.ratio(c.hex, ground.hex);
+      const v = C.verdict(r);
+      el.className = 'ct ' + v.level;
+      el.innerHTML = '<b>' + (r == null ? '—' : r.toFixed(2)) + ':1</b> ' + esc(v.use);
+    }
+  }
+
+  $('rows').addEventListener('input', (e) => {
+    const cr = e.target.closest('.cr'); if (!cr) return;
+    const i = Number(cr.getAttribute('data-i'));
+    const k = e.target.getAttribute('data-k'); if (!k) return;
+    state.colours[i][k] = e.target.value;
+    ratios();
+  });
+  $('rows').addEventListener('change', (e) => {
+    const cr = e.target.closest('.cr'); if (!cr) return;
+    const k = e.target.getAttribute('data-k');
+    if (k === 'role') { state.colours[Number(cr.getAttribute('data-i'))].role = e.target.value; ratios(); }
+  });
+  $('rows').addEventListener('click', (e) => {
+    const rm = e.target.getAttribute && e.target.getAttribute('data-rm');
+    if (rm == null) return;
+    if (state.colours.length <= 2) return;   // an ink and a ground is the floor
+    state.colours.splice(Number(rm), 1);
+    drawRows();
+  });
+  $('btnAddColour').addEventListener('click', () => {
+    state.colours.push({ hex: '#888888', name: NAMES[state.colours.length] || ('colour' + (state.colours.length + 1)), role: '' });
+    drawRows();
+  });
+
+  function drawLocks() {
+    const all = [['horizontal', 'Horizontal'], ['stacked', 'Stacked'], ['mark', 'Mark alone'], ['wordmark', 'Wordmark alone']];
+    const can = state.lockups;
+    $('locks').innerHTML = all.map(([v, label]) => {
+      const ok = can.indexOf(v) > -1;
+      return '<label><input type="checkbox" value="' + v + '"' + (ok ? ' checked' : ' disabled') + '> ' + label + '</label>';
+    }).join('');
+    $('lockNote').textContent = can.length === 4 ? ''
+      : can[0] === 'mark'
+        ? 'The other three need a wordmark as well. Go back and add one to switch them on.'
+        : 'The other three need a symbol as well. A logotype on its own is a whole identity — Google, FedEx and most of publishing are exactly this.';
+  }
+
+  $('btnNext').addEventListener('click', () => {
+    if (!state.colours.length) state.colours = defaults();
+    drawRows(); drawLocks();
+    step(2);
+    if (!$('brand').value) $('brand').focus();
+  });
+  $('btnBack').addEventListener('click', () => step(1));
+
+  // a name with no latin letters cannot name a file, and the engine asks for a
+  // roman spelling rather than inventing one
+  $('brand').addEventListener('input', () => {
+    const v = $('brand').value;
+    $('latinField').hidden = !v || /[a-z]/i.test(v);
+  });
+
+  // ---- step 2: build -----------------------------------------------------
+  $('btnBuild').addEventListener('click', async () => {
+    const name = $('brand').value.trim();
+    findings($('buildErr'), []);
+    if (!name) {
+      findings($('buildErr'), [{ level: 'blocker', what: 'The identity has no name.',
+        why: 'It titles the manual, the deck and every file in the package.', how: 'Type it above.' }]);
+      $('brand').focus(); return;
+    }
+    const lockups = [...$('locks').querySelectorAll('input:checked')].map((i) => i.value);
+    busy($('buildBusy'), 'building the package — this takes a few seconds…');
+    $('btnBuild').disabled = true;
+    try {
+      const r = await post('/api/build', {
+        brand: name,
+        latinName: $('latinName').value.trim() || undefined,
+        mark: state.mark,
+        wordmark: state.word,
+        colours: state.colours.filter((c) => c.name.trim())
+          .map((c) => ({ name: c.name.trim(), hex: c.hex, role: c.role || undefined,
+            cmyk: c.cmyk ? cmyk(c.cmyk) || undefined : undefined })),
+        lockups: lockups.length ? lockups : ['mark'],
+        slots: state.slots,
+      });
+      state.build = r;
+      done(r);
+      step(3);
+    } catch (err) {
+      findings($('buildErr'), (err && err.findings) || [{ level: 'blocker', what: 'The build stopped.',
+        why: 'The engine would not write a package it could not stand behind.', how: 'The terminal has the detail.' }],
+        'It did not build');
+    } finally {
+      busy($('buildBusy'), ''); $('btnBuild').disabled = false;
+    }
+  });
+
+  const KB = (n) => (n >= 1024 * 1000 ? (n / 1048576).toFixed(1) + ' MB' : Math.round(n / 1024) + ' KB');
+
+  const CARDS = {
+    'guidelines.html': ['Brand manual', 'Every rule, drawn from the artwork rather than typed.'],
+    'deck.html': ['Deck', 'The same identity as slides, for showing it.'],
+    'published.html': ['Cover', 'A page published straight out of the canvas.'],
+    'editor.html': ['Canvas', 'Drag blocks, drop a photograph, lay out a page. No server.'],
+  };
+
+  function done(r) {
+    $('doneTitle').textContent = r.brand + ' is built';
+    $('doneSub').textContent = 'Everything below came out of the artwork you dropped. '
+      + 'Open the canvas to lay something out, or take the zip to your client.';
+    $('tally').innerHTML = [
+      ['<b>' + r.files + '</b>files', ''],
+      ['<b>' + KB(r.bytes) + '</b>on disk', ''],
+      ['<b>' + esc(r.measured.floorPx) + '</b>smallest on screen', ''],
+      ['<b>' + esc(r.measured.floorMm) + '</b>smallest in print', ''],
+      ['<b>' + r.measured.clearSpace + '</b>clear space', ''],
+    ].map(([h]) => '<span>' + h + '</span>').join('');
+    $('cards').innerHTML = r.documents.map((f) => {
+      const c = CARDS[f] || [f, ''];
+      return '<a href="' + esc(r.base + f) + '" target="_blank" rel="noopener">'
+        + '<b>' + esc(c[0]) + '</b><span>' + esc(c[1]) + '</span></a>';
+    }).join('');
+    $('btnZip').href = r.zip ? esc(r.base + r.zip) + '?download' : '#';
+    $('btnZip').hidden = !r.zip;
+    const notes = [].concat(
+      (r.warnings || []).map((w) => ({ level: 'warning', what: w })),
+      (r.notes || []).map((n) => ({ level: 'fixed', what: n })));
+    findings($('buildNotes'), notes, notes.length ? 'What the engine wants you to know' : '');
+  }
+
+  $('btnAgain').addEventListener('click', () => {
+    state.build = null;
+    step(1);
+  });
+
+  // deep link back into a build after a reload of this page is not possible —
+  // a build lives in the server's memory for the session, and saying so is
+  // better than a card that leads to a 404
+  window.addEventListener('pageshow', (e) => { if (e.persisted && state.build) step(3); });
+}());
+</script>
+</body></html>
