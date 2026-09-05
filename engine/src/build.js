@@ -36,15 +36,13 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // what the master itself paints each slot, so a slot nobody recoloured can be
   // reported as the colour it actually came out
   const masterInks = {};
-  {
-    const md = svgu.parse(project.assets.mark.source);
-    (function walk(n) {
-      if (n.nodeType === 1) {
-        const sl = n.getAttribute('data-slot'), f = n.getAttribute('fill') || n.getAttribute('stroke');
-        if (sl && f && f !== 'none' && !masterInks[sl]) masterInks[sl] = f;
-        for (let c = n.firstChild; c; c = c.nextSibling) walk(c);
-      }
-    }(md.documentElement));
+  for (const asset of [project.assets.mark, project.assets.wordmark]) {
+    if (!asset || !asset.source) continue;          // the wordmark has slots too
+    svgu.eachPainted(svgu.parse(asset.source), (el) => {
+      const sl = el.getAttribute('data-slot');
+      const f = el.getAttribute('fill') || el.getAttribute('stroke');
+      if (sl && f && f !== 'none' && !masterInks[sl]) masterInks[sl] = f;
+    });
   }
   for (const lockup of rules.lockups) {
     for (const colourway of rules.colourways) {

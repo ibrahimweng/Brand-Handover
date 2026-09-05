@@ -9,7 +9,7 @@ around it.
 
     cd engine
     npm install
-    npm test                                            # 266 checks
+    npm test                                            # 271 checks
     node test/print-check.mjs                           # prints, and measures the paper
     node test/treatment-check.mjs                       # renders, and reads the pixels back
     node test/typst-check.mjs                           # the printed piece against the published page
@@ -26,6 +26,7 @@ around it.
     node src/cli.js build   projects/kvist/project.json    -o out-kvist
     node src/cli.js build   projects/hallward/project.json -o out-hallward
     node src/cli.js build   projects/northline/project.json -o out-northline
+    node src/cli.js build   projects/perigee/project.json   -o out-perigee
 
 The Meridian example writes 136 files in about six seconds, including both
 documents, the editor, the document it opens with, that document published, and
@@ -48,6 +49,10 @@ unit box. See [A fourth identity](#a-fourth-identity).
 Northline is the fifth and the opposite: twelve colours, eight colourways, four
 typefaces, 245 files, and a mark written the way a drawing tool actually writes
 a repeated element. See [A fifth identity](#a-fifth-identity).
+
+Perigee is the sixth, and it differs in what the *file* is rather than what the
+identity is: a mark exported the way a web tool writes one. See
+[A sixth identity](#a-sixth-identity).
 
 ## What it measures
 
@@ -1222,6 +1227,63 @@ colours laid out together, eight colourways across four lockups produced 245
 files with no name collisions, four typefaces produced four font requests, and
 the excess touched nothing in the documents.
 
+## A sixth identity
+
+The first five differ in what the identity is — its shape, its palette, how much
+of it there is. **Perigee** differs in what the *file* is. It is a mark exported
+the way a web tool writes one: `hsl()` for one colour, the word `black` for
+another, `#F63` for a third, no `data-slot` anywhere, a `clipPath` wrapper around
+everything, and a 64 unit box. The dialect, not the design.
+
+Five more things were wrong, and the first two are the worst this exercise has
+found.
+
+**A mark drawn in black never changed colour.** An unset `fill` in SVG paints
+black, so the cleaner removes `fill="#000000"` as redundant — correctly. But
+`applyColourway` repainted attributes that were already there, and after the
+cleaner there was nothing to repaint. So a mark in plain black came out **black
+in every colourway**, in every file in the package, silently, with nothing
+reported: not a warning, not a missing slot, nothing. Every way of writing it is
+affected — `black`, `#000`, `#000000`, `rgb(0,0,0)` — while `#010101` works
+perfectly. Black is the commonest colour a logo is drawn in.
+
+**A palette written in any notation but six-digit hex broke every measurement in
+the package.** Three modules each had their own hex reader, and none of them knew
+`hsl()`, a colour name, or a three-digit `#123`. Anything else gave `NaN` — and a
+`NaN` compares false against every threshold, so nothing failed loudly. Instead
+**`brand.json` told the client that every pair in their identity was "Never for
+text"**, with every ratio `null`; `NaN` appeared sixteen times in the manual and
+eleven in the published page; and the entire pattern set was refused, three
+densities in three colourways, each with the reason *"measures NaN:1 against its
+ground, so the pattern would not be visible"*. There is one reader now, in the
+module the editor shares, and it takes hex of three, four, six or eight digits,
+`rgb()`, `hsl()`, and the colour names. Where it genuinely cannot tell, it
+returns `null` rather than `NaN`, the verdict is *"Not measured"* rather than
+*"Never for text"*, and a project file with an unreadable colour is refused at
+load with the colour named.
+
+**`hsl()` survived the normaliser** and reached the printed piece as the literal
+text `rgb("hsl(207` — because the normaliser's own reader knew hex and `rgb()`
+and stopped there. Colours are written out in canonical form now, so nothing
+downstream ever sees anything else.
+
+**The colour pass and the slot assignment walked into `defs`.** A clipping
+rectangle's white was near enough to the `paper` brand colour to be snapped to
+it and given the `paper` colour slot — a phantom slot, on a shape that never
+reaches the page, consuming a real palette name. This is the same rule the
+printed piece needed last round, in the two other places that walk the tree.
+There is one shared `eachPainted` now, and one list of what never draws.
+
+**And one of my own from last round:** the message that says what a missing slot
+kept only ever looked at the mark, so a wordmark slot was reported as keeping
+"its master colour" instead of the colour.
+
+The check that only knew Meridian now knows all of them. `typst-check`'s path
+translation — redraw every path, render both, compare — runs over every project
+in the repo rather than the first one: twelve assets, and Perigee's relative
+smooth curves and arcs redraw with zero structural difference, which is the
+first real evidence the path parser is right rather than merely untested.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.
@@ -1258,6 +1320,7 @@ the excess touched nothing in the documents.
     projects/kvist/     the third: fills and a stroke, a 252x90 box, a name in Norwegian
     projects/hallward/  the fourth: two colours, one colourway, a seal in a 2048 box
     projects/northline/ the fifth: twelve colours, eight colourways, a mark drawn with <use>
+    projects/perigee/   the sixth: a web export — hsl(), a named colour, no slots at all
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package

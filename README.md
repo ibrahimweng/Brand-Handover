@@ -71,7 +71,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 136 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 266 tests.
+of it. 271 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -227,7 +227,37 @@ built showed a plainly correct mark under a caption saying not to do it. Then a
 deliberately-wrong colour too dark to see on its own ground, and a colourway
 missing a slot that warned three times without ever saying what it did instead.
 
-Still to do: a run on **your** identity job. Five identities the engine had not
-seen is worth a great deal more than five passes over one, but none of them came
+A sixth, **Perigee**, differs in what the *file* is rather than what the
+identity is: a mark exported the way a web tool writes one — `hsl()` for one
+colour, the word `black` for another, `#F63` for a third, no slots tagged, a
+`clipPath` around everything. Five more defects, and the first two are the worst
+found in the whole exercise.
+
+**A mark drawn in black never changed colour.** An unset fill paints black in
+SVG, so the cleaner removes `fill="#000000"` as redundant — and the recolouring
+step only repainted attributes that were already there. A mark in plain black
+came out black in every colourway, in every file, silently, with nothing
+reported. Every notation is affected — `black`, `#000`, `rgb(0,0,0)` — while
+`#010101` works. Black is the commonest colour a logo is drawn in.
+
+**A palette written in anything but six-digit hex broke every measurement.**
+Three modules each had their own hex reader and none knew `hsl()`, a colour
+name, or `#123`. Anything else gave `NaN`, and `NaN` compares false against
+every threshold, so nothing failed loudly: `brand.json` told the client every
+pair in their identity was "Never for text", `NaN` appeared sixteen times in the
+manual, and the whole pattern set was refused for "measuring NaN:1". There is
+one reader now; where it cannot tell it says "Not measured" rather than "Never
+for text", and a project with an unreadable colour is refused at load by name.
+
+The rest: `hsl()` survived into the printed piece as the literal `rgb("hsl(207`;
+the colour pass and slot assignment walked into `defs` and gave a clipping
+rectangle a brand colour slot — the same rule the printed piece needed last
+round, now shared; and a warning of mine that only looked at the mark.
+
+The check that only knew Meridian now knows all of them: the path translation
+runs over every project, twelve assets, all with zero structural difference.
+
+Still to do: a run on **your** identity job. Six identities the engine had not
+seen is worth a great deal more than six passes over one, but none of them came
 out of your exporter — and the normaliser is the part that most needs to meet
 one.

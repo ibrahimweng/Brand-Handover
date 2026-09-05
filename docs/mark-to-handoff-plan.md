@@ -376,7 +376,7 @@ the measuring engine, the packager, both documents, the canvas editor,
 publishing, all three kinds of block, image slots, page sizes and the
 photography treatment, print work with bleed, CMYK, and a printed piece through
 Typst, mockups, and the licence half of accounts. 138 files from one master,
-266 tests, and four more identities in the repo that the engine had not been
+271 tests, and five more identities in the repo that the engine had not been
 written against.
 
 Three things the plan had wrong, found by building rather than by thinking.
@@ -646,6 +646,41 @@ the render — only ever ran on Meridian, which has no `defs` in it. The lesson 
 not about `defs`. It is that a check pinned to one fixture tests that fixture,
 and every check in this repo that takes a project as input should run over all of
 them; the ones that do not are the ones with findings hiding behind them.
+
+**The sixth project varied the file rather than the identity, and that is a
+different axis entirely.** Five projects had varied what the identity *is* —
+its shape, its palette, how much of it there is. All five were written by
+someone who knew what the engine wanted, in the dialect the engine likes:
+six-digit hex, slots tagged, no CSS colour functions. Perigee varied the
+dialect instead, and found the two worst defects in the exercise. That is worth
+stating as a rule: a fixture written by the author of the code inherits the
+author's assumptions about *format* even when it is designed to violate their
+assumptions about *content*. Varying the content finds missing branches;
+varying the format finds missing parsers.
+
+**NaN is the most dangerous value in a system that makes judgements.** A colour
+the reader could not parse produced NaN, and NaN compares false against every
+threshold — so a system built to refuse things refused silently and
+confidently. `brand.json` told the client that every colour pair in their
+identity was "Never for text", and the pattern set was withheld with the reason
+"measures NaN:1 against its ground". Nothing threw, nothing warned, and both
+outputs looked exactly like the system working. The rule that falls out: a
+measurement that could not be taken must be a different value from a
+measurement that came out badly, and every threshold must be reached through
+something that knows the difference. `null` and a verdict of "Not measured"
+cost nothing and make the failure impossible to mistake for a judgement.
+
+**And the recurring-defect debt came due in a good way.** Last round's note said
+a defect appearing in three places is one missing rule, and that fixing
+instances would keep finding instances. It did: the colour pass and the slot
+assignment were walking into `defs` exactly as the printed piece had been. This
+time the fix was the rule rather than the instance — one `eachPainted`, one list
+of what never draws, used by all three. The other debt from that note is paid
+too: the path-translation check ran only on Meridian and now runs on every
+project in the repo. Both were written down as things not done; both were cheap
+once they were named. The general lesson is that a note saying "this is the real
+problem and I have not fixed it" is worth more than it looks, because it is the
+thing you can act on next time without rediscovering it.
 
 **A defect that only prints an error to a console is still a defect.** Every
 scaled drawing in every document carried `height="auto"`, which is not a length

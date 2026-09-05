@@ -2512,6 +2512,135 @@ test('excess does not break anything that density touches', () => {
   }
 });
 
+console.log('\na sixth identity');
+// The first five differ in what the identity is. Perigee differs in what the
+// file is: a mark exported the way a web tool writes one — hsl() and a named
+// colour and a three digit hex, no data-slot anywhere, a clipPath wrapper, and
+// a body drawn in plain black. The dialect, not the design.
+const PG = projectLoader.load(path.join(__dirname, '..', 'projects', 'perigee', 'project.json'));
+const pgM = measure(PG);
+
+test('a mark drawn in black still changes colour', () => {
+  // SVGO removes fill="#000000" because black is what an unset fill paints, and
+  // applyColourway only ever repainted attributes that were already there. So a
+  // mark in plain black came out black in every colourway, silently, with
+  // nothing reported — and black is the commonest colour a logo is drawn in.
+  const norm = require('../src/normalise');
+  const one = (f) => {
+    const r = norm.normalise('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
+      + `<path data-slot="ink" d="M8 8h48v20H8z" fill="${f}"/></svg>`, { tokens: PG.tokens });
+    const doc = svgu.parse(r.svg);
+    svgu.applyColourway(doc, { ink: '#EFEDE4' });
+    return (/<path[^>]*fill="([^"]*)"/.exec(svgu.serialize(doc)) || [])[1];
+  };
+  for (const f of ['black', '#000', '#000000', 'rgb(0,0,0)', '#0A2A33']) {
+    assert.strictEqual(one(f), '#EFEDE4', `a mark painted ${f} did not take the colourway`);
+  }
+  // but a shape the designer set to none is left alone, not filled in
+  const r = norm.normalise('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
+    + '<path data-slot="ink" d="M8 32h48" fill="none" stroke="#0A2A33" stroke-width="4"/></svg>',
+  { tokens: PG.tokens });
+  const doc = svgu.parse(r.svg);
+  svgu.applyColourway(doc, { ink: '#EFEDE4' });
+  const out = svgu.serialize(doc);
+  assert.ok(/fill="none"/.test(out), 'a stroked outline was filled in');
+  assert.ok(/stroke="#EFEDE4"/.test(out), 'the stroke was not recoloured');
+});
+
+test('a colour is read however it is written, or said to be unreadable', () => {
+  // three modules each had their own six digit hex reader, so a palette given
+  // in rgb() or hsl() produced NaN — and NaN compares false against every
+  // threshold, so brand.json told the client that every pair in their identity
+  // was "Never for text" and the whole pattern set was refused for NaN:1.
+  const c = require('../src/contrast');
+  assert.strictEqual(c.toHex('#0A2A33'), '#0A2A33');
+  assert.strictEqual(c.toHex('#123'), '#112233');
+  assert.strictEqual(c.toHex('rgb(10, 42, 51)'), '#0A2A33');
+  assert.strictEqual(c.toHex('black'), '#000000');
+  assert.strictEqual(c.toHex('#0A2A33FF'), '#0A2A33');
+  assert.strictEqual(c.toHex('hsl(207, 68%, 24%)'), '#144167');
+  assert.strictEqual(c.toHex('nonsense'), null);
+  // every notation gives the same ratio as its hex
+  const want = c.ratio('#0A2A33', '#FFFFFF');
+  for (const v of ['rgb(10, 42, 51)', '#0A2A33FF']) assert.strictEqual(c.ratio(v, '#FFFFFF'), want);
+  // and an unreadable colour is null, never NaN, and is not called a failure
+  assert.strictEqual(c.ratio('nonsense', '#FFF'), null);
+  assert.strictEqual(c.verdict(null).level, 'unknown');
+  assert.ok(!/never/i.test(c.verdict(null).use), 'an unmeasured pair was reported as failing');
+  assert.strictEqual(c.verdict(21).level, 'AAA');
+});
+
+test('a palette written in any notation reaches the documents as hex', () => {
+  // the project file may say #123 or rgb() or hsl(); everything downstream
+  // reads hex, so it is canonicalised once at the door
+  assert.strictEqual(PG.tokens.colour.deep.hex, '#112233');
+  assert.strictEqual(PG.tokens.colour.paper.hex, '#F7F6F3');
+  assert.strictEqual(PG.tokens.colour.orbit.hex, '#144167');
+  assert.strictEqual(PG.rules.iconBg, '#112233');
+  assert.strictEqual(PG.rules.colourways[0].slots.orbit, '#144167');
+  // so no measurement anywhere comes back unknown
+  const docs = require('../src/documents');
+  const ctx = docs.context(PG, pgM, [], {});
+  const pairs = require('../src/contrast').matrix(PG.tokens.colour);
+  assert.ok(pairs.length > 0 && pairs.every((p) => typeof p.ratio === 'number'),
+    `${pairs.filter((p) => p.ratio == null).length} pairs could not be measured`);
+  assert.ok(!/NaN/.test(docs.guidelines(ctx)), 'NaN reached the manual');
+  // and a colour the reader genuinely cannot parse is refused at load, by name,
+  // rather than travelling silently into every measurement downstream
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-colour-'));
+  const bad = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'projects', 'perigee', 'project.json'), 'utf8'));
+  bad.tokens.colour.deep.hex = 'sort of navy';
+  fs.writeFileSync(path.join(dir, 'project.json'), JSON.stringify(bad));
+  for (const f of ['mark.svg', 'wordmark.svg']) {
+    fs.copyFileSync(path.join(__dirname, '..', 'projects', 'perigee', f), path.join(dir, f));
+  }
+  assert.throws(() => projectLoader.load(path.join(dir, 'project.json')),
+    /the colour "deep" is "sort of navy", which is not a colour this can read/);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('nothing inside defs is coloured, slotted or drawn', () => {
+  // the same rule the printed piece needed, in the two other places that walk
+  // the tree: a clipping rectangle's white was snapped to a brand colour and
+  // given a brand colour slot, so the project gained a phantom slot for a
+  // shape that never reaches the page.
+  const norm = require('../src/normalise');
+  const src = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
+    + '<g clip-path="url(#c)"><path d="M8 8h20v10H8z" fill="#FF6633"/></g>'
+    + '<defs><clipPath id="c"><rect width="64" height="64" fill="#F7F6F3"/></clipPath></defs></svg>';
+  const r = norm.normalise(src, { tokens: PG.tokens });
+  assert.strictEqual(r.slots.length, 1, `slots were ${JSON.stringify(r.slots)}`);
+  const doc = svgu.parse(r.svg);
+  let inDefs = 0;
+  (function walk(n, hidden) {
+    for (let c = n.firstChild; c; c = c.nextSibling) {
+      if (c.nodeType !== 1) continue;
+      const t = String(c.nodeName).toLowerCase();
+      const h = hidden || svgu.NEVER_DRAWN.indexOf(t) > -1;
+      if (h && c.getAttribute('data-slot')) inDefs++;
+      walk(c, h);
+    }
+  }(doc.documentElement, false));
+  assert.strictEqual(inDefs, 0, 'a shape that never draws was given a colour slot');
+  // and the real fixture, which is a Figma export with a clipPath in it
+  assert.deepStrictEqual(pgM.slots, ['orbit', 'void', 'flare', 'ink']);
+});
+
+test('a wordmark slot is named in the warning too, not just the mark', () => {
+  // the message that says what a missing slot kept only ever looked at the
+  // mark, so a wordmark slot was reported as keeping "its master colour"
+  const painted = {};
+  for (const asset of [PG.assets.mark, PG.assets.wordmark]) {
+    svgu.eachPainted(svgu.parse(asset.source), (el) => {
+      const sl = el.getAttribute('data-slot');
+      const f = el.getAttribute('fill') || el.getAttribute('stroke');
+      if (sl && f && f !== 'none' && !painted[sl]) painted[sl] = f;
+    });
+  }
+  assert.ok(painted.ink, 'the wordmark slot has no colour to report');
+  assert.ok(painted.orbit && painted.flare, JSON.stringify(painted));
+});
+
 drain().then(() => {
   for (const d of [out, out2]) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);

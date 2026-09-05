@@ -2,6 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const { normalise } = require('./normalise');
+const contrast = require('./contrast');
 
 const DEFAULTS = {
   clearSpaceRatio: 0.25,
@@ -30,6 +31,31 @@ function load(file) {
     problems.push('the project defines no lockups (rules.lockups)');
   }
   if (problems.length) throw new Error('This project file is not usable yet:\n  - ' + problems.join('\n  - '));
+
+  // A designer may write a colour however their tool writes it. Everything
+  // downstream — contrast, ink builds, the printed piece, the canvas — read
+  // six-digit hex and produced NaN for anything else, and a NaN ratio compares
+  // false against every threshold, so brand.json told the client that every
+  // pair in their palette was "Never for text". Canonicalise once, here.
+  const canon = (v, where) => {
+    const hex = contrast.toHex(v);
+    if (hex === null) {
+      throw new Error(`${where} is "${v}", which is not a colour this can read.`
+        + ' Use a hex value like #1B3A6B, or rgb(), or hsl().');
+    }
+    return hex;
+  };
+  for (const [name, c] of Object.entries(raw.tokens && raw.tokens.colour ? raw.tokens.colour : {})) {
+    c.hex = canon(c.hex, `the colour "${name}"`);
+  }
+  for (const cw of (raw.rules && raw.rules.colourways) || []) {
+    for (const slot of Object.keys(cw.slots || {})) {
+      cw.slots[slot] = canon(cw.slots[slot], `colourway "${cw.name}" slot "${slot}"`);
+    }
+  }
+  for (const key of ['iconInk', 'iconBg']) {
+    if (raw.rules && raw.rules[key]) raw.rules[key] = canon(raw.rules[key], `rules.${key}`);
+  }
 
   const rules = Object.assign({}, DEFAULTS, raw.rules);
   const assets = {};

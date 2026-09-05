@@ -4,6 +4,7 @@
 // safely it refuses to guess about.
 const { optimize } = require('svgo');
 const svgu = require('./svg');
+const contrast = require('./contrast');
 
 const finding = (level, code, what, why, how) => ({ level, code, what, why, how });
 
@@ -28,18 +29,11 @@ function eachEl(doc, fn) {
   })(doc.documentElement);
 }
 
-const hex = (c) => {
-  if (!c) return null;
-  const s = String(c).trim().toLowerCase();
-  let m = /^#([0-9a-f]{6})$/.exec(s);
-  if (m) return '#' + m[1].toUpperCase();
-  m = /^#([0-9a-f]{3})$/.exec(s);
-  if (m) return '#' + m[1].split('').map((d) => d + d).join('').toUpperCase();
-  m = /^rgb\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/.exec(s);
-  if (m) return '#' + [1, 2, 3].map((i) => (+m[i]).toString(16).padStart(2, '0')).join('').toUpperCase();
-  return null;
-};
-const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+// this had its own reader, which knew hex and rgb() and not hsl(), so an hsl
+// fill was left in the artwork untouched, given no colour slot, and handed to
+// the printed piece as the literal text rgb("hsl(207
+const hex = (c) => contrast.toHex(c);
+const rgb = (h) => contrast.rgb(h) || [0, 0, 0];
 const distance = (a, b) => Math.hypot(...rgb(a).map((v, i) => v - rgb(b)[i]));
 
 // ---------- look before touching ----------
@@ -154,13 +148,14 @@ function colourPass(doc, tokens) {
   const offPalette = new Set();
   const used = new Map();          // hex -> count
 
-  eachEl(doc, (el) => {
+  svgu.eachPainted(doc, (el) => {
     for (const prop of ['fill', 'stroke']) {
       const raw = el.getAttribute(prop);
       if (!raw || raw === 'none' || raw.startsWith('url(')) continue;
       const h = hex(raw);
       if (!h) continue;
       let final = h;
+      if (h !== raw) el.setAttribute(prop, h);   // hsl() and friends, written out
       if (palette.length) {
         const exact = palette.find((p) => p.hex === h);
         if (!exact) {
@@ -194,7 +189,7 @@ function assignSlots(doc, used, tokens) {
   });
 
   let tagged = 0;
-  eachEl(doc, (el) => {
+  svgu.eachPainted(doc, (el) => {
     if (el.getAttribute('data-slot')) return;
     for (const prop of ['fill', 'stroke']) {
       const h = hex(el.getAttribute(prop));

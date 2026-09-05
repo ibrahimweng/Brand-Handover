@@ -1,0 +1,238 @@
+{
+  "brand": "Perigee",
+  "version": "0.4.0",
+  "assets": {
+    "mark": "mark.svg",
+    "wordmark": "wordmark.svg"
+  },
+  "tokens": {
+    "colour": {
+      "deep": {
+        "hex": "#123",
+        "role": "ground",
+        "pantone": "533 C",
+        "cmyk": [
+          92,
+          74,
+          42,
+          33
+        ]
+      },
+      "paper": {
+        "hex": "rgb(247, 246, 243)",
+        "role": "primary",
+        "pantone": "11-0602",
+        "cmyk": [
+          2,
+          2,
+          4,
+          0
+        ]
+      },
+      "flare": {
+        "hex": "#F63",
+        "role": "accent",
+        "pantone": "165 C",
+        "cmyk": [
+          0,
+          78,
+          90,
+          0
+        ]
+      },
+      "orbit": {
+        "hex": "hsl(207, 68%, 24%)",
+        "role": "secondary",
+        "pantone": "302 C",
+        "cmyk": [
+          96,
+          66,
+          32,
+          15
+        ]
+      },
+      "dust": {
+        "hex": "#8A9299",
+        "role": "neutral",
+        "pantone": "429 C",
+        "cmyk": [
+          44,
+          32,
+          28,
+          2
+        ]
+      },
+      "void": {
+        "hex": "rgb(0, 0, 0)",
+        "pantone": "Black 6 C",
+        "cmyk": [
+          75,
+          68,
+          67,
+          90
+        ]
+      }
+    },
+    "type": {
+      "families": {
+        "display": {
+          "family": "Archivo",
+          "fallback": "Helvetica, Arial, sans-serif",
+          "weights": [
+            600,
+            700
+          ],
+          "google": true
+        },
+        "text": {
+          "family": "Literata",
+          "fallback": "Georgia, serif",
+          "weights": [
+            400,
+            500
+          ],
+          "google": true
+        }
+      },
+      "scale": [
+        {
+          "name": "Display",
+          "family": "display",
+          "size": 72,
+          "leading": 76,
+          "weight": 700,
+          "tracking": -0.02
+        },
+        {
+          "name": "H1",
+          "family": "display",
+          "size": 38,
+          "leading": 44,
+          "weight": 700
+        },
+        {
+          "name": "H2",
+          "family": "display",
+          "size": 25,
+          "leading": 31,
+          "weight": 600
+        },
+        {
+          "name": "H3",
+          "family": "display",
+          "size": 18,
+          "leading": 25,
+          "weight": 600
+        },
+        {
+          "name": "Body",
+          "family": "text",
+          "size": 16,
+          "leading": 26,
+          "weight": 400
+        },
+        {
+          "name": "Small",
+          "family": "text",
+          "size": 13,
+          "leading": 20,
+          "weight": 400
+        },
+        {
+          "name": "Caption",
+          "family": "display",
+          "size": 11,
+          "leading": 15,
+          "weight": 500,
+          "tracking": 0.06
+        }
+      ]
+    }
+  },
+  "rules": {
+    "clearSpaceRatio": 0.3,
+    "minStrokePx": 3,
+    "minStrokeMm": 0.8,
+    "lockupGapRatio": 0.26,
+    "wordmarkHeightRatio": 0.44,
+    "naming": "{brand}-{lockup}-{colourway}",
+    "lockups": [
+      "horizontal",
+      "stacked",
+      "mark"
+    ],
+    "formats": [
+      "svg",
+      "png",
+      "pdf"
+    ],
+    "pngWidths": [
+      512,
+      1024
+    ],
+    "stock": "coated",
+    "colourways": [
+      {
+        "name": "full",
+        "on": "deep",
+        "slots": {
+          "orbit": "hsl(207, 68%, 24%)",
+          "void": "rgb(247, 246, 243)",
+          "flare": "#F63",
+          "ink": "rgb(247, 246, 243)"
+        }
+      },
+      {
+        "name": "reverse",
+        "on": "paper",
+        "slots": {
+          "orbit": "#123",
+          "void": "#123",
+          "flare": "#F63",
+          "ink": "#123"
+        }
+      },
+      {
+        "name": "flat",
+        "on": "paper",
+        "slots": {
+          "orbit": "#123",
+          "void": "#123",
+          "flare": "#123",
+          "ink": "#123"
+        }
+      }
+    ],
+    "iconInk": "rgb(247, 246, 243)",
+    "iconBg": "#123",
+    "iconSizes": [
+      1024,
+      180
+    ],
+    "faviconSizes": [
+      16,
+      32
+    ],
+    "social": {
+      "profile": {
+        "w": 400,
+        "h": 400
+      },
+      "og image": {
+        "w": 1200,
+        "h": 630
+      }
+    }
+  },
+  "content": {
+    "positioning": "Perigee",
+    "misuse": [
+      "Do not stretch it",
+      "Do not rotate it",
+      "Do not recolour the perigee",
+      "Do not add a shadow",
+      "Do not crowd it",
+      "Do not outline it"
+    ]
+  }
+}

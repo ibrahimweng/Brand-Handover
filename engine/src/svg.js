@@ -35,6 +35,25 @@ function walk(node, fn) {
 
 // Paint every element carrying data-slot with that slot's colour. A value of
 // "none" is left alone, because it means the element deliberately has no paint.
+// Elements that hold artwork without drawing it. A clipPath describes a shape
+// whose job is to hide other shapes; a symbol is a stencil. Three separate
+// walkers here each had their own idea of this, or none: the printed piece drew
+// a clipping rectangle onto the page, and the colour pass snapped that same
+// rectangle's white to a brand colour and gave it a brand colour slot.
+const NEVER_DRAWN = ['defs', 'clippath', 'mask', 'symbol', 'marker', 'pattern',
+  'metadata', 'title', 'desc', 'style'];
+
+const drawn = (el) => NEVER_DRAWN.indexOf(String(el.nodeName).replace(/^.*:/, '').toLowerCase()) < 0;
+
+// walk, but only through what actually reaches the page
+function eachPainted(doc, fn) {
+  (function step(n) {
+    if (n.nodeType !== 1 || !drawn(n)) return;
+    fn(n);
+    for (let c = n.firstChild; c; c = c.nextSibling) step(c);
+  }(doc.documentElement));
+}
+
 function applyColourway(doc, slots) {
   const missing = new Set();
   walk(doc.documentElement, (el) => {
@@ -42,10 +61,17 @@ function applyColourway(doc, slots) {
     if (!slot) return;
     const colour = slots[slot];
     if (colour === undefined) { missing.add(slot); return; }
-    for (const prop of ['fill', 'stroke']) {
-      const cur = el.getAttribute(prop);
-      if (cur && cur !== 'none') el.setAttribute(prop, colour);
-    }
+    // A shape with no fill attribute is not unfilled: SVG paints it black. The
+    // cleaner removes fill="#000000" precisely because it is the default, so a
+    // mark drawn in plain black arrived here with nothing to repaint and came
+    // out black in every colourway, silently, with nothing reported. Black is
+    // the commonest colour a logo is drawn in.
+    const fill = el.getAttribute('fill');
+    if (fill !== 'none') el.setAttribute('fill', colour);
+    // a stroke is only repainted where there is one: adding one would redraw
+    // the artwork rather than recolour it
+    const stroke = el.getAttribute('stroke');
+    if (stroke && stroke !== 'none') el.setAttribute('stroke', colour);
   });
   return [...missing];
 }
@@ -92,4 +118,4 @@ function compose(parts, width, height) {
 
 const round = (n, dp = 3) => Number(n.toFixed(dp));
 
-module.exports = { parse, serialize, viewBox, applyColourway, slotsUsed, thinnestStroke, innerXML, compose, round, NS };
+module.exports = { parse, serialize, viewBox, applyColourway, slotsUsed, thinnestStroke, innerXML, compose, round, NS, eachPainted, NEVER_DRAWN };

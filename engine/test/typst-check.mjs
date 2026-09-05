@@ -35,7 +35,15 @@ const { measure } = require('../src/variants');
 const { bundle } = require('../src/editor/bundle');
 const { Resvg } = require('@resvg/resvg-js');
 
-const project = projectLoader.load(path.join(import.meta.dirname, '..', 'projects', 'meridian', 'project.json'));
+// The page comparison needs a browser and a typst binary, so it runs on one
+// project; the path translation needs neither, so it runs on all of them. A
+// check pinned to one fixture tests that fixture: Kvist's printed piece carried
+// a clipping rectangle for two rounds behind a check that only knew Meridian.
+const PROJECTS = fs.readdirSync(path.join(import.meta.dirname, '..', 'projects'))
+  .filter((d) => fs.existsSync(path.join(import.meta.dirname, '..', 'projects', d, 'project.json')))
+  .sort();
+const load = (name) => projectLoader.load(path.join(import.meta.dirname, '..', 'projects', name, 'project.json'));
+const project = load(process.env.PROJECT || 'meridian');
 const bu = bundle(project, measure(project), []);
 let failed = 0;
 const report = (ok, name, detail) => {
@@ -48,8 +56,14 @@ const report = (ok, name, detail) => {
 // original. A pixel that is solid in one and empty in the other is a shape
 // error; everything else is the edge of a curve being antialiased.
 console.log('\nthe path translation');
-for (const [name, src] of [['the mark', project.assets.mark.source],
-  ['the wordmark', project.assets.wordmark.source]]) {
+const everyAsset = [];
+for (const name of PROJECTS) {
+  const p = load(name);
+  for (const which of ['mark', 'wordmark']) {
+    if (p.assets[which]) everyAsset.push([`${name} ${which}`, p.assets[which].source]);
+  }
+}
+for (const [name, src] of everyAsset) {
   const ds = [...src.matchAll(/ d="([^"]+)"/g)].map((m) => m[1]);
   let redrawn = src;
   for (const d of ds) redrawn = redrawn.replace(` d="${d}"`, ` d="${paths.toPathData(paths.parse(d))}"`);

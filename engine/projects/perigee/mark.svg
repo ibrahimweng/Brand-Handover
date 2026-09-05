@@ -1,0 +1,11 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Frame 12" clip-path="url(#clip0_1_2)">
+<path id="orbit" d="M32 6C46.36 6 58 17.64 58 32C58 46.36 46.36 58 32 58C17.64 58 6 46.36 6 32C6 17.64 17.64 6 32 6Z"
+      stroke="hsl(207, 68%, 24%)" stroke-width="5" fill="none"/>
+<path id="body" d="M32 21c6.08 0 11 4.92 11 11s-4.92 11-11 11-11-4.92-11-11 4.92-11 11-11z" fill="black"/>
+<path id="perigee" d="M50 44a5 5 0 1 1 .01 0z" fill="#F63"/>
+</g>
+<defs>
+<clipPath id="clip0_1_2"><rect width="64" height="64" fill="white"/></clipPath>
+</defs>
+</svg>

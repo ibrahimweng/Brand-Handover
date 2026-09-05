@@ -94,8 +94,7 @@ function artwork(svg, box, bundle, seen) {
   // shape of a clipping mask onto the page: Kvist's printed piece carried a
   // solid rectangle the size of its own artboard, because a clipPath lives in
   // defs and defs was being treated as an ordinary group.
-  const HIDDEN = ['defs', 'clippath', 'mask', 'symbol', 'marker', 'pattern',
-    'metadata', 'title', 'desc', 'style'];
+  const HIDDEN = svgu.NEVER_DRAWN;
 
   // <use> is how every drawing tool writes a repeated element, and this walker
   // had never heard of one: it drew the original out of defs, once, at the
