@@ -13,7 +13,9 @@ const { toPdf } = require('./pdf');
 const oneColour = (doc, hex) =>
   svgu.applyColourway(doc, Object.fromEntries(svgu.slotsUsed(doc).map((s) => [s, hex])));
 
-function iconSquare(markSvg, { size, background, ink, safeArea = 0.68, radius = 0 }) {
+const ICON_SAFE_AREA = 0.68;
+
+function iconSquare(markSvg, { size, background, ink, safeArea = ICON_SAFE_AREA, radius = 0 }) {
   const doc = svgu.parse(markSvg);
   oneColour(doc, ink);
   const box = geo.inkBox(markSvg);
@@ -73,4 +75,33 @@ async function zip(files, date) {
   return z.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 6 } });
 }
 
-module.exports = { iconSquare, banner, ico, zip, toPdf };
+// How small an icon this mark survives, and which of the ones a project asks
+// for it does not. The engine already refuses an icon handed to it on exactly
+// this measurement and wrote its own without making it, so a 180 px app icon of
+// a hairline seal shipped at 0.49 px and nothing said so. The mark is inset to
+// the safe area, so it is drawn at size * safeArea across its longest side and
+// everything in it shrinks by the same factor.
+//
+// A favicon is the exception that is not a fault: no mark of any weight clears
+// a 3 px stroke at 16 px, which is why a favicon is a simplified glyph rather
+// than the mark. So the floor is reported for every project, and only an app
+// icon under it — a size the designer chose for this mark — is a warning.
+function iconFloor(measured, rules) {
+  const thin = measured.minimumSize && measured.minimumSize.thinnestStroke;
+  const long = Math.max(measured.markInk.w, measured.markInk.h);
+  if (thin == null || !(long > 0)) return null;
+  const paints = (size) => (thin * size * ICON_SAFE_AREA) / long;
+  const smallest = Math.ceil((rules.minStrokePx * long) / (thin * ICON_SAFE_AREA));
+  const look = (prefix, sizes) => (sizes || []).map((size) =>
+    ({ name: `${prefix}-${size}.png`, size, at: svgu.round(paints(size), 2) }));
+  const icons = look('icon', rules.iconSizes);
+  const favicons = look('favicon', rules.faviconSizes);
+  return {
+    smallest,
+    thinIcons: icons.filter((i) => i.at < rules.minStrokePx),
+    thinFavicons: favicons.filter((i) => i.at < rules.minStrokePx),
+    clears: icons.concat(favicons).filter((i) => i.at >= rules.minStrokePx).map((i) => i.name),
+  };
+}
+
+module.exports = { iconSquare, banner, ico, zip, toPdf, iconFloor, ICON_SAFE_AREA };

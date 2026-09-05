@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="384" viewBox="0 0 120 384">
+  <path data-slot="finial"  d="M60 14 L74 62 H46 Z" fill="#1C2B36"/>
+  <path data-slot="spire"   d="M46 62 H74 L82 150 H38 Z" fill="#1C2B36"/>
+  <path data-slot="belfry"  d="M38 162 H82 V226 H38 Z" fill="#1C2B36"/>
+  <path data-slot="louvre"  d="M48 178 H72 V210 H48 Z" fill="#B98A3C"/>
+  <path data-slot="shaft"   d="M34 238 H86 L92 356 H28 Z" fill="#1C2B36"/>
+  <path data-slot="base"    d="M22 356 H98 V372 H22 Z" fill="#7C8A93"/>
+</svg>

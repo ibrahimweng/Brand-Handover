@@ -9,7 +9,7 @@ around it.
 
     cd engine
     npm install
-    npm test                                            # 293 checks
+    npm test                                            # 300 checks
     node test/print-check.mjs                           # prints, and measures the paper
     node test/treatment-check.mjs                       # renders, and reads the pixels back
     node test/typst-check.mjs                           # the printed piece against the published page
@@ -31,8 +31,9 @@ around it.
     node src/cli.js build   projects/thornbury/project.json -o out-thornbury
     node src/cli.js build   projects/cusp/project.json      -o out-cusp
     node src/cli.js build   projects/fathom/project.json    -o out-fathom
+    node src/cli.js build   projects/spire/project.json     -o out-spire
 
-The Meridian example writes 136 files in about six seconds, including both
+The Meridian example writes 138 files in about six seconds, including both
 documents, the editor, the document it opens with, that document published, and
 the pattern at every density in every colourway.
 
@@ -64,6 +65,12 @@ left. See [A seventh identity](#a-seventh-identity).
 Thornbury Mills is the eighth, and the first that is *damaged* rather than
 merely unfamiliar: a file that has been edited by three people since 1998. See
 [An eighth identity](#an-eighth-identity).
+
+Cusp is the ninth, where the thin part is the project file rather than the
+artwork. Fathom is the tenth, whose graphic language *is* the pattern. Spire is
+the eleventh, and it is a tower: 76 wide by 358 tall, six colour slots, the
+first mark in the repo that is not roughly square. See
+[An eleventh identity](#an-eleventh-identity).
 
 ## What it measures
 
@@ -1514,6 +1521,75 @@ it is none of the engine's business what else they keep in it — which is worth
 saying because the first version of this check did police it, and refused
 Meridian for carrying three keys the documents do read.
 
+## An eleventh identity
+
+Ten marks, and a check written to find out what they had in common turned up
+something none of them tested: **not one was taller than 1 to 1.22.** Every
+identity in the repo was square or wide. So Spire is a tower — ink 76 by 358,
+1 to 4.7 — and it broke two things immediately and led to three more.
+
+**The smallest usable size is a width, and nothing ever said so.** The floor is
+computed by dividing the box by the narrowest stem across it, so it has always
+been a width; while every mark was roughly square that made no difference at
+all. It makes a great deal of difference to Spire. `brand.json` said `screenPx:
+13`, and anybody who read that as a height would set the mark 13 px tall and get
+one **3 px wide with a 0.9 px stem in it** — a quarter of the size the number
+promised, and well under the floor it was quoting. Kvist has been ambiguous the
+same way since the third round: its 110 px is a width, its height is 40.
+
+The floor now carries both dimensions and says which is which. A square mark
+still reads `32 px`; a mark that is not reads `13 × 42 px`, in the manual, the
+deck, the read me, `brand.json` and the canvas.
+
+**A tall mark's diagram was narrower than its own caption.** The construction
+and clear-space canvases follow the shape of the artwork — right, and added in
+the third round, when the only awkward shape was a wide one. Spire's canvases
+came out 123 and 129 units across carrying captions that need 173 and 197, so
+`narrowest stem 29.7` was cut off after the word *stem*. The canvas is now at
+least as wide as the words written under it, which widened Spire's to 188 and
+213 and left every other project's exactly where it was.
+
+Three more came out of checking the fix rather than the fixture:
+
+**Half a fix is not a fix.** The size specimen is drawn by two renderers — one
+for the manual, one for the canvas — and only the manual was taught to say the
+height. The same mark read `110 × 40 px` in the book and `110 px` on the page
+the book published. The three steps are worked out once now, in `geometry.js`,
+and both renderers read them.
+
+**Three sizes drawn as one picture.** Hallward's floor is 766 px, so its
+specimen asks for 1532, 766 and 460 px in a column 282 wide. The manual's CSS
+capped each preview on its own at `max-width:100%`, which drew **the same
+picture three times under three different numbers** — a specimen whose entire
+job is to show the difference between above and below the floor showing no
+difference at all. The canvas capped nothing and ran a 1532 px mark off the
+right of a 1400 px page. Each step is now offered at its true size *and* at its
+share of the column, so three previews are either all life-size or all shrunk by
+one factor, and the page says which.
+
+**The engine broke its own rule and reported success.** `check <icon.svg>
+--icon` refuses an icon you hand it whose thinnest part paints under
+`minStrokePx`. The engine then wrote its own icons at sizes far under the same
+rule and said nothing. An icon is the mark inset to a safe area of 0.68, so
+Hallward's hairline seal paints at **0.49 px in its 180 px app icon and 0.04 px
+in its favicon** — 177 pixels touched carrying 64 pixels' worth of ink, which is
+a grey haze rather than a seal. It ships nothing that clears its own rule: the
+artwork needs a 1095 px square before it holds together.
+
+A favicon under the rule is not a fault of the artwork — no mark of any weight
+clears 3 px at 16 px, which is precisely why a favicon is a simplified glyph —
+so `brand.json` now carries the crossover for every project and only an **app**
+icon under it is a warning. One of the eleven gets one, which is the one that
+deserves it.
+
+Two things this round did *not* break, both worth recording because I expected
+them to. Six colour slots, where every previous fixture had one to three: cut
+correctly in every colourway with nothing missing. And the horizontal lockup of
+a mark 4.7 times taller than it is wide, which I predicted would blow out
+sideways because the wordmark is scaled against the mark's *height* — it comes
+out at 1.71 to 1, which is an ordinary lockup, and measuring it was quicker than
+arguing about it.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.
@@ -1555,6 +1631,7 @@ Meridian for carrying three keys the documents do read.
     projects/thornbury/ the eighth: a file edited by three people since 1998
     projects/cusp/      the ninth: the project file is the thin part, not the artwork
     projects/fathom/    the tenth: the graphic language is the pattern
+    projects/spire/     the eleventh: 1 to 4.7, six colour slots, a floor that is a width
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package

@@ -219,7 +219,7 @@ async function main(argv) {
     console.log(`  ink box       ${m.markInk.w} × ${m.markInk.h} (at ${m.markInk.x}, ${m.markInk.y})`);
     console.log(`  clear space   ${m.clearSpace} units on every side`);
     console.log(`  ${m.minimumSize.from === 'stem' ? 'narrowest stem  ' : 'thinnest stroke'} ${m.minimumSize.thinnestStroke}`);
-    console.log(`  smallest use  ${m.minimumSize.screenPx} px on screen, ${m.minimumSize.printMm} mm in print`);
+    console.log(`  smallest use  ${require('./geometry').floorText(m.minimumSize, 'px')} on screen, ${require('./geometry').floorText(m.minimumSize, 'mm')} in print`);
     console.log(`                ${m.minimumSize.basis}`);
     console.log(`  colour slots  ${m.slots.join(', ') || 'none found'}`);
     return 0;

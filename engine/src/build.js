@@ -11,7 +11,7 @@ const contrast = require('./contrast');
 async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   const measured = measure(project);
   log(`measured the master: ink ${measured.markInk.w} × ${measured.markInk.h}, ` +
-      `clear space ${measured.clearSpace}, floor ${measured.minimumSize.screenPx} px / ${measured.minimumSize.printMm} mm`);
+      `clear space ${measured.clearSpace}, floor ${geo.floorText(measured.minimumSize, 'px')} / ${geo.floorText(measured.minimumSize, 'mm')}`);
 
   const { rules } = project;
   const warnings = [];
@@ -196,6 +196,16 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   const iconInk = rules.iconInk || '#FFFFFF';
   const iconBg = rules.iconBg || '#000000';
   const favPngs = [];
+  // An icon is the mark inside a square, inset to the safe area, so the mark is
+  // drawn at size * safeArea and its thinnest part shrinks with it. The engine
+  // refuses an icon you hand it whose stroke lands under rules.minStrokePx, and
+  // wrote its own at sizes far under the same rule without a word.
+  //
+  // A favicon under the rule is not news — nothing survives at 16 px, which is
+  // why a favicon is a simplified glyph — so the floor goes into brand.json for
+  // every project and only an app icon under it is worth stopping over.
+  // Hallward is the case: a 766 px floor against a 180 px icon paints at
+  // 0.49 px, and it ships nothing that clears its own rule at all.
   for (const size of rules.iconSizes || []) {
     const svg = exp.iconSquare(mark, { size, background: iconBg, ink: iconInk, radius: 0.22 });
     write(`05-icons/icon-${size}.png`, geo.renderPng(svg, size));
@@ -207,6 +217,18 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     favPngs.push({ size, data: png });
   }
   if (favPngs.length) write('05-icons/favicon.ico', exp.ico(favPngs));
+  const icons = exp.iconFloor(measured, rules) || { thinIcons: [], thinFavicons: [], clears: [] };
+  if (icons.thinIcons.length) {
+    const list = icons.thinIcons.map((t) => `${t.name} at ${t.at} px`).join(', ');
+    warnings.push(`${icons.thinIcons.length} app icon`
+      + `${icons.thinIcons.length > 1 ? 's were' : ' was'} written where the thinnest part of the mark `
+      + `paints under the ${rules.minStrokePx} px this project sets as the thinnest a stroke may go: `
+      + `${list}. They are in the package because the sizes were asked for, but the mark will read as `
+      + `a smudge at them: this artwork needs ${icons.smallest} px square before it holds together`
+      + `${icons.clears.length ? `, so only ${icons.clears.join(' and ')} come out of it clean` : `, and nothing asked for is that big`}. `
+      + `Draw a simplified icon mark — fewer parts, heavier strokes — and run `
+      + `\`check <icon.svg> --icon\` against it, which measures the same thing and will say when it clears.`);
+  }
 
   for (const [name, spec] of Object.entries(rules.social || {})) {
     const svg = spec.w === spec.h
@@ -251,11 +273,25 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     logo: {
       clearSpace: `${rules.clearSpaceRatio} * inkHeight`,
       clearSpaceUnits: measured.clearSpace,
+      // both dimensions, because these are widths and nothing said so
       minSize: { screenPx: measured.minimumSize.screenPx, printMm: measured.minimumSize.printMm,
+        screenPxHigh: measured.minimumSize.screenPxHigh, printMmHigh: measured.minimumSize.printMmHigh,
+        note: 'screenPx and printMm are widths; the High figures are the matching heights',
+        squarish: measured.minimumSize.squarish,
         from: measured.minimumSize.from, width: measured.minimumSize.thinnestStroke,
         basis: measured.minimumSize.basis },
       lockups: rules.lockups,
       colourways: rules.colourways.map((c) => c.name),
+      // the square an icon has to be before this mark holds together in it, and
+      // which of the ones asked for do. A favicon under it is expected; an app
+      // icon under it means the artwork is too fine for the size it was cut at.
+      icons: icons.smallest == null ? null : {
+        smallestSquarePx: icons.smallest,
+        clears: icons.clears,
+        under: icons.thinIcons.concat(icons.thinFavicons)
+          .map((i) => ({ file: i.name, paintsAtPx: i.at })),
+        rule: `the thinnest part must paint at ${rules.minStrokePx} px or more`,
+      },
     },
     contrast: pairs.map((p) => ({ pair: `${p.fg} on ${p.bg}`, ratio: p.ratio, verdict: p.use })),
     system: {
@@ -283,7 +319,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     'Rules that travel with it',
     '-------------------------',
     `  Clear space     ${measured.clearSpace} units on every side, which is ${rules.clearSpaceRatio} of the mark's height.`,
-    `  Smallest use    ${measured.minimumSize.screenPx} px on screen, ${measured.minimumSize.printMm} mm in print.`,
+    `  Smallest use    ${geo.floorText(measured.minimumSize, 'px')} on screen, ${geo.floorText(measured.minimumSize, 'mm')} in print.`,
     `                  ${measured.minimumSize.basis}.`,
     `  Colourways      ${rules.colourways.map((c) => c.name).join(', ')}.`, '',
     'brand.json holds all of the above in a form software can read.', '',

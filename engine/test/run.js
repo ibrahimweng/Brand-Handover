@@ -3118,6 +3118,186 @@ test('every project in the repo sets only things that are read', () => {
   }
 });
 
+console.log('\nan eleventh identity');
+// Ten marks, and not one of them taller than it is wide by more than a fifth.
+// Kvist tested wide; nothing had ever tested tall. Spire is an emblem 4.7 times
+// taller than it is across, with six colour slots where every other project has
+// one to three.
+const SP = projectLoader.load(path.join(__dirname, '..', 'projects', 'spire', 'project.json'));
+const spM = measure(SP);
+
+test('the smallest usable size says which way round it is', () => {
+  // it is a width — the box divided by the stem across it — and no document
+  // ever said so. For a mark 4.7 times taller than wide, "13 px" means 13
+  // across and 42 down, and anyone setting the height to 13 gets a mark 3 px
+  // wide with a 0.9 px stem in it.
+  assert.ok(!spM.minimumSize.squarish, 'this fixture is meant not to be square');
+  assert.strictEqual(spM.minimumSize.screenPx, 13);
+  assert.strictEqual(spM.minimumSize.screenPxHigh, 42);
+  assert.strictEqual(geo.floorText(spM.minimumSize, 'px'), '13 × 42 px');
+  // the arithmetic behind it: at that width the narrowest part is the rule
+  const atFloor = spM.minimumSize.thinnestStroke * spM.minimumSize.screenPx / spM.markViewBox.w;
+  assert.ok(Math.abs(atFloor - SP.rules.minStrokePx) < 0.5,
+    `at the floor the narrowest part is ${atFloor.toFixed(2)} px, and the rule says ${SP.rules.minStrokePx}`);
+  // a square mark still reads as one number, exactly as it did
+  assert.ok(m.minimumSize.squarish);
+  assert.strictEqual(geo.floorText(m.minimumSize, 'px'), '32 px');
+  // and the wide one has been ambiguous the same way since it was added
+  assert.ok(!kvM.minimumSize.squarish);
+  assert.strictEqual(geo.floorText(kvM.minimumSize, 'px'), '110 × 40 px');
+  // brand.json carries both, and says which is which
+  const bj = JSON.parse(fs.readFileSync(path.join(out, 'brand.json'), 'utf8'));
+  assert.ok(bj.logo.minSize.screenPxHigh > 0);
+  assert.ok(/widths/.test(bj.logo.minSize.note), bj.logo.minSize.note);
+});
+
+test('a diagram is at least as wide as the words written under it', () => {
+  // the canvas follows the shape of the artwork, which is right, and was only
+  // ever checked on a wide mark. For a tall one the canvas is 123 units across
+  // while its caption needs 173, and the caption was cut off mid-word.
+  const docs = require('../src/documents');
+  const b = require('../src/documents/blocks');
+  const box = (svg) => (/viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(svg) || []).slice(1).map(Number);
+  const widest = (svg) => Math.max(...[...svg.matchAll(/>([^<]*)<\/text>/g)]
+    .map((t) => t[1].replace(/&[a-z]+;/g, 'x').length * 4.9));
+  for (const [proj, meas] of [[project, m], [KV, kvM], [SP, spM], [HW, hwM]]) {
+    const ctx = docs.context(proj, meas, [], {});
+    for (const draw of [b.construction(ctx), b.clearSpace(ctx)]) {
+      const [w] = box(draw);
+      assert.ok(w >= widest(draw), `${proj.brand}: a ${w} wide drawing carries a ${Math.round(widest(draw))} wide caption`);
+    }
+  }
+});
+
+test('a mark of six colour slots is cut in every one of them', () => {
+  // every project so far had one slot to three
+  assert.strictEqual(spM.slots.length, 6);
+  assert.deepStrictEqual(spM.slots, ['finial', 'spire', 'belfry', 'louvre', 'shaft', 'base']);
+  for (const cw of SP.rules.colourways) {
+    assert.deepStrictEqual(Object.keys(cw.slots).sort(), spM.slots.slice().sort(),
+      `colourway ${cw.name} does not name every slot`);
+  }
+  const { buildVariant } = require('../src/variants');
+  const v = buildVariant({ markSrc: SP.assets.mark.source, wordmarkSrc: SP.assets.wordmark.source,
+    lockup: 'mark', colourway: SP.rules.colourways[1], rules: SP.rules, measured: spM });
+  assert.deepStrictEqual(v.missing, []);
+  for (const hex of new Set(Object.values(SP.rules.colourways[1].slots))) {
+    assert.ok(v.svg.includes(hex), `${hex} did not reach the artwork`);
+  }
+});
+
+test('a tall mark composes a lockup that is not absurd', () => {
+  // the wordmark is scaled against the mark's HEIGHT, so a very tall mark could
+  // have blown the horizontal lockup out sideways
+  const { buildVariant } = require('../src/variants');
+  const h = buildVariant({ markSrc: SP.assets.mark.source, wordmarkSrc: SP.assets.wordmark.source,
+    lockup: 'horizontal', colourway: SP.rules.colourways[0], rules: SP.rules, measured: spM });
+  const ratio = h.box.w / h.box.h;
+  assert.ok(ratio > 0.5 && ratio < 6, `the horizontal lockup came out ${h.box.w} by ${h.box.h}`);
+  assert.ok(spM.markInk.h / spM.markInk.w > 4, 'this fixture is meant to be tall');
+});
+
+test('one specimen, drawn by two renderers, says the same thing', () => {
+  // the height went into the manual's copy of the size specimen and not into
+  // the canvas's, so the same mark read "110 × 40 px" in the book and "110 px"
+  // on the page the book published. The steps are worked out once now.
+  const b = require('../src/documents/blocks');
+  const docs = require('../src/documents');
+  for (const [proj, meas] of [[project, m], [KV, kvM], [SP, spM], [HW, hwM]]) {
+    const steps = meas.minimumSize.steps;
+    assert.strictEqual(steps.length, 3, `${proj.brand}: three steps`);
+    // the middle step is the floor, and it must be worded exactly as the prose is
+    assert.strictEqual(steps[1].px, meas.minimumSize.screenPx);
+    assert.strictEqual(steps[1].caption, geo.floorText(meas.minimumSize, 'px'),
+      `${proj.brand}: the caption under the picture disagrees with the sentence beside it`);
+    const manual = b.minimumSize(docs.context(proj, meas, [], {}));
+    const canvas = ER.block(EM.makeBlock('minimumSize'), bundleOf(proj, meas));
+    for (const st of steps) {
+      assert.ok(manual.includes(st.caption), `${proj.brand}: the manual does not say ${st.caption}`);
+      assert.ok(canvas.includes(st.caption), `${proj.brand}: the canvas does not say ${st.caption}`);
+    }
+  }
+});
+
+test('three sizes are drawn at three sizes, whatever the floor is', () => {
+  // Hallward's floor is 766 px, so its specimen asked for 1532, 766 and 460 px
+  // in a column 282 wide. The manual capped each one on its own, which drew the
+  // same picture three times under three different numbers; the canvas capped
+  // none of them and ran a 1532 px mark off a 1400 px page.
+  const b = require('../src/documents/blocks');
+  const docs = require('../src/documents');
+  const widths = (html) => [...html.matchAll(/width:min\((\d+(?:\.\d+)?)px,(\d+(?:\.\d+)?)%\)/g)]
+    .map((x) => [Number(x[1]), Number(x[2])]);
+  for (const [proj, meas] of [[project, m], [KV, kvM], [SP, spM], [HW, hwM]]) {
+    const steps = meas.minimumSize.steps;
+    for (const html of [b.minimumSize(docs.context(proj, meas, [], {})),
+      ER.block(EM.makeBlock('minimumSize'), bundleOf(proj, meas))]) {
+      const w = widths(html);
+      assert.strictEqual(w.length, 3, `${proj.brand}: expected three capped previews`);
+      // the true size is offered first, so a page with room draws it life-size
+      assert.deepStrictEqual(w.map((x) => x[0]), steps.map((x) => x.px));
+      // and where there is not room, the percentages hold the same proportion
+      assert.strictEqual(w[0][1], 100);
+      for (let i = 1; i < 3; i++) {
+        const want = (steps[i].px / steps[0].px) * 100;
+        assert.ok(Math.abs(w[i][1] - want) < 0.02,
+          `${proj.brand}: step ${i} shrinks to ${w[i][1]}% where proportion wants ${want.toFixed(2)}%`);
+      }
+    }
+  }
+});
+
+test('an app icon written under the project\'s own stroke rule is named', async () => {
+  // The engine refuses an icon you hand it whose stroke lands under
+  // rules.minStrokePx, and wrote its own at sizes far under the same rule
+  // without a word.
+  const exp = require('../src/export');
+  const at = (meas, size) => (meas.minimumSize.thinnestStroke * size * exp.ICON_SAFE_AREA)
+    / Math.max(meas.markInk.w, meas.markInk.h);
+
+  // Hallward is the case: nothing it writes clears its own 3 px rule, its
+  // largest icon included, and it needs a 1095 px square before it holds
+  const hw = exp.iconFloor(hwM, HW.rules);
+  assert.strictEqual(hw.clears.length, 0);
+  assert.strictEqual(hw.smallest, 1095);
+  assert.deepStrictEqual(hw.thinIcons.map((i) => i.name), ['icon-1024.png', 'icon-180.png']);
+  // and the number is the one iconSquare draws with, not a second copy of it
+  assert.ok(Math.abs(hw.thinIcons[1].at - at(hwM, 180)) < 0.005);
+
+  // A favicon under the rule is not a fault of the artwork — no mark of any
+  // weight clears 3 px at 16 — so it is recorded and not warned about.
+  for (const [proj, meas] of [[project, m], [KV, kvM], [SP, spM], [HW, hwM]]) {
+    const f = exp.iconFloor(meas, proj.rules);
+    assert.ok(f.thinFavicons.some((i) => /favicon-(16|32)/.test(i.name)),
+      `${proj.brand}: a 16 or 32 px favicon of any mark is under the rule`);
+    // the crossover agrees with the per-size measurement on both sides of it
+    assert.ok(at(meas, f.smallest) >= proj.rules.minStrokePx);
+    assert.ok(at(meas, f.smallest - 1) < proj.rules.minStrokePx);
+    for (const i of f.thinIcons.concat(f.thinFavicons)) assert.ok(i.size < f.smallest);
+    for (const name of f.clears) {
+      assert.ok(Number(/-(\d+)\.png$/.exec(name)[1]) >= f.smallest, `${name} is said to clear`);
+    }
+  }
+
+  // only the project whose app icons fail is warned, so the warning stays a
+  // signal rather than a line every package carries
+  assert.strictEqual(exp.iconFloor(m, project.rules).thinIcons.length, 0);
+  assert.strictEqual(exp.iconFloor(spM, SP.rules).thinIcons.length, 0);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-hwicon-'));
+  const built = await build(HW, dir);
+  fs.rmSync(dir, { recursive: true, force: true });
+  const w = built.warnings.find((x) => /app icons? (was|were) written/.test(x));
+  assert.ok(w, 'Hallward built without a word about the icons it drew below its own rule');
+  assert.ok(/icon-180\.png at 0\.49 px/.test(w), w);
+  assert.ok(/needs 1095 px square/.test(w), w);
+  assert.ok(/check <icon\.svg> --icon/.test(w), 'the warning does not say what to do instead');
+  // brand.json carries the same numbers for every project, warned or not
+  const bj = JSON.parse(fs.readFileSync(path.join(out, 'brand.json'), 'utf8'));
+  assert.strictEqual(bj.logo.icons.smallestSquarePx, exp.iconFloor(m, project.rules).smallest);
+  assert.ok(bj.logo.icons.clears.includes('icon-512.png'));
+  assert.deepStrictEqual(bj.logo.icons.under.map((u) => u.file), ['favicon-16.png', 'favicon-32.png']);
+});
+
 drain().then(() => {
   for (const d of [out, out2]) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);

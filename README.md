@@ -68,10 +68,10 @@ run locally.
 ## Status
 
 The engine runs. `engine/` takes one master SVG and a project file and writes
-136 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
+138 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 293 tests.
+of it. 300 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -328,7 +328,27 @@ spelling is `system.icon`, which did nothing at all — no override, no warning,
 the manual showing the default. So does any mis-cased rule. A setting nothing
 reads is reported now, with the nearest real one named.
 
-Still to do: a run on **your** identity job. Eight identities the engine had not
-seen is worth a great deal more than eight passes over one, but none of them
-came out of your exporter — and the normaliser is the part that most needs to
-meet one.
+The eleventh identity was picked by asking what the ten had in common, and the
+answer was their shape: **not one was taller than 1 to 1.22.** So **Spire** is a
+tower, 76 wide by 358 tall, with six colour slots. The smallest usable size is
+computed by dividing the box by the narrowest stem across it, so it has always
+been a *width* — which nothing had ever needed to say, because until now every
+mark was roughly square. `brand.json` said `13 px`; read as a height that gives
+a mark 3 px wide with a 0.9 px stem, a quarter of what the number promised. It
+reads `13 × 42 px` now, everywhere, and a square mark still reads `32 px`.
+
+Checking that fix found three more. The size specimen is drawn by two renderers
+and only one of them learned to say the height, so the same mark read `110 × 40
+px` in the manual and `110 px` on the page the manual published. Hallward's
+floor is 766 px, so its specimen asked for 1532, 766 and 460 px in a column 282
+wide: the manual capped each preview on its own and drew **the same picture
+three times under three different numbers**, and the canvas capped none and ran
+a 1532 px mark off the edge of the page. And the engine refuses an icon *you*
+hand it whose thinnest part paints under the stroke rule, then wrote its own
+below the same rule without a word — Hallward's seal paints at **0.49 px in its
+180 px app icon**, and it ships nothing that clears its own rule at all.
+
+Still to do: a run on **your** identity job. Ten identities the engine had not
+seen is worth a great deal more than ten passes over one, but none of them came
+out of your exporter — and the normaliser is the part that most needs to meet
+one.

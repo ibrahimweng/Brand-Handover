@@ -177,6 +177,15 @@ function thinnestFeature(svgString, viewBox) {
   return again ? again.units : first.units;
 }
 
+// How to say a floor out loud. It is a width; for a mark that is not roughly
+// square, saying only the width invites somebody to set the height to it.
+function floorText(ms, unit) {
+  if (!ms || ms.screenPx == null) return 'not measured';
+  const w = unit === 'mm' ? ms.printMm : ms.screenPx;
+  const h = unit === 'mm' ? ms.printMmHigh : ms.screenPxHigh;
+  return ms.squarish ? `${w} ${unit}` : `${w} × ${h} ${unit}`;
+}
+
 function minimumSize(svgString, rules) {
   const doc = svgu.parse(svgString);
   const vb = svgu.viewBox(doc);
@@ -197,11 +206,32 @@ function minimumSize(svgString, rules) {
   // a stroke measured off the render agrees with its own declared width, so
   // only call it a stem when the render found something the stroke did not
   const how = stroke != null && measured === stroke ? 'stroke' : 'stem';
+  // The floor is a WIDTH — it always was, because the box is divided by the
+  // stem across it — and no document ever said so. While every mark was roughly
+  // square that made no difference. It makes a great deal to a mark 4.7 times
+  // taller than it is wide: "13 px" means 13 across and 42 down, and anyone
+  // setting the height to 13 gets a mark 3 px wide with a 0.9 px stem in it.
+  const tall = vb.h / vb.w;
+  const wide = Math.ceil(ratio * rules.minStrokePx);
+  const squarish = Math.abs(Math.log(tall)) < Math.log(1.3);
+  // The specimen that shows the floor is drawn twice — once by the manual and
+  // once on the canvas — and the height went into only one of them, so the same
+  // mark was captioned "220 x 80 px" in the book and "220 px" on the page it
+  // published. Work the three steps out here, once, and let both read them.
+  // ceil, the same way screenPxHigh rounds, or the floor reads 110 x 40 in the
+  // prose and 110 x 39 under the picture beside it
+  const say = (w) => (squarish ? `${w} px` : `${w} \u00d7 ${Math.ceil(w * tall)} px`);
+  const steps = [[wide * 2, 'comfortable'], [wide, 'the floor'], [Math.round(wide * 0.6), 'below the floor']]
+    .map(([w, label]) => ({ px: w, high: Math.ceil(w * tall), label, caption: say(w) }));
   return {
     thinnestStroke: measured,
     from: how,
-    screenPx: Math.ceil(ratio * rules.minStrokePx),
+    screenPx: wide,
+    screenPxHigh: Math.ceil(wide * tall),
     printMm: svgu.round(ratio * rules.minStrokeMm, 1),
+    printMmHigh: svgu.round(ratio * rules.minStrokeMm * tall, 1),
+    squarish,
+    steps,
     basis: how === 'stroke'
       ? `box ${vb.w} ÷ stroke ${measured} = ${svgu.round(ratio, 2)} stroke widths across`
       : `box ${vb.w} ÷ narrowest stem ${measured} = ${svgu.round(ratio, 2)} stems across, measured off the artwork`
@@ -216,4 +246,4 @@ function renderPng(svgString, widthPx) {
   }).render().asPng();
 }
 
-module.exports = { inkBox, clearSpace, minimumSize, thinnestFeature, renderPng };
+module.exports = { inkBox, clearSpace, minimumSize, thinnestFeature, renderPng, floorText };

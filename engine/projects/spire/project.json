@@ -1,0 +1,232 @@
+{
+  "brand": "Spire",
+  "version": "1.4.0",
+  "assets": {
+    "mark": "mark.svg",
+    "wordmark": "wordmark.svg"
+  },
+  "tokens": {
+    "colour": {
+      "slate": {
+        "hex": "#1C2B36",
+        "role": "ground",
+        "pantone": "5395 C",
+        "cmyk": [
+          88,
+          68,
+          48,
+          40
+        ]
+      },
+      "lime": {
+        "hex": "#F2EFE6",
+        "role": "primary",
+        "pantone": "11-0601",
+        "cmyk": [
+          4,
+          3,
+          9,
+          0
+        ]
+      },
+      "brass": {
+        "hex": "#B98A3C",
+        "role": "accent",
+        "pantone": "465 C",
+        "cmyk": [
+          26,
+          44,
+          88,
+          6
+        ]
+      },
+      "lead": {
+        "hex": "#7C8A93",
+        "role": "secondary",
+        "pantone": "443 C",
+        "cmyk": [
+          48,
+          33,
+          30,
+          4
+        ]
+      },
+      "ash": {
+        "hex": "#9C9A94",
+        "role": "neutral",
+        "pantone": "414 C",
+        "cmyk": [
+          42,
+          36,
+          38,
+          4
+        ]
+      }
+    },
+    "type": {
+      "families": {
+        "display": {
+          "family": "Literata",
+          "fallback": "Georgia, serif",
+          "weights": [
+            500,
+            700
+          ],
+          "google": true
+        },
+        "text": {
+          "family": "Archivo",
+          "fallback": "Helvetica, Arial, sans-serif",
+          "weights": [
+            400,
+            500
+          ],
+          "google": true
+        }
+      },
+      "scale": [
+        {
+          "name": "Display",
+          "family": "display",
+          "size": 66,
+          "leading": 72,
+          "weight": 700
+        },
+        {
+          "name": "H1",
+          "family": "display",
+          "size": 37,
+          "leading": 44,
+          "weight": 700
+        },
+        {
+          "name": "H2",
+          "family": "display",
+          "size": 24,
+          "leading": 31,
+          "weight": 500
+        },
+        {
+          "name": "H3",
+          "family": "display",
+          "size": 18,
+          "leading": 26,
+          "weight": 500
+        },
+        {
+          "name": "Body",
+          "family": "text",
+          "size": 16,
+          "leading": 27,
+          "weight": 400
+        },
+        {
+          "name": "Small",
+          "family": "text",
+          "size": 13,
+          "leading": 21,
+          "weight": 400
+        },
+        {
+          "name": "Caption",
+          "family": "text",
+          "size": 11,
+          "leading": 16,
+          "weight": 500
+        }
+      ]
+    }
+  },
+  "rules": {
+    "clearSpaceRatio": 0.2,
+    "minStrokePx": 3,
+    "minStrokeMm": 0.8,
+    "lockupGapRatio": 0.26,
+    "wordmarkHeightRatio": 0.42,
+    "naming": "{brand}-{lockup}-{colourway}",
+    "lockups": [
+      "horizontal",
+      "stacked",
+      "mark"
+    ],
+    "formats": [
+      "svg",
+      "png",
+      "pdf"
+    ],
+    "pngWidths": [
+      512,
+      1600
+    ],
+    "stock": "coated",
+    "colourways": [
+      {
+        "name": "full",
+        "on": "lime",
+        "slots": {
+          "finial": "#1C2B36",
+          "spire": "#1C2B36",
+          "belfry": "#1C2B36",
+          "louvre": "#1C2B36",
+          "shaft": "#1C2B36",
+          "base": "#7C8A93"
+        }
+      },
+      {
+        "name": "reverse",
+        "on": "slate",
+        "slots": {
+          "finial": "#B98A3C",
+          "spire": "#F2EFE6",
+          "belfry": "#F2EFE6",
+          "louvre": "#B98A3C",
+          "shaft": "#F2EFE6",
+          "base": "#7C8A93"
+        }
+      },
+      {
+        "name": "flat",
+        "on": "lime",
+        "slots": {
+          "finial": "#1C2B36",
+          "spire": "#1C2B36",
+          "belfry": "#1C2B36",
+          "louvre": "#1C2B36",
+          "shaft": "#1C2B36",
+          "base": "#1C2B36"
+        }
+      }
+    ],
+    "iconInk": "#F2EFE6",
+    "iconBg": "#1C2B36",
+    "iconSizes": [
+      1024,
+      180
+    ],
+    "faviconSizes": [
+      16,
+      32
+    ],
+    "social": {
+      "profile": {
+        "w": 400,
+        "h": 400
+      },
+      "og image": {
+        "w": 1200,
+        "h": 630
+      }
+    }
+  },
+  "content": {
+    "positioning": "Spire",
+    "misuse": [
+      "Do not stretch it",
+      "Do not rotate it",
+      "Do not recolour the finial",
+      "Do not add a shadow",
+      "Do not crowd it",
+      "Do not outline it"
+    ]
+  }
+}

@@ -119,7 +119,7 @@ function deck(ctx) {
     <h2 style="margin-top:2cqw">Keep x clear</h2>
     <p class="lede">x is ${m.clearSpace} units, which is ${p.rules.clearSpaceRatio} of the mark's own height. Nothing enters that space, including type and the trim of the page.</p></div>
     <div>${b.clearSpace(ctx, { ink: ctx.ground.hex, line: ctx.ground.hex })}</div></div>`);
-  add('Minimum size', `<span class="bdg">The system</span><h2 style="margin-top:2cqw">${m.minimumSize.screenPx} px, and ${m.minimumSize.printMm} mm</h2>
+  add('Minimum size', `<span class="bdg">The system</span><h2 style="margin-top:2cqw">${require('../geometry').floorText(m.minimumSize, 'px')}, and ${require('../geometry').floorText(m.minimumSize, 'mm')}</h2>
     <p class="lede">The stroke is what fails first. ${b.esc(m.minimumSize.basis)}, so holding it at ${p.rules.minStrokePx} px puts the floor there.</p>
     <div class="four" style="margin-top:3.4cqw">${[2, 1.4, 1, 0.6].map((f) => {
       const px = Math.round(m.minimumSize.screenPx * f);

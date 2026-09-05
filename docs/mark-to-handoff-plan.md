@@ -376,7 +376,7 @@ the measuring engine, the packager, both documents, the canvas editor,
 publishing, all three kinds of block, image slots, page sizes and the
 photography treatment, print work with bleed, CMYK, and a printed piece through
 Typst, mockups, and the licence half of accounts. 138 files from one master,
-293 tests, and nine more identities in the repo that the engine had not been
+300 tests, and ten more identities in the repo that the engine had not been
 written against.
 
 Three things the plan had wrong, found by building rather than by thinking.
@@ -776,6 +776,56 @@ reason it mattered is that the style was load-bearing without anybody deciding
 it should be: a page stripped of its styles would have lost the proportion with
 it. Checking a page in a real browser means reading what the browser says about
 it, not only looking at what it drew.
+
+**A measurement with only one dimension is an ambiguity waiting for the shape
+that exposes it.** The smallest usable size has always been a *width* — the box
+divided by the narrowest stem across it — and for ten identities that could not
+be told apart from a height, because every mark in the repo was square or wide.
+The eleventh is 1 to 4.7, and `13 px` read as a height gives a mark a quarter of
+the size the number promised. The instrument that found it was not another
+identity: it was asking what the ten existing ones had *in common*, which is a
+cheaper question than inventing an eleventh and a more reliable one. Their
+shapes clustered inside 1.22 to 1. The number to look for is the one that is
+right for every input you have and undefined for an input you have not.
+
+**Half a fix is a fix that will be found again.** The height went into the
+manual's copy of the size specimen and not into the canvas's, so the same mark
+read `110 × 40 px` in the book and `110 px` on the page the book published. The
+block is drawn by two renderers on purpose — one server-side, one isomorphic —
+and a change to what it *says* has to go through both. The fix that lasts is not
+patching the second copy: it is computing the caption once, in the engine, and
+having both read it. Duplication of layout is fine. Duplication of judgement is
+the bug.
+
+**When CSS rescues a layout, it destroys the meaning and reports success.**
+Hallward's floor is 766 px, so the specimen showing above, at and below the
+floor asked for 1532, 766 and 460 px in a column 282 wide. `svg{max-width:100%}`
+capped each of the three separately, so all three drew at 282 — the same picture
+three times under three different numbers, in the one block whose entire job is
+to show a difference. Nothing was broken, nothing errored, and the page looked
+fine. The same block on the canvas, which had no such rule, ran a 1532 px mark
+off the right of the page — the honest failure, and the one that got noticed.
+A layout that silently absorbs an impossible request is worse than one that
+visibly fails it.
+
+**A rule the engine enforces on your input and not on its own output is not a
+rule.** `check <icon.svg> --icon` refuses an icon whose thinnest part paints
+under `minStrokePx`. The engine then wrote its own icons at sizes far under the
+same rule, in every one of the eleven projects, and reported success. Hallward's
+seal paints at 0.49 px in its 180 px app icon and ships nothing that clears its
+own rule at all. The check existed; it was pointed at the door and not at the
+loading bay. Worth pairing with the earlier note that a check pinned to one
+fixture tests that fixture: a check pinned to one *direction* tests that
+direction.
+
+**And a warning that fires on every project is not a warning.** No mark of any
+weight clears a 3 px stroke in a 16 px favicon — that is a fact about favicons,
+not a fault in the artwork — so warning about it would have put the real signal
+(an app icon the designer chose *for this mark*, below the rule) on the same
+line as a truth every package carries. The number goes in `brand.json` for
+everyone; the warning fires for the one project that earns it. Deciding which
+findings are worth interrupting for is part of refusing well, not separate
+from it.
 
 ---
 

@@ -21,9 +21,11 @@ function inked(ctx, hex, which = 'mark') {
   return svgu.serialize(doc);
 }
 
-function scaled(svg, width) {
+// `css` overrides the width the browser lays the mark out at, while the width
+// and height attributes stay at the true size for a reader with no styles.
+function scaled(svg, width, css) {
   // a document should not fail to build because one variant is absent
-  if (!svg) return `<div style="width:${width}px;height:${Math.round(width / 3)}px"></div>`;
+  if (!svg) return `<div style="width:${css || `${width}px`};height:${Math.round(width / 3)}px"></div>`;
   return svg.replace(/<svg([^>]*)>/, (m, attrs) => {
     // height="auto" is not a length, so it is not an SVG attribute. The style
     // beside it was doing the work and the attribute was only ever an error in
@@ -33,7 +35,7 @@ function scaled(svg, width) {
     const h = vb && Number(vb[3]) > 0
       ? ` height="${svgu.round(width * (Number(vb[4]) / Number(vb[3])), 2)}"` : '';
     return `<svg${attrs.replace(/\s(width|height)="[^"]*"/g, '')} width="${width}"${h}`
-      + ` style="width:${width}px;height:auto;display:block">`;
+      + ` style="width:${css || `${width}px`};height:auto;display:block">`;
   });
 }
 
@@ -128,6 +130,16 @@ const lockupRow = (ctx, colourwayName, bg) =>
 // actually fills, the margin between the two, and the stroke that sets the
 // floor. The reasoning behind those choices is the designer's, and it comes
 // from the project content.
+// The captions are set in the diagram's own units, in a monospace face at 8, so
+// their width is predictable: about six tenths of the size per character. The
+// canvas follows the shape of the artwork, which is right — and for a mark
+// nearly five times taller than it is wide that canvas is 123 units across
+// while its caption needs 173, so the caption was being cut off mid-word. A
+// drawing has to be at least as wide as the thing written under it.
+const CAP_CHAR = 4.9;
+const roomFor = (w, ...captions) =>
+  Math.max(w, ...captions.map((c) => String(c).length * CAP_CHAR + 12));
+
 function construction(ctx, opts = {}) {
   // currentColor, not a brand role: the role called "primary" is the light one
   // in some identities, and a diagram drawn in it disappears on a light page.
@@ -140,7 +152,9 @@ function construction(ctx, opts = {}) {
   // caption 261 px below it and nothing in between. Fit to the longer side as
   // before, but let the canvas take the shape of what is drawn on it.
   const S = 260, pad = 30, CAP = 26, k = (S - pad * 2) / Math.max(vb.w, vb.h);
-  const W = svgu.round(pad * 2 + vb.w * k), H = svgu.round(pad * 2 + vb.h * k);
+  const capText = `fills ${ink.w} × ${ink.h} · ${ctx.measured.minimumSize.from === 'stem' ? 'narrowest stem' : 'stroke'} ${ctx.measured.minimumSize.thinnestStroke}`;
+  const W = svgu.round(roomFor(pad * 2 + vb.w * k, capText, `${vb.w} unit box`));
+  const H = svgu.round(pad * 2 + vb.h * k);
   const X = (v) => svgu.round(pad + (v - vb.x) * k), Y = (v) => svgu.round(pad + (v - vb.y) * k);
   const grid = [];
   for (let i = 0; i <= 6; i++) {
@@ -167,7 +181,9 @@ function clearSpace(ctx, opts = {}) {
   // 228 by 49, where the manual then showed a rule nobody could follow.
   const tw = ink.w + x * 2, th = ink.h + x * 2;
   const S = 260, CAP = 22, k = S / (Math.max(tw, th) * 1.12);
-  const W = svgu.round(tw * k + (S - Math.max(tw, th) * k)), H = svgu.round(th * k + (S - Math.max(tw, th) * k));
+  const csCap = `x = ${x} units · ${ctx.project.rules.clearSpaceRatio} of the mark's height`;
+  const W = svgu.round(roomFor(tw * k + (S - Math.max(tw, th) * k), csCap));
+  const H = svgu.round(th * k + (S - Math.max(tw, th) * k));
   const ox = (W - tw * k) / 2, oy = (H - th * k) / 2;
   const PX = (v) => svgu.round(ox + v * k), PY = (v) => svgu.round(oy + v * k);
   return `<svg viewBox="0 0 ${W} ${H + CAP}" class="dia" role="img" aria-label="Clear space of ${x} units on every side, which is ${ctx.project.rules.clearSpaceRatio} of the mark's height.">
@@ -183,12 +199,19 @@ function clearSpace(ctx, opts = {}) {
 
 function minimumSize(ctx) {
   const m = ctx.measured.minimumSize;
-  const sizes = [m.screenPx * 2, m.screenPx, Math.round(m.screenPx * 0.6)];
-  const label = ['comfortable', 'the floor', 'below the floor'];
-  return `<div class="row3">` + sizes.map((s, i) =>
-    `<figure><div class="stage tight">${scaled(asColourway(ctx, onGround(ctx, ctx.ground.name)), s)}</div>
-     <figcaption>${s} px · ${label[i]}</figcaption></figure>`).join('') + `</div>
-    <p class="note"><b>${m.screenPx} px on screen and ${m.printMm} mm in print.</b> ${esc(m.basis)}, so holding the stroke at ${ctx.project.rules.minStrokePx} px and ${ctx.project.rules.minStrokeMm} mm puts the floor there. Move either rule and the floor moves with it.</p>`;
+  const steps = m.steps || [];
+  const art = asColourway(ctx, onGround(ctx, ctx.ground.name));
+  // Draw each step at its true size where the column has room, and at its share
+  // of the column where it has not, so the three are either all life-size or all
+  // shrunk by one factor. `svg{max-width:100%}` capped them one at a time, which
+  // drew Hallward's 1532, 766 and 460 as three copies of the same picture under
+  // three different numbers.
+  const big = steps.length ? steps[0].px : 1;
+  const room = (w) => `min(${w}px,${svgu.round((w / big) * 100, 2)}%)`;
+  return `<div class="row3">` + steps.map((s) =>
+    `<figure><div class="stage tight">${scaled(art, s.px, room(s.px))}</div>
+     <figcaption>${esc(s.caption)} · ${s.label}</figcaption></figure>`).join('') + `</div>
+    <p class="note"><b>${geo.floorText(m, 'px')} on screen and ${geo.floorText(m, 'mm')} in print.</b> ${esc(m.basis)}, so holding the stroke at ${ctx.project.rules.minStrokePx} px and ${ctx.project.rules.minStrokeMm} mm puts the floor there. Move either rule and the floor moves with it.${m.squarish ? '' : ' Both figures are the width; the second is the height that goes with it.'}${big > 300 ? ` These three are in proportion to each other rather than at actual size: ${big} px is wider than this page.` : ''}</p>`;
 }
 
 function lockups(ctx) {

@@ -64,7 +64,8 @@ html,body{margin:0;background:var(--shell);color:var(--ink);font-family:ui-sans-
 .hb-surface{width:100%;height:100%}
 .hb-missing{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#3A2422;color:#E8695F;font-family:ui-monospace,Menlo,monospace;font-size:11px;text-align:center;padding:8px}
 .hb-sizes{display:flex;gap:14px;align-items:flex-end;width:100%;height:100%}
-.hb-sizes figure{margin:0;flex:1;text-align:center}
+.hb-sizes figure{margin:0;flex:1;min-width:0;text-align:center;display:flex;flex-direction:column;justify-content:flex-end}
+.hb-sizes .cell{flex:1;min-height:0;display:flex;align-items:flex-end;justify-content:center}
 .hb-sizes figcaption{font-family:ui-monospace,Menlo,monospace;font-size:9px;letter-spacing:.06em;text-transform:uppercase;opacity:.55;margin-top:6px}
 .hb-chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;width:100%;height:100%}
 .hb-chips .sw{height:56%;border:1px solid rgba(0,0,0,.08)}

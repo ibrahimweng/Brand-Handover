@@ -191,15 +191,23 @@
     construction: (b, bu) => `<div style="width:100%;height:100%;background:${colour(bu, b.props.on || 'ground')}">${construction(bu, cwName(bu, b.props.colourway || 'primary'), colour(bu, b.props.line || 'neutral'))}</div>`,
     clearSpace: (b, bu) => `<div style="width:100%;height:100%;background:${colour(bu, b.props.on || 'ground')}">${clearSpace(bu, cwName(bu, b.props.colourway || 'primary'), colour(bu, b.props.line || 'neutral'))}</div>`,
 
+    // The steps are worked out in the engine and read here, because this block
+    // is drawn twice — the manual draws the other one — and when the caption
+    // learned to say the height as well as the width only one of the two was
+    // taught. Hallward is the other half: the previews were laid out at their
+    // literal pixel width, so a 766 px floor drew a 1532 px specimen that ran
+    // off the right of a page 1400 px wide. Cap each at its share of the row,
+    // so they shrink together and stay in proportion.
     minimumSize: (b, bu) => {
       const m = bu.measured.minimumSize;
-      const sizes = [m.screenPx * 2, m.screenPx, Math.round(m.screenPx * 0.6)];
-      const cap = ['comfortable', 'the floor', 'below the floor'];
+      const steps = (m && m.steps) || [];
+      if (!steps.length) return `<div class="hb-missing">Nothing in the master is painted, so no smallest size was measured.</div>`;
+      const big = steps[0].px;
       const svg = bu.marks[cwName(bu, b.props.colourway || 'primary')] || Object.values(bu.marks)[0];
-      return `<div class="hb-sizes">${sizes.map((s, i) =>
-        `<figure><div style="height:${Math.max(...sizes)}px;display:flex;align-items:center;justify-content:center">
-         <span style="width:${s}px;display:block">${fitSvg(svg)}</span></div>
-         <figcaption>${s} px · ${cap[i]}</figcaption></figure>`).join('')}</div>`;
+      return `<div class="hb-sizes">${steps.map((s) =>
+        `<figure><div class="cell">
+         <span style="display:block;width:min(${s.px}px,${r3((s.px / big) * 100)}%)">${fitSvg(svg)}</span></div>
+         <figcaption>${esc(s.caption)} · ${esc(s.label)}</figcaption></figure>`).join('')}</div>`;
     },
 
     // a guessed CMYK is marked, because a chip that shows given and guessed the
