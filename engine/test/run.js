@@ -2737,6 +2737,128 @@ test('non-latin words survive into every document', () => {
     .fileName(MY.rules.naming, { brand: MY.latinName, lockup: 'stacked', colourway: 'reverse' })));
 });
 
+console.log('\nan eighth identity');
+// The first seven are all plausible: unfamiliar to the engine, but drawn on
+// purpose and drawn correctly. Thornbury Mills is a file that has been edited
+// by three people since 1998 — a stray click, an old roundel dragged off the
+// artboard instead of deleted, a rim that bleeds past the edge, absurd
+// precision, groups nested four deep. Damaged rather than merely unexpected.
+const TH = projectLoader.load(path.join(__dirname, '..', 'projects', 'thornbury', 'project.json'));
+const thM = measure(TH);
+
+test('the normaliser looks at where the geometry is, not just what it is', () => {
+  // it read element types, colours and slots, and never once read a
+  // coordinate. So a shape sitting off the artboard was invisible and unmentioned.
+  const norm = require('../src/normalise');
+  const w = (b) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">${b}</svg>`;
+  const good = '<path data-slot="ink" d="M10 40h80v20H10z" fill="#0A2A33"/>';
+  const off = norm.normalise(w(good + '<path data-slot="ink" d="M300 300h50v50h-50z" fill="#0A2A33"/>'),
+    { tokens: project.tokens });
+  assert.ok(off.findings.some((f) => f.code === 'off-artboard'), 'nothing was said about it');
+  assert.ok(!/300/.test(off.svg), 'the off-artboard shape is still in the file');
+  // the ink box is unchanged by its removal, because it never drew anything
+  assert.deepStrictEqual(geo.inkBox(off.svg), geo.inkBox(w(good)));
+  // and a healthy mark is not accused of anything
+  for (const p of [project, HAL, KV, HW, NL, PG, MY]) {
+    const r = norm.normalise(p.assets.mark.source, { tokens: p.tokens });
+    assert.ok(!r.findings.some((f) => f.code === 'off-artboard' || f.code === 'stray-geometry'),
+      `${p.brand} was accused of geometry it does not have`);
+  }
+});
+
+test('a dragged handle is refused rather than measured', () => {
+  // one point pulled to 99999 draws a sliver across the artwork thinner than
+  // anything drawn on purpose, so it becomes the narrowest stem and sets the
+  // smallest usable size — Thornbury measured a stem of 2 where the thinnest
+  // real part is 10, which would have put the floor five times too high.
+  const norm = require('../src/normalise');
+  const src = fs.readFileSync(path.join(__dirname, 'fixtures', 'dragged-handle.svg'), 'utf8');
+  const r = norm.normalise(src, { tokens: TH.tokens });
+  assert.strictEqual(r.ok, false, 'a file with a 99999 unit drag in it was accepted');
+  assert.strictEqual(r.svg, null);
+  const stray = r.findings.find((f) => f.code === 'stray-geometry');
+  assert.ok(stray && stray.level === 'blocker', JSON.stringify(r.findings.map((f) => f.code)));
+  assert.ok(/99839/.test(stray.what), stray.what);
+  // a modest bleed past the edge is a warning, not a refusal
+  const bleed = norm.normalise('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160">'
+    + '<path data-slot="ink" d="M20 20h120v120H20z" fill="#2F3A2C"/>'
+    + '<path data-slot="ink" d="M-14 152h188v14h-188z" fill="#2F3A2C"/></svg>', { tokens: TH.tokens });
+  assert.ok(bleed.ok, 'a bleed was refused');
+  const w2 = bleed.findings.find((f) => f.code === 'stray-geometry');
+  assert.ok(w2 && w2.level === 'warning', JSON.stringify(bleed.findings.map((f) => f.code)));
+  // the shipped fixture keeps that bleed, and builds
+  assert.ok(TH.assets.mark.source.length > 0);
+  assert.deepStrictEqual(thM.markInk, { x: 0, y: 20, w: 160, h: 140 });
+});
+
+test('a box with no size, and a file with nothing in it, are refused in words', () => {
+  // both were accepted: a zero viewBox gave every measurement as zero, a
+  // negative one gave a negative narrowest stem, and an unpainted file threw a
+  // bare Error out of the measuring step much later on.
+  const norm = require('../src/normalise');
+  const good = '<path data-slot="ink" d="M10 40h80v20H10z" fill="#0A2A33"/>';
+  const blocked = (src) => {
+    const r = norm.normalise(src, { tokens: project.tokens });
+    assert.strictEqual(r.ok, false, `accepted: ${src.slice(0, 60)}`);
+    return r.findings.filter((f) => f.level === 'blocker').map((f) => f.code);
+  };
+  assert.ok(blocked(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 0 0">${good}</svg>`)
+    .includes('empty-viewbox'));
+  assert.ok(blocked(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 -100 -100">${good}</svg>`)
+    .includes('empty-viewbox'));
+  assert.ok(blocked('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">'
+    + '<path d="M10 40h80v20H10z" fill="none"/></svg>').includes('nothing-drawn'));
+  assert.ok(blocked('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">'
+    + '<path d="M300 300h50v50h-50z" fill="#0A2A33"/></svg>').includes('nothing-drawn'));
+  // and every real fixture still loads
+  for (const p of [project, HAL, KV, HW, NL, PG, MY, TH]) assert.ok(p.assets.mark.source);
+});
+
+test('a blocker found after the first pass still blocks', () => {
+  // ok was hardcoded true at the end of the function, so every refusal that
+  // needs the file cleaned before it can be seen was reported and then ignored.
+  const norm = require('../src/normalise');
+  const r = norm.normalise(fs.readFileSync(path.join(__dirname, 'fixtures', 'dragged-handle.svg'), 'utf8'),
+    { tokens: TH.tokens });
+  assert.ok(r.findings.some((f) => f.level === 'blocker'));
+  assert.strictEqual(r.ok, false);
+  assert.strictEqual(r.svg, null);
+  assert.deepStrictEqual(r.slots, []);
+});
+
+test('change the master and every number follows it, in all eight', () => {
+  // the claim the whole thing rests on, and it had only ever been checked on
+  // Meridian. Halve the artwork inside the same box: the ink box and the clear
+  // space halve with it, and the stem halves, so the smallest usable size —
+  // which is the box divided by the stem — doubles.
+  const norm = require('../src/normalise');
+  for (const p of [project, HAL, KV, HW, NL, PG, MY, TH]) {
+    // artwork that runs off its artboard is clipped by it, so shrinking it
+    // brings more of it back into view and the relation is not a straight one.
+    // Thornbury bleeds on purpose and is the one project this cannot hold for.
+    const bleeds = norm.normalise(p.assets.mark.source, { tokens: p.tokens })
+      .findings.some((f) => f.code === 'stray-geometry');
+    if (bleeds) { assert.strictEqual(p.brand, 'Thornbury Mills'); continue; }
+    const vb = svgu.viewBox(svgu.parse(p.assets.mark.source));
+    const inner = /<svg[^>]*>([\s\S]*)<\/svg>/.exec(p.assets.mark.source)[1];
+    const half = p.assets.mark.source.replace(inner,
+      `<g transform="translate(${vb.x} ${vb.y}) scale(0.5) translate(${-vb.x} ${-vb.y})">${inner}</g>`);
+    const shrunk = measure(Object.assign({}, p, {
+      assets: Object.assign({}, p.assets, { mark: Object.assign({}, p.assets.mark, { source: half }) }),
+    }));
+    const was = measure(p);
+    const near = (a, b, why) => assert.ok(Math.abs(a - b) / Math.max(b, 1e-9) < 0.05,
+      `${p.brand}: ${why} — got ${a}, expected about ${b}`);
+    near(shrunk.markInk.w, was.markInk.w / 2, 'the ink box did not halve');
+    near(shrunk.markInk.h, was.markInk.h / 2, 'the ink box did not halve');
+    near(shrunk.clearSpace, was.clearSpace / 2, 'the clear space did not follow the ink');
+    near(shrunk.minimumSize.thinnestStroke, was.minimumSize.thinnestStroke / 2,
+      'the narrowest part did not halve');
+    near(shrunk.minimumSize.screenPx, was.minimumSize.screenPx * 2,
+      'the smallest usable size did not double');
+  }
+});
+
 drain().then(() => {
   for (const d of [out, out2]) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);

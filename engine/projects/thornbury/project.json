@@ -1,0 +1,50 @@
+{
+  "brand": "Thornbury Mills",
+  "version": "7.1.2",
+  "assets": { "mark": "mark.svg", "wordmark": "wordmark.svg" },
+  "tokens": {
+    "colour": {
+      "moss":   { "hex": "#2F3A2C", "role": "ground",    "pantone": "5605 C", "cmyk": [72, 50, 72, 52] },
+      "oat":    { "hex": "#EDE7D9", "role": "primary",   "pantone": "7527 C", "cmyk": [6, 6, 14, 0] },
+      "copper": { "hex": "#A75B32", "role": "accent",    "pantone": "7586 C", "cmyk": [26, 74, 92, 15] },
+      "sage":   { "hex": "#7C8B6F", "role": "secondary", "pantone": "5777 C", "cmyk": [50, 30, 62, 6] },
+      "flint":  { "hex": "#7E7C77", "role": "neutral",   "pantone": "403 C",  "cmyk": [48, 43, 47, 9] }
+    },
+    "type": {
+      "families": {
+        "display": { "family": "Literata", "fallback": "Georgia, serif", "weights": [500, 700], "google": true },
+        "text":    { "family": "Archivo", "fallback": "Helvetica, Arial, sans-serif", "weights": [400, 500], "google": true }
+      },
+      "scale": [
+        { "name": "Display", "family": "display", "size": 66, "leading": 72, "weight": 700 },
+        { "name": "H1",      "family": "display", "size": 37, "leading": 44, "weight": 700 },
+        { "name": "H2",      "family": "display", "size": 24, "leading": 31, "weight": 500 },
+        { "name": "H3",      "family": "display", "size": 18, "leading": 26, "weight": 500 },
+        { "name": "Body",    "family": "text",    "size": 16, "leading": 27, "weight": 400 },
+        { "name": "Small",   "family": "text",    "size": 13, "leading": 21, "weight": 400 },
+        { "name": "Caption", "family": "text",    "size": 11, "leading": 16, "weight": 500 }
+      ]
+    }
+  },
+  "rules": {
+    "clearSpaceRatio": 0.25, "minStrokePx": 3, "minStrokeMm": 0.8,
+    "lockupGapRatio": 0.26, "wordmarkHeightRatio": 0.42,
+    "naming": "{brand}-{lockup}-{colourway}",
+    "lockups": ["horizontal", "stacked", "mark"],
+    "formats": ["svg", "png", "pdf"],
+    "pngWidths": [512, 1600],
+    "stock": "uncoated",
+    "colourways": [
+      { "name": "full",    "on": "oat",  "slots": { "ink": "#2F3A2C" } },
+      { "name": "reverse", "on": "moss", "slots": { "ink": "#EDE7D9" } },
+      { "name": "copper",  "on": "oat",  "slots": { "ink": "#A75B32" } }
+    ],
+    "iconInk": "#EDE7D9", "iconBg": "#2F3A2C",
+    "iconSizes": [1024, 180], "faviconSizes": [16, 32],
+    "social": { "profile": { "w": 400, "h": 400 }, "og image": { "w": 1200, "h": 630 } }
+  },
+  "content": {
+    "positioning": "Thornbury Mills",
+    "misuse": ["Do not stretch it", "Do not rotate it", "Do not recolour it", "Do not add a shadow", "Do not crowd it", "Do not outline it"]
+  }
+}

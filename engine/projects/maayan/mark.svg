@@ -3,7 +3,7 @@
     <path d="M70 24c-16 18-24 32-24 44a24 24 0 0 0 48 0c0-12-8-26-24-44Z" fill="#123B3A"/>
   </g>
   <g data-slot="ripple" fill="none" stroke="#C8873A" stroke-width="7" stroke-linecap="round">
-    <path d="M26 104a44 44 0 0 0 88 0"/>
-    <path d="M44 122a26 26 0 0 0 52 0"/>
+    <path d="M26 92a44 44 0 0 0 88 0"/>
+    <path d="M44 110a26 26 0 0 0 52 0"/>
   </g>
 </svg>

@@ -376,7 +376,7 @@ the measuring engine, the packager, both documents, the canvas editor,
 publishing, all three kinds of block, image slots, page sizes and the
 photography treatment, print work with bleed, CMYK, and a printed piece through
 Typst, mockups, and the licence half of accounts. 138 files from one master,
-275 tests, and six more identities in the repo that the engine had not been
+280 tests, and seven more identities in the repo that the engine had not been
 written against.
 
 Three things the plan had wrong, found by building rather than by thinking.
@@ -704,6 +704,40 @@ learned to show a different colourway instead: the workaround for the symptom
 was hiding the cause. That is worth stating as a general shape — when a system
 gets good at routing around a bad input, it stops reporting that the input is
 bad, and the better the routing the quieter the failure.
+
+**Seven projects were unfamiliar; the eighth was damaged, and that is a
+different thing.** Every fixture up to Thornbury was drawn on purpose and drawn
+correctly — the variation was in shape, palette, alphabet, dialect, scale. All
+of them were, in the end, well-formed files that the engine had simply not
+anticipated. A real logo file is not well-formed. It has a stray click in it
+from 2011, an old version dragged off the artboard rather than deleted, and a
+handle somebody pulled by accident. The normaliser had a whole vocabulary for
+what a shape *is* — its element type, its paint, its slot — and none at all for
+where it is. One dragged handle put the minimum size five times too high, in a
+document whose entire claim is that its numbers were measured rather than typed.
+Robustness to damaged input is not the same axis as generality across designs,
+and eight rounds in, it was the axis with the most left on it.
+
+**A test for a property is worth more than a test for an instance, and it finds
+things the instances cannot.** The claim this project rests on — change the
+master and every number follows — had been checked once, on one project, by
+changing one stroke width. Written as a property over all eight (halve the
+artwork, everything derived halves or doubles) it immediately found a flaw in a
+fixture shipped the previous round: Ma'ayan's ripples were being sliced flat by
+its own artboard, which no individual assertion had been looking for and which
+the brand-new artboard check would also have missed, because its tolerance was
+a guess. The property did not know about clipping; it just knew what the
+arithmetic ought to do, and clipping was the only thing that could break it.
+
+**A refusal that nothing acts on is not a refusal.** `ok` was hardcoded `true`
+at the end of the normaliser, so every blocker discovered after the first pass
+was raised, described, attached to the report and then ignored. This is the
+second round running that the shape of the defect was "the judgement is correct
+and the machinery does not use it" — last round an error message named a
+solution that did not exist, this round a function raised a refusal it then
+overruled. Both are cheap to make and invisible to any test that checks the
+finding rather than the outcome. The rule is the same in both cases: assert on
+what happens, not on what is said.
 
 **A defect that only prints an error to a console is still a defect.** Every
 scaled drawing in every document carried `height="auto"`, which is not a length

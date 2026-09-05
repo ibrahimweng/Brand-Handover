@@ -9,7 +9,7 @@ around it.
 
     cd engine
     npm install
-    npm test                                            # 275 checks
+    npm test                                            # 280 checks
     node test/print-check.mjs                           # prints, and measures the paper
     node test/treatment-check.mjs                       # renders, and reads the pixels back
     node test/typst-check.mjs                           # the printed piece against the published page
@@ -28,6 +28,7 @@ around it.
     node src/cli.js build   projects/northline/project.json -o out-northline
     node src/cli.js build   projects/perigee/project.json   -o out-perigee
     node src/cli.js build   projects/maayan/project.json    -o out-maayan
+    node src/cli.js build   projects/thornbury/project.json -o out-thornbury
 
 The Meridian example writes 136 files in about six seconds, including both
 documents, the editor, the document it opens with, that document published, and
@@ -57,6 +58,10 @@ identity is: a mark exported the way a web tool writes one. See
 
 מעיין is the seventh: named in Hebrew, written in Hebrew, and reading right to
 left. See [A seventh identity](#a-seventh-identity).
+
+Thornbury Mills is the eighth, and the first that is *damaged* rather than
+merely unfamiliar: a file that has been edited by three people since 1998. See
+[An eighth identity](#an-eighth-identity).
 
 ## What it measures
 
@@ -1330,6 +1335,63 @@ what can be seen. That is the honest measure of how invisible an unasked
 question is. It is a warning now, naming the colourway, the slot, the ground and
 the ratio.
 
+## An eighth identity
+
+The first seven are all plausible. Unfamiliar to the engine, certainly — a
+different shape, a different alphabet, a different dialect — but every one of
+them drawn on purpose and drawn correctly. **Thornbury Mills** is a file that has
+been edited by three people since 1998: a stray click that left a path of no
+area, an old roundel dragged off the artboard rather than deleted, a rim that
+bleeds past the edge, coordinates carried to nine decimal places, groups nested
+four deep. Damaged, rather than merely unexpected.
+
+**The normaliser had never looked at a coordinate.** It read what kind of
+element each shape was, what colour it was painted and which slot it belonged
+to — and never once where it was. So the roundel sitting entirely off the
+artboard drew nothing, was mentioned by nobody, and would come back the moment
+anyone widened the box. Worse, a single handle dragged to 99999 draws a hairline
+across the artwork thinner than anything drawn on purpose: Thornbury measured a
+**narrowest stem of 2 where the thinnest real part is 10**, and an ink box of
+140 × 120 where the mark is 120 × 120. The smallest usable size would have come
+out five times too high, and the manual would have said so with a straight face.
+Shapes are measured against the artboard now: one lying entirely outside it is
+removed and reported, one crossing the edge is a warning naming how far, and one
+reaching several times the width of the box past it is a **blocker**, because
+nothing is drawn that far outside on purpose and every number in the package
+would be false.
+
+**A box with no size was accepted as a size.** `viewBox="0 0 0 0"` gave every
+measurement as zero; `viewBox="0 0 -100 -100"` gave a **negative narrowest
+stem**, reported as a fact. Both are blockers now.
+
+**A file with nothing painted in it threw a bare `Error` out of the measuring
+step**, much later and in the wrong voice. It is a blocker from the normaliser,
+in the same words as everything else.
+
+**And a refusal nothing acted on.** `ok` was hardcoded `true` at the end of the
+normaliser, so every blocker discovered *after* the first pass — which is every
+blocker that needs the file cleaned before it can be seen, including all three
+above — was found, described, attached to the report, and then ignored. The
+first thing the new stray-geometry blocker did was get politely overruled by the
+function that raised it.
+
+**The claim the whole thing rests on is now checked on all of them.** *Change the
+master and every number follows* had only ever been tested on Meridian. Halve
+the artwork inside the same box and the ink box halves, the clear space halves,
+the narrowest part halves, and the smallest usable size doubles — for all seven
+projects whose artwork fits its artboard. Thornbury is the eighth and the one it
+cannot hold for, because clipped artwork un-clips as it shrinks; the test names
+it rather than skipping quietly.
+
+Writing that test found one more thing, in a fixture shipped the round before:
+**Ma'ayan's ripples were sliced flat by the bottom of its own artboard.** The
+first version of the artboard check would not have caught it either — it allowed
+anything within a fifth of the box, and the overhang was less than that. There
+is no such thing as a harmless clip on a logo, so the tolerance is now half a
+unit, which is the parser's rounding and nothing more. The ripples have been
+brought inside the box; the mark is a slightly different shape than it was, and
+a better one.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.
@@ -1368,6 +1430,7 @@ the ratio.
     projects/northline/ the fifth: twelve colours, eight colourways, a mark drawn with <use>
     projects/perigee/   the sixth: a web export — hsl(), a named colour, no slots at all
     projects/maayan/    the seventh: named in Hebrew, written in Hebrew, reads right to left
+    projects/thornbury/ the eighth: a file edited by three people since 1998
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package

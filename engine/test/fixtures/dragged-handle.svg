@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 16.0.0, SVG Export Plug-In -->
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" id="Layer_1" x="0px" y="0px"
+     width="160px" height="160px" viewBox="0 0 160 160" xml:space="preserve">
+<g id="wheel">
+  <g><g><g>
+    <path data-slot="ink" fill-rule="evenodd" fill="#2F3A2C"
+          d="M80.000000001 20.000000002A60 60 0 1 0 80 140.00000001A60 60 0 1 0 80 20.00000001ZM80 34A46 46 0 1 1 80 126A46 46 0 1 1 80 34Z"/>
+  </g></g></g>
+  <g id="spokes" data-slot="ink" fill="#2F3A2C">
+    <path d="M75 26h10v108h-10z"/>
+    <path d="M26 75h108v10H26z"/>
+  </g>
+  <!-- a stray click from 2011 -->
+  <path data-slot="ink" d="M80 80L80 80Z" fill="#2F3A2C"/>
+  <!-- the old roundel, moved off the artboard rather than deleted -->
+  <path data-slot="ink" d="M300 300h56v56h-56z" fill="#2F3A2C"/>
+  <!-- somebody dragged a handle -->
+  <path data-slot="ink" d="M80 80L99999 41" stroke="#2F3A2C" stroke-width="2" fill="none"/>
+</g>
+</svg>

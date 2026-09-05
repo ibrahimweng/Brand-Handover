@@ -71,7 +71,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 136 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 275 tests.
+of it. 280 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -281,7 +281,36 @@ them written by me in the two previous rounds, while working on the code that
 picks what can be seen.** That is the honest measure of how invisible an unasked
 question is.
 
-Still to do: a run on **your** identity job. Seven identities the engine had not
-seen is worth a great deal more than seven passes over one, but none of them
+An eighth, **Thornbury Mills**, is the first that is *damaged* rather than
+merely unfamiliar: a file edited by three people since 1998, with a stray click,
+an old roundel dragged off the artboard instead of deleted, a rim bleeding past
+the edge, and coordinates to nine decimal places.
+
+**The normaliser had never looked at a coordinate.** It read what kind of
+element each shape was, what colour it was and which slot it belonged to, and
+never where it was. So one handle dragged to 99999 drew a hairline across the
+artwork thinner than anything drawn on purpose: the mark measured a narrowest
+stem of 2 where the thinnest real part is 10, and the smallest usable size would
+have come out five times too high with nothing said about it. Shapes are
+measured against the artboard now — outside it is removed, crossing it is a
+warning, and several times past it is a refusal.
+
+A box of no size was accepted as a size (`viewBox="0 0 -100 -100"` produced a
+negative narrowest stem, reported as a fact), and a file with nothing painted in
+it threw a bare `Error` out of the measuring step much later. Both are refusals
+in plain words now. And `ok` was hardcoded `true` at the end of the normaliser,
+so **every blocker found after the first pass was described and then ignored** —
+the first thing the new refusal did was get overruled by the function that
+raised it.
+
+The claim the whole thing rests on is finally checked on all of them: halve the
+artwork inside the same box, and the ink box, the clear space and the narrowest
+part all halve while the smallest usable size doubles — on every project whose
+artwork fits its artboard. Writing that test found one more thing, in a fixture
+shipped the round before: **Ma'ayan's ripples were sliced flat by its own
+artboard**, and the first version of the new check would have let it through.
+
+Still to do: a run on **your** identity job. Eight identities the engine had not
+seen is worth a great deal more than eight passes over one, but none of them
 came out of your exporter — and the normaliser is the part that most needs to
 meet one.

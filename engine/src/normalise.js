@@ -5,6 +5,7 @@
 const { optimize } = require('svgo');
 const svgu = require('./svg');
 const contrast = require('./contrast');
+const paths = require('./paths');
 
 const finding = (level, code, what, why, how) => ({ level, code, what, why, how });
 
@@ -83,8 +84,18 @@ function inspect(source) {
     'Part of this mark is a photograph or a screenshot rather than vector, so it will blur the moment anyone scales it up.',
     'Redraw that part as vector, or supply the mark without it.'));
 
-  try { svgu.viewBox(doc); }
-  catch (_) {
+  try {
+    const vb = svgu.viewBox(doc);
+    // a box of no size, or of negative size, is accepted by a parser and is
+    // not a size: every measurement taken against it comes out zero or
+    // negative, and a negative narrowest stem was being reported as a fact
+    if (!(vb.w > 0) || !(vb.h > 0)) {
+      found.push(finding('blocker', 'empty-viewbox',
+        `The viewBox is ${vb.w} by ${vb.h}.`,
+        'A box with no width or height is not a size. Everything here is measured as a fraction of that box, so every number in the package would come out as zero or as a negative.',
+        'Set a real viewBox on the artwork, usually the size of the artboard you drew it on.'));
+    }
+  } catch (_) {
     found.push(finding('blocker', 'no-viewbox', 'No viewBox and no width or height.',
       'Without one of those the artwork has no known size, so nothing can be scaled or measured against it.',
       'Re-export with "Responsive" ticked, or add a viewBox by hand.'));
@@ -252,6 +263,95 @@ function expandUse(doc) {
   return { placed: done, dropped };
 }
 
+// Where the geometry actually is.
+//
+// This pass looked at what kind of element each shape was, what colour it was
+// painted, and which slot it belonged to. It never once looked at its
+// coordinates. So a file that had been edited for years — a stray click, an old
+// roundel dragged off the artboard instead of deleted, a handle pulled to
+// 99999 — measured 140 by 120 where the artwork is 120 by 120, and reported a
+// narrowest stem of 2 where the thinnest real part is 10, which would have put
+// the smallest usable size five times too high. Nothing was said about any of
+// it, because nothing was looking.
+// Any shape crossing the edge of the box is being cut off by it. A fifth of
+// the box was a guess at "a nudge", and it let a mark through whose ripples
+// are sliced flat by the artboard — which is not a nudge, it is the mark not
+// being the shape it was drawn as. Half a unit is the parser's rounding.
+const OUTSIDE_TOLERANCE = 0.5;        // in units, not a fraction
+const FATAL_REACH = 3;                // times the box: past this it cannot be anything but a slip
+
+function shapeExtents(doc) {
+  const out = [];
+  svgu.eachPainted(doc, (el) => {
+    const d = el.getAttribute('d');
+    if (!d) return;
+    let segs;
+    try { segs = paths.parse(d); } catch (_) { return; }
+    const t = el.getAttribute('transform');
+    if (t) { try { segs = paths.transformSegs(segs, paths.parseTransform(t)); } catch (_) { /* as written */ } }
+    // Per subpath, not per path. The cleaner merges paths that share a style,
+    // so an old shape sitting right off the artboard gets folded in with a
+    // real one and stops looking like it is outside anything.
+    let cur = null;
+    const close = () => { if (cur && cur.minX !== Infinity) out.push(cur); cur = null; };
+    const open = () => { cur = { el, segs: [], minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity }; };
+    for (const sg of segs) {
+      if (sg.op === 'move') { close(); open(); }
+      if (!cur) open();
+      cur.segs.push(sg);
+      for (const pt of [sg.to, sg.c1, sg.c2]) {
+        if (!pt || !Number.isFinite(pt[0]) || !Number.isFinite(pt[1])) continue;
+        cur.minX = Math.min(cur.minX, pt[0]); cur.maxX = Math.max(cur.maxX, pt[0]);
+        cur.minY = Math.min(cur.minY, pt[1]); cur.maxY = Math.max(cur.maxY, pt[1]);
+      }
+    }
+    close();
+  });
+  return out;
+}
+
+function placePass(doc) {
+  let vb;
+  try { vb = svgu.viewBox(doc); } catch (_) { return { removed: 0, strays: [] }; }
+  if (!(vb.w > 0) || !(vb.h > 0)) return { removed: 0, strays: [], painted: 1 };
+  const pad = OUTSIDE_TOLERANCE;
+  let removed = 0;
+  const strays = [];
+  const keep = new Map();               // element -> the subpaths that stay
+  const all = shapeExtents(doc);
+  for (const s of all) if (!keep.has(s.el)) keep.set(s.el, []);
+  for (const s of all) {
+    // nothing of it is inside the box, so it draws nothing at all
+    const gone = s.maxX < vb.x || s.minX > vb.x + vb.w || s.maxY < vb.y || s.minY > vb.y + vb.h;
+    if (gone) { removed++; continue; }
+    keep.get(s.el).push(...s.segs);
+    const over = Math.max(vb.x - s.minX, s.minY && 0, vb.y - s.minY,
+      s.maxX - (vb.x + vb.w), s.maxY - (vb.y + vb.h));
+    if (over > pad) {
+      const reach = Math.round(Math.max(s.maxX - (vb.x + vb.w), vb.x - s.minX,
+        s.maxY - (vb.y + vb.h), vb.y - s.minY));
+      // a shape running a little past the edge may be a bleed somebody meant.
+      // One running several times the width of the box past it is not artwork,
+      // and the hairline it draws across the drawing is what every measurement
+      // then reports, so the package would carry numbers that are simply false.
+      strays.push({ reach, fatal: reach > Math.max(vb.w, vb.h) * FATAL_REACH });
+    }
+  }
+  let painted = 0;
+  for (const [el, segs] of keep) {
+    if (!segs.length) continue;
+    const f = el.getAttribute('fill'), st = el.getAttribute('stroke');
+    if (f !== 'none' || (st && st !== 'none')) painted++;
+  }
+  if (removed) {
+    for (const [el, segs] of keep) {
+      if (!segs.length) { if (el.parentNode) el.parentNode.removeChild(el); continue; }
+      el.setAttribute('d', paths.toPathData(segs));
+    }
+  }
+  return { removed, strays, painted };
+}
+
 // Rules that survive the inlining pass are rules that match nothing: the
 // inliner has already moved every rule that had an element to move it to. A
 // stylesheet is also the one thing in an SVG that nothing downstream here
@@ -301,6 +401,7 @@ function normalise(source, { tokens } = {}) {
 
   const doc = svgu.parse(cleaned);
   const dead = dropDeadStyles(doc);
+  const place = placePass(doc);
   const already = svgu.slotsUsed(doc);
   const colour = colourPass(doc, tokens);
   const assigned = already.length ? { slots: already, tagged: 0 } : assignSlots(doc, colour.used, tokens);
@@ -317,6 +418,25 @@ function normalise(source, { tokens } = {}) {
     `${dangling} reference${dangling > 1 ? 's point' : ' points'} at artwork that is not in the file.`,
     'Something was deleted and the copies of it were left behind. They drew nothing, so the mark is missing a part it was drawn with.',
     'Check the mark against the original, and put back whatever was removed.'));
+
+  // nothing left that puts ink anywhere. This was a bare Error thrown out of the
+  // measuring step later on — a refusal in the wrong voice, in the wrong place.
+  if (!findings.some((f) => f.level === 'blocker') && place.painted === 0) {
+    findings.push(finding('blocker', 'nothing-drawn', 'Nothing in this file is painted.',
+      'Every shape is either set to no fill and no stroke, hidden, or lying outside the artboard, so the file renders empty. There is nothing to measure and nothing to hand anybody.',
+      'Check the layer the artwork is on, and that it has not been left switched off or moved aside.'));
+  }
+
+  if (place.removed) findings.push(finding('fixed', 'off-artboard',
+    `Removed ${place.removed} shape${place.removed > 1 ? 's' : ''} lying outside the artboard.`,
+    'Artwork past the edge of the box draws nothing, so nobody has seen it for as long as it has been there — and it comes back the moment anyone widens the box. Usually an old version moved aside rather than deleted.', null));
+
+  for (const st of place.strays) findings.push(finding(st.fatal ? 'blocker' : 'warning', 'stray-geometry',
+    `A shape reaches ${st.reach} units past the edge of the artboard.`,
+    st.fatal
+      ? 'Nothing is drawn that far outside the box on purpose. It crosses the artwork as a sliver thinner than anything you drew, so it is what the smallest usable size would be worked out from, and the measured box is wider than the mark. Every number in the package would be wrong.'
+      : 'It draws as a sliver across the artwork, which is thinner than anything you drew on purpose — so it is what sets the smallest usable size, and it widens the measured box. Usually a handle dragged by accident.',
+    'Find the shape that runs off the edge and delete it, or pull its point back where it belongs.'));
 
   if (dead.blocks) findings.push(finding('fixed', 'dead-styles',
     `Removed ${dead.rules} style rule${dead.rules === 1 ? '' : 's'} that matched nothing.`,
@@ -348,7 +468,12 @@ function normalise(source, { tokens } = {}) {
     `Cleaned out ${Math.round((1 - after / before) * 100)} percent of the file.`,
     'Editor metadata, comments and empty groups. None of it draws anything.', null));
 
-  return { ok: true, findings, svg: svgu.serialize(doc), slots: assigned.slots, bytes: { before, after } };
+  // ok was hardcoded true here, so any blocker found after the first pass —
+  // everything that needs the file cleaned before it can be seen — was reported
+  // and then ignored. A refusal nothing acts on is not a refusal.
+  const stopped = findings.some((f) => f.level === 'blocker');
+  return { ok: !stopped, findings, svg: stopped ? null : svgu.serialize(doc),
+    slots: stopped ? [] : assigned.slots, bytes: { before, after } };
 }
 
 module.exports = { normalise, inspect, preClean, hex, distance, SNAP_DISTANCE };
