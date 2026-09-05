@@ -41,7 +41,30 @@ function context(project, measured, files, brandJson) {
   // manual for one that keeps saying "the mark" is describing something that
   // is not in the package.
   const noun = measured.master === 'wordmark' && !project.assets.mark ? 'logotype' : 'mark';
-  return { project, measured, colours, primary, ground, accent, primaryColourway, noun,
+
+  // The rule blocks — the pattern, the photography treatment, the icon grid and
+  // the motion — reached the canvas and brand.json and neither of the two
+  // documents a client actually reads. Fathom's whole identity is its pattern
+  // and its manual never mentioned one. Resolve them here so the manual and the
+  // deck can say what they are.
+  const system = require('../system').resolve(project, measured);
+  // the photography rules name their colours the way a block does — by role or
+  // by palette name — so the blocks that draw them need the same lookup the
+  // canvas has
+  const roles = {};
+  for (const r of ['primary', 'ground', 'accent', 'secondary', 'neutral']) {
+    const e = byRole(r);
+    if (e) roles[r] = { name: e[0], ...e[1] };
+  }
+  const master = project.assets[measured.master || (project.assets.mark ? 'mark' : 'wordmark')];
+  const ways = project.rules.colourways.map((cw) => ({
+    name: cw.name, ink: Object.values(cw.slots)[0],
+    on: (cw.on && (colours[cw.on] || {}).hex) || '#FFFFFF',
+  }));
+  const pattern = require('../pattern').everyTile(master.source, system.pattern, ways, null);
+  const hasSystem = !!(pattern && pattern.ok && pattern.tiles.length) || !!system.photography.declared
+    || !!system.icons || !!(project.system || {}).motion;
+  return { project, measured, colours, roles, primary, ground, accent, primaryColourway, noun, system, pattern, hasSystem,
     variants, variantFor, files, brandJson, contrast: contrast.matrix(colours),
     content: project.content || {} };
 }
@@ -85,9 +108,23 @@ function guidelines(ctx) {
       sec('3.1', 'The typefaces', 'system', b.typeSpecimen(ctx) + words(c.typeRationale)) +
       sec('3.2', 'The scale', 'system', b.typeScale(ctx)))}
 
-  ${chapter('04', 'Assets',
-      sec('4.1', 'What is in the package', 'system', b.assetIndex(ctx)) +
-      sec('4.2', 'The machine readable file', 'system',
+  ${(() => {
+    // One chapter for the rule blocks, numbered around whichever of them this
+    // project has. A section only where there is something to show.
+    const parts = [
+      ['The pattern', b.patternSpec(ctx)],
+      ['Photography', b.photographySpec(ctx)],
+      ['The icon grid', b.iconSpec(ctx)],
+      ['Motion', b.motionSpec(ctx)],
+    ].filter(([, body]) => body);
+    if (!parts.length) return '';
+    return chapter('04', 'The system',
+      parts.map(([title, body], i) => sec(`4.${i + 1}`, title, 'once', body)).join(''));
+  })()}
+
+  ${chapter(ctx.hasSystem ? '05' : '04', 'Assets',
+      sec(ctx.hasSystem ? '5.1' : '4.1', 'What is in the package', 'system', b.assetIndex(ctx)) +
+      sec(ctx.hasSystem ? '5.2' : '4.2', 'The machine readable file', 'system',
         `<p class="note">Shipped beside this page so the client's own tools can read the brand instead of guessing at it.</p>` + b.brandJsonBlock(ctx)))}
 
   <footer>

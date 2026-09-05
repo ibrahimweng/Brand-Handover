@@ -376,7 +376,7 @@ the measuring engine, the packager, both documents, the canvas editor,
 publishing, all three kinds of block, image slots, page sizes and the
 photography treatment, print work with bleed, CMYK, and a printed piece through
 Typst, mockups, and the licence half of accounts. 138 files from one master,
-326 tests, and thirteen more identities in the repo that the engine had not been
+332 tests, and fourteen more identities in the repo that the engine had not been
 written against.
 
 Three things the plan had wrong, found by building rather than by thinking.
@@ -972,6 +972,40 @@ stretch it". Meridian's captions have been full sentences — 48 to 57 character
 and nobody noticed because nobody had ever seen the alternative. Typography that
 is chosen once and applied to whatever arrives is the same class of defect as a
 box sized once and filled with whatever arrives.
+
+**An override path that nothing has ever taken is not a feature, it is a
+hypothesis.** Four rule blocks, and no project in fifteen rounds had set two of
+them. The moment one did, both of the ways an override can be wrong turned up at
+once: a shallow merge that deletes the keys you did not restate, and a derived
+value that overwrites the one you did. Neither is exotic; both are what you get
+when the only caller is the default. The audit that finds this is a list of every
+key a project may set and a count of how many projects set each — the same
+listing the eleventh round used, run again now that there are more keys.
+
+**Defensive fixtures hide the defect they are defending against.** Every project
+that overrode the pattern restated all three densities. I wrote those fixtures,
+and I restated the keys because that is what you do when you are not sure — which
+is exactly the instinct that kept a shallow merge alive for five rounds. A
+fixture that writes the minimum is a better instrument than one that writes the
+maximum, because the minimum is what a real project file contains.
+
+**The plan called rule blocks a whole kind and the documents never mentioned
+them.** They were built, resolved, written into brand.json, drawn on the canvas
+and counted among the files in the deck — and neither the manual nor the deck
+had a chapter for them. The identity whose entire graphic language is its
+pattern shipped a brand manual that did not contain the word. This is not a
+rendering bug: it is a whole section of the deliverable that nobody noticed was
+absent, because absence has no symptom. Worth asking of every part of a system:
+if this were missing from the output, what would break? If the answer is
+nothing, nothing will tell you.
+
+**Where the numbering shifts, the thing that shifts it has to be derived too.**
+Adding a chapter meant the one after it moved from 04 to 05, and its two
+sections with it. Hard-coding the new numbers would have been the same class of
+mistake as the four hard-coded folder names the thirteenth round found in the
+read me. The chapter after the system asks whether there is a system, and
+numbers itself accordingly; a project with no pattern, no photography and no
+declared motion still gets the icon grid, because every package writes icons.
 
 ---
 

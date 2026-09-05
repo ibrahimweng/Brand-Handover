@@ -392,6 +392,111 @@ function gradientSpec(ctx) {
   }).join('');
 }
 
+// ------------------------------------------------------------- the system
+// The rule blocks reached the canvas, the deck's file count and brand.json, and
+// neither of the two documents a client reads. Fathom's whole identity is its
+// pattern and its manual never mentioned one; four projects declare a
+// photography treatment and no manual described it. Each of these draws only
+// where the project has that system, so nothing grows an empty section.
+
+function patternSpec(ctx) {
+  const gen = ctx.pattern;
+  if (!gen || !gen.ok || !gen.tiles.length) return '';
+  const r = ctx.system.pattern;
+  const on = showOn(ctx);
+  const pat = require('../pattern');
+  const master = ctx.project.assets[ctx.measured.master || 'mark'] || ctx.project.assets.mark;
+  const order = Object.keys(r.densities);
+  const cells = order.map((density) => {
+    const factor = r.densities[density];
+    const scaled = Object.assign({}, r, { tile: svgu.round(r.tile * factor), weight: svgu.round(r.weight * factor, 2) });
+    const sw = pat.swatch(master.source, scaled, on.colourway.slots[ctx.measured.slots[0]]
+      || Object.values(on.colourway.slots)[0], on.ground.hex, 300, 190, `d-${density}`);
+    return `<figure><div class="stage tight" style="padding:0;overflow:hidden">${sw || ''}</div>
+      <figcaption>${esc(density)} · tile ${scaled.tile} · weight ${scaled.weight}</figcaption></figure>`;
+  }).join('');
+  const ways = [...new Set(gen.tiles.map((t) => t.colourway))];
+  return `<div class="row3">${cells}</div>
+    <p class="note">Cut from the shape marked <code>data-pattern="source"</code> in the master, at
+    ${order.length} densities in ${ways.length} colourway${ways.length > 1 ? 's' : ''} —
+    <b>${gen.tiles.length} tiles</b>, all in the package. The tile is ${r.tile} units at medium, rows are
+    offset by ${r.phase} of a tile and spaced ${r.rowSpacing} of one apart. Change the shape in the master
+    and every tile is cut again.</p>`;
+}
+
+function photographySpec(ctx) {
+  const r = ctx.system.photography;
+  if (!r || !r.declared) return '';
+  const PH = require('../photography');
+  const steps = 11;
+  const ramp = [];
+  for (let i = 0; i < steps; i++) {
+    const v = i / (steps - 1);
+    const t = PH.treatPixel(r, { colours: ctx.colours, roles: ctx.roles }, { r: v, g: v, b: v });
+    ramp.push(`<i style="flex:1;background:rgb(${Math.round(t.r * 255)},${Math.round(t.g * 255)},${Math.round(t.b * 255)})"></i>`);
+  }
+  const scrim = PH.scrimStyle(r, { colours: ctx.colours, roles: ctx.roles }, undefined);
+  return `<figure><div class="stage tight" style="padding:0;position:relative">
+      <div style="display:flex;width:100%;height:120px">${ramp.join('')}</div>
+      ${scrim ? `<div style="position:absolute;inset:0;background:${scrim.background}"></div>` : ''}
+    </div><figcaption>a grey ramp, treated${scrim ? ', under the scrim' : ''}</figcaption></figure>
+    <p class="note">${r.duotone
+      ? `Every photograph is a duotone from <b>${esc(r.duotone.shadow)}</b> in the shadows to <b>${esc(r.duotone.highlight)}</b> in the highlights, at ${Math.round((r.duotone.amount == null ? 1 : r.duotone.amount) * 100)} per cent. `
+      : 'Photographs run untreated. '}${scrim
+      ? `A scrim of ${esc(String(r.scrim.colour))} at ${Math.round(r.scrim.opacity * 100)} per cent runs from the ${esc(r.scrim.direction)}, which is what type sits on. `
+      : ''}Crops are ${(r.ratios || []).map(esc).join(', ')}. The editor measures the mark against the pixels actually under it and says which colourway reads there, so this is a rule you can check rather than one you have to remember.</p>`;
+}
+
+function iconSpec(ctx) {
+  const r = ctx.system.icons;
+  if (!r) return '';
+  const k = 200 / r.box, m = (r.box - r.live) / 2;
+  const line = ctx.accent.hex;
+  return `<figure><div class="stage tight">
+      <svg viewBox="0 0 ${200 + 60} ${200 + 26}" class="dia" role="img" aria-label="The icon grid: a ${r.box} unit box with a ${r.live} unit live area and a ${r.stroke} unit stroke.">
+        <rect x="30" y="6" width="200" height="200" fill="none" stroke="${line}" stroke-width=".9" opacity=".5"/>
+        <rect x="${svgu.round(30 + m * k)}" y="${svgu.round(6 + m * k)}" width="${svgu.round(r.live * k)}" height="${svgu.round(r.live * k)}" fill="none" stroke="${line}" stroke-width="1" stroke-dasharray="4 3"/>
+        <g stroke="currentColor" stroke-width="${svgu.round(r.stroke * k, 2)}" stroke-linecap="${esc(r.cap)}" stroke-linejoin="${esc(r.join)}" fill="none">
+          <path d="M${svgu.round(30 + m * k)} ${svgu.round(6 + m * k)}L${svgu.round(30 + (r.box / 2) * k)} ${svgu.round(6 + (r.box - m) * k)}L${svgu.round(30 + (r.box - m) * k)} ${svgu.round(6 + m * k)}"/>
+        </g>
+        <text x="${(200 + 60) / 2}" y="${200 + 20}" ${TXT} fill="${line}" text-anchor="middle">${r.box} unit box · ${r.live} live · ${r.stroke} stroke</text>
+      </svg></div><figcaption>the grid every icon is drawn on</figcaption></figure>
+    <p class="note">Not decided: taken from the ${ctx.noun} itself. Its box is ${r.derivedFrom.viewBox} units and it
+    fills ${r.derivedFrom.ink} of them, so the margin is ${r.derivedFrom.markMargin} — <b>${svgu.round(r.marginFraction * 100, 1)} per cent</b>,
+    which is the same margin an icon keeps. Its narrowest part is ${r.derivedFrom.markStroke} units, which is
+    <b>${svgu.round(r.strokeRatio * 100, 1)} per cent</b> of the box, so an icon's stroke is ${r.stroke} in a ${r.box} box.
+    Ends are ${esc(r.cap)}, corners ${esc(r.join)}, and the set is ${r.filled ? 'filled' : 'drawn in outline'}.
+    Redraw the ${ctx.noun} and these move with it. Run <code>check &lt;icon.svg&gt; --icon</code> to have one measured against them.</p>`;
+}
+
+function motionSpec(ctx) {
+  const r = ctx.system.motion;
+  // Every project has motion rules because they have defaults, and nothing in
+  // the package is motion. Say them where the project asked for them; a
+  // bookbinder that never mentioned movement does not get a chapter about it.
+  if (!r || !(ctx.project.system || {}).motion) return '';
+  const sys = require('../system');
+  const curve = (e, label) => {
+    const [x1, y1, x2, y2] = e;
+    const P = (x, y) => `${svgu.round(10 + x * 80, 2)} ${svgu.round(90 - y * 80, 2)}`;
+    return `<figure><div class="stage tight">
+      <svg viewBox="0 0 100 118" class="dia" role="img" aria-label="${esc(label)}, a cubic bezier through ${e.join(', ')}.">
+        <path d="M${P(0, 0)}L${P(1, 0)}M${P(0, 0)}L${P(0, 1)}" stroke="currentColor" stroke-width=".6" opacity=".3"/>
+        <path d="M${P(0, 0)}C${P(x1, y1)} ${P(x2, y2)} ${P(1, 1)}" fill="none" stroke="${ctx.accent.hex}" stroke-width="2"/>
+      </svg></div><figcaption>${esc(label)} · ${sys.bezier(e)}</figcaption></figure>`;
+  };
+  const durations = Object.entries(r.durations)
+    .map(([n, ms]) => `<div style="display:flex;justify-content:space-between;gap:12px;padding:4px 0">`
+      + `<span>${esc(n)}</span><b>${ms} ms</b></div>`).join('');
+  return `<div class="row3">${Object.entries(r.easing).map(([n, e]) => curve(e, n)).join('')}
+    <figure><div class="stage tight"><div style="width:100%;font-size:13px">${durations}</div></div>
+    <figcaption>how long each thing takes</figcaption></figure></div>
+    <p class="note">The mark builds in ${r.build.length} parts: ${r.build.map((s) =>
+      `<b>${esc(s.part)}</b> ${esc(s.how)} from ${s.from} to ${s.to} ms on <i>${esc(s.ease)}</i>`).join(', ')}.
+    It ${r.loop ? 'loops' : 'plays once and holds'}. Two curves and ${Object.keys(r.durations).length} durations
+    are the whole of it; anything else on screen is one of these.</p>`;
+}
+
 function contrastTable(ctx) {
   const cls = { AAA: 'ok', AA: 'ok', 'AA-large': 'warn', fail: 'bad' };
   return `<div class="ctab"><div class="ctr head"><span>Sample</span><span>Pair</span><span>Ratio</span><span>Verdict</span></div>` +
@@ -433,5 +538,5 @@ function assetIndex(ctx) {
 
 const brandJsonBlock = (ctx) => `<pre>${esc(JSON.stringify(ctx.brandJson, null, 2))}</pre>`;
 
-module.exports = { TXT, esc, inked, gradientSpec, inksOf, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, markSpecimen, lockupRow, construction, clearSpace,
+module.exports = { TXT, esc, inked, gradientSpec, inksOf, patternSpec, photographySpec, iconSpec, motionSpec, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, markSpecimen, lockupRow, construction, clearSpace,
   minimumSize, lockups, misuse, palette, contrastTable, typeSpecimen, typeScale, assetIndex, brandJsonBlock };

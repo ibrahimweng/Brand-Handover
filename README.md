@@ -71,7 +71,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 138 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 326 tests.
+of it. 332 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -420,7 +420,27 @@ unrelated to the words, the printed piece and the canvas **resolved a colourway
 differently**, which put the mark in ink on an ink field on the one deliverable
 that costs money.
 
-Still to do: a run on **your** identity job. Thirteen identities the engine had
-not seen is worth a great deal more than thirteen passes over one, but none of
+The fifteenth came from two audits that both came back empty in the same place.
+**No project had ever set `system.icons` or `system.motion`** — two of the four
+rule blocks, whose override paths had never run. **Yarrow** is a land trust that
+declares all four, and overrides each of them in part, which is what a designer
+actually writes.
+
+Overriding part of a rule **deleted the rest of it**: `"motion": {"durations":
+{"base": 420}}` deleted the other three durations, and one density deleted the
+other two — and with them **six of the nine pattern tiles the package writes**.
+Silently, in both cases; every existing project happened to restate every key. A
+size the project stated was **overwritten by the derived one**, so `"stroke": 2`
+was accepted, stored and then replaced.
+
+And the whole kind was missing from both documents. Rule blocks reached the
+canvas, `brand.json` and the deck's file count, and **neither the manual nor the
+deck ever mentioned one**. Fathom's entire identity is its pattern; nine tiles
+went into its package and its brand manual did not contain the word. There is a
+chapter for it now in both, with a section only where the project has that
+system.
+
+Still to do: a run on **your** identity job. Fourteen identities the engine had
+not seen is worth a great deal more than fourteen passes over one, but none of
 them came out of your exporter — and the normaliser is the part that most needs
 to meet one.

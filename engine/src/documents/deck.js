@@ -193,7 +193,52 @@ function deck(ctx) {
     }).join('')}</div>
     <p class="sm">Every size, weight and line height is read from the token file, so this deck and the running website cannot drift apart.</p>`, 'light');
 
-  div('04', 'Assets', ['The package', 'The machine readable file']);
+  // The rule blocks — the pattern, the treatment, the icon grid, the motion —
+  // were in brand.json and on the canvas and in neither document. A deck that
+  // counts the pattern tiles among its files and never shows one is describing
+  // somebody else's identity.
+  const svgu = require('../svg');
+  const master = p.assets[m.master || (p.assets.mark ? 'mark' : 'wordmark')];
+  const sysSlides = [];
+  if (ctx.pattern && ctx.pattern.ok && ctx.pattern.tiles.length) sysSlides.push(['The pattern', () => {
+    const r = ctx.system.pattern;
+    const on = b.showOn(ctx);
+    const ink = Object.values(on.colourway.slots)[0];
+    const pat = require('../pattern');
+    const cells = Object.entries(r.densities).map(([d, f]) => {
+      const scaled = Object.assign({}, r, { tile: svgu.round(r.tile * f), weight: svgu.round(r.weight * f, 2) });
+      return `<div style="flex:1;aspect-ratio:1;overflow:hidden">${pat.swatch(master.source, scaled, ink, on.ground.hex, 300, 300, `k-${d}`) || ''}</div>`;
+    }).join('');
+    return `<span class="bdg">Set once</span><h2 style="margin-top:2cqw">${ctx.pattern.tiles.length} tiles, one decision</h2>
+      <div style="display:flex;gap:1.6cqw;margin-top:2.4cqw">${cells}</div>
+      <p class="sm">Cut from the shape marked <b>data-pattern="source"</b> in the master, at ${Object.keys(r.densities).length} densities in ${[...new Set(ctx.pattern.tiles.map((t) => t.colourway))].length} colourways. Redraw that shape and all ${ctx.pattern.tiles.length} are cut again.</p>`;
+  }]);
+  if (ctx.system.photography.declared) sysSlides.push(['Photography', () => {
+    const r = ctx.system.photography;
+    const PH = require('../photography');
+    const ramp = [];
+    for (let i = 0; i < 11; i++) {
+      const v = i / 10;
+      const t = PH.treatPixel(r, { colours: ctx.colours, roles: ctx.roles }, { r: v, g: v, b: v });
+      ramp.push(`<i style="flex:1;background:rgb(${Math.round(t.r * 255)},${Math.round(t.g * 255)},${Math.round(t.b * 255)})"></i>`);
+    }
+    return `<span class="bdg">Set once</span><h2 style="margin-top:2cqw">${r.duotone ? 'One duotone' : 'One treatment'}, every photograph</h2>
+      <div style="display:flex;height:12cqw;margin-top:2.4cqw">${ramp.join('')}</div>
+      <p class="sm">${r.duotone ? `From <b>${b.esc(r.duotone.shadow)}</b> to <b>${b.esc(r.duotone.highlight)}</b>. ` : ''}${r.scrim ? `A scrim from the ${b.esc(r.scrim.direction)} at ${Math.round(r.scrim.opacity * 100)} per cent. ` : ''}The editor measures the mark against the pixels under it, so this is checked rather than remembered.</p>`;
+  }]);
+  if ((p.system || {}).motion) sysSlides.push(['Motion', () => {
+    const r = ctx.system.motion;
+    const sys = require('../system');
+    return `<span class="bdg">Set once</span><h2 style="margin-top:2cqw">Two curves, ${Object.keys(r.durations).length} durations</h2>
+      <p class="lede">${Object.entries(r.durations).map(([n, ms]) => `${b.esc(n)} ${ms} ms`).join(' · ')}</p>
+      <p class="sm">${Object.entries(r.easing).map(([n, e]) => `<b>${b.esc(n)}</b> ${sys.bezier(e)}`).join(' &nbsp; ')}<br>The mark builds in ${r.build.length} parts and ${r.loop ? 'loops' : 'plays once'}.</p>`;
+  }]);
+  if (sysSlides.length) {
+    div('04', 'The system', sysSlides.map(([name]) => name));
+    for (const [name, body] of sysSlides) add(name, body(), 'light');
+  }
+
+  div(sysSlides.length ? '05' : '04', 'Assets', ['The package', 'The machine readable file']);
   add('The package', `<div class="two wide"><div><span class="bdg">The system</span>
     <h2 style="margin-top:2cqw">${ctx.files.length} files</h2>
     <p class="lede">Every one cut from the master at the moment the package was built, so no old variant can survive in a corner of the folder.</p>

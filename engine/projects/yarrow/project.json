@@ -1,0 +1,254 @@
+{
+  "brand": "Yarrow",
+  "version": "1.2.0",
+  "assets": {
+    "mark": "mark.svg",
+    "wordmark": "wordmark.svg"
+  },
+  "tokens": {
+    "colour": {
+      "moss": {
+        "hex": "#2C4A3B",
+        "role": "primary",
+        "pantone": "5535 C",
+        "cmyk": [
+          72,
+          44,
+          66,
+          36
+        ]
+      },
+      "chalk": {
+        "hex": "#F3F1E9",
+        "role": "ground",
+        "pantone": "9184 C",
+        "cmyk": [
+          4,
+          3,
+          9,
+          0
+        ]
+      },
+      "gorse": {
+        "hex": "#D9A02B",
+        "role": "accent",
+        "pantone": "143 C",
+        "cmyk": [
+          12,
+          38,
+          92,
+          0
+        ]
+      },
+      "slate": {
+        "hex": "#5C6B70",
+        "role": "secondary",
+        "pantone": "5487 C",
+        "cmyk": [
+          58,
+          40,
+          40,
+          8
+        ]
+      },
+      "peat": {
+        "hex": "#221C18",
+        "role": "neutral",
+        "pantone": "Black 7 C",
+        "cmyk": [
+          60,
+          60,
+          60,
+          70
+        ]
+      }
+    },
+    "type": {
+      "families": {
+        "display": {
+          "family": "Archivo",
+          "fallback": "Helvetica, Arial, sans-serif",
+          "weights": [
+            600,
+            700
+          ],
+          "google": true
+        },
+        "text": {
+          "family": "Archivo",
+          "fallback": "Helvetica, Arial, sans-serif",
+          "weights": [
+            400,
+            500
+          ],
+          "google": true
+        }
+      },
+      "scale": [
+        {
+          "name": "Display",
+          "family": "display",
+          "size": 60,
+          "leading": 66,
+          "weight": 700
+        },
+        {
+          "name": "H1",
+          "family": "display",
+          "size": 35,
+          "leading": 42,
+          "weight": 700
+        },
+        {
+          "name": "H2",
+          "family": "display",
+          "size": 24,
+          "leading": 31,
+          "weight": 600
+        },
+        {
+          "name": "H3",
+          "family": "display",
+          "size": 18,
+          "leading": 26,
+          "weight": 600
+        },
+        {
+          "name": "Body",
+          "family": "text",
+          "size": 16,
+          "leading": 27,
+          "weight": 400
+        },
+        {
+          "name": "Small",
+          "family": "text",
+          "size": 13,
+          "leading": 21,
+          "weight": 400
+        },
+        {
+          "name": "Caption",
+          "family": "text",
+          "size": 11,
+          "leading": 16,
+          "weight": 500
+        }
+      ]
+    }
+  },
+  "rules": {
+    "clearSpaceRatio": 0.25,
+    "minStrokePx": 3,
+    "minStrokeMm": 0.8,
+    "lockupGapRatio": 0.3,
+    "wordmarkHeightRatio": 0.34,
+    "naming": "{brand}-{lockup}-{colourway}",
+    "lockups": [
+      "horizontal",
+      "stacked",
+      "mark"
+    ],
+    "formats": [
+      "svg",
+      "png",
+      "pdf"
+    ],
+    "pngWidths": [
+      400,
+      1600
+    ],
+    "stock": "uncoated",
+    "colourways": [
+      {
+        "name": "moss",
+        "on": "chalk",
+        "slots": {
+          "sun": "#2C4A3B",
+          "ridge": "#2C4A3B",
+          "water": "#2C4A3B",
+          "word": "#2C4A3B"
+        }
+      },
+      {
+        "name": "reverse",
+        "on": "moss",
+        "slots": {
+          "sun": "#F3F1E9",
+          "ridge": "#F3F1E9",
+          "water": "#F3F1E9",
+          "word": "#F3F1E9"
+        }
+      },
+      {
+        "name": "gorse",
+        "on": "moss",
+        "slots": {
+          "sun": "#D9A02B",
+          "ridge": "#F3F1E9",
+          "water": "#F3F1E9",
+          "word": "#F3F1E9"
+        }
+      }
+    ],
+    "iconInk": "#F3F1E9",
+    "iconBg": "#2C4A3B",
+    "iconSizes": [
+      1024,
+      180
+    ],
+    "faviconSizes": [
+      16,
+      32
+    ],
+    "social": {
+      "profile": {
+        "w": 400,
+        "h": 400
+      },
+      "og image": {
+        "w": 1200,
+        "h": 630
+      }
+    }
+  },
+  "system": {
+    "pattern": {
+      "tile": 120,
+      "densities": {
+        "medium": 1.2
+      }
+    },
+    "photography": {
+      "duotone": {
+        "shadow": "#2C4A3B",
+        "highlight": "#F3F1E9"
+      },
+      "scrim": {
+        "direction": "bottom",
+        "opacity": 0.62
+      }
+    },
+    "icons": {
+      "stroke": 2,
+      "cap": "round"
+    },
+    "motion": {
+      "durations": {
+        "base": 420
+      },
+      "loop": true
+    }
+  },
+  "content": {
+    "positioning": "Yarrow looks after eleven thousand acres of upland, and the identity has to work on a fingerpost, a lorry, a lanyard and a phone.",
+    "misuse": [
+      "Do not stretch it",
+      "Do not rotate it",
+      "Do not recolour it",
+      "Do not add a shadow",
+      "Do not crowd it",
+      "Do not outline it"
+    ]
+  }
+}

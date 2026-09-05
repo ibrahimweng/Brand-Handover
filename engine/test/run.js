@@ -3961,6 +3961,124 @@ test('the printed piece and the canvas pick the same colourway', () => {
   }
 });
 
+// Fourteen identities, and not one had ever set system.icons or system.motion:
+// the two rule blocks whose overrides nothing had exercised. The rule blocks
+// also reached the canvas and brand.json and neither of the two documents a
+// client reads — Fathom's whole identity is its pattern and its manual never
+// mentioned one.
+const YW = projectLoader.load(path.join(__dirname, '..', 'projects', 'yarrow', 'project.json'));
+const ywM = measure(YW);
+
+test('a project sets all four systems, and none had set two of them', () => {
+  assert.deepStrictEqual(Object.keys(YW.system).sort(), ['icons', 'motion', 'pattern', 'photography']);
+  // and it overrides part of each, which is the shape a designer writes
+  assert.deepStrictEqual(Object.keys(YW.system.motion), ['durations', 'loop']);
+  assert.deepStrictEqual(Object.keys(YW.system.pattern), ['tile', 'densities']);
+});
+
+test('overriding part of a rule keeps the rest of it', () => {
+  // Object.assign replaced whatever it was given, so system.motion with one
+  // duration in it deleted the other three, and one density deleted the other
+  // two — with them six of the nine tiles the package writes.
+  const sys = require('../src/system');
+  const full = sys.motionRules(undefined);
+  const one = sys.motionRules({ durations: { base: 420 } });
+  assert.deepStrictEqual(Object.keys(one.durations), Object.keys(full.durations));
+  assert.strictEqual(one.durations.base, 420);
+  assert.strictEqual(one.durations.slow, full.durations.slow);
+  // an array is a whole answer, not a set of parts, so it replaces
+  const e = sys.motionRules({ easing: { out: [0, 0, 1, 1] } });
+  assert.deepStrictEqual(e.easing.out, [0, 0, 1, 1]);
+  assert.deepStrictEqual(e.easing.through, full.easing.through);
+  assert.strictEqual(sys.motionRules({ build: [{ part: 'x', from: 0, to: 1, ease: 'out', how: 'y' }] }).build.length, 1);
+  // the pattern is the one where losing a key costs files
+  const d = sys.patternRules({ densities: { medium: 1.2 } });
+  assert.deepStrictEqual(Object.keys(d.densities).sort(), ['coarse', 'fine', 'medium']);
+  assert.strictEqual(d.densities.medium, 1.2);
+});
+
+test('the pattern this project sets is cut at every density', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-yw-'));
+  const r = await build(YW, dir);
+  const tiles = r.written.map((f) => f.path).filter((f) => /^07-pattern\//.test(f));
+  assert.strictEqual(tiles.length, 9, `${tiles.length} tiles, where three densities in three colourways is nine`);
+  for (const d of ['fine', 'medium', 'coarse']) {
+    assert.ok(tiles.some((f) => f.includes(`-${d}-`)), `nothing was cut at ${d}`);
+  }
+  const bj = JSON.parse(fs.readFileSync(path.join(dir, 'brand.json'), 'utf8'));
+  assert.strictEqual(bj.system.pattern.tile, 120, 'the tile size it set was lost');
+  assert.deepStrictEqual(Object.keys(bj.system.motion.durations).sort(),
+    ['base', 'considered', 'quick', 'slow']);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('a size the project states is the size it gets', () => {
+  // three of the icon rules are ratios and three are the sizes those come out
+  // at, and the sizes were computed after the merge — so a project writing
+  // `stroke: 2`, which is the number a designer thinks in, had it accepted,
+  // stored, and then overwritten by the derived one.
+  const sys = require('../src/system');
+  const plain = sys.iconRules(ywM, undefined);
+  const set = sys.iconRules(ywM, { stroke: 2 });
+  assert.notStrictEqual(plain.stroke, 2, 'the fixture must ask for a stroke it would not have got');
+  assert.strictEqual(set.stroke, 2);
+  assert.strictEqual(set.strokeRatio, Number((2 / set.box).toFixed(4)));
+  // and the ratio still wins where the ratio is what was written
+  assert.strictEqual(sys.iconRules(ywM, { strokeRatio: 0.1 }).stroke, Number((0.1 * 24).toFixed(2)));
+  // the same for the other two pairs
+  assert.strictEqual(sys.iconRules(ywM, { live: 20 }).live, 20);
+  assert.strictEqual(sys.iconRules(ywM, { curveRadius: 6 }).curveRadius, 6);
+  // what the built package says
+  assert.strictEqual(require('../src/system').resolve(YW, ywM).icons.stroke, 2);
+});
+
+test('the manual says what the system is', () => {
+  // the rule blocks were in brand.json and on the canvas and in neither
+  // document. Fathom's identity is its pattern; its manual never mentioned one.
+  const b = require('../src/documents/blocks');
+  const docs = require('../src/documents');
+  const ctx = docs.context(YW, ywM, [], {});
+  const html = docs.guidelines(ctx);
+  assert.ok(/<h2>The system<\/h2>/.test(html), 'no system chapter');
+  for (const t of ['The pattern', 'Photography', 'The icon grid', 'Motion']) {
+    assert.ok(html.includes(t), `${t} is not in the manual`);
+  }
+  // and the numbers in it are the resolved ones, not typed
+  assert.ok(html.includes(`${ctx.system.icons.stroke} stroke`), 'the icon grid does not quote its stroke');
+  assert.ok(html.includes(`${ctx.pattern.tiles.length} tiles`), 'the pattern section does not count its tiles');
+  for (const [n, ms] of Object.entries(ctx.system.motion.durations)) {
+    assert.ok(html.includes(`${ms} ms`), `${n} is missing from the motion section`);
+  }
+
+  // a project with a pattern and nothing else gets one section, not four
+  const fa = docs.context(FA, measure(FA), [], {});
+  assert.ok(b.patternSpec(fa) && !b.photographySpec(fa) && !b.motionSpec(fa));
+  assert.ok(/<h2>The system<\/h2>/.test(docs.guidelines(fa)));
+  assert.ok(docs.guidelines(fa).includes('The pattern'));
+  assert.ok(!docs.guidelines(fa).includes('>Motion<'), 'a project that never mentioned motion got a motion section');
+
+  // and the chapter after it is renumbered rather than colliding
+  assert.ok(/<i>5\.1<\/i>What is in the package/.test(html), 'the assets chapter did not move');
+  const cu = docs.context(CU, measure(CU), [], {});
+  assert.ok(/<i>4\.1<\/i>The icon grid/.test(docs.guidelines(cu)));
+});
+
+test('the deck shows the system it counts among its files', () => {
+  const { deck } = require('../src/documents/deck');
+  const docs = require('../src/documents');
+  const html = deck(docs.context(YW, ywM, [], {}));
+  assert.ok(/chname">The system</.test(html), 'the deck has no system chapter');
+  for (const t of ['9 tiles, one decision', 'Photography', 'Motion']) {
+    assert.ok(html.includes(t), `${t} is not in the deck`);
+  }
+  // renumbered around it
+  assert.ok(html.includes('04 · The system') && html.includes('05 · Assets'));
+  // a project with no system at all keeps the four chapters it had
+  const cu = deck(docs.context(CU, measure(CU), [], {}));
+  assert.ok(!/chname">The system</.test(cu));
+  assert.ok(cu.includes('04 · Assets'));
+});
+
 drain().then(() => {
   for (const d of [out, out2]) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);

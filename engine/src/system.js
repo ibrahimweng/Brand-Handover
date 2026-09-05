@@ -8,6 +8,26 @@
 // the arithmetic with the machine.
 const svgu = require('./svg');
 
+// A project overrides part of a rule, not all of it. `Object.assign` replaces
+// whatever it is given, so `system.motion: { durations: { base: 420 } }` — the
+// natural thing to write — deleted quick, considered and slow, and
+// `system.pattern: { densities: { medium: 1.2 } }` deleted fine and coarse and
+// with them six of the nine tiles the package writes. Silently, in both cases.
+//
+// Merge one plain object into another, a level at a time. An array is a whole
+// answer rather than a set of named parts — an easing curve, the build order,
+// the crop ratios — so an array replaces.
+function merge(base, over) {
+  if (!over || typeof over !== 'object' || Array.isArray(over)) return over === undefined ? base : over;
+  const out = Array.isArray(base) ? {} : Object.assign({}, base);
+  for (const [k, v] of Object.entries(over)) {
+    const b = out[k];
+    out[k] = (b && typeof b === 'object' && !Array.isArray(b) && v && typeof v === 'object' && !Array.isArray(v))
+      ? merge(b, v) : v;
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------- icons
 // Icons inherit the mark's own proportions, so the set looks like it belongs to
 // the same hand. Three numbers carry across.
@@ -22,7 +42,17 @@ function iconRules(measured, override) {
     curveRatio: 1.25,                             // overridden per project; see below
     cap: 'round', join: 'round', filled: false,
   };
-  const r = Object.assign(proposed, override || {});
+  const r = merge(proposed, override || {});
+  // Three of these are ratios and three are the sizes those ratios come out at.
+  // They were computed after the merge, so a project writing the size it wanted
+  // — `stroke: 2`, which is the number a designer thinks in — had it accepted,
+  // stored, and then overwritten by the derived one. Take the size where it is
+  // given and work the ratio back from it, which is the same rule the rest of
+  // the engine follows: the number you can measure wins.
+  const given = override || {};
+  if (given.stroke != null && given.strokeRatio == null) r.strokeRatio = round(r.stroke / r.box, 4);
+  if (given.live != null && given.marginFraction == null) r.marginFraction = round((1 - r.live / r.box) / 2, 4);
+  if (given.curveRadius != null && given.curveRatio == null) r.curveRatio = round(r.curveRadius / r.box, 4);
   r.live = round(r.box * (1 - r.marginFraction * 2), 2);
   r.stroke = round(r.box * r.strokeRatio, 2);
   r.curveRadius = round(r.box * r.curveRatio, 2);
@@ -173,7 +203,7 @@ function checkIcon(source, rules) {
 
 // ---------------------------------------------------------------- pattern
 function patternRules(override) {
-  return Object.assign({
+  return merge({
     tile: 100, rowSpacing: 0.22, phase: 0.5, weight: 3, cap: 'round',
     densities: { fine: 0.45, medium: 1, coarse: 2.1 },
   }, override || {});
@@ -181,7 +211,7 @@ function patternRules(override) {
 
 // ---------------------------------------------------------------- motion
 function motionRules(override) {
-  return Object.assign({
+  return merge({
     easing: { out: [0, 0.55, 0.45, 1], through: [0.85, 0, 0.15, 1] },
     durations: { quick: 160, base: 280, considered: 480, slow: 900 },
     loop: false,
@@ -207,4 +237,4 @@ function resolve(project, measured) {
   };
 }
 
-module.exports = { resolve, iconRules, checkIcon, pathPoints, patternRules, motionRules, bezier, round };
+module.exports = { resolve, merge, iconRules, checkIcon, pathPoints, patternRules, motionRules, bezier, round };
