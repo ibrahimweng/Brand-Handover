@@ -7,6 +7,7 @@ const contrast = require('../contrast');
 const { buildVariant } = require('../variants');
 const system = require('../system');
 const pattern = require('../pattern');
+const IMG = require('./images');
 
 function bundle(project, measured, files = []) {
   const cols = project.tokens.colour || {};
@@ -81,9 +82,15 @@ function bundle(project, measured, files = []) {
       photography: rules.photography,
     },
     patternTiles, patternRefused,
-    // Photographs a document uses, keyed by content. Empty from a build: they
-    // arrive when somebody drops one in, and travel with the saved document.
-    images: {},
+    // Photographs, keyed by content: the ones the project ships, ready to drop
+    // into a slot, plus whatever somebody adds later, which travels with the
+    // saved document. Empty until an identity arrived that shipped any — before
+    // that the only way a photograph could reach the canvas was somebody
+    // uploading it by hand, every time, into every document.
+    images: Object.fromEntries((project.photography || []).map((ph) => [
+      IMG.idOf(ph.src),
+      { src: ph.src, w: ph.w, h: ph.h, name: ph.file, caption: ph.caption, vector: false, fromProject: true },
+    ])),
     colours, roles,
     type: project.tokens.type || {},
     measured: {
@@ -115,8 +122,16 @@ function starterDoc(bu) {
   const cover = doc.pages[0];
   const add = (type, at) => { const b = M.makeBlock(type, at); cover.blocks.push(b); return b; };
 
-  add('fill', { x: 0, y: 0, w: P.w, h: P.h, props: { colour: 'primary' } });
-  add('lockup', { x: 120, y: 180, w: 620, h: 200, props: { lockup: 'horizontal', colourway: 'ground', on: 'primary' } });
+  // A cover with a photograph on it where the project ships one, because that
+  // is what the identity looks like and the engine now has the picture.
+  const shot = Object.entries(bu.images || {}).find(([, im]) => im.fromProject);
+  if (shot) {
+    add('slot', { x: 0, y: 0, w: P.w, h: P.h,
+      props: { image: shot[0], fit: 'cover', treatment: true, label: 'Cover', caption: shot[1].caption || '' } });
+  } else {
+    add('fill', { x: 0, y: 0, w: P.w, h: P.h, props: { colour: 'primary' } });
+  }
+  add('lockup', { x: 120, y: 180, w: 620, h: 200, props: { lockup: 'horizontal', colourway: 'ground', on: shot ? 'none' : 'primary' } });
   // The cover carries whatever the project wrote as its positioning, and that
   // is a sentence in a real project rather than the one word every fixture had.
   // A block 120 tall at H1 held three lines of it and the rest ran through the

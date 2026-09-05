@@ -4079,6 +4079,159 @@ test('the deck shows the system it counts among its files', () => {
   assert.ok(cu.includes('04 · Assets'));
 });
 
+// Fifteen identities and not one of them had a photograph in it. Images could
+// only reach the engine by somebody dropping one into the editor, so no package
+// had ever contained the pictures the identity is built on, the manual's
+// photography page had a grey ramp and nothing else, and the whole raster path
+// — the treatment, the print file, the mockup — had never run from a project.
+const SM = projectLoader.load(path.join(__dirname, '..', 'projects', 'saltmarsh', 'project.json'));
+const smM = measure(SM);
+
+test('a project can ship the photographs the identity is built on', () => {
+  assert.strictEqual(SM.photography.length, 2);
+  const [a, b] = SM.photography;
+  assert.strictEqual(a.mime, 'image/png');
+  assert.strictEqual(b.mime, 'image/jpeg');
+  // the size is read from each file's own header, so a picture too small for
+  // the page it is on can be said to be too small
+  assert.ok(a.w === 1600 && a.h === 1000, `${a.w} by ${a.h}`);
+  assert.ok(b.w === 1600 && b.h === 1000, `${b.w} by ${b.h}`);
+  for (const ph of SM.photography) {
+    assert.ok(/^data:image\/(png|jpeg);base64,/.test(ph.src));
+    assert.ok(ph.caption, 'a photograph the project ships says what it is');
+  }
+  // and every other project has none, which is what it had before
+  for (const p of [project, KV, YW, MW]) assert.deepStrictEqual(p.photography, []);
+});
+
+test('a file that is not a photograph is refused where a photograph goes', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-ph-'));
+  for (const f of ['mark.svg', 'wordmark.svg']) {
+    fs.copyFileSync(path.join(__dirname, '..', 'projects', 'saltmarsh', f), path.join(dir, f));
+  }
+  const raw = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'projects', 'saltmarsh', 'project.json'), 'utf8'));
+  const write = (mut) => {
+    const d = JSON.parse(JSON.stringify(raw)); mut(d);
+    const f = path.join(dir, 'p.json'); fs.writeFileSync(f, JSON.stringify(d)); return f;
+  };
+  assert.throws(() => projectLoader.load(write((d) => { d.assets.photography = ['mark.svg']; })),
+    (e) => /not a photograph/.test(e.message) && /assets\.mark/.test(e.message),
+    'artwork was accepted as photography');
+  assert.throws(() => projectLoader.load(write((d) => { d.assets.photography = ['nope.jpg']; })),
+    (e) => /that file is not there/.test(e.message));
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('the package contains the photographs, as given and as the rules treat them', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-sm-'));
+  const r = await build(SM, dir);
+  const shots = r.written.map((f) => f.path).filter((f) => /^08-photography\//.test(f));
+  assert.deepStrictEqual(shots.slice().sort(), [
+    '08-photography/light-on-water-treated.png',
+    '08-photography/light-on-water.jpg',
+    '08-photography/marsh-at-dusk-treated.png',
+    '08-photography/marsh-at-dusk.png',
+  ]);
+  // the file as given is the file that was given, byte for byte
+  const given = fs.readFileSync(path.join(dir, '08-photography', 'marsh-at-dusk.png'));
+  assert.deepStrictEqual(given,
+    fs.readFileSync(path.join(__dirname, '..', 'projects', 'saltmarsh', 'photography', 'marsh-at-dusk.png')));
+  // and the treated one is a different picture, in the brand's own colours
+  const treated = fs.readFileSync(path.join(dir, '08-photography', 'marsh-at-dusk-treated.png'));
+  assert.notDeepStrictEqual(treated, given);
+  assert.ok(treated.length > 1000);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('a photograph is named for what it is, not for what its bytes happen to say', () => {
+  // the printed piece named its image files by asking whether the whole data
+  // URI contained "svg" — which searches the base64 as well as the header. Both
+  // of the photographs here contain those three letters in their payload, so a
+  // JPEG went out as image-....svg and Typst refused the file outright: the
+  // printed piece did not compile at all.
+  const IMG = require('../src/editor/images');
+  const jpg = SM.photography.find((p) => p.mime === 'image/jpeg');
+  assert.ok(jpg.src.split(',')[1].includes('svg'), 'this fixture must contain the trap');
+  assert.strictEqual(IMG.extensionOf(jpg.src), 'jpg');
+  assert.strictEqual(IMG.mimeOf(jpg.src), 'image/jpeg');
+  assert.strictEqual(IMG.isVector(jpg.src), false);
+  // and the kinds it does know
+  assert.strictEqual(IMG.extensionOf('data:image/png;base64,AA'), 'png');
+  assert.strictEqual(IMG.extensionOf('data:image/svg+xml;base64,AA'), 'svg');
+  assert.strictEqual(IMG.isVector('data:image/svg+xml;base64,AA'), true);
+  assert.strictEqual(IMG.extensionOf('not a uri'), 'bin');
+  // vector is a property of the file rather than a claim the caller makes
+  const store = IMG.store();
+  const id = store.add('data:image/svg+xml;base64,AA');
+  assert.strictEqual(store.get(id).vector, true);
+});
+
+test('the printed piece carries the photograph, and the treatment with it', () => {
+  // the photograph went to press exactly as it was dropped in: no duotone, no
+  // scrim, while the page it publishes had both. The treatment is baked into
+  // the pixels now, with the same treatPixel the browser check measures.
+  const typst = require('../src/typst');
+  const bu = bundleOf(SM, smM);
+  const id = Object.keys(bu.images)[0];
+  assert.ok(id, 'the bundle carries the photographs the project ships');
+  const b = EM.makeBlock('slot', { x: 0, y: 0, w: 600, h: 340, props: { image: id, fit: 'cover', treatment: true } });
+  const out = typst.emit({ page: EM.PAGE, pages: [{ name: 'p', blocks: [b] }] }, bu, {});
+  const names = Object.keys(out.files);
+  assert.strictEqual(names.length, 1);
+  assert.ok(/-treated\.png$/.test(names[0]), `written as ${names[0]}`);
+  assert.ok(out.source.includes(names[0]));
+  assert.ok(out.rasterColour, 'a photograph on a page is raster colour and should say so');
+  // a project with no treatment sends the file as it arrived, in its own format
+  const plain = bundleOf(project, m);
+  plain.images = { x: { src: SM.photography[1].src, w: 1600, h: 1000 } };
+  const b2 = EM.makeBlock('slot', { x: 0, y: 0, w: 600, h: 340, props: { image: 'x', treatment: false } });
+  const noTreat = typst.emit({ page: EM.PAGE, pages: [{ name: 'p', blocks: [b2] }] },
+    Object.assign({}, plain, { system: { photography: { declared: false } } }), {});
+  assert.deepStrictEqual(Object.keys(noTreat.files), ['image-x.jpg']);
+});
+
+test('the manual shows the photographs rather than describing them', () => {
+  const b = require('../src/documents/blocks');
+  const docs = require('../src/documents');
+  const html = b.photographySpec(docs.context(SM, smM, [], {}));
+  assert.ok(html, 'a project that ships photographs gets no photography page');
+  for (const ph of SM.photography) {
+    assert.ok(html.includes(ph.src.slice(0, 60)), `${ph.file} is not on the page`);
+    assert.ok(html.includes(ph.caption), 'the caption the project wrote is not used');
+  }
+  // the treatment is a filter definition and a reference to it, not a filter
+  // definition dropped into a style attribute
+  assert.ok(/<filter id="phman"/.test(html));
+  assert.ok(/filter:url\(#phman\)/.test(html));
+  assert.ok(!/style="[^"]*<svg/.test(html), 'the filter markup was inlined into an attribute');
+  // a project that declares a treatment and ships no photograph still shows the
+  // ramp, which is what it had
+  const mer = b.photographySpec(docs.context(project, m, [], {}));
+  assert.ok(mer && !/<img/.test(mer));
+});
+
+test('the cover the engine writes uses a photograph where there is one', async () => {
+  const { bundle, starterDoc } = require('../src/editor/bundle');
+  const doc = starterDoc(bundle(SM, smM, []));
+  const cover = doc.pages[0].blocks;
+  assert.strictEqual(cover[0].type, 'slot', 'the cover is still a flat fill');
+  assert.ok(cover[0].props.image, 'the slot has no photograph in it');
+  assert.strictEqual(cover[1].props.on, 'none', 'the mark sits on its own rectangle over the photograph');
+  // and a project with no photograph keeps the fill it had
+  const mer = starterDoc(bundle(project, m, []));
+  assert.strictEqual(mer.pages[0].blocks[0].type, 'fill');
+  assert.strictEqual(mer.pages[0].blocks[1].props.on, 'primary');
+
+  // the document that is written carries the picture, or it opens with an empty
+  // slot on somebody else's machine
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-cov-'));
+  await build(SM, dir);
+  const saved = JSON.parse(fs.readFileSync(path.join(dir, 'document.json'), 'utf8'));
+  assert.strictEqual(Object.keys(saved.images || {}).length, 1);
+  assert.ok(saved.images[cover[0].props.image], 'the document carries a different picture than it uses');
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
 drain().then(() => {
   for (const d of [out, out2]) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);

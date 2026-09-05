@@ -33,13 +33,31 @@
   const SLOTS = ['slot', 'surface'];
   const isImage = (s) => typeof s === 'string' && /^data:image\//.test(s);
 
+  // What kind of image this is, read from the URI's header and not from its
+  // payload. The printed piece named its image files by asking whether the
+  // whole data URI contained the letters "svg" — which searches megabytes of
+  // base64 as well as the header. About a quarter of 60 kB photographs contain
+  // those three letters somewhere in their base64, and both of the ones tried
+  // here did, so a JPEG was written as image-....svg and Typst refused the file
+  // outright: "file is not valid utf-8". The whole printed piece failed to
+  // compile, over an extension.
+  const mimeOf = (src) => {
+    const m = /^data:([^;,]+)/.exec(String(src || ''));
+    return m ? m[1].toLowerCase() : null;
+  };
+  const EXT = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/svg+xml': 'svg',
+    'image/webp': 'webp', 'image/gif': 'gif', 'image/avif': 'avif' };
+  const extensionOf = (src) => EXT[mimeOf(src)] || 'bin';
+  const isVector = (src) => mimeOf(src) === 'image/svg+xml';
+
   function store(initial) {
     const map = Object.assign({}, initial || {});
     return {
       add(src, meta) {
         if (!isImage(src)) throw new Error('that is not an image');
         const id = idOf(src);
-        if (!map[id]) map[id] = Object.assign({ src }, meta || {});
+        // vector is a property of the file, not a claim the caller makes
+        if (!map[id]) map[id] = Object.assign({ src, vector: isVector(src) }, meta || {});
         return id;
       },
       get: (id) => map[id] || null,
@@ -180,6 +198,6 @@
     return best && best.ratio >= NONTEXT ? best : null;
   }
 
-  return { idOf, store, used, forDoc, check, isImage, DENSITY,
+  return { idOf, store, used, forDoc, check, isImage, mimeOf, extensionOf, isVector, DENSITY,
     sourceRect, overlap, overlayVerdict, bestColourway, NONTEXT };
 }));

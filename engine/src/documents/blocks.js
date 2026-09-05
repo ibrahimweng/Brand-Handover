@@ -436,10 +436,25 @@ function photographySpec(ctx) {
     ramp.push(`<i style="flex:1;background:rgb(${Math.round(t.r * 255)},${Math.round(t.g * 255)},${Math.round(t.b * 255)})"></i>`);
   }
   const scrim = PH.scrimStyle(r, { colours: ctx.colours, roles: ctx.roles }, undefined);
-  return `<figure><div class="stage tight" style="padding:0;position:relative">
-      <div style="display:flex;width:100%;height:120px">${ramp.join('')}</div>
+  // A photograph the project ships, run through its own rules, where there is
+  // one. Until a project could ship a photograph this page had a grey ramp and
+  // nothing else — a treatment specimen with nothing treated in it.
+  // filter() hands back the <filter> definition, not a CSS value: emit it once
+  // and point at it, exactly as the canvas does.
+  const bun = { colours: ctx.colours, roles: ctx.roles };
+  const fid = 'phman';
+  const defs = r.duotone ? PH.filter(r, bun, fid) : '';
+  const shots = (ctx.project.photography || []).slice(0, 2).map((ph, i) => `<figure>
+      <div class="stage tight" style="padding:0;position:relative;overflow:hidden">
+        ${i === 0 ? defs : ''}<img src="${ph.src}" alt="${esc(ph.caption || ph.file)}" style="width:100%;height:190px;object-fit:cover;display:block${r.duotone ? `;filter:url(#${fid})` : ''}">
+        ${scrim ? `<div style="position:absolute;inset:0;background:${scrim.background}"></div>` : ''}
+      </div><figcaption class="said">${esc(ph.caption || ph.file)}</figcaption></figure>`).join('');
+  const ramps = `<figure><div class="stage tight" style="padding:0;position:relative">
+      <div style="display:flex;width:100%;height:${shots ? 190 : 120}px">${ramp.join('')}</div>
       ${scrim ? `<div style="position:absolute;inset:0;background:${scrim.background}"></div>` : ''}
-    </div><figcaption>a grey ramp, treated${scrim ? ', under the scrim' : ''}</figcaption></figure>
+    </div><figcaption>a grey ramp, treated${scrim ? ', under the scrim' : ''}</figcaption></figure>`;
+  const top = shots ? `<div class="row3">${shots}${ramps}</div>` : ramps;
+  return `${top}
     <p class="note">${r.duotone
       ? `Every photograph is a duotone from <b>${esc(r.duotone.shadow)}</b> in the shadows to <b>${esc(r.duotone.highlight)}</b> in the highlights, at ${Math.round((r.duotone.amount == null ? 1 : r.duotone.amount) * 100)} per cent. `
       : 'Photographs run untreated. '}${scrim

@@ -1,0 +1,247 @@
+{
+  "brand": "Saltmarsh",
+  "version": "1.0.0",
+  "assets": {
+    "mark": "mark.svg",
+    "wordmark": "wordmark.svg",
+    "photography": [
+      {
+        "file": "photography/marsh-at-dusk.png",
+        "caption": "the marsh at dusk, looking east"
+      },
+      {
+        "file": "photography/light-on-water.jpg",
+        "caption": "light on water"
+      }
+    ]
+  },
+  "tokens": {
+    "colour": {
+      "tide": {
+        "hex": "#25373C",
+        "role": "primary",
+        "pantone": "5473 C",
+        "cmyk": [
+          78,
+          52,
+          50,
+          42
+        ]
+      },
+      "shell": {
+        "hex": "#F2EEE6",
+        "role": "ground",
+        "pantone": "9184 C",
+        "cmyk": [
+          4,
+          4,
+          9,
+          0
+        ]
+      },
+      "samphire": {
+        "hex": "#7E8C5E",
+        "role": "accent",
+        "pantone": "5763 C",
+        "cmyk": [
+          50,
+          32,
+          74,
+          12
+        ]
+      },
+      "haar": {
+        "hex": "#93A2A6",
+        "role": "secondary",
+        "pantone": "5445 C",
+        "cmyk": [
+          42,
+          27,
+          27,
+          3
+        ]
+      },
+      "peat": {
+        "hex": "#1A1512",
+        "role": "neutral",
+        "pantone": "Black 7 C",
+        "cmyk": [
+          62,
+          60,
+          62,
+          72
+        ]
+      }
+    },
+    "type": {
+      "families": {
+        "display": {
+          "family": "Literata",
+          "fallback": "Georgia, serif",
+          "weights": [
+            500,
+            700
+          ],
+          "google": true
+        },
+        "text": {
+          "family": "Archivo",
+          "fallback": "Helvetica, Arial, sans-serif",
+          "weights": [
+            400,
+            500
+          ],
+          "google": true
+        }
+      },
+      "scale": [
+        {
+          "name": "Display",
+          "family": "display",
+          "size": 58,
+          "leading": 64,
+          "weight": 700
+        },
+        {
+          "name": "H1",
+          "family": "display",
+          "size": 34,
+          "leading": 41,
+          "weight": 700
+        },
+        {
+          "name": "H2",
+          "family": "display",
+          "size": 23,
+          "leading": 30,
+          "weight": 500
+        },
+        {
+          "name": "H3",
+          "family": "display",
+          "size": 18,
+          "leading": 26,
+          "weight": 500
+        },
+        {
+          "name": "Body",
+          "family": "text",
+          "size": 16,
+          "leading": 27,
+          "weight": 400
+        },
+        {
+          "name": "Small",
+          "family": "text",
+          "size": 13,
+          "leading": 21,
+          "weight": 400
+        },
+        {
+          "name": "Caption",
+          "family": "text",
+          "size": 11,
+          "leading": 16,
+          "weight": 500
+        }
+      ]
+    }
+  },
+  "rules": {
+    "clearSpaceRatio": 0.25,
+    "minStrokePx": 3,
+    "minStrokeMm": 0.8,
+    "lockupGapRatio": 0.3,
+    "wordmarkHeightRatio": 0.34,
+    "naming": "{brand}-{lockup}-{colourway}",
+    "lockups": [
+      "horizontal",
+      "stacked",
+      "mark"
+    ],
+    "formats": [
+      "svg",
+      "png",
+      "pdf"
+    ],
+    "pngWidths": [
+      400,
+      1600
+    ],
+    "stock": "uncoated",
+    "colourways": [
+      {
+        "name": "tide",
+        "on": "shell",
+        "slots": {
+          "tide": "#25373C",
+          "reed": "#25373C",
+          "word": "#25373C"
+        }
+      },
+      {
+        "name": "reverse",
+        "on": "tide",
+        "slots": {
+          "tide": "#F2EEE6",
+          "reed": "#F2EEE6",
+          "word": "#F2EEE6"
+        }
+      },
+      {
+        "name": "samphire",
+        "on": "tide",
+        "slots": {
+          "tide": "#7E8C5E",
+          "reed": "#F2EEE6",
+          "word": "#F2EEE6"
+        }
+      }
+    ],
+    "iconInk": "#F2EEE6",
+    "iconBg": "#25373C",
+    "iconSizes": [
+      1024,
+      180
+    ],
+    "faviconSizes": [
+      16,
+      32
+    ],
+    "social": {
+      "profile": {
+        "w": 400,
+        "h": 400
+      },
+      "og image": {
+        "w": 1200,
+        "h": 630
+      }
+    }
+  },
+  "system": {
+    "photography": {
+      "duotone": {
+        "shadow": "tide",
+        "highlight": "shell",
+        "amount": 0.78
+      },
+      "scrim": {
+        "colour": "tide",
+        "opacity": 0.55,
+        "direction": "bottom"
+      }
+    }
+  },
+  "content": {
+    "positioning": "Saltmarsh is eleven rooms on a tidal creek, and the photography is the identity: the mark is only there to sign it.",
+    "misuse": [
+      "Do not stretch it",
+      "Do not rotate it",
+      "Do not recolour it",
+      "Do not add a shadow",
+      "Do not crowd it",
+      "Do not outline it"
+    ]
+  }
+}

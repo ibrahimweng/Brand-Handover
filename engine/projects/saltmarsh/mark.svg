@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <path data-slot="tide" fill="none" stroke="#25373C" stroke-width="9" stroke-linecap="round"
+        d="M16 44c14 0 14 12 28 12s14-12 28-12 14 12 28 12"/>
+  <path data-slot="tide" fill="none" stroke="#25373C" stroke-width="9" stroke-linecap="round"
+        d="M16 74c14 0 14 12 28 12s14-12 28-12 14 12 28 12"/>
+  <path data-slot="reed" fill="none" stroke="#25373C" stroke-width="9" stroke-linecap="round"
+        d="M60 14v14"/>
+</svg>

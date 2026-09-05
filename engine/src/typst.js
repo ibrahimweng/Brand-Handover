@@ -22,6 +22,8 @@ const paths = require('./paths');
 const cmykMod = require('./cmyk');
 const PR = require('./print');
 const svgu = require('./svg');
+const PH = require('./photography');
+const exp = require('./export');
 
 const PT = 0.75;                          // one CSS pixel, in points
 const pt = (v) => `${Math.round(v * PT * 1e3) / 1e3}pt`;
@@ -286,10 +288,25 @@ function blockSource(b, geom, bundle, ctx) {
     case 'slot': {
       const im = (bundle.images || {})[b.props.image];
       if (!im) return null;
-      const name = `image-${b.props.image}.${im.src.includes('image/png') ? 'png' : im.src.includes('svg') ? 'svg' : 'jpg'}`;
-      ctx.files[name] = Buffer.from(im.src.split(',')[1] || '', 'base64');
-      ctx.rasterColour = true;
+      const IMG = require('./editor/images');
+      // The photograph goes to press exactly as it was dropped in: no duotone,
+      // no scrim. The screen applies both, so the same document showed a brand
+      // photograph in the brand's own colours on the page it publishes and in
+      // whatever the camera saw on the page it prints, with nothing said.
+      //
+      // The treatment is baked into the pixels here with treatPixel — the same
+      // function the browser check is measured against — so the two cannot
+      // disagree. The scrim is baked in with it: Typst will not put alpha on a
+      // CMYK colour, which is the right refusal, because a translucent wash is
+      // not something a press does with an ink.
+      const rules = (bundle.system || {}).photography;
+      const treat = rules && rules.declared && b.props.treatment !== false;
+      const scrim = rules ? PH.scrimStyle(rules, bundle, b.props.scrim) : null;
+      const treated = (treat || scrim) ? exp.treatPhoto(im, treat ? rules : null, bundle, scrim, geom) : null;
+      const name = `image-${b.props.image}${treated ? '-treated' : ''}.${treated ? 'png' : IMG.extensionOf(im.src)}`;
       const fit = b.props.fit === 'contain' ? 'contain' : 'cover';
+      ctx.files[name] = treated || Buffer.from(im.src.split(',')[1] || '', 'base64');
+      ctx.rasterColour = true;
       return at(`box(width: ${pt(geom.w)}, height: ${pt(geom.h)}, clip: true, `
         + `image("${name}", width: ${pt(geom.w)}, height: ${pt(geom.h)}, fit: "${fit}"))`);
     }

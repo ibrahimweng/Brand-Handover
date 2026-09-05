@@ -320,11 +320,37 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   const system = require('./system');
   const pattern = require('./pattern');
   const sys = system.resolve(project, measured);
+  const rolesOf = (pr) => {
+    const out = {};
+    for (const [n, c] of Object.entries(pr.tokens.colour || {})) if (c.role) out[c.role] = { name: n, ...c };
+    return out;
+  };
   const ways = [];
   for (const cw of rules.colourways) {
     const ink = Object.values(cw.slots)[0];
     ways.push({ name: cw.name, ink, on: cw.on && (project.tokens.colour[cw.on] || {}).hex || '#FFFFFF' });
   }
+  // ---- the photographs the project ships, as given and as the rules treat them ----
+  // A brand package should contain the art directed pictures the identity is
+  // built on. Until now the only way one could reach the engine was somebody
+  // dropping it into the editor, so no package had ever contained one and the
+  // manual's photography page had nothing to show but a grey ramp.
+  const photoRules = sys.photography;
+  for (const ph of project.photography || []) {
+    const base = naming.slug(path.basename(ph.file).replace(/\.[a-z0-9]+$/i, ''));
+    const ext = path.extname(ph.file).toLowerCase().replace('.', '');
+    write(`08-photography/${base}.${ext}`, Buffer.from(ph.src.split(',')[1], 'base64'));
+    if (photoRules && photoRules.declared) {
+      const treated = exp.treatPhoto(ph, photoRules, { colours: project.tokens.colour, roles: rolesOf(project) });
+      if (treated) write(`08-photography/${base}-treated.png`, treated);
+    }
+    if (ph.w < 1200) {
+      warnings.push(`${ph.file} is ${ph.w} by ${ph.h}. A photograph placed across a page at `
+        + `300 dpi wants about 2500 across, so this one can go about a third of the way. `
+        + `It is in the package because you put it there; use it small, or supply a larger file.`);
+    }
+  }
+
   const gen = pattern.everyTile(mark, sys.pattern, ways, pairs);
   if (gen.ok) {
     for (const t of gen.tiles) {
@@ -448,7 +474,13 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     const bu = mkBundle(project, measured, written.slice());
     const document = starterDoc(bu);
     write('editor.html', editorHtml(project, measured, written.slice()));
-    write('document.json', JSON.stringify(document, null, 2));
+    // a document carries the photographs it uses, or it opens with empty slots
+    const IMG = require('./editor/images');
+    const keep = IMG.used(document);
+    const carried = {};
+    for (const id of keep) if (bu.images[id]) carried[id] = bu.images[id];
+    write('document.json', JSON.stringify(
+      Object.keys(carried).length ? Object.assign({}, document, { images: carried }) : document, null, 2));
     write('published.html', publish(document, bu, { title: 'Guidelines' }));
     // A block is a rectangle somebody drew and the words are somebody's
     // writing, and nothing had ever asked whether the second fits the first.

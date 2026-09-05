@@ -3,6 +3,8 @@
 const geo = require('./geometry');
 const svgu = require('./svg');
 const { toPdf } = require('./pdf');
+const PH = require('./photography');
+const contrast = require('./contrast');
 
 // An icon is the mark centred on a square of brand colour, with a safe area so
 // no platform's rounding can clip it.
@@ -117,4 +119,54 @@ function iconFloor(measured, rules) {
   };
 }
 
-module.exports = { iconSquare, banner, ico, zip, toPdf, iconFloor, ICON_SAFE_AREA };
+// The photograph, with the treatment already in it. resvg decodes the raster
+// and fast-png encodes the result, so nothing new is needed to do it — and the
+// per-pixel map is treatPixel, which is the function treatment-check measures
+// against a real browser. Print and screen come out of the same arithmetic.
+//
+// The scrim is baked in too. It is a translucent wash, and Typst will not put
+// alpha on a CMYK colour — "CMYK does not have an alpha component" — which is
+// the right refusal: a translucent wash over a photograph is not something a
+// press does with an ink, it is part of the picture by the time it gets there.
+// So it becomes part of the picture here, at the alpha the rules state, read
+// back through the same alphaAt the editor's check uses.
+const RASTER_DPI = 300;
+// `at` is the box the picture is placed in, if there is one; without it the
+// photograph keeps its own shape, which is what a package wants.
+function treatPhoto(im, rules, bundle, scrim, at) {
+  const geom = at || { w: ((im.w || 1200) * 72) / RASTER_DPI, h: ((im.h || 800) * 72) / RASTER_DPI };
+  const { Resvg } = require('@resvg/resvg-js');
+  const png = require('fast-png');
+  // Rasterised in the block's own shape, cropped the way the page crops it, so
+  // the scrim runs across the picture the reader sees rather than across the
+  // photograph the camera took.
+  const want = Math.max(1, Math.round((geom.w / 72) * RASTER_DPI));
+  const width = Math.max(1, Math.min(want, im.w || want));
+  const height = Math.max(1, Math.round(width * (geom.h / geom.w)));
+  const holder = `<svg xmlns="${svgu.NS}" viewBox="0 0 ${width} ${height}">`
+    + `<image href="${im.src}" x="0" y="0" width="${width}" height="${height}" `
+    + `preserveAspectRatio="xMidYMid slice"/></svg>`;
+  let raw;
+  try { raw = new Resvg(holder, { fitTo: { mode: 'width', value: width } }).render(); }
+  catch (e) { return null; }                 // an image this cannot decode goes as it arrived
+  const w = raw.width, h = raw.height;
+  const data = Buffer.from(raw.pixels);
+  const wash = scrim ? contrast.rgb(scrim.hex) : null;
+  for (let i = 0; i < data.length; i += 4) {
+    const px = i / 4, col = px % w, row = Math.floor(px / w);
+    let r = data[i] / 255, g = data[i + 1] / 255, b = data[i + 2] / 255;
+    if (rules) { const t = PH.treatPixel(rules, bundle, { r, g, b }); r = t.r; g = t.g; b = t.b; }
+    if (wash) {
+      const a = PH.alphaAt(scrim, PH.gradientT(scrim.direction, { x: (col + 0.5) / w, y: (row + 0.5) / h }));
+      if (a > 0) {
+        r = r * (1 - a) + (wash[0] / 255) * a;
+        g = g * (1 - a) + (wash[1] / 255) * a;
+        b = b * (1 - a) + (wash[2] / 255) * a;
+      }
+    }
+    data[i] = Math.round(r * 255); data[i + 1] = Math.round(g * 255); data[i + 2] = Math.round(b * 255);
+  }
+  return Buffer.from(png.encode({ width: w, height: h, data, channels: 4, depth: 8 }));
+}
+
+module.exports = { iconSquare, banner, ico, zip, toPdf, iconFloor, treatPhoto, ICON_SAFE_AREA };

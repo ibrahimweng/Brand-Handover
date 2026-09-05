@@ -6,6 +6,37 @@ const contrast = require('./contrast');
 const naming = require('./naming');
 const svgu = require('./svg');
 
+// The pixel size, read from the file's own header. A photograph placed at a size
+// the engine does not know is a photograph the engine cannot say is too small
+// for the page it is on.
+function pixelSize(buf, mime) {
+  if (mime === 'image/png') {
+    if (buf.length < 24 || buf.readUInt32BE(0) !== 0x89504e47) return null;
+    return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
+  }
+  if (mime === 'image/jpeg') {
+    let i = 2;
+    while (i + 9 < buf.length) {
+      if (buf[i] !== 0xFF) { i += 1; continue; }
+      const m = buf[i + 1];
+      if (m >= 0xC0 && m <= 0xCF && m !== 0xC4 && m !== 0xC8 && m !== 0xCC) {
+        return { h: buf.readUInt16BE(i + 5), w: buf.readUInt16BE(i + 7) };
+      }
+      i += 2 + buf.readUInt16BE(i + 2);
+    }
+    return null;
+  }
+  if (mime === 'image/webp') {
+    // the plain VP8X header carries the canvas size, which is all this needs
+    if (buf.length < 30 || buf.toString('latin1', 8, 12) !== 'WEBP') return null;
+    if (buf.toString('latin1', 12, 16) === 'VP8X') {
+      return { w: 1 + buf.readUIntLE(24, 3), h: 1 + buf.readUIntLE(27, 3) };
+    }
+    return null;
+  }
+  return null;
+}
+
 const DEFAULTS = {
   clearSpaceRatio: 0.25,
   minStrokePx: 2.4,
@@ -147,10 +178,34 @@ function load(file) {
 
   const rules = Object.assign({}, DEFAULTS, raw.rules);
   const assets = {};
+  // Photographs a project ships. Every fixture until now had none, because the
+  // only way a photograph could reach the engine was somebody dropping one into
+  // the editor by hand — so a brand package could not contain the art directed
+  // pictures the identity is built on, and the manual's photography page had
+  // nothing to show but a grey ramp.
+  const photography = [];
   for (const [key, rel] of Object.entries(raw.assets)) {
+    if (key === 'photography') continue;
     const p = path.join(dir, rel);
     if (!fs.existsSync(p)) throw new Error(`the project points at ${rel} for the ${key}, and that file is not there`);
     assets[key] = { path: p, source: fs.readFileSync(p, 'utf8') };
+  }
+  const PHOTO = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
+  for (const entry of raw.assets.photography || []) {
+    const rel = typeof entry === 'string' ? entry : entry.file;
+    const p = path.join(dir, rel);
+    if (!fs.existsSync(p)) throw new Error(`the project lists ${rel} under assets.photography, and that file is not there`);
+    const mime = PHOTO[path.extname(p).toLowerCase()];
+    if (!mime) {
+      throw new Error(`assets.photography lists ${rel}, which is not a photograph. `
+        + `Use ${Object.keys(PHOTO).join(', ')}. Artwork goes in assets.mark or assets.wordmark.`);
+    }
+    const bytes = fs.readFileSync(p);
+    const size = pixelSize(bytes, mime);
+    if (!size) throw new Error(`${rel} could not be read as a ${mime.split('/')[1]}, so its size is unknown`);
+    photography.push({ file: rel, path: p, mime, bytes: bytes.length,
+      w: size.w, h: size.h, src: `data:${mime};base64,${bytes.toString('base64')}`,
+      caption: (typeof entry === 'object' && entry.caption) || '' });
   }
   const needs = { horizontal: ['mark', 'wordmark'], stacked: ['mark', 'wordmark'], mark: ['mark'], wordmark: ['wordmark'] };
   for (const l of rules.lockups) {
@@ -189,7 +244,7 @@ function load(file) {
   // here, which meant every rule override in a project file was read as absent
   // and the defaults quietly won. Nothing complained, because a default is a
   // perfectly good answer right up until somebody wanted a different one.
-  return { brand: raw.brand, latinName, language, direction, version: raw.version || '0.0.0', dir, tokens, assets, rules, master,
+  return { brand: raw.brand, latinName, language, direction, version: raw.version || '0.0.0', dir, tokens, assets, photography, rules, master,
     system: raw.system || {}, content: raw.content || {}, report };
 }
 
