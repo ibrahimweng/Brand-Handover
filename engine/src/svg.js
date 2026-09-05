@@ -54,13 +54,23 @@ function eachPainted(doc, fn) {
   }(doc.documentElement));
 }
 
+// "keep" leaves a slot painted as the master drew it. A gradient is the reason
+// it exists: a colourway names one colour per slot, a gradient is not one
+// colour, and writing the nearest hex silently threw the gradient away in every
+// file the package contained — including the one colourway whose whole job was
+// to carry it. It is spelled the same way `fill="none"` behaves: the artwork's
+// own paint is a decision, and the engine does not overrule it.
+const KEEP = 'keep';
+
 function applyColourway(doc, slots) {
   const missing = new Set();
+  const kept = new Set();
   walk(doc.documentElement, (el) => {
     const slot = el.getAttribute && el.getAttribute('data-slot');
     if (!slot) return;
     const colour = slots[slot];
     if (colour === undefined) { missing.add(slot); return; }
+    if (colour === KEEP) { kept.add(slot); return; }
     // A shape with no fill attribute is not unfilled: SVG paints it black. The
     // cleaner removes fill="#000000" precisely because it is the default, so a
     // mark drawn in plain black arrived here with nothing to repaint and came
@@ -73,7 +83,132 @@ function applyColourway(doc, slots) {
     const stroke = el.getAttribute('stroke');
     if (stroke && stroke !== 'none') el.setAttribute('stroke', colour);
   });
-  return [...missing];
+  // whatever paint is left unreferenced after repainting is dead markup, and it
+  // travelled into every SVG and every PDF in the package
+  dropUnusedPaint(doc);
+  return { missing: [...missing], kept: [...kept] };
+}
+
+// A <linearGradient>, <radialGradient> or <pattern> nothing points at any more.
+// Nine files shipped carrying a gradient definition that no shape referenced,
+// because repainting a slot rewrites the fill and leaves the defs alone.
+function dropUnusedPaint(doc) {
+  const used = new Set();
+  walk(doc.documentElement, (el) => {
+    if (!el.getAttribute) return;
+    for (const a of ['fill', 'stroke', 'filter', 'mask', 'clip-path']) {
+      const v = el.getAttribute(a);
+      const m = v && /^url\(#([^)]+)\)$/.exec(v.trim());
+      if (m) used.add(m[1]);
+    }
+    // a gradient can inherit its stops from another one
+    const href = el.getAttribute('href') || el.getAttribute('xlink:href');
+    if (href && href.startsWith('#')) used.add(href.slice(1));
+  });
+  const dead = [];
+  walk(doc.documentElement, (el) => {
+    const tag = el.nodeName && el.nodeName.toLowerCase();
+    if (tag !== 'lineargradient' && tag !== 'radialgradient' && tag !== 'pattern') return;
+    const id = el.getAttribute && el.getAttribute('id');
+    if (id && !used.has(id)) dead.push(el);
+  });
+  for (const el of dead) if (el.parentNode) el.parentNode.removeChild(el);
+  // and an empty <defs> left behind by the above
+  const empties = [];
+  walk(doc.documentElement, (el) => {
+    if (el.nodeName && el.nodeName.toLowerCase() === 'defs'
+      && !Array.from(el.childNodes || []).some((n) => n.nodeType === 1)) empties.push(el);
+  });
+  for (const el of empties) if (el.parentNode) el.parentNode.removeChild(el);
+  return dead.length;
+}
+
+// Slots the artwork paints with a gradient rather than a flat colour. A
+// colourway names one colour per slot, so these are the slots where naming one
+// throws the gradient away, and the only slots "keep" is really for.
+function gradientSlots(doc) {
+  const grad = new Set();
+  walk(doc.documentElement, (el) => {
+    const tag = el.nodeName && el.nodeName.toLowerCase();
+    if (tag !== 'lineargradient' && tag !== 'radialgradient') return;
+    const id = el.getAttribute && el.getAttribute('id');
+    if (id) grad.add(id);
+  });
+  const found = new Set();
+  if (!grad.size) return [];
+  walk(doc.documentElement, (el) => {
+    const slot = el.getAttribute && el.getAttribute('data-slot');
+    if (!slot) return;
+    for (const a of ['fill', 'stroke']) {
+      const v = el.getAttribute(a);
+      const m = v && /^url\(#([^)]+)\)$/.exec(v.trim());
+      if (m && grad.has(m[1])) found.add(slot);
+    }
+  });
+  return [...found];
+}
+
+// The gradients the artwork actually paints with, read off the artwork: which
+// slot each one fills, and the stops in order. The manual quotes these rather
+// than a number somebody typed, the same as every other measurement here.
+function gradients(doc) {
+  const byId = new Map();
+  walk(doc.documentElement, (el) => {
+    const tag = el.nodeName && el.nodeName.toLowerCase();
+    if (tag !== 'lineargradient' && tag !== 'radialgradient') return;
+    const id = el.getAttribute && el.getAttribute('id');
+    if (!id) return;
+    const stops = [];
+    for (const n of Array.from(el.childNodes || [])) {
+      if (n.nodeType !== 1 || String(n.nodeName).toLowerCase() !== 'stop') continue;
+      const style = n.getAttribute('style') || '';
+      const inline = /stop-color\s*:\s*([^;]+)/.exec(style);
+      stops.push({
+        offset: n.getAttribute('offset') == null ? null : Number(n.getAttribute('offset')),
+        hex: (n.getAttribute('stop-color') || (inline && inline[1]) || '').trim() || null,
+      });
+    }
+    byId.set(id, { id, kind: tag === 'lineargradient' ? 'linear' : 'radial', stops, slots: [] });
+  });
+  if (!byId.size) return [];
+  walk(doc.documentElement, (el) => {
+    const slot = el.getAttribute && el.getAttribute('data-slot');
+    if (!slot) return;
+    for (const a of ['fill', 'stroke']) {
+      const v = el.getAttribute(a);
+      const m = v && /^url\(#([^)]+)\)$/.exec(v.trim());
+      if (m && byId.has(m[1]) && byId.get(m[1]).slots.indexOf(slot) < 0) byId.get(m[1]).slots.push(slot);
+    }
+  });
+  return [...byId.values()].filter((g) => g.slots.length);
+}
+
+// Every colour the artwork paints a slot with. A flat slot has one; a slot
+// filled with a gradient has one per stop. This is what "keep" means, so the
+// build, the manual and the deck all resolve it here rather than each keeping
+// their own idea of what the master paints.
+function paintBySlot(docs) {
+  const out = new Map();
+  const add = (slot, hex) => {
+    if (!slot || !hex || hex === 'none') return;
+    if (!out.has(slot)) out.set(slot, []);
+    if (out.get(slot).indexOf(hex) < 0) out.get(slot).push(hex);
+  };
+  for (const doc of [].concat(docs)) {
+    if (!doc) continue;
+    for (const g of gradients(doc)) {
+      for (const sl of g.slots) for (const st of g.stops) add(sl, st.hex);
+    }
+    eachPainted(doc, (el) => {
+      if (!el.getAttribute) return;
+      const sl = el.getAttribute('data-slot');
+      for (const a of ['fill', 'stroke']) {
+        const v = el.getAttribute(a);
+        if (v && !/^url\(/.test(v.trim())) add(sl, v.trim());
+      }
+    });
+  }
+  return out;
 }
 
 function slotsUsed(doc) {
@@ -118,4 +253,4 @@ function compose(parts, width, height) {
 
 const round = (n, dp = 3) => Number(n.toFixed(dp));
 
-module.exports = { parse, serialize, viewBox, applyColourway, slotsUsed, thinnestStroke, innerXML, compose, round, NS, eachPainted, NEVER_DRAWN };
+module.exports = { KEEP, dropUnusedPaint, gradientSlots, gradients, paintBySlot, parse, serialize, viewBox, applyColourway, slotsUsed, thinnestStroke, innerXML, compose, round, NS, eachPainted, NEVER_DRAWN };

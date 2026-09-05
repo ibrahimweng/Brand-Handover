@@ -1,0 +1,223 @@
+{
+  "brand": "Vesper",
+  "version": "1.0.0",
+  "assets": {
+    "mark": "mark.svg",
+    "wordmark": "wordmark.svg"
+  },
+  "tokens": {
+    "colour": {
+      "dusk": {
+        "hex": "#2E2A63",
+        "role": "primary",
+        "pantone": "2755 C",
+        "cmyk": [
+          92,
+          94,
+          30,
+          20
+        ]
+      },
+      "flare": {
+        "hex": "#B8336A",
+        "role": "accent",
+        "pantone": "215 C",
+        "cmyk": [
+          22,
+          92,
+          35,
+          2
+        ]
+      },
+      "ember": {
+        "hex": "#C2620E",
+        "role": "secondary",
+        "pantone": "1595 C",
+        "cmyk": [
+          18,
+          70,
+          100,
+          5
+        ]
+      },
+      "chalk": {
+        "hex": "#F7F5F2",
+        "role": "ground",
+        "pantone": "11-0602",
+        "cmyk": [
+          2,
+          2,
+          3,
+          0
+        ]
+      },
+      "night": {
+        "hex": "#14131F",
+        "role": "neutral",
+        "pantone": "Black 6 C",
+        "cmyk": [
+          78,
+          68,
+          55,
+          78
+        ]
+      }
+    },
+    "type": {
+      "families": {
+        "display": {
+          "family": "Archivo",
+          "fallback": "Helvetica, Arial, sans-serif",
+          "weights": [
+            600,
+            700
+          ],
+          "google": true
+        },
+        "text": {
+          "family": "Archivo",
+          "fallback": "Helvetica, Arial, sans-serif",
+          "weights": [
+            400,
+            500
+          ],
+          "google": true
+        }
+      },
+      "scale": [
+        {
+          "name": "Display",
+          "family": "display",
+          "size": 62,
+          "leading": 66,
+          "weight": 700
+        },
+        {
+          "name": "H1",
+          "family": "display",
+          "size": 36,
+          "leading": 42,
+          "weight": 700
+        },
+        {
+          "name": "H2",
+          "family": "display",
+          "size": 24,
+          "leading": 30,
+          "weight": 600
+        },
+        {
+          "name": "H3",
+          "family": "display",
+          "size": 18,
+          "leading": 25,
+          "weight": 600
+        },
+        {
+          "name": "Body",
+          "family": "text",
+          "size": 16,
+          "leading": 27,
+          "weight": 400
+        },
+        {
+          "name": "Small",
+          "family": "text",
+          "size": 13,
+          "leading": 21,
+          "weight": 400
+        },
+        {
+          "name": "Caption",
+          "family": "text",
+          "size": 11,
+          "leading": 16,
+          "weight": 500
+        }
+      ]
+    }
+  },
+  "rules": {
+    "clearSpaceRatio": 0.25,
+    "minStrokePx": 3,
+    "minStrokeMm": 0.8,
+    "lockupGapRatio": 0.3,
+    "wordmarkHeightRatio": 0.34,
+    "naming": "{brand}-{lockup}-{colourway}",
+    "lockups": [
+      "horizontal",
+      "stacked",
+      "mark"
+    ],
+    "formats": [
+      "svg",
+      "png",
+      "pdf"
+    ],
+    "pngWidths": [
+      400,
+      1600
+    ],
+    "stock": "coated",
+    "colourways": [
+      {
+        "name": "dusk",
+        "on": "chalk",
+        "slots": {
+          "ring": "keep",
+          "star": "#2E2A63",
+          "word": "#2E2A63"
+        }
+      },
+      {
+        "name": "flat",
+        "on": "chalk",
+        "slots": {
+          "ring": "#2E2A63",
+          "star": "#2E2A63",
+          "word": "#2E2A63"
+        }
+      },
+      {
+        "name": "reverse",
+        "on": "night",
+        "slots": {
+          "ring": "#F7F5F2",
+          "star": "#F7F5F2",
+          "word": "#F7F5F2"
+        }
+      }
+    ],
+    "iconInk": "#F7F5F2",
+    "iconBg": "#2E2A63",
+    "iconSizes": [
+      1024,
+      180
+    ],
+    "faviconSizes": [
+      16,
+      32
+    ],
+    "social": {
+      "profile": {
+        "w": 400,
+        "h": 400
+      },
+      "og image": {
+        "w": 1200,
+        "h": 630
+      }
+    }
+  },
+  "content": {
+    "positioning": "Vesper",
+    "misuse": [
+      "Do not stretch it",
+      "Do not rotate it",
+      "Do not recolour it",
+      "Do not add a shadow",
+      "Do not crowd it",
+      "Do not outline it"
+    ]
+  }
+}

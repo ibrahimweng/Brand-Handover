@@ -116,10 +116,15 @@ function inspect(source) {
     'Filters are rasterised on export, which puts a blurry patch inside an otherwise sharp mark.',
     'Remove the effect. A brand mark should not carry a shadow or a glow.'));
 
+  // This said the opposite of what happened. A colourway names one colour per
+  // slot and repaints the slot with it, gradient or not, so a gradient did not
+  // "stay the same in every colourway" — it was thrown away in all of them,
+  // including the one whose whole job was to carry it, and its definition rode
+  // along in every file referenced by nothing.
   if (counts.gradient) found.push(finding('warning', 'gradient',
     `${counts.gradient} gradient${counts.gradient > 1 ? 's' : ''}.`,
-    'Colourways repaint flat colours. A gradient cannot be swapped for a single brand colour, so those parts will not change between colourways.',
-    'Use flat colour, or accept that this part stays the same in every colourway.'));
+    'A colourway names one colour for a slot, and a gradient is not one colour. Any colourway that names a colour for this slot replaces the gradient with it, so the gradient reaches only the files whose colourway keeps it.',
+    'Write "keep" instead of a colour in the colourway that carries the gradient, and a flat brand colour in the ones that do not. A gradient also cannot be printed as a spot ink, so the flat version is the one a two-colour job uses.'));
 
   if (counts.translucent) found.push(finding('warning', 'translucent',
     `${counts.translucent} shape${counts.translucent > 1 ? 's are' : ' is'} partly transparent.`,

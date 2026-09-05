@@ -376,7 +376,7 @@ the measuring engine, the packager, both documents, the canvas editor,
 publishing, all three kinds of block, image slots, page sizes and the
 photography treatment, print work with bleed, CMYK, and a printed piece through
 Typst, mockups, and the licence half of accounts. 138 files from one master,
-300 tests, and ten more identities in the repo that the engine had not been
+308 tests, and eleven more identities in the repo that the engine had not been
 written against.
 
 Three things the plan had wrong, found by building rather than by thinking.
@@ -826,6 +826,62 @@ line as a truth every package carries. The number goes in `brand.json` for
 everyone; the warning fires for the one project that earns it. Deciding which
 findings are worth interrupting for is part of refusing well, not separate
 from it.
+
+**Eleven identities varied everything except what the artwork was made of.**
+Shape, script, damage, palette size, file dialect, aspect ratio — and every one
+of the twenty-two master files was flat colour. The audit that finds this is the
+same one the eleventh round used, run on a different axis: list the SVG features
+a mark could use, and count how many of the eleven use each. Gradient: none.
+Mask, filter, image, blend mode: none. A blind spot is not a thing you notice by
+looking harder at what you have; it is a thing you find by listing what you
+could have had.
+
+**A gradient is the case that breaks "one colour per slot", and every layer had
+its own way of getting it wrong.** The recolourer threw it away. The file kept
+its definition anyway. The contrast arithmetic scored it zero. The build's
+readability check skipped it. The PDF wrote it in the wrong colour space. The
+Typst translator produced source that would not compile. Six failures, one
+cause: every one of those layers had been written against artwork that is one
+flat colour per slot, and none of them said so. When a shared assumption is
+never written down, each layer breaks it differently, and the breakages do not
+look related until you have an input that violates it.
+
+**A vocabulary gap shows up as a silent wrong answer, not as an error.** There
+was no way to say "leave this slot as the artwork draws it", so the honest thing
+a designer would write — the middle stop's hex — was accepted and did the wrong
+thing quietly. `"keep"` is four characters and it did not need inventing: the
+engine had already decided, years of rounds ago, that `fill="none"` means the
+artwork's own paint is a decision. The gap was that the rule existed for one
+value and not as a concept. Where a system silently does something reasonable
+with input it has no word for, look for the missing word.
+
+**A check that compares a translation against its own source tests the parser,
+not the target.** The Typst path had a per-project check that looked thorough —
+every mark, every path, rendered and compared pixel by pixel. It translated SVG
+paths to move/line/cubic and compared **SVG against SVG**. Typst was never
+invoked. The one thing that ever went through Typst was a single Meridian page,
+so a fill Typst refuses outright had been available to produce for as long as
+the module had existed. A translation check has to end at the other language's
+compiler; anything short of that is checking your own arithmetic.
+
+**Two null-shaped bugs of opposite sign, from the same value.**
+`Math.min(11.86, null, 2.8)` is 0, because null coerces to zero, so one place
+rated a gradient colourway unreadable against every ground. Another place
+filtered the null out, so the pale end of the gradient became the only part of
+the mark never checked. Round six recorded that NaN is the most dangerous value
+in a system that makes judgements; null is the same lesson wearing a different
+coat, and the fix is the same — do not let a value that means "not a colour"
+into arithmetic about colours. Resolve it to what it actually stands for, in one
+place both callers read.
+
+**Maximising a measurement is not the same as respecting a decision, and this
+is the second time.** Choosing which colourway the manual opens on took the
+highest contrast available, which put six of twelve manuals on a colourway the
+designer had not put first — five while their first read perfectly well. An
+earlier round had already made exactly this mistake with a ground colour and
+recorded the rule: keep the designer's choice unless it fails. The rule had been
+applied to the ground and not to the colourway. A lesson learned about one field
+is not learned until you go and look for the same shape in the fields beside it.
 
 ---
 

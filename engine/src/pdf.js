@@ -76,6 +76,20 @@ function triple(args) {
   return null;
 }
 
+// A gradient does not go through the colour setters at all. jsPDF writes it as
+// a shading dictionary, and its writer says `/ColorSpace /DeviceRGB` outright,
+// with no hook to say otherwise — so a mark whose ring is a gradient goes to
+// press with the ring in RGB and the star beside it in the declared CMYK, in a
+// file the package called DeviceCMYK. That claim is now made per file, from
+// what was actually written, and the count comes from here.
+function countShadings(doc) {
+  if (typeof doc.addShadingPattern !== 'function') return () => 0;
+  let n = 0;
+  const orig = doc.addShadingPattern.bind(doc);
+  doc.addShadingPattern = function (...args) { n++; return orig(...args); };
+  return () => n;
+}
+
 async function toPdf(svgString, opts) {
   const o = opts || {};
   const w = dom();
@@ -99,10 +113,12 @@ async function toPdf(svgString, opts) {
     }
   }
   const count = useInk(doc, o.ink);
+  const shadings = countShadings(doc);
   await doc.svg(el, { x: 0, y: 0, width: vb.w, height: vb.h });
   const buf = Buffer.from(doc.output('arraybuffer'));
   buf.inkColours = count();
+  buf.rgbShadings = shadings();
   return buf;
 }
 
-module.exports = { toPdf, useInk, triple };
+module.exports = { toPdf, useInk, triple, countShadings };

@@ -72,7 +72,10 @@ function guidelines(ctx) {
 
   ${chapter('02', 'Colour',
       sec('2.1', 'The palette', 'system', b.palette(ctx) + words(c.colourRationale)) +
-      sec('2.2', 'Contrast and accessibility', 'system', b.contrastTable(ctx)))}
+      // only where the artwork has one, so ten projects without a gradient get
+      // no empty section and the numbering does not shift under them
+      (b.gradientSpec(ctx) ? sec('2.2', 'The gradient', 'system', b.gradientSpec(ctx)) : '') +
+      sec(b.gradientSpec(ctx) ? '2.3' : '2.2', 'Contrast and accessibility', 'system', b.contrastTable(ctx)))}
 
   ${chapter('03', 'Typography',
       sec('3.1', 'The typefaces', 'system', b.typeSpecimen(ctx) + words(c.typeRationale)) +

@@ -97,10 +97,10 @@ function deck(ctx) {
   const named = (p.rules.colourways || []).find((c) => c.name === ctx.ground.name);
   const onSlide = b.readsOn(ctx, slideHex);
   const show = b.showOn(ctx);
-  const markWay = named && b.worstOn(named, slideHex) >= b.SEEN ? named
+  const markWay = named && b.worstOn(named, slideHex, ctx) >= b.SEEN ? named
     : onSlide && onSlide.worst >= b.SEEN ? onSlide.colourway
       : show.colourway;
-  const plate = (inner) => (b.worstOn(markWay, slideHex) >= b.SEEN ? inner
+  const plate = (inner) => (b.worstOn(markWay, slideHex, ctx) >= b.SEEN ? inner
     : `<span style="background:${show.ground.hex};padding:2.6cqw;display:inline-flex;align-items:center">${inner}</span>`);
 
   add('Title', `<div class="hero" style="justify-content:flex-start;margin-bottom:3.4cqw">${plate(b.scaled(ctx.variantFor('horizontal', markWay.name), 360))}</div>

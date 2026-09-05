@@ -315,6 +315,11 @@ async function main(argv) {
       console.log(`  ${out.screenColours.length} colour(s) had no declared build and are written as screen colour: ${out.screenColours.join(', ')}`);
       console.log(`  run "handover check ${path.basename(file)} --print" before sending this anywhere.`);
     }
+    if ((out.unsayablePaint || []).length) {
+      console.log(`  ${out.unsayablePaint.length} paint server could not be said in Typst and was drawn in `
+        + `black: ${out.unsayablePaint.join(', ')}. A linear gradient translates; a radial one and a `
+        + `pattern fill do not. Flatten those parts, or use the flat colourway for the printed piece.`);
+    }
     if (out.rasterColour) console.log('  a photograph is placed as given; a press converts those itself, which is normal.');
     if (out.refused.length) {
       const by = {};
@@ -370,6 +375,7 @@ async function main(argv) {
 
   const bytes = result.written.reduce((n, f) => n + f.bytes, 0);
   console.log(`  wrote ${result.written.length} files (${(bytes / 1024).toFixed(0)} KB) to ${path.relative(process.cwd(), outDir)} in ${Date.now() - started} ms`);
+  for (const n of result.notes || []) console.log(`  note: ${n}`);
   for (const w of result.warnings) console.log(`  warning: ${w}`);
   return 0;
 }

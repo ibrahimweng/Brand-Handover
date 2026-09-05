@@ -8,21 +8,22 @@ const geo = require('./geometry');
 function buildVariant({ markSrc, wordmarkSrc, lockup, colourway, rules, measured }) {
   const paint = (src) => {
     const doc = svgu.parse(src);
-    const missing = svgu.applyColourway(doc, colourway.slots);
-    return { doc, missing };
+    const { missing, kept } = svgu.applyColourway(doc, colourway.slots);
+    return { doc, missing, kept };
   };
 
   if (lockup === 'mark') {
-    const { doc, missing } = paint(markSrc);
-    return { svg: svgu.serialize(doc), missing, box: measured.markInk };
+    const { doc, missing, kept } = paint(markSrc);
+    return { svg: svgu.serialize(doc), missing, kept, box: measured.markInk };
   }
   if (lockup === 'wordmark') {
-    const { doc, missing } = paint(wordmarkSrc);
-    return { svg: svgu.serialize(doc), missing, box: measured.wordInk };
+    const { doc, missing, kept } = paint(wordmarkSrc);
+    return { svg: svgu.serialize(doc), missing, kept, box: measured.wordInk };
   }
 
   const m = paint(markSrc), w = paint(wordmarkSrc);
   const missing = [...new Set([...m.missing, ...w.missing])];
+  const kept = [...new Set([...m.kept, ...w.kept])];
   const mi = measured.markInk, wi = measured.wordInk;
 
   // the wordmark is sized against the mark, never the other way round
@@ -48,7 +49,7 @@ function buildVariant({ markSrc, wordmarkSrc, lockup, colourway, rules, measured
   } else {
     throw new Error(`this project asks for a lockup called "${lockup}", which the engine does not know how to build`);
   }
-  return { svg: svgu.compose(parts, width, height), missing, box: { x: 0, y: 0, w: svgu.round(width), h: svgu.round(height) } };
+  return { svg: svgu.compose(parts, width, height), missing, kept, box: { x: 0, y: 0, w: svgu.round(width), h: svgu.round(height) } };
 }
 
 // Measure the master once. Every variant is derived from these numbers.

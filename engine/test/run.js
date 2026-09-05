@@ -3298,6 +3298,233 @@ test('an app icon written under the project\'s own stroke rule is named', async 
   assert.deepStrictEqual(bj.logo.icons.under.map((u) => u.file), ['favicon-16.png', 'favicon-32.png']);
 });
 
+// Eleven identities, and every mark in all twenty-two files was flat colour:
+// no gradient, no mask, no filter, no image. Vesper is a gradient identity,
+// which is the commonest thing in the repo's blind spot and the one that breaks
+// the idea a colourway rests on — that a slot is one colour.
+const VE = projectLoader.load(path.join(__dirname, '..', 'projects', 'vesper', 'project.json'));
+const veM = measure(VE);
+let veBuilt = null;
+before(async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-vesper-'));
+  veBuilt = await build(VE, dir);
+  veBuilt.dir = dir;
+});
+
+test('a colourway can keep the paint the master drew, and only then', () => {
+  // applyColourway rewrote the fill of every slot it was given a colour for,
+  // gradient or not, so the gradient was thrown away in all three colourways
+  // including the one whose whole job was to carry it.
+  assert.deepStrictEqual(svgu.gradientSlots(svgu.parse(VE.assets.mark.source)), ['ring']);
+  const carries = VE.rules.colourways.filter((c) => c.slots.ring === svgu.KEEP).map((c) => c.name);
+  assert.deepStrictEqual(carries, ['dusk'], 'one colourway is meant to carry the gradient');
+
+  for (const cw of VE.rules.colourways) {
+    for (const lockup of VE.rules.lockups) {
+      const v = buildVariant({ markSrc: VE.assets.mark.source, wordmarkSrc: VE.assets.wordmark.source,
+        lockup, colourway: cw, rules: VE.rules, measured: veM });
+      const keeps = cw.slots.ring === svgu.KEEP;
+      assert.strictEqual(/url\(#/.test(v.svg), keeps,
+        `${cw.name}/${lockup}: the gradient ${keeps ? 'should be' : 'should not be'} referenced`);
+      // and a definition nothing points at is not shipped
+      assert.strictEqual(/<linearGradient/.test(v.svg), keeps,
+        `${cw.name}/${lockup}: a gradient definition nothing references travelled into the file`);
+      assert.deepStrictEqual(v.kept, keeps ? ['ring'] : []);
+    }
+  }
+});
+
+test('a gradient no colourway keeps is reported, not quietly dropped', async () => {
+  const flat = JSON.parse(JSON.stringify(require(path.join(__dirname, '..', 'projects', 'vesper', 'project.json'))));
+  flat.rules.colourways[0].slots.ring = '#B8336A';
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-vesper-flat-'));
+  const src = path.join(dir, 'project.json');
+  for (const f of ['mark.svg', 'wordmark.svg']) {
+    fs.copyFileSync(path.join(__dirname, '..', 'projects', 'vesper', f), path.join(dir, f));
+  }
+  fs.writeFileSync(src, JSON.stringify(flat));
+  const r = await build(projectLoader.load(src), path.join(dir, 'out'));
+  const w = r.warnings.find((x) => /paints? .*with a gradient/.test(x));
+  assert.ok(w, 'the gradient went nowhere and the build said nothing');
+  assert.ok(/in none of the files/.test(w), w);
+  assert.ok(/Write "keep"/.test(w), 'the warning does not say what to write instead');
+  // and nothing it wrote carries the gradient, which is what the warning claims
+  const svgs = [];
+  (function look(d) {
+    for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+      if (e.isDirectory()) look(path.join(d, e.name));
+      else if (e.name.endsWith('.svg')) svgs.push(path.join(d, e.name));
+    }
+  }(path.join(dir, 'out')));
+  assert.ok(svgs.length);
+  for (const f of svgs) {
+    assert.ok(!/linearGradient/.test(fs.readFileSync(f, 'utf8')), `${path.basename(f)} still carries it`);
+  }
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('a PDF carrying a gradient is not called DeviceCMYK', () => {
+  // jsPDF writes a gradient as a shading dictionary and hardcodes its colour
+  // space to DeviceRGB, and there is no hook to say otherwise — so the package
+  // claimed the ink build it had not used for the one shape that is the mark.
+  const bj = JSON.parse(fs.readFileSync(path.join(veBuilt.dir, 'brand.json'), 'utf8'));
+  assert.deepStrictEqual(bj.print.gradientFiles.slice().sort(),
+    ['vesper-horizontal-dusk.pdf', 'vesper-mark-dusk.pdf', 'vesper-stacked-dusk.pdf']);
+  assert.ok(/DeviceCMYK, except the gradient in 3 files/.test(bj.print.pdfColourSpace), bj.print.pdfColourSpace);
+  const w = veBuilt.warnings.find((x) => /carry a gradient/.test(x));
+  assert.ok(w && /DeviceRGB/.test(w) && /flat version/.test(w), w);
+
+  // measured in the bytes: the gradient file mixes spaces, the flat one does not
+  const spaces = (f) => {
+    const s = fs.readFileSync(path.join(veBuilt.dir, '03-mark', f)).toString('latin1');
+    return { rgb: /\/ColorSpace\s*\/DeviceRGB/.test(s) };
+  };
+  assert.strictEqual(spaces('vesper-mark-dusk.pdf').rgb, true);
+  assert.strictEqual(spaces('vesper-mark-flat.pdf').rgb, false);
+  // a project with no gradient still says what it always said
+  const mj = JSON.parse(fs.readFileSync(path.join(out, 'brand.json'), 'utf8'));
+  assert.strictEqual(mj.print.pdfColourSpace, 'DeviceCMYK');
+  assert.deepStrictEqual(mj.print.gradientFiles, []);
+});
+
+test('a gradient is measured against its ground by its worst stop', () => {
+  // "keep" is not a colour, contrast.ratio returns null for it, and
+  // Math.min(11.86, null, 2.8) is 0 — so a colourway carrying a gradient scored
+  // zero against every ground and was never chosen for anything. The build's
+  // own readability check had the opposite bug: it dropped the null, so the
+  // pale end of the gradient was the one part of the mark never checked.
+  const b = require('../src/documents/blocks');
+  const docs = require('../src/documents');
+  const ctx = docs.context(VE, veM, [], {});
+  const dusk = VE.rules.colourways.find((c) => c.name === 'dusk');
+  const stops = svgu.gradients(svgu.parse(VE.assets.mark.source))[0].stops.map((s) => s.hex);
+  assert.deepStrictEqual(stops, ['#C2620E', '#B8336A', '#2E2A63']);
+  // every stop is in what the colourway paints, and nothing else appeared
+  const inks = b.inksOf(ctx, dusk);
+  for (const st of stops) assert.ok(inks.includes(st), `${st} is not counted as paint`);
+  const chalk = VE.tokens.colour.chalk.hex;
+  const want = Math.min(...inks.map((h) => contrast.ratio(h, chalk)));
+  assert.ok(want > 3 && want < 4, `the worst stop measures ${want} on chalk`);
+  assert.strictEqual(b.worstOn(dusk, chalk, ctx), want);
+  // without the fix this was exactly 0, which is neither true nor a near miss
+  assert.notStrictEqual(b.worstOn(dusk, chalk, ctx), 0);
+
+  // and a stop that cannot be seen is named, with the colour that fails
+  const bad = JSON.parse(JSON.stringify(require(path.join(__dirname, '..', 'projects', 'vesper', 'project.json'))));
+  const doc = svgu.parse(VE.assets.mark.source);
+  assert.ok(svgu.paintBySlot([doc]).get('ring').length === 3);
+});
+
+test('the manual leads with the colourway the designer put first', () => {
+  // it used to lead with whichever colourway had the most contrast, which only
+  // agrees with the designer when the primary role happens to be a ground.
+  // Six of the twelve projects opened on a colourway their designer did not put
+  // first, five of them while the first read perfectly well.
+  const b = require('../src/documents/blocks');
+  const docs = require('../src/documents');
+  const all = [[project, m], [HAL, measure(HAL)], [KV, kvM], [HW, hwM], [SP, spM], [VE, veM]];
+  for (const [proj, meas] of all) {
+    const ctx = docs.context(proj, meas, [], {});
+    const shown = b.showOn(ctx);
+    const first = proj.rules.colourways[0];
+    const firstWorst = b.worstOn(first, (proj.tokens.colour[first.on] || {}).hex
+      || contrast.toHex(first.on) || '#FFFFFF', ctx);
+    if (firstWorst >= b.SEEN) {
+      assert.strictEqual(shown.colourway.name, first.name,
+        `${proj.brand}: opens on ${shown.colourway.name} while ${first.name} reads at ${firstWorst}`);
+    } else {
+      // only when the first genuinely cannot be seen does it go looking
+      assert.ok(shown.worst >= firstWorst, `${proj.brand}: swapped to something no better`);
+    }
+  }
+  // Vesper opens on the gradient, which is the whole identity
+  const s = b.showOn(docs.context(VE, veM, [], {}));
+  assert.strictEqual(s.colourway.name, 'dusk');
+  assert.ok(b.asColourway(docs.context(VE, veM, [], {}), s.colourway).includes('url(#'));
+});
+
+test('the manual shows a gradient where there is one, and says nothing where there is not', () => {
+  const b = require('../src/documents/blocks');
+  const docs = require('../src/documents');
+  const spec = b.gradientSpec(docs.context(VE, veM, [], {}));
+  assert.ok(spec, 'a gradient identity gets no gradient page');
+  for (const hex of ['#C2620E', '#B8336A', '#2E2A63']) assert.ok(spec.includes(hex), hex);
+  assert.ok(/read off the artwork/.test(spec));
+  assert.ok(/dusk/.test(spec) && /flat and reverse/.test(spec), 'it does not say which files carry it');
+  assert.ok(/spot ink/.test(spec) && /DeviceRGB/.test(spec), 'it does not say what that costs in print');
+  // the section exists in the built manual, numbered in sequence
+  const html = fs.readFileSync(path.join(veBuilt.dir, 'guidelines.html'), 'utf8');
+  assert.ok(/2\.2<\/i>|2\.2/.test(html) && html.includes('The gradient'));
+  assert.ok(html.includes('Contrast and accessibility'));
+  // and no other project grows an empty one
+  for (const [proj, meas] of [[project, m], [KV, kvM], [SP, spM], [HW, hwM]]) {
+    assert.strictEqual(b.gradientSpec(docs.context(proj, meas, [], {})), '',
+      `${proj.brand} has no gradient and should have no gradient section`);
+  }
+  assert.ok(!fs.readFileSync(path.join(out, 'guidelines.html'), 'utf8').includes('The gradient'));
+});
+
+test('a gradient is said in Typst, not handed to it as a colour', () => {
+  // colour() answers rgb("...") for whatever it is given, so a fill of
+  // url(#a) came out as rgb("url(#a)") — which Typst refuses outright. Nothing
+  // caught it because the only source this repo ever asked Typst to compile was
+  // Meridian's page, and the per-project check compares SVG against SVG.
+  const typst = require('../src/typst');
+  const v = buildVariant({ markSrc: VE.assets.mark.source, wordmarkSrc: VE.assets.wordmark.source,
+    lockup: 'mark', colourway: VE.rules.colourways[0], rules: VE.rules, measured: veM });
+  const bu = bundleOf(VE, veM);
+  const seen = new Set(); seen.unsayable = new Set();
+  const src = typst.artwork(v.svg, { x: 0, y: 0, w: 160, h: 160 }, bu, seen);
+  assert.ok(!/rgb\("url\(/.test(src), 'a paint server was handed to Typst as a colour string');
+  assert.ok(/gradient\.linear\(/.test(src), 'the gradient did not survive into the printed piece');
+  assert.strictEqual(seen.unsayable.size, 0);
+  // the stops are the declared ink builds, in order, at the offsets the artwork sets
+  const stops = /gradient\.linear\(([^]*?), angle:/.exec(src)[1];
+  // the offset is the number closing each stop tuple, not the percentages
+  // inside the ink build beside it
+  assert.deepStrictEqual([...stops.matchAll(/\), ([\d.]+)%\)/g)].map((x) => x[1]), ['0', '52', '100']);
+  assert.strictEqual((stops.match(/cmyk\(/g) || []).length, 3, 'a declared build was not used');
+  // and an angle, taken from the axis rather than assumed
+  const deg = Number(/angle: ([-\d.]+)deg/.exec(src)[1]);
+  assert.ok(deg > 45 && deg < 56, `the axis came out at ${deg} degrees`);
+
+  // a flat colourway is unchanged: no gradient, no shading, nothing new
+  const flat = buildVariant({ markSrc: VE.assets.mark.source, wordmarkSrc: VE.assets.wordmark.source,
+    lockup: 'mark', colourway: VE.rules.colourways[1], rules: VE.rules, measured: veM });
+  const flatSrc = typst.artwork(flat.svg, { x: 0, y: 0, w: 160, h: 160 }, bu, new Set());
+  assert.ok(!/gradient\./.test(flatSrc));
+  // as is every project that never had one
+  for (const [proj, meas] of [[project, m], [KV, kvM], [SP, spM]]) {
+    const w = buildVariant({ markSrc: proj.assets.mark.source,
+      wordmarkSrc: proj.assets.wordmark && proj.assets.wordmark.source,
+      lockup: 'mark', colourway: proj.rules.colourways[0], rules: proj.rules, measured: meas });
+    const t = typst.artwork(w.svg, { x: 0, y: 0, w: 160, h: 160 }, bundleOf(proj, meas), new Set());
+    assert.ok(!/gradient\./.test(t), `${proj.brand} grew a gradient it does not have`);
+    assert.ok(!/rgb\("url\(/.test(t), proj.brand);
+  }
+});
+
+test('"keep" is a word the project file may use, and a typo still is not', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-keep-'));
+  for (const f of ['mark.svg', 'wordmark.svg']) {
+    fs.copyFileSync(path.join(__dirname, '..', 'projects', 'vesper', f), path.join(dir, f));
+  }
+  const raw = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'projects', 'vesper', 'project.json'), 'utf8'));
+  const write = (mut) => {
+    const d = JSON.parse(JSON.stringify(raw)); mut(d);
+    const f = path.join(dir, 'p.json'); fs.writeFileSync(f, JSON.stringify(d)); return f;
+  };
+  // spelled any way a person would write it
+  for (const spelling of ['keep', 'Keep', ' KEEP ']) {
+    const p = projectLoader.load(write((d) => { d.rules.colourways[0].slots.ring = spelling; }));
+    assert.strictEqual(p.rules.colourways[0].slots.ring, svgu.KEEP, spelling);
+  }
+  // and anything else that is not a colour is still refused, now naming it
+  assert.throws(() => projectLoader.load(write((d) => { d.rules.colourways[0].slots.ring = 'kepe'; })),
+    (e) => /is "kepe"/.test(e.message) && /Write "keep"/.test(e.message), 'the refusal does not mention keep');
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
 drain().then(() => {
   for (const d of [out, out2]) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);

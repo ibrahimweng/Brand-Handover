@@ -9,7 +9,7 @@ around it.
 
     cd engine
     npm install
-    npm test                                            # 300 checks
+    npm test                                            # 308 checks
     node test/print-check.mjs                           # prints, and measures the paper
     node test/treatment-check.mjs                       # renders, and reads the pixels back
     node test/typst-check.mjs                           # the printed piece against the published page
@@ -32,6 +32,7 @@ around it.
     node src/cli.js build   projects/cusp/project.json      -o out-cusp
     node src/cli.js build   projects/fathom/project.json    -o out-fathom
     node src/cli.js build   projects/spire/project.json     -o out-spire
+    node src/cli.js build   projects/vesper/project.json    -o out-vesper
 
 The Meridian example writes 138 files in about six seconds, including both
 documents, the editor, the document it opens with, that document published, and
@@ -71,6 +72,10 @@ artwork. Fathom is the tenth, whose graphic language *is* the pattern. Spire is
 the eleventh, and it is a tower: 76 wide by 358 tall, six colour slots, the
 first mark in the repo that is not roughly square. See
 [An eleventh identity](#an-eleventh-identity).
+
+Vesper is the twelfth, and it is the first mark in the repo that is not flat
+colour: its ring is a three stop gradient, which is the one thing a colourway
+cannot express. See [A twelfth identity](#a-twelfth-identity).
 
 ## What it measures
 
@@ -1590,6 +1595,86 @@ sideways because the wordmark is scaled against the mark's *height* — it comes
 out at 1.71 to 1, which is an ordinary lockup, and measuring it was quicker than
 arguing about it.
 
+## A twelfth identity
+
+Twenty-two master files across eleven identities, and every one of them was
+**flat colour**: no gradient, no mask, no filter, no image, no blend mode. That
+is the repo's blind spot, and a gradient is the commonest thing in it — and the
+one thing that breaks the idea a colourway rests on, which is that a slot is one
+colour.
+
+**Vesper** is a gradient identity: a ring running #C2620E → #B8336A → #2E2A63,
+with a flat star sitting on it.
+
+**The gradient reached none of the files.** `applyColourway` rewrites the fill
+of every slot it is given a colour for, gradient or not, so writing the middle
+stop as the ring's colour — the obvious thing to write, since the colourway
+wants one colour — silently replaced the gradient with a flat pink in all three
+colourways, including the one whose whole job was to carry it. Nine SVGs, nine
+PDFs and every PNG went out flat. And each of those nine SVGs still carried the
+`<linearGradient>` definition, referenced by nothing, because repainting a fill
+leaves the defs alone.
+
+The engine's one sentence on the subject said the opposite of what happened:
+*"those parts will not change between colourways."* They changed in every one.
+
+A colourway slot can now say `"keep"`, which leaves it painted as the master
+drew it — the same rule `fill="none"` has always had, that the artwork's own
+paint is a decision the engine does not overrule. Paint nothing references is
+dropped from the file. Which colourways carry the gradient and which are the
+flat version is stated in the build, in `brand.json` and on a page of the manual
+that draws the gradient and quotes its stops off the artwork. A gradient that
+**no** colourway keeps is a warning, because then it is in the master and in
+nothing else.
+
+Then the parts of the engine that had never met one:
+
+**The printed piece would not compile.** `src/typst.js` asks `colour()` for
+every fill, and `colour()` answers `rgb("…")` whatever it is handed — so a
+gradient fill came out as `rgb("url(#a)")`, which Typst refuses outright:
+*color string contains non-hexadecimal letters.* Nothing had ever noticed,
+because the only Typst source this repo ever compiled was Meridian's page, and
+the per-project check translates paths and then compares **SVG against SVG** —
+it never went near Typst at all. A linear gradient is now written as Typst's own
+`gradient.linear`, with the declared CMYK build at each stop and the angle taken
+from the axis; a paint server that cannot be said — a radial, a pattern — is
+named rather than quietly drawn in black. And the check now compiles every mark
+in every colourway: twelve projects, thirty-eight colourways.
+
+**The PDF says DeviceRGB in a package that calls itself DeviceCMYK.** The ink
+path works by wrapping jsPDF's two colour setters, and a gradient never goes
+through them: jsPDF writes it as a shading dictionary whose colour space its
+own writer hardcodes to `/ColorSpace /DeviceRGB`, with no hook to say otherwise.
+So Vesper's mark PDF has the star in the declared ink — `0.92 0.94 0.3 0.2 k` —
+and the ring beside it in screen colour, in a file `brand.json` called
+DeviceCMYK. That claim was computed from the palette rather than from what was
+written. It now reads *"DeviceCMYK, except the gradient in 3 files, which is
+DeviceRGB"*, the files are named, and the build says what a printer should do
+with them: a gradient cannot be a spot ink in any case, so a two-colour job gets
+the flat version.
+
+**A gradient was measured as contrast zero.** `"keep"` is not a colour,
+`contrast.ratio` returns `null` for it, and `Math.min(11.86, null, 2.8)` is
+**0** — so a colourway carrying a gradient scored zero against every ground and
+was never chosen for anything. The build's readability check had the opposite
+bug: it dropped the `null`, so the pale end of the gradient was the one part of
+the mark never checked at all. Both resolve `"keep"` now to what the master
+actually paints — a gradient's stops, or its flat fill — through one reader in
+`svg.js`, so a gradient is judged on its worst stop and a stop that cannot be
+seen is named with the colour that fails.
+
+**And the manual was opening on the wrong colourway.** Choosing which colourway
+to lead with used to keep whichever landed on the colour holding the `primary`
+role and otherwise take the highest contrast it could find, which only agrees
+with the designer when the primary role happens to be a ground. **Six of the
+twelve projects opened on a colourway their designer had not put first**, five
+of them while the first read perfectly well: Halyard's manual opened in reverse,
+Perigee's in reverse, Vesper's in flat white rather than in the gradient that is
+the identity. It now takes the designer's order and goes looking only when the
+mark genuinely cannot be seen — which leaves exactly one project switching,
+Ma'ayan, whose first colourway measures 2.76 to 1 on its own ground and which
+the build has warned about since the round it was added.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.
@@ -1632,6 +1717,7 @@ arguing about it.
     projects/cusp/      the ninth: the project file is the thin part, not the artwork
     projects/fathom/    the tenth: the graphic language is the pattern
     projects/spire/     the eleventh: 1 to 4.7, six colour slots, a floor that is a width
+    projects/vesper/    the twelfth: a gradient, which is not one colour
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package

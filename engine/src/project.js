@@ -4,6 +4,7 @@ const path = require('path');
 const { normalise } = require('./normalise');
 const contrast = require('./contrast');
 const naming = require('./naming');
+const svgu = require('./svg');
 
 const DEFAULTS = {
   clearSpaceRatio: 0.25,
@@ -84,11 +85,11 @@ function load(file) {
   // six-digit hex and produced NaN for anything else, and a NaN ratio compares
   // false against every threshold, so brand.json told the client that every
   // pair in their palette was "Never for text". Canonicalise once, here.
-  const canon = (v, where) => {
+  const canon = (v, where, also = '') => {
     const hex = contrast.toHex(v);
     if (hex === null) {
       throw new Error(`${where} is "${v}", which is not a colour this can read.`
-        + ' Use a hex value like #1B3A6B, or rgb(), or hsl().');
+        + ' Use a hex value like #1B3A6B, or rgb(), or hsl().' + also);
     }
     return hex;
   };
@@ -97,7 +98,15 @@ function load(file) {
   }
   for (const cw of (raw.rules && raw.rules.colourways) || []) {
     for (const slot of Object.keys(cw.slots || {})) {
-      cw.slots[slot] = canon(cw.slots[slot], `colourway "${cw.name}" slot "${slot}"`);
+      // "keep" is not a colour and is not meant to be: it says leave this slot
+      // painted as the master drew it, which is the only way to carry a
+      // gradient through a colourway.
+      if (String(cw.slots[slot]).trim().toLowerCase() === svgu.KEEP) {
+        cw.slots[slot] = svgu.KEEP;
+        continue;
+      }
+      cw.slots[slot] = canon(cw.slots[slot], `colourway "${cw.name}" slot "${slot}"`,
+        ' Write "keep" to leave the slot painted as the master drew it.');
     }
   }
   for (const key of ['iconInk', 'iconBg']) {

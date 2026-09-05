@@ -71,6 +71,26 @@ function colour(bundle, key, seen) {
   return `rgb("${hex}")`;
 }
 
+// A gradient, said in Typst. `colour()` above answers with rgb("...") whatever
+// it is given, so a fill of url(#a) came out as rgb("url(#a)") — which Typst
+// refuses outright: "color string contains non-hexadecimal letters". Nothing
+// noticed, because the only page this path ever compiled was Meridian's and
+// every mark in the repo was flat. Typst has gradient.linear, and it fills the
+// element's own box, which is what an SVG gradient in objectBoundingBox units
+// means, so the two line up.
+function gradientFill(g, bundle, seen) {
+  if (!g || g.kind !== 'linear' || !g.stops.length) return null;
+  const stops = g.stops.map((st, i) => {
+    const off = st.offset == null ? (i / Math.max(1, g.stops.length - 1)) : st.offset;
+    return `(${colour(bundle, st.hex, seen)}, ${svgu.round(off * 100, 2)}%)`;
+  });
+  // the axis, as an angle: Typst measures clockwise from pointing right, and so
+  // does atan2 on a y-down coordinate system, which SVG's is
+  const a = g.axis || { x1: 0, y1: 0, x2: 1, y2: 0 };
+  const deg = svgu.round((Math.atan2(a.y2 - a.y1, a.x2 - a.x1) * 180) / Math.PI, 2);
+  return `gradient.linear(${stops.join(', ')}, angle: ${deg}deg)`;
+}
+
 const strokeHexOf = (el) => (el.match(/stroke="([^"]+)"/) || [])[1];
 const fillHexOf = (el) => (el.match(/fill="([^"]+)"/) || [])[1];
 
@@ -89,6 +109,22 @@ function artwork(svg, box, bundle, seen) {
 
   const out = [];
   const PAINT = ['fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin'];
+  // the gradients this artwork defines, with the axis each one runs along
+  const grads = new Map();
+  for (const g of svgu.gradients(doc)) grads.set(g.id, g);
+  (function axes(n) {
+    if (n.nodeType === 1 && String(n.nodeName).toLowerCase() === 'lineargradient' && grads.has(n.getAttribute('id'))) {
+      const num = (a, d) => {
+        const raw = n.getAttribute(a);
+        if (raw == null) return d;
+        const v = Number(String(raw).replace('%', ''));
+        return String(raw).includes('%') ? v / 100 : v;
+      };
+      grads.get(n.getAttribute('id')).axis = { x1: num('x1', 0), y1: num('y1', 0), x2: num('x2', 1), y2: num('y2', 0) };
+    }
+    for (let c = n.firstChild; c; c = c.nextSibling) axes(c);
+  }(doc.documentElement));
+  const unsayable = new Set();
 
   // Things that hold artwork without drawing it. Walking into them paints the
   // shape of a clipping mask onto the page: Kvist's printed piece carried a
@@ -156,10 +192,19 @@ function artwork(svg, box, bundle, seen) {
               : sg.op === 'cubic' ? `curve.cubic((${pt(sg.c1[0])}, ${pt(sg.c1[1])}), (${pt(sg.c2[0])}, ${pt(sg.c2[1])}), (${pt(sg.to[0])}, ${pt(sg.to[1])}))`
                 : 'curve.close()');
         // an unset fill paints black, exactly as it does in a browser
+        const paint = (v) => {
+          const ref = /^url\(#([^)]+)\)$/.exec(String(v).trim());
+          if (!ref) return colour(bundle, v, seen);
+          const g = gradientFill(grads.get(ref[1]), bundle, seen);
+          // a paint server this cannot say — a radial, a pattern, a gradient in
+          // user space — is refused rather than written as a colour it is not
+          if (!g) unsayable.add(ref[1]);
+          return g || colour(bundle, '#000000', seen);
+        };
         const fillCss = fill === undefined ? colour(bundle, '#000000', seen)
-          : fill === 'none' ? 'none' : colour(bundle, fill, seen);
+          : fill === 'none' ? 'none' : paint(fill);
         const strokeCss = stroke && stroke !== 'none'
-          ? `${pt(w)} + ${colour(bundle, stroke, seen)}` : 'none';
+          ? `${pt(w)} + ${paint(stroke)}` : 'none';
         out.push(`#place(dx: 0pt, dy: 0pt, curve(\n  fill: ${fillCss},\n  stroke: ${strokeCss},\n`
           + `  ${parts.join(',\n  ')},\n))`);
       }
@@ -167,6 +212,10 @@ function artwork(svg, box, bundle, seen) {
     for (let c = node.firstChild; c; c = c.nextSibling) walk(c, m, here);
   }(doc.documentElement, place, {}));
 
+  // said out loud rather than left in the file: a paint server this cannot
+  // translate is drawn in black, and a mark silently turning black on the one
+  // deliverable that goes on a press is what this path exists to stop
+  if (unsayable.size && seen && seen.unsayable) for (const id of unsayable) seen.unsayable.add(id);
   return out.join('\n');
 }
 
@@ -251,6 +300,9 @@ function emit(doc, bundle, opts) {
   const M = require('./editor/model');
   const spec = M.printSpec(doc);
   const ctx = { files: {}, fonts: new Set(), seen: new Set(), rasterColour: false };
+  // a paint server the translator cannot say, collected so `print` can report
+  // it rather than a shape quietly going out black on the press deliverable
+  ctx.seen.unsayable = new Set();
   const refused = [];
   const chunks = [];
 
@@ -283,6 +335,7 @@ function emit(doc, bundle, opts) {
     fonts: [...ctx.fonts],
     refused,
     screenColours: [...ctx.seen],
+    unsayablePaint: [...ctx.seen.unsayable],
     rasterColour: ctx.rasterColour,
   };
 }

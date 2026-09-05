@@ -15,6 +15,10 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
 
   const { rules } = project;
   const warnings = [];
+  // Not everything worth saying is worth a warning. A gradient that reaches the
+  // files it should is working as intended and still has to be described,
+  // because which file carries it decides which one goes to a one-colour job.
+  const notes = [];
   const written = [];
   // Nine pattern tiles went into a package with the same attribute written
   // twice, which is not valid SVG and which no renderer would open — and
@@ -61,6 +65,8 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // documents quietly showed a different one instead, and every file for the
   // unreadable one was written anyway. Three of the seven projects in this repo
   // had one, including two written while looking straight at the problem.
+  const slotPaint = svgu.paintBySlot([project.assets.mark, project.assets.wordmark]
+    .filter((a) => a && a.source).map((a) => svgu.parse(a.source)));
   for (const cw of rules.colourways) {
     // a ground is a palette colour, or a plain one: "white" and "black" mean
     // paper and ink, and an identity is entitled to cut a colourway for them
@@ -75,17 +81,28 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
         + `Name one of ${Object.keys(project.tokens.colour).join(', ')}, or add "${cw.on}" to the palette.`);
     }
     if (!ground) continue;
-    const inks = Object.entries(cw.slots || {});
+    // A slot set to "keep" is not a colour, so it was skipped here and the part
+    // of the mark most likely to disappear — the pale end of a gradient — was
+    // the one part never checked. Resolve it to what the master actually paints
+    // and measure every stop.
+    const inks = [];
+    for (const [slot, hex] of Object.entries(cw.slots || {})) {
+      if (hex === svgu.KEEP) {
+        for (const h of slotPaint.get(slot) || []) inks.push([slot, h, true]);
+      } else inks.push([slot, hex, false]);
+    }
     if (!inks.length) continue;
     const worst = inks
-      .map(([slot, hex]) => ({ slot, hex, r: contrast.ratio(hex, ground.hex) }))
+      .map(([slot, hex, fromArt]) => ({ slot, hex, fromArt, r: contrast.ratio(hex, ground.hex) }))
       .filter((x) => x.r != null)
       .sort((a, b) => a.r - b.r)[0];
     if (worst && worst.r < 3) {
       warnings.push(`colourway "${cw.name}" is cut for ${cw.on}, and its ${worst.slot} `
+        + `${worst.fromArt ? `runs to ${worst.hex}, which ` : ''}`
         + `measures ${worst.r}:1 against it. Below about 3:1 the mark stops being a shape `
-        + `anyone can make out. Darken or lighten ${worst.slot}, or cut this colourway for `
-        + `a different ground.`);
+        + `anyone can make out. ${worst.fromArt
+          ? `Move that end of the gradient, or cut this colourway for a different ground.`
+          : `Darken or lighten ${worst.slot}, or cut this colourway for a different ground.`}`);
     }
   }
 
@@ -142,6 +159,12 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   }
 
   const saidMissing = new Set();
+  const keptSlots = new Set();     // slots a colourway left painted as the master drew them
+  const rgbShaded = [];            // PDFs carrying a gradient, which jsPDF writes as DeviceRGB
+  const gradientSlots = new Set([
+    ...svgu.gradientSlots(svgu.parse(project.assets.mark.source)),
+    ...(project.assets.wordmark ? svgu.gradientSlots(svgu.parse(project.assets.wordmark.source)) : []),
+  ]);
   // what the master itself paints each slot, so a slot nobody recoloured can be
   // reported as the colour it actually came out
   const masterInks = {};
@@ -180,10 +203,16 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       if (rules.formats.includes('png')) {
         for (const w of rules.pngWidths) write(`${dir}/${base}-${w}.png`, geo.renderPng(v.svg, w));
       }
+      // which colourways carry the artwork's own paint through, and which paint
+      // over it. A gradient is the case that matters: it cannot be one flat
+      // brand colour, so a colourway either keeps it or loses it, and the
+      // package has to say which files are which.
+      if (v.kept && v.kept.length) for (const sl of v.kept) keptSlots.add(sl);
       if (rules.formats.includes('pdf') || rules.formats.includes('ai')) {
         // the file that actually goes to a press, so it goes in ink where the
         // project says what the ink is. See src/cmyk.js.
         const pdf = await exp.toPdf(v.svg, { ink });
+        if (pdf.rgbShadings) rgbShaded.push(`${base}.pdf`);
         if (rules.formats.includes('pdf')) write(`${dir}/${base}.pdf`, pdf);
         // an .ai file is a PDF wrapper, so the same bytes open in Illustrator
         if (rules.formats.includes('ai')) write(`${dir}/${base}.ai`, pdf);
@@ -230,6 +259,36 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       + `\`check <icon.svg> --icon\` against it, which measures the same thing and will say when it clears.`);
   }
 
+  // ---- what became of the artwork's own paint ----
+  // A gradient is the case this exists for. The normaliser says the master has
+  // one; only the build knows whether any colourway kept it, and a gradient no
+  // colourway keeps is in the master and in nothing else — nine files went out
+  // flat, each carrying the definition of a gradient none of them referenced,
+  // and every document in the package was silent about it.
+  const paintedOver = [...gradientSlots].filter((sl) => !keptSlots.has(sl));
+  if (gradientSlots.size && !keptSlots.size) {
+    warnings.push(`the master paints ${gradientSlots.size === 1 ? 'a slot' : 'slots'} `
+      + `(${[...gradientSlots].join(', ')}) with a gradient, and every colourway names a flat colour `
+      + `for ${gradientSlots.size === 1 ? 'it' : 'them'}, so the gradient is in the master and in `
+      + `none of the files this wrote. Write "keep" instead of a colour in the colourway that is `
+      + `meant to carry it.`);
+  } else if (keptSlots.size) {
+    const keeping = rules.colourways.filter((c) =>
+      Object.values(c.slots || {}).some((v) => v === svgu.KEEP)).map((c) => c.name);
+    notes.push(`${[...keptSlots].join(', ')} ${keptSlots.size === 1 ? 'is' : 'are'} painted as the master `
+      + `draws ${keptSlots.size === 1 ? 'it' : 'them'} in ${keeping.join(' and ')}, and repainted flat in `
+      + `${rules.colourways.filter((c) => !keeping.includes(c.name)).map((c) => c.name).join(' and ') || 'no other colourway'}. `
+      + `${paintedOver.length ? `Nothing keeps ${paintedOver.join(', ')}. ` : ''}`
+      + `The flat version is the one a one-colour job uses.`);
+  }
+  if (rgbShaded.length) {
+    warnings.push(`${rgbShaded.length} PDF${rgbShaded.length > 1 ? 's carry' : ' carries'} a gradient, `
+      + `and a gradient is written as a shading in DeviceRGB whatever the rest of the file is in: `
+      + `${rgbShaded.join(', ')}. Everything else in ${rgbShaded.length > 1 ? 'them' : 'it'} is in the ink `
+      + `you declared. A gradient cannot be a spot ink in any case, so send the flat version to a `
+      + `two-colour job, and tell a process printer that the gradient converts on their side.`);
+  }
+
   for (const [name, spec] of Object.entries(rules.social || {})) {
     const svg = spec.w === spec.h
       ? exp.iconSquare(mark, { size: spec.w, background: iconBg, ink: iconInk, radius: spec.round ? 0.5 : 0 })
@@ -268,7 +327,17 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       totalInkLimit: cmyk.TAC[rules.stock] || cmyk.TAC.coated,
       colour: inkTable.map((c) => ({ name: c.name, hex: c.hex, cmyk: c.values, coverage: c.coverage,
         pantone: c.pantone, declared: c.declared, source: c.source })),
-      pdfColourSpace: inkTable.every((c) => c.declared) ? 'DeviceCMYK' : 'DeviceRGB for anything not declared',
+      // Measured from what was written, not from what the palette declares. A
+      // gradient never goes through the colour setters — jsPDF writes it as a
+      // shading dictionary whose colour space it hardcodes to DeviceRGB — so a
+      // package with a gradient in it was calling itself DeviceCMYK while the
+      // one shape that is the identity went to press in screen colour.
+      pdfColourSpace: !inkTable.every((c) => c.declared)
+        ? 'DeviceRGB for anything not declared'
+        : rgbShaded.length
+          ? `DeviceCMYK, except the gradient in ${rgbShaded.length} file${rgbShaded.length > 1 ? 's' : ''}, which is DeviceRGB`
+          : 'DeviceCMYK',
+      gradientFiles: rgbShaded.slice(),
     },
     logo: {
       clearSpace: `${rules.clearSpaceRatio} * inkHeight`,
@@ -366,7 +435,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     written.push({ path: zipName, bytes: buf.length });
   }
 
-  return { measured, written, warnings, contrast: pairs };
+  return { measured, written, warnings, notes, contrast: pairs };
 }
 
 module.exports = { build };

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 140">
+  <defs>
+    <linearGradient id="dusk" x1="0.06" y1="0.04" x2="0.82" y2="0.96">
+      <stop offset="0" stop-color="#C2620E"/>
+      <stop offset="0.52" stop-color="#B8336A"/>
+      <stop offset="1" stop-color="#2E2A63"/>
+    </linearGradient>
+  </defs>
+  <path data-slot="ring" fill="url(#dusk)" fill-rule="evenodd"
+        d="M70 18a52 52 0 1 0 0 104 52 52 0 1 0 0-104zM70 32a38 38 0 1 1 0 76 38 38 0 1 1 0-76z"/>
+  <path data-slot="star" fill="#2E2A63"
+        d="M110 21l4.8 12.6L127 38l-12.2 4.4L110 55l-4.8-12.6L93 38l12.2-4.4z"/>
+</svg>

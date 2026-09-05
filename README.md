@@ -71,7 +71,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 138 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 300 tests.
+of it. 308 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -348,7 +348,33 @@ hand it whose thinnest part paints under the stroke rule, then wrote its own
 below the same rule without a word — Hallward's seal paints at **0.49 px in its
 180 px app icon**, and it ships nothing that clears its own rule at all.
 
-Still to do: a run on **your** identity job. Ten identities the engine had not
-seen is worth a great deal more than ten passes over one, but none of them came
-out of your exporter — and the normaliser is the part that most needs to meet
-one.
+The twelfth was chosen the same way, and the answer this time was about the
+material rather than the shape: **all twenty-two master files were flat
+colour.** No gradient, no mask, no filter, no image. So **Vesper** is a gradient
+identity — and a gradient is the one thing a colourway cannot say, because a
+colourway names one colour per slot.
+
+Writing the middle stop as the ring's colour, which is the obvious thing to
+write, silently replaced the gradient with a flat pink in **every file** — all
+three colourways, the primary one included — while each of the nine SVGs went on
+carrying the gradient definition that nothing referenced. The engine's one
+sentence on the subject said those parts "will not change between colourways";
+they changed in all of them. A colourway slot can now say `"keep"`, the manual
+has a page that draws the gradient and quotes its stops off the artwork, and a
+gradient no colourway keeps is a warning.
+
+Four more came out of the parts that had never met one. The **printed piece
+would not compile**: Typst was handed `rgb("url(#a)")`, which it refuses, and
+nothing had noticed because the only Typst source this repo ever compiled was
+Meridian's page. The **PDF goes to press in DeviceRGB** while `brand.json` calls
+the package DeviceCMYK, because jsPDF writes a gradient as a shading whose
+colour space it hardcodes. A gradient **measured as contrast zero**, so the
+colourway carrying it was never chosen for anything, while the build's own
+readability check dropped it and never looked at the pale end of the mark at
+all. And the manual was **opening on the wrong colourway** in six of the twelve
+projects — five of them while the designer's first one read perfectly well.
+
+Still to do: a run on **your** identity job. Eleven identities the engine had not
+seen is worth a great deal more than eleven passes over one, but none of them
+came out of your exporter — and the normaliser is the part that most needs to
+meet one.

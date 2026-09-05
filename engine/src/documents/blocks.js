@@ -55,10 +55,40 @@ const onGround = (ctx, groundName) =>
   (ctx.project.rules.colourways || []).find((c) => c.on === groundName) || ctx.primaryColourway;
 
 // How well one colourway reads on a ground: its worst ink against it.
-function worstOn(cw, groundHex) {
-  const inks = cw && cw.slots ? Object.values(cw.slots) : [];
+// What a colourway actually paints, with "keep" resolved to the colours the
+// master paints that slot with: a gradient's stops, or its flat fill.
+//
+// Left unresolved, "keep" is not a colour, contrast.ratio returns null, and
+// Math.min(11.86, null, 2.8) is 0 — so every colourway carrying a gradient
+// scored zero against every ground, and the manual, the deck and the misuse
+// grid would each have quietly picked a different colourway to show. The worst
+// stop is the honest reading: it is the part of the mark that disappears first,
+// which is the same question the photography module asks of a mark on a
+// picture.
+const masterPaint = new WeakMap();
+function paintOf(ctx) {
+  if (!masterPaint.has(ctx)) {
+    masterPaint.set(ctx, svgu.paintBySlot([ctx.project.assets.mark, ctx.project.assets.wordmark]
+      .filter(Boolean).map((a) => svgu.parse(a.source))));
+  }
+  return masterPaint.get(ctx);
+}
+
+function inksOf(ctx, cw) {
+  const paint = ctx ? paintOf(ctx) : new Map();
+  const out = [];
+  for (const [slot, v] of Object.entries((cw && cw.slots) || {})) {
+    if (v === svgu.KEEP) out.push(...(paint.get(slot) || []).map((h) => contrast.toHex(h)).filter(Boolean));
+    else out.push(v);
+  }
+  return out.filter(Boolean);
+}
+
+function worstOn(cw, groundHex, ctx) {
+  const inks = inksOf(ctx, cw);
   if (!inks.length) return 0;
-  return Math.min(...inks.map((h) => contrast.ratio(h, groundHex)));
+  const ratios = inks.map((h) => contrast.ratio(h, groundHex)).filter((r) => r != null);
+  return ratios.length ? Math.min(...ratios) : 0;
 }
 
 // The colourway that reads best on a given ground, and how well, which is
@@ -66,9 +96,8 @@ function worstOn(cw, groundHex) {
 function readsOn(ctx, groundHex) {
   let best = null;
   for (const cw of ctx.project.rules.colourways || []) {
-    const inks = Object.values(cw.slots);
-    if (!inks.length) continue;
-    const worst = Math.min(...inks.map((h) => contrast.ratio(h, groundHex)));
+    const worst = worstOn(cw, groundHex, ctx);
+    if (!Object.keys(cw.slots || {}).length) continue;
     if (!best || worst > best.worst) best = { colourway: cw, worst };
   }
   return best;
@@ -87,8 +116,7 @@ function showOn(ctx) {
   const hexOf = (n) => (ctx.colours[n] || {}).hex;
   const seen = [];
   for (const cw of ctx.project.rules.colourways || []) {
-    const inks = Object.values(cw.slots);
-    if (!inks.length) continue;
+    if (!Object.keys(cw.slots || {}).length) continue;
     // a colourway may name a ground that is not in the palette at all, and
     // falling back to "the ground role" then showed Cusp's only colourway on
     // its own ink at 1.00 to 1. If the named ground cannot be resolved, try
@@ -98,20 +126,29 @@ function showOn(ctx) {
     let usedName = name;
     if (!hex) {
       const options = Object.entries(ctx.colours)
-        .map(([n, c]) => ({ n, hex: c.hex, worst: Math.min(...inks.map((h) => contrast.ratio(h, c.hex))) }))
-        .filter((o) => Number.isFinite(o.worst))
+        .map(([n, c]) => ({ n, hex: c.hex, worst: worstOn(cw, c.hex, ctx) }))
+        .filter((o) => Number.isFinite(o.worst) && o.worst > 0)
         .sort((a, b) => b.worst - a.worst)[0];
       hex = options ? options.hex : ctx.ground.hex;
       usedName = options ? options.n : ctx.ground.name;
     }
-    seen.push({ ground: { name: usedName, hex }, colourway: cw,
-      worst: Math.min(...inks.map((h) => contrast.ratio(h, hex))) });
+    seen.push({ ground: { name: usedName, hex }, colourway: cw, worst: worstOn(cw, hex, ctx) });
   }
   if (!seen.length) return { ground: ctx.primary, colourway: ctx.primaryColourway, worst: 0 };
-  // keep the choice that was being made wherever it actually works, so an
-  // identity that was fine stays exactly as it was
-  const before = seen.find((s) => s.ground.hex === ctx.primary.hex);
-  if (before && before.worst >= SEEN) return before;
+  // The first colourway a project lists is its primary one, and the manual
+  // should lead with it. This used to keep whichever choice landed on the
+  // colour holding the "primary" role and otherwise take the highest contrast
+  // it could find — which only agrees with the designer when the primary role
+  // happens to be a ground. Six of the twelve projects here led with a
+  // colourway their designer did not put first, five of them while the first
+  // read perfectly well: Halyard's manual opened in reverse, Perigee's in
+  // reverse, Vesper's in flat white rather than in the gradient that is the
+  // identity. Take the designer's order, and go looking only when the mark
+  // cannot actually be seen.
+  const inOrder = (ctx.project.rules.colourways || [])
+    .map((cw) => seen.find((s) => s.colourway === cw)).filter(Boolean);
+  const first = inOrder.find((s) => s.worst >= SEEN);
+  if (first) return first;
   return seen.slice().sort((a, b) => b.worst - a.worst)[0];
 }
 
@@ -289,6 +326,34 @@ function palette(ctx) {
     + `</p>`;
 }
 
+// A gradient in the master is part of the palette and belongs on the palette
+// page, drawn rather than described — the manual said nothing about one at all,
+// so a designer reading it could not tell which file carried the gradient, and
+// the one-colour version looked like a mistake rather than a decision.
+function gradientSpec(ctx) {
+  const gs = svgu.gradients(svgu.parse(ctx.project.assets.mark.source))
+    .concat(ctx.project.assets.wordmark
+      ? svgu.gradients(svgu.parse(ctx.project.assets.wordmark.source)) : []);
+  if (!gs.length) return '';
+  const ways = ctx.project.rules.colourways;
+  return gs.map((g) => {
+    const keeps = ways.filter((c) => g.slots.some((sl) => c.slots[sl] === svgu.KEEP)).map((c) => c.name);
+    const flat = ways.filter((c) => !keeps.includes(c.name)).map((c) => c.name);
+    const bar = g.stops.map((st) =>
+      `${st.hex} ${svgu.round((st.offset == null ? 0 : st.offset) * 100)}%`).join(', ');
+    return `<figure><div class="stage tight" style="padding:0">
+      <div style="width:100%;height:104px;background:linear-gradient(120deg,${bar})"></div></div>
+      <figcaption>${esc(g.slots.join(', '))} \u00b7 ${g.stops.length} stops \u00b7 ${esc(g.kind)}</figcaption></figure>
+      <p class="note"><b>${g.stops.map((st) => esc(st.hex || '?')).join(' \u2192 ')}</b> at ${
+        g.stops.map((st) => `${svgu.round((st.offset == null ? 0 : st.offset) * 100)}%`).join(', ')
+      }, read off the artwork. ${keeps.length
+        ? `Carried in <b>${esc(keeps.join(' and '))}</b>, and repainted flat in ${esc(flat.join(' and ')) || 'nothing else'}.`
+        : `<b>No colourway keeps it</b>, so it is in the master and in none of the files.`} `
+      + `A gradient cannot be printed as a spot ink, so the flat version is the one a one- or two-colour `
+      + `job uses, and a PDF carrying the gradient has that part in DeviceRGB whatever the rest is in.</p>`;
+  }).join('');
+}
+
 function contrastTable(ctx) {
   const cls = { AAA: 'ok', AA: 'ok', 'AA-large': 'warn', fail: 'bad' };
   return `<div class="ctab"><div class="ctr head"><span>Sample</span><span>Pair</span><span>Ratio</span><span>Verdict</span></div>` +
@@ -330,5 +395,5 @@ function assetIndex(ctx) {
 
 const brandJsonBlock = (ctx) => `<pre>${esc(JSON.stringify(ctx.brandJson, null, 2))}</pre>`;
 
-module.exports = { TXT, esc, inked, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, markSpecimen, lockupRow, construction, clearSpace,
+module.exports = { TXT, esc, inked, gradientSpec, inksOf, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, markSpecimen, lockupRow, construction, clearSpace,
   minimumSize, lockups, misuse, palette, contrastTable, typeSpecimen, typeScale, assetIndex, brandJsonBlock };

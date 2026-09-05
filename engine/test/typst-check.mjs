@@ -31,7 +31,7 @@ const typst = require('../src/typst');
 const M = require('../src/editor/model');
 const { publish } = require('../src/editor/publish');
 const projectLoader = require('../src/project');
-const { measure } = require('../src/variants');
+const { measure, buildVariant } = require('../src/variants');
 const { bundle } = require('../src/editor/bundle');
 const { Resvg } = require('@resvg/resvg-js');
 
@@ -84,7 +84,12 @@ for (const [name, src] of everyAsset) {
     `${ds.length} path(s), ${differing} of ${total} pixels differ at an edge, worst ${worst}, ${structural} structural`);
 }
 
-// ---------------------------------------------- 2. the page, both ways
+// ---------------------------------------------- 2. every mark, through Typst
+// The check above compares an SVG against an SVG: it exercises the path parser
+// and never goes near Typst. So the only source this repo had ever asked Typst
+// to compile was Meridian's page, and a mark whose ring is a gradient produced
+// `fill: rgb("url(#a)")` — which Typst refuses outright — with nothing to
+// notice it. Compile every mark, in every colourway, and look at the result.
 const bin = process.env.TYPST || which('typst');
 const fonts = process.env.FONTS || null;
 let chromium = null;
@@ -99,6 +104,49 @@ function which(name) {
     try { fs.accessSync(path.join(dir, name), fs.constants.X_OK); return path.join(dir, name); } catch (_) { /* next */ }
   }
   return null;
+}
+
+if (bin) {
+  console.log('\nevery mark, compiled');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-marks-'));
+  for (const name of PROJECTS) {
+    const p = load(name);
+    const meas = measure(p);
+    const b = bundle(p, meas, []);
+    let worstNote = '';
+    let ok = true;
+    for (const cw of p.rules.colourways) {
+      const v = buildVariant({ markSrc: p.assets.mark.source,
+        wordmarkSrc: p.assets.wordmark && p.assets.wordmark.source,
+        lockup: 'mark', colourway: cw, rules: p.rules, measured: meas });
+      const seen = new Set(); seen.unsayable = new Set();
+      const body = typst.artwork(v.svg, { x: 0, y: 0, w: 160, h: 160 }, b, seen);
+      const src = `#set page(width: 160pt, height: 160pt, margin: 0pt, fill: white)\n${body}\n`;
+      const f = path.join(dir, `${name}-${cw.name}.typ`);
+      fs.writeFileSync(f, src);
+      const args = ['compile'];
+      if (fonts) args.push('--font-path', fonts);
+      args.push('--format', 'png', '--ppi', '72', f, path.join(dir, `${name}-${cw.name}.png`));
+      const r = spawnSync(bin, args, { encoding: 'utf8' });
+      if (r.status !== 0) {
+        ok = false;
+        worstNote = `${cw.name}: ${(r.stderr || '').trim().split('\n').find((l) => /error/.test(l)) || 'did not compile'}`;
+        break;
+      }
+      if (seen.unsayable.size) {
+        // it compiles, and the shape goes out black: worse than not compiling,
+        // because nothing stops it reaching a press
+        ok = false;
+        worstNote = `${cw.name}: ${[...seen.unsayable].join(', ')} could not be said, so it was drawn in black`;
+        break;
+      }
+    }
+    report(ok, `${name} compiles in every colourway`,
+      worstNote || `${p.rules.colourways.length} colourway(s), nothing left unsaid`);
+  }
+  fs.rmSync(dir, { recursive: true, force: true });
+} else {
+  console.log('\nevery mark, compiled\n  skipped: no typst binary (set TYPST)');
 }
 
 if (!bin || !chromium) {
