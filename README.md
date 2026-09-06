@@ -122,7 +122,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 138 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 355 tests.
+of it. 359 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -552,7 +552,25 @@ before it holds together and told the designer to draw a simplified icon — **w
 the project had no way to carry**. It does now, and the read me, `brand.json` and
 the manual all say which drawing the icons came from.
 
-Still to do: a run on **your** identity job. Seventeen identities the engine had
-not seen is worth a great deal more than seventeen passes over one, but none of
+The nineteenth audit fits in a line: **every one of eighteen identities was
+written in an alphabet.** **山彦** — Yamabiko, a recording studio — is Japanese,
+which does not put spaces between words. The line counter, whose entire reason
+for existing is that text which does not fit gets swallowed on screen and
+printed over whatever is beneath it, answered **one line** to any amount of it:
+`para.split(/\s+/)` returned the whole paragraph as one unbreakable word.
+Against 270 browser measurements it under-counted 235, worst case one line where
+the browser took sixteen.
+
+The Latin half was the surprise. The 0.55 average fitted in the fourteenth round
+had **quietly stopped holding** — the corpus grew in that same round and nobody
+re-ran the experiment — and re-measuring found 65 of 540 under-counted. It is not
+an average now: the advance of every character the engine sets is measured off
+the faces and baked in, because `W` is 1.09 em and `i` is 0.33 and no average
+tells them apart. Across all 810 measurements: **300 under-counts to none**,
+exactly-right 35% to 65%. The measurements are checked in, so the claim cannot
+lapse again quietly.
+
+Still to do: a run on **your** identity job. Eighteen identities the engine had
+not seen is worth a great deal more than eighteen passes over one, but none of
 them came out of your exporter — and the normaliser is the part that most needs
 to meet one.

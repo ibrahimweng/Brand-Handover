@@ -1,0 +1,205 @@
+{
+  "brand": "山彦",
+  "latinName": "Yamabiko",
+  "language": "ja",
+  "version": "1.0.0",
+  "assets": {
+    "mark": "mark.svg",
+    "wordmark": "wordmark.svg"
+  },
+  "tokens": {
+    "colour": {
+      "sumi": {
+        "hex": "#1F3A34",
+        "role": "primary",
+        "cmyk": [
+          80,
+          55,
+          65,
+          45
+        ]
+      },
+      "kinari": {
+        "hex": "#F4F1E8",
+        "role": "ground",
+        "cmyk": [
+          4,
+          4,
+          10,
+          0
+        ]
+      },
+      "koke": {
+        "hex": "#6B7A52",
+        "role": "secondary",
+        "cmyk": [
+          58,
+          38,
+          76,
+          18
+        ]
+      },
+      "shu": {
+        "hex": "#B33A28",
+        "role": "accent",
+        "cmyk": [
+          20,
+          88,
+          92,
+          8
+        ],
+        "textSafe": false,
+        "maxCoverage": 0.04
+      }
+    },
+    "type": {
+      "families": {
+        "display": {
+          "family": "IPAGothic Subset",
+          "weights": [
+            400
+          ],
+          "files": [
+            {
+              "file": "fonts/ipagothic-subset.ttf",
+              "weight": 400,
+              "style": "normal"
+            }
+          ],
+          "fallback": "'Hiragino Kaku Gothic ProN','Yu Gothic',sans-serif",
+          "licence": "IPA Font License 1.0, subsetted to the characters this identity sets. It may be redistributed and embedded; derived fonts must keep the licence.",
+          "note": "見出しと社名。"
+        },
+        "text": {
+          "family": "IPAGothic Subset",
+          "weights": [
+            400
+          ],
+          "files": [
+            {
+              "file": "fonts/ipagothic-subset.ttf",
+              "weight": 400,
+              "style": "normal"
+            }
+          ],
+          "fallback": "'Hiragino Kaku Gothic ProN','Yu Gothic',sans-serif",
+          "note": "本文。数字と仮名が混ざるため字面の揃った書体を使います。"
+        }
+      },
+      "scale": [
+        {
+          "name": "Display",
+          "family": "display",
+          "size": 46,
+          "leading": 66,
+          "weight": 400,
+          "sample": "山あいの録音室"
+        },
+        {
+          "name": "H1",
+          "family": "display",
+          "size": 32,
+          "leading": 48,
+          "weight": 400,
+          "sample": "蚕室と残響"
+        },
+        {
+          "name": "H2",
+          "family": "display",
+          "size": 24,
+          "leading": 38,
+          "weight": 400,
+          "sample": "年に十二枚"
+        },
+        {
+          "name": "H3",
+          "family": "text",
+          "size": 19,
+          "leading": 32,
+          "weight": 400,
+          "sample": "録音の記録"
+        },
+        {
+          "name": "Body",
+          "family": "text",
+          "size": 17,
+          "leading": 30,
+          "weight": 400,
+          "sample": "母屋は大正十二年に建てられた蚕室で、床も梁も当時のままです。"
+        },
+        {
+          "name": "Small",
+          "family": "text",
+          "size": 14,
+          "leading": 25,
+          "weight": 400,
+          "sample": "立ち会いは一枚ずつ行います。"
+        },
+        {
+          "name": "Caption",
+          "family": "text",
+          "size": 12,
+          "leading": 20,
+          "weight": 400,
+          "sample": "山彦 録音室"
+        }
+      ]
+    }
+  },
+  "rules": {
+    "lockups": [
+      "horizontal",
+      "stacked",
+      "mark",
+      "wordmark"
+    ],
+    "colourways": [
+      {
+        "name": "sumi",
+        "on": "kinari",
+        "slots": {
+          "ink": "#1F3A34"
+        }
+      },
+      {
+        "name": "reverse",
+        "on": "sumi",
+        "slots": {
+          "ink": "#F4F1E8"
+        }
+      },
+      {
+        "name": "koke",
+        "on": "kinari",
+        "slots": {
+          "ink": "#6B7A52"
+        }
+      }
+    ],
+    "formats": [
+      "svg",
+      "png"
+    ],
+    "pngWidths": [
+      512,
+      1024
+    ],
+    "naming": "{brand}-{lockup}-{colourway}"
+  },
+  "content": {
+    "positioning": "山彦は、山あいの村に建つ録音室です。",
+    "introduction": "母屋は大正十二年に建てられた蚕室で、床も梁も当時のままです。天井が高く、壁が厚く、外の音がほとんど入りません。ここで録音した音は、機械で作った残響とは違う長さを持ちます。年に十二枚だけ、一枚ずつ立ち会って仕上げます。",
+    "markRationale": "尾根の線と、それが返ってくる線。二本目は細く、少し遅れて、同じ形をしています。山彦とは元の音が形を保ったまま戻ってくることで、この印はそれだけを描いています。",
+    "colourRationale": "墨は文字と印のための色です。生成は紙の色で、白ではありません。苔は面と図版に使い、朱は一頁にひとつだけ、最も大切なものに使います。",
+    "typeRationale": "本文はゴシック体で組みます。録音の記録は数字と仮名が混ざるため、字面の揃った書体でなければ読みにくくなります。見出しも同じ書体の太さ違いで、書体を増やしません。",
+    "misuse": [
+      "印を引き伸ばさないでください。縦横は必ず同じ比率で拡大縮小します。",
+      "二本目の線を消さないでください。返ってくる線がなければ山彦になりません。",
+      "指定した配色以外で使わないでください。",
+      "影や光彩を付けないでください。",
+      "背景との明度差が足りないところでは白抜きの印を使ってください。",
+      "社名を別の書体で打ち直さないでください。ロゴは図版であって文字ではありません。"
+    ],
+    "constructionNotes": "印は百二十の升目に描かれています。尾根の線は幅九、返る線は幅五で、これは元の音に対する返り音の減衰にあたります。折れ点はすべて升目の交点にあります。"
+  }
+}

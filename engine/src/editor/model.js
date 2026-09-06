@@ -332,23 +332,113 @@ function history(initial, limit = 60) {
 const CHAR_EM = 0.55;
 const SPACE_EM = 0.16;
 
+// The width of a character is not a guess: it is in the font. These are the
+// advances of every character this engine sets, measured off Archivo and
+// Literata and taking the wider of the two, as a character followed by three
+// digits of hundredths of an em.
+//
+// 0.55 was an average fitted in the fourteenth round against the strings the
+// engine set then, and it held: none of that round's 540 measurements was
+// under-counted. The corpus grew — a project with prose in every field arrived
+// in the same round, and three more since — and the average stopped holding.
+// Measured again against 540 browser measurements it now under-counts 65 of
+// them, worst by two lines. Raising the single average to 0.61 restores the
+// rule and costs most of the accuracy: 29 per cent exactly right against 46.
+// The table costs 428 characters and gets zero under-counts at 47 per cent
+// exact, because it is not standing in for anything.
+const ADVANCE = "0058105820583058405850576058705880589057 020!032\"044#067$056%097&081'025(036)036*045+064,033-035.033/043:034;034<064=064>064?061@100A073B071C072D077E067F061G079H084I041J059K075L064M100N083O078P067Q078R072S067T074U081V074W109X071Y071Z066[034\\043]034^064_051`050a056b061c055d061e056f039g059h066i033j031k061l034m097n066o060p062q060r047s054t040u063v059w086x057y057z051{039|042}039~064£058€069—100–050‘033’033“053”053·033×064÷064…097";
+const ADV = (() => {
+  const m = {};
+  for (let i = 0; i < ADVANCE.length; i += 4) m[ADVANCE[i]] = Number(ADVANCE.slice(i + 1, i + 4)) / 100;
+  return m;
+})();
+// Five per cent of headroom, because two faces were measured and a document may
+// be set in a third, and the rule is that this must never say a passage is
+// shorter than it is.
+const SAFETY = 1.05;
+// Every one of eighteen identities was written in an alphabet, and Japanese is
+// not. A full-width character is exactly 1 em — measured off the face this
+// identity ships, 2048/2048 — against the 0.55 fitted for Latin, and Japanese
+// has no spaces, so `para.split(/\s+/)` returned the whole paragraph as one
+// unbreakable word and the counter answered "one line" to anything. Against 270
+// browser measurements it under-counted 235 of them, worst case one line where
+// the browser took sixteen — on the check whose entire reason for existing is
+// that it must never say a passage is shorter than it is.
+const WIDE_EM = 1.0;
+function isWide(ch) {
+  const c = ch.codePointAt(0);
+  return (c >= 0x1100 && c <= 0x115F)        // Hangul Jamo
+    || (c >= 0x2E80 && c <= 0x303E)          // CJK radicals, Kangxi, CJK punctuation
+    || (c >= 0x3041 && c <= 0x33FF)          // kana, Bopomofo, Hangul compatibility
+    || (c >= 0x3400 && c <= 0x4DBF)          // CJK extension A
+    || (c >= 0x4E00 && c <= 0x9FFF)          // CJK unified ideographs
+    || (c >= 0xA000 && c <= 0xA4CF)          // Yi
+    || (c >= 0xAC00 && c <= 0xD7A3)          // Hangul syllables
+    || (c >= 0xF900 && c <= 0xFAFF)          // CJK compatibility ideographs
+    || (c >= 0xFE30 && c <= 0xFE4F)          // CJK compatibility forms
+    || (c >= 0xFF00 && c <= 0xFF60)          // full-width forms
+    || (c >= 0xFFE0 && c <= 0xFFE6)
+    || (c >= 0x20000 && c <= 0x3FFFD);       // CJK extensions B and beyond
+}
+
+// Kinsoku: characters Japanese setting will not let a line begin with. A comma
+// cannot be orphaned at the head of a line, so it binds to the character before
+// it and the pair moves down together. Ignoring this under-counted five of 270
+// browser measurements by a line each — small, and the wrong direction, which
+// is the only direction that matters here.
+const NO_START = '、。，．：；・？！ヽヾゝゞ々ー’”）〕］｝〉》」』】、〜?!。'
+  + 'ぁぃぅぇぉっゃゅょゎゕゖァィゥェォッャュョヮヵヶ';
+// and the mirror: a line will not end on an opening bracket, so it binds to
+// what follows.
+const NO_END = '‘“（〔［｛〈《「『【';
+
+// What a line may be broken into. A run of letters between spaces is one piece,
+// the way it always was; a full-width character is a piece of its own, because
+// a line of Japanese may break between almost any two of them. Mixed text —
+// which is how Japanese is actually written — falls out of the same walk.
+function pieces(para) {
+  const out = [];
+  let word = '', space = false, bindNext = false;
+  const push = (chars, wide) => { out.push({ chars, wide, space }); space = false; };
+  const flush = () => { if (word) { push(word, false); word = ''; } };
+  for (const ch of String(para)) {
+    if (/\s/.test(ch)) { flush(); space = true; continue; }
+    if (isWide(ch)) {
+      flush();
+      const last = out[out.length - 1];
+      // a character that may not start a line joins the one before it, and one
+      // that may not end a line takes the next with it
+      if ((NO_START.indexOf(ch) > -1 || bindNext) && last && last.wide) last.chars += 1;
+      else push(1, true);
+      bindNext = NO_END.indexOf(ch) > -1;
+    } else { word += ch; bindNext = false; }
+  }
+  flush();
+  return out;
+}
+
 // Greedy wrap, the way a browser and Typst both break a line: a word that does
 // not fit starts a new one. Counting characters and dividing would under-count,
 // because a line ends at the last space that fits and not at the last character.
 function textLines(text, step, width) {
   const size = (step && step.size) || 16;
-  const charW = size * (CHAR_EM + ((step && step.tracking) || 0));
-  const spaceW = size * SPACE_EM;
-  const w = Math.max(charW, width);
+  const track = (step && step.tracking) || 0;
+  const charW = size * (CHAR_EM * SAFETY + track);          // anything unmeasured
+  const wideW = size * (WIDE_EM + track);
+  const spaceW = size * (ADV[' '] * SAFETY + track);
+  const advance = (ch) => size * ((ADV[ch] == null ? CHAR_EM : ADV[ch]) * SAFETY + track);
+  const w = Math.max(wideW, width);
   let lines = 0;
   for (const para of String(text == null ? '' : text).split('\n')) {
-    const words = para.split(/\s+/).filter(Boolean);
-    if (!words.length) { lines += 1; continue; }
+    const parts = pieces(para);
+    if (!parts.length) { lines += 1; continue; }
     let n = 1, run = 0;
-    for (const word of words) {
-      const ww = word.length * charW;
-      const gap = run === 0 ? 0 : spaceW;
-      // a word longer than the line gets the line to itself and spills, which
+    for (const part of parts) {
+      let ww;
+      if (part.wide) ww = part.chars * wideW;
+      else { ww = 0; for (const ch of part.chars) ww += advance(ch); }
+      const gap = run === 0 || !part.space ? 0 : spaceW;
+      // a piece longer than the line gets the line to itself and spills, which
       // is what both renderers do rather than breaking inside it
       if (run + gap + ww > w && run > 0) { n += 1; run = ww; } else run += gap + ww;
     }
@@ -388,6 +478,6 @@ function overfullText(doc, type) {
 }
 
 return { PLAIN, DERIVED, RULE, KINDS, kindOf, DEFAULTS, SIZES, PAGE, GRID, seedIds, resetIds, overfullText,
-  SHEETS, sheet, pageSize, printSpec, toPx, reflow, recognise, CHAR_EM, SPACE_EM, textLines, textFits,
+  SHEETS, sheet, pageSize, printSpec, toPx, reflow, recognise, CHAR_EM, SPACE_EM, WIDE_EM, isWide, textLines, textFits,
   makeBlock, makePage, emptyDoc, ops, history, clone, snap, findPage };
 }));

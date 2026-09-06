@@ -377,7 +377,7 @@ publishing, all three kinds of block, image slots, page sizes and the
 photography treatment, print work with bleed, CMYK, and a printed piece through
 Typst, mockups, the licence half of accounts, and a local app that takes artwork
 and gives back the package without anybody writing a project file. 138 files from one master,
-355 tests, and seventeen more identities in the repo that the engine had not been
+359 tests, and eighteen more identities in the repo that the engine had not been
 written against.
 
 Three things the plan had wrong, found by building rather than by thinking.
@@ -1193,6 +1193,36 @@ to close at the certified minimum size, making the floor a lie. Measured, it doe
 not: the bars separate at 116 px and collapse around 48. That is worth writing
 down, because the next person to suspect it can read the measurement instead of
 repeating the work.
+
+**A constant fitted against a corpus expires when the corpus grows.** 0.55 was
+fitted in the fourteenth round and under-counted none of that round's 540
+browser measurements. The claim was true when it was written and false within
+the same round — the identity with prose in every field landed in it — and
+nothing re-ran the experiment, because the experiment lived in a session rather
+than in the repository. Re-measured, it under-counted 65 of 540. Any number
+described as "fitted against measurements" needs those measurements checked in
+and asserted against, or the sentence in the comment slowly becomes a lie about
+code nobody changed.
+
+**A safety property is only as wide as the inputs it was tested on.** "Never say
+a passage takes fewer lines than it does" held for Latin and failed by a factor
+of sixteen on the first script that does not put spaces between words. The
+counter did not break; it was never true of Japanese, and nothing had asked. A
+property worth stating is worth a list of the input classes it was established
+over, so the next class can be noticed as absent.
+
+**When a heuristic is standing in for something measurable, measure it.** 0.55
+was an average pretending to be a character width. The advances are in the font.
+Baking 428 characters of table gets zero under-counts at 47 per cent exact where
+raising the average to 0.61 gets zero under-counts at 29 per cent, and the table
+is not an approximation of anything — `W` really is 1.09 em and `i` really is
+0.33.
+
+**Keep the evidence, not the conclusion.** The 810 browser measurements are now
+`test/fixtures/line-measurements.json` and the suite asserts the rule against
+every one. They cost a browser run to obtain and would have cost the same again
+each time somebody wondered. A number in a comment is a claim; a fixture is a
+check.
 
 ---
 

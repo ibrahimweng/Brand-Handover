@@ -4619,6 +4619,77 @@ test('the simplified icon the engine asks for is the one the icons are cut from'
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+// ---- counting lines in a script that has no spaces ----
+
+const YB = projectLoader.load(path.join(__dirname, '..', 'projects', 'yamabiko', 'project.json'));
+
+test('the line counter never says a passage is shorter than it is', () => {
+  // The rule the fourteenth round set, checked against every measurement taken
+  // from a real browser rather than against itself. Over-counting costs a
+  // designer a warning they did not need; under-counting is text printed over
+  // whatever is below it, which is the failure this check exists to prevent.
+  const m = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'line-measurements.json'), 'utf8'));
+  assert.ok(m.rows.length >= 800, 'the measurements have gone missing');
+  const M = require('../src/editor/model');
+  const under = [];
+  let exact = 0;
+  for (const r of m.rows) {
+    const said = M.textLines(r.text, { size: r.size }, r.width);
+    if (said < r.lines) under.push({ ...r, said, text: r.text.slice(0, 40) });
+    if (said === r.lines) exact++;
+  }
+  assert.deepStrictEqual(under, [], `${under.length} passages counted short, worst ${JSON.stringify(under[0])}`);
+  // and it should still be worth having: a counter that answers "a hundred" to
+  // everything never under-counts either
+  assert.ok(exact / m.rows.length > 0.55, `only ${Math.round(100 * exact / m.rows.length)}% exactly right`);
+});
+
+test('a script without spaces is counted by the line, not by the paragraph', () => {
+  const M = require('../src/editor/model');
+  // `para.split(/\s+/)` gave back the whole paragraph as one unbreakable word,
+  // so the counter answered "one line" to any amount of Japanese.
+  const ja = YB.content.introduction;
+  assert.ok(ja.length > 80 && !/\s/.test(ja), 'the fixture stopped being a spaceless paragraph');
+  const step = { size: 17, leading: 30 };
+  assert.ok(M.textLines(ja, step, 520) >= 3, 'a hundred characters still fit on one line');
+  // it scales with the width, which "one line" never did
+  const narrow = M.textLines(ja, step, 240), wide = M.textLines(ja, step, 640);
+  assert.ok(narrow > wide, `${narrow} lines at 240px against ${wide} at 640px`);
+
+  // a full-width character is an em, not the 0.55 fitted for latin
+  assert.strictEqual(M.WIDE_EM, 1);
+  assert.ok(M.isWide('山') && M.isWide('ぁ') && M.isWide('。') && M.isWide('Ａ'));
+  assert.ok(!M.isWide('a') && !M.isWide('&') && !M.isWide(' '));
+
+  // and a comma may not open a line, so it travels with the character before it
+  assert.strictEqual(M.textLines('あ、'.repeat(10), { size: 20 }, 200),
+    M.textLines('あ'.repeat(20), { size: 20 }, 200) + 0, 'kinsoku is not being applied');
+});
+
+test('mixed Japanese and latin is measured as both', () => {
+  const M = require('../src/editor/model');
+  // Japanese is written with latin in it — years, formats, product names — and
+  // the two have different widths in the same line.
+  const step = { size: 17 };
+  const mixed = '母屋は1923年に建てられた蚕室です。RIAA特性で再生します。';
+  const lines = M.textLines(mixed, step, 300);
+  assert.ok(lines >= 2, `${lines} line for a passage that cannot fit one`);
+  // the latin part is narrower than the same number of full-width characters
+  assert.ok(M.textLines('RIAARIAA', step, 300) < M.textLines('母屋母屋母屋母屋', step, 300) + 1);
+});
+
+test("a character's width is measured off the face, not averaged", () => {
+  const M = require('../src/editor/model');
+  const step = { size: 20 };
+  // 'W' is 1.09 em in these faces and 'i' is 0.33: an average cannot tell them
+  // apart, and a line of one holds three times as many as a line of the other.
+  const wides = M.textLines('W '.repeat(40), step, 400);
+  const narrows = M.textLines('i '.repeat(40), step, 400);
+  assert.ok(wides > narrows, `40 W took ${wides} lines and 40 i took ${narrows}`);
+  // the fallback is still there for anything unmeasured
+  assert.strictEqual(M.CHAR_EM, 0.55);
+});
+
 drain().then(() => {
   for (const d of [out, out2]) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);

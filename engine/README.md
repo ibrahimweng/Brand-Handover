@@ -2042,6 +2042,66 @@ they collapse around 48. The floor is honest, and the reason to say so is that
 a defect I went looking for and did not find is a defect somebody else does not
 have to go looking for.
 
+## A nineteenth identity
+
+Eighteen identities, and the audit fits in one line: **every one of them is
+written in an alphabet.** Maayan is Hebrew, which reads the other way but is
+still letters separated by spaces. Nothing had ever been set in a script that
+does not put spaces between words.
+
+**山彦** — Yamabiko, an echo — is a recording studio in a converted silk-worn
+house. Its name is two characters, its prose is Japanese, and it ships the face
+it is set in.
+
+The line counter answered **one line** to any amount of it.
+
+    const words = para.split(/\s+/).filter(Boolean);
+
+Japanese has no spaces, so a paragraph came back as a single unbreakable word,
+and the greedy wrap has nothing to break. The width was wrong as well: a
+full-width character is exactly one em — measured off the shipped face, 2048 of
+2048 — against the 0.55 fitted for Latin.
+
+This matters more than a wrong number usually does, because of what the counter
+is for. The fourteenth round established it under one rule: *never say a passage
+takes fewer lines than it does, because a check that misses an overflow is worse
+than one that mentions a near miss.* Text that does not fit is swallowed on
+screen and printed over whatever is beneath it. Measured against 270 browser
+measurements of Japanese, the counter under-counted **235 of them** — worst case
+one line where the browser took sixteen.
+
+It breaks a paragraph into pieces now: a run of letters between spaces is one
+piece as it always was, and a full-width character is a piece of its own,
+because a line of Japanese may break between almost any two. Kinsoku is in
+there too — a comma may not open a line, so it binds to the character before it
+— which was worth five of the remaining under-counts. Japanese now runs **270 of
+270 exactly right, none short.**
+
+Then the Latin half, which was the surprise.
+
+**The 0.55 had quietly stopped holding.** It was fitted in the fourteenth round
+and under-counted none of that round's 540 measurements. The corpus grew — a
+project with prose in every field arrived in the same round, and three more
+since — and re-measuring the same way found **65 of 540 under-counted**, worst by
+two lines. Raising the single average to 0.61 restores the rule and throws away
+most of the accuracy: 29 per cent exactly right against 46.
+
+So it is not an average any more. The advance of every character this engine
+sets is measured off Archivo and Literata, the wider of the two, and baked in as
+428 characters of table with five per cent of headroom. `W` is 1.09 em and `i`
+is 0.33; no average can tell them apart, and a line of one holds three times as
+many as a line of the other.
+
+Across all 810 measurements, both scripts:
+
+    under-counted   300  ->  0
+    exactly right   35%  ->  65%
+    mean error     1.48  ->  0.75
+
+The measurements are in `test/fixtures/line-measurements.json` and the suite
+checks the rule against every one of them, because the only evidence a counter
+tells the truth is a browser that was asked.
+
 ## A front door
 
 Sixteen rounds, and the only way into the engine was to hand-write a project
@@ -2154,6 +2214,7 @@ the mechanism. The name was the cause, and renaming the payload is the fix.
     projects/saltmarsh/ the sixteenth: the identity is the photography
     projects/winterbourne/ the seventeenth: a licensed typeface, shipped with it
     projects/ravelston/ the eighteenth: an engraved crest, and an icon of its own
+    projects/yamabiko/ the nineteenth: Japanese, which has no spaces in it
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package
