@@ -377,7 +377,7 @@ publishing, all three kinds of block, image slots, page sizes and the
 photography treatment, print work with bleed, CMYK, and a printed piece through
 Typst, mockups, the licence half of accounts, and a local app that takes artwork
 and gives back the package without anybody writing a project file. 138 files from one master,
-348 tests, and fifteen more identities in the repo that the engine had not been
+352 tests, and sixteen more identities in the repo that the engine had not been
 written against.
 
 Three things the plan had wrong, found by building rather than by thinking.
@@ -1126,6 +1126,36 @@ is simply always present on a machine with a checkout on it. The way to catch
 that class before shipping is to build the tree the deploy would actually get —
 the functions, the dependencies, and nothing else — and run from inside it. That
 directory reproduced the exact error, to the byte, and then proved the fix.
+
+**Audit the field nobody has ever varied, not the one you are curious about.**
+Every typeface in every fixture was `google: true` — sixteen identities, six
+families, one line of Python to find it. The whole of typography, which is half
+of most identities, had exactly one code path and it was the wrong one for the
+commonest real case. The audits that have paid best are all the same shape: list
+every key a project may set, count how many projects set each, and look at the
+zeroes and the unanimities. A field where every fixture agrees is a field with
+one path through it.
+
+**A specimen that shows the wrong thing is worse than no specimen.** The manual's
+type page named the licensed face above a paragraph set in Georgia, because no
+`@font-face` was ever written. Nothing was missing from the page; the page was
+confidently wrong, and it is the page whose entire job is to prove what the
+typeface looks like. An absent feature has no symptom, which is bad. A feature
+that answers wrongly and looks right is worse.
+
+**Where a document is generated four times, the question gets four answers.**
+`fontLink` existed in `chrome.js`, `emit.js`, `deck.js` and `publish.js`, and one
+of them also fetched a monospace nobody had chosen. They are one module now. The
+tell is easy to look for and worth looking for: the same function name in more
+than one file.
+
+**The app and the fixture found the same hole from opposite ends.** Winterbourne
+could not be built because the engine had no way to carry a typeface; the app had
+never asked what the typeface was, and hard-coded two into every project it made.
+Neither would have found it alone — the fixture rounds never varied the field,
+and the app was a form that collected what the engine already accepted. Building
+the front door and inventing the hard identity are the same activity pointed at
+different halves of the same gap.
 
 ---
 

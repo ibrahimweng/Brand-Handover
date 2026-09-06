@@ -1939,6 +1939,58 @@ component* — which is the right refusal, because a translucent wash over a
 photograph is not something a press does with an ink. It is part of the picture
 by the time it gets there, so it becomes part of the picture here.
 
+## A seventeenth identity
+
+The audit this time was one line long: **every typeface in every fixture was
+`google: true`.** Sixteen identities, six distinct families, and not one of them
+licensed, self-hosted or drawn for the brand — which is what most serious
+identities are built on, and the only path the engine had never taken.
+
+**Winterbourne** is a chamber orchestra whose identity *is* its typography. Its
+logotype is set in its own display face and outlined, so the wordmark and the
+headline of a programme note are the same drawing. It ships the faces it is
+licensed to ship, subsetted to the characters a brand actually sets:
+
+    "display": {
+      "family": "Liberation Serif",
+      "files": [{ "file": "fonts/liberation-serif-regular.ttf", "weight": 400 }],
+      "licence": "SIL Open Font Licence 1.1. It may be redistributed with this package…"
+    }
+
+Four defects, and the first was in the way in.
+
+**A type scale written the way a designer would write it crashed the build.**
+`"scale": { "base": 16, "ratio": 1.25 }` is what anybody would put down cold. It
+reached the document layer and came back as `(t.scale || []).map is not a
+function`. `tokens.type` was the one token block nobody had ever validated — the
+artwork is checked, the rules are checked, the colours are canonicalised, and
+the typography was taken entirely on faith. A crash is not a refusal.
+
+**A typeface not hosted by Google reached no document at all.** Both emitters
+filtered families to `f.google`, so a licensed face got no `@font-face`,
+silently. The CSS asked for `'Liberation Serif', Georgia, serif` and every
+reader saw Georgia — including on the manual's type specimen page, which carried
+the licensed name above type set in the fallback. **A specimen that shows the
+wrong face is worse than no specimen, because it is offered as proof.** Nothing
+warned. Four documents answered this question in three places and now answer it
+in one, `src/typeface.js`: a face that ships is inlined, a face somebody else
+hosts is linked, and one that is neither is named in a warning that says what
+the reader will actually see instead.
+
+**Every document fetched a typeface the identity never chose.** The manual's own
+furniture named Schibsted Grotesk and the deck's named Spline Sans Mono, hard
+coded. For Winterbourne that was the *only* webfont the deck loaded: a font from
+nobody's identity, while the identity's own was absent.
+
+**The printed piece asked for fonts the project was already carrying.** `handover
+print` named the families and told you to go and find the files — which were
+sitting in the project. It writes them out and points Typst at them now, and the
+PDF embeds `LiberationSerif-Bold` rather than a substitute.
+
+The faces travel too: `09-type/` with the files and a `LICENCE.txt` beside them,
+because a licence is the half of a typeface that is not in the file, and a client
+handed webfonts needs to know what they may do with them.
+
 ## A front door
 
 Sixteen rounds, and the only way into the engine was to hand-write a project
@@ -2049,11 +2101,13 @@ the mechanism. The name was the cause, and renaming the payload is the fix.
     projects/beaumont/  the fourteenth: a long name and prose in every field
     projects/yarrow/    the fifteenth: all four rule blocks, each overridden in part
     projects/saltmarsh/ the sixteenth: the identity is the photography
+    projects/winterbourne/ the seventeenth: a licensed typeface, shipped with it
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package
     src/build.js      write the package, brand.json and the read me
     src/cli.js        check, measure, build, edit and publish
+    src/typeface.js   how a typeface reaches a document, decided once
     src/app/          the front door: handlers.js, server.js, client.html
     ../api/           the same two handlers, as functions, for hosting it
     ../site/build.js  every identity, built into one site, index and all

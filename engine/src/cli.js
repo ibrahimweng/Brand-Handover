@@ -324,7 +324,26 @@ async function main(argv) {
     for (const [name, bytes] of Object.entries(out.files)) fs.writeFileSync(path.join(dir, name), bytes);
 
     console.log(`  wrote ${stem}.typ${Object.keys(out.files).length ? ` and ${Object.keys(out.files).length} image file(s)` : ''} to ${path.relative(process.cwd(), dir)}`);
-    if (out.fonts.length) console.log(`  needs the fonts: ${out.fonts.join(', ')}. Pass --fonts <dir> so Typst can find them.`);
+    // A project that ships its typeface has already answered this. The print
+    // path used to name the families and ask the designer to go and find the
+    // files that were sitting in the project all along.
+    const shipped = new Set();
+    if ((project.fonts || []).length) {
+      const fdir = path.join(dir, 'fonts');
+      fs.mkdirSync(fdir, { recursive: true });
+      for (const fam of project.fonts) {
+        shipped.add(fam.family);
+        for (const f of fam.files) {
+          fs.writeFileSync(path.join(fdir, path.basename(f.file)), Buffer.from(f.src.split(',')[1], 'base64'));
+        }
+      }
+      console.log(`  wrote the identity's ${shipped.size === 1 ? 'typeface' : 'typefaces'} to fonts/, so Typst sets the piece in ${[...shipped].join(' and ')}`);
+    }
+    const missing = out.fonts.filter((f) => !shipped.has(f));
+    if (missing.length) {
+      console.log(`  needs the fonts: ${missing.join(', ')}. Pass --fonts <dir> so Typst can find them,`
+        + ' or list the files under the family in the project so they travel with it.');
+    }
     if (out.screenColours.length) {
       console.log(`  ${out.screenColours.length} colour(s) had no declared build and are written as screen colour: ${out.screenColours.join(', ')}`);
       console.log(`  run "handover check ${path.basename(file)} --print" before sending this anywhere.`);
@@ -351,7 +370,8 @@ async function main(argv) {
     }
 
     const fi = argv.indexOf('--fonts');
-    const fontPath = fi > -1 ? argv[fi + 1] : null;
+    // the project's own fonts, unless somebody named a directory of their own
+    const fontPath = fi > -1 ? argv[fi + 1] : (shipped.size ? path.join(dir, 'fonts') : null);
     const ti = argv.indexOf('--typst');
     const bin = ti > -1 ? argv[ti + 1] : which('typst');
     if (!bin) {
@@ -366,7 +386,8 @@ async function main(argv) {
     const warnings = (r.stderr || '').match(/unknown font family: (\S+)/g) || [];
     if (warnings.length) {
       console.log(`  Typst could not find ${[...new Set(warnings.map((w) => w.split(': ')[1]))].join(', ')}`
-        + ' and substituted. Pass --fonts <dir> with the real files before printing.');
+        + ' and substituted. List the files under the family in the project so they travel with it,'
+        + ' or pass --fonts <dir> with the real files before printing.');
     }
     if (r.status !== 0) { console.error((r.stderr || 'typst failed').trim()); return 1; }
     const bytes = fs.statSync(path.join(dir, `${stem}.pdf`)).size;

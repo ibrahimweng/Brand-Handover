@@ -132,7 +132,7 @@ function guidelines(ctx) {
     Contrast ratios follow WCAG 2.2. CMYK is converted from hex and should be soft proofed against an ICC profile before print.<br>
     ${b.esc(p.brand)} ${b.esc(p.version)} · ${ctx.files.length} files in the package.
   </footer>`;
-  return shell({ title: `${p.brand} Brand Manual`, type: p.tokens.type, body,
+  return shell({ title: `${p.brand} Brand Manual`, type: p.tokens.type, fonts: p.fonts, body,
     language: p.language, direction: p.direction });
 }
 

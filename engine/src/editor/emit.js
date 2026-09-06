@@ -10,11 +10,9 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
 // A brand name is project text, and it is allowed to contain an ampersand.
 const esc = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const fontLink = (type) => {
-  const fams = Object.values((type && type.families) || {}).filter((f) => f.google)
-    .map((f) => `family=${encodeURIComponent(f.family).replace(/%20/g, '+')}:wght@${(f.weights || [400]).join(';')}`);
-  return fams.length ? `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?${fams.join('&')}&display=swap">` : '';
-};
+// One answer for four documents: src/typeface.js, worked out in bundle.js and
+// carried here, so the bytes of a shipped typeface sit in this file once.
+const fontLink = (bu) => bu.fontHead || '';
 
 const CSS = `
 :root{--bg:#141618;--pane:#1B1E20;--line:#2A2E31;--ink:#ECEEF0;--dim:#8D949B;--sel:#3B82F6;--danger:#E8695F;
@@ -162,7 +160,7 @@ function editorHtml(project, measured, files) {
   return `<!doctype html><html lang="${esc(project.language || 'en')}" dir="${esc(project.direction || 'ltr')}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(bu.brand)} · editor</title>
-${fontLink(bu.type)}
+${fontLink(bu)}
 <style>${CSS}</style></head><body>
 <div class="app">
   <div class="bar">

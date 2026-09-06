@@ -117,6 +117,58 @@ function load(file) {
     }
   }
 
+  // Eight rounds of checking the artwork and the rules, and `tokens.type` was
+  // never looked at once. A scale written as `{ base: 16, ratio: 1.25 }` — which
+  // is how a designer would write a type scale if you asked them cold — got as
+  // far as the document layer and came back as
+  // `(t.scale || []).map is not a function`. A crash is not a refusal.
+  const type = (raw.tokens || {}).type;
+  if (type !== undefined) {
+    if (typeof type !== 'object' || Array.isArray(type)) {
+      problems.push('tokens.type is not an object. It holds "families" and "scale".');
+    } else {
+      const fams = type.families;
+      if (fams !== undefined && (typeof fams !== 'object' || Array.isArray(fams))) {
+        problems.push('tokens.type.families is not an object. It maps a role — display, text, mono —'
+          + ' to a typeface, like "display": { "family": "Archivo", "google": true }.');
+      } else {
+        for (const [role, f] of Object.entries(fams || {})) {
+          if (!f || typeof f !== 'object') {
+            problems.push(`tokens.type.families.${role} is not an object.`); continue;
+          }
+          if (!f.family || typeof f.family !== 'string') {
+            problems.push(`the ${role} typeface has no "family" name, so every document would ask`
+              + ' the browser for nothing and quietly set whatever it had.');
+          }
+          if (f.weights !== undefined && !Array.isArray(f.weights)) {
+            problems.push(`tokens.type.families.${role}.weights is not a list of numbers.`);
+          }
+        }
+      }
+      if (type.scale !== undefined) {
+        if (!Array.isArray(type.scale)) {
+          problems.push('tokens.type.scale is not a list. It is the type scale in order —'
+            + ' [{ "name": "H1", "family": "display", "size": 38, "leading": 42, "weight": 600 }, ...] —'
+            + ' because a document sets named steps, not a base and a ratio.');
+        } else {
+          for (const [i, step] of type.scale.entries()) {
+            const at = `tokens.type.scale[${i}]`;
+            if (!step || typeof step !== 'object') { problems.push(`${at} is not an object.`); continue; }
+            if (!step.name) problems.push(`${at} has no "name", so nothing can ask for it by name.`);
+            if (!(Number(step.size) > 0)) {
+              problems.push(`${at} ("${step.name || '?'}") has a size of ${JSON.stringify(step.size)},`
+                + ' which is not a size anything can be set at.');
+            }
+            if (step.family && fams && !fams[step.family]) {
+              problems.push(`${at} ("${step.name || '?'}") is set in "${step.family}", and`
+                + ` tokens.type.families has ${Object.keys(fams).join(', ') || 'nothing'} in it.`);
+            }
+          }
+        }
+      }
+    }
+  }
+
   if (problems.length) throw new Error('This project file is not usable yet:\n  - ' + problems.join('\n  - '));
 
   // A designer may write a colour however their tool writes it. Everything
@@ -207,6 +259,41 @@ function load(file) {
       w: size.w, h: size.h, src: `data:${mime};base64,${bytes.toString('base64')}`,
       caption: (typeof entry === 'object' && entry.caption) || '' });
   }
+  // ---- the typeface the identity is actually set in ----
+  // Every fixture for sixteen rounds declared google: true, so the only path
+  // that had ever run was a link to a font somebody else hosts. A brand built
+  // on a licensed face — which is most of them — reached no document at all:
+  // the family was named in the CSS, no @font-face was ever written, and the
+  // page fell through to the fallback while the manual's specimen page carried
+  // the licensed name above type set in Georgia. A specimen that shows the
+  // wrong face is worse than no specimen, because it is offered as proof.
+  const FONT = { '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.otf': 'font/otf' };
+  const FORMAT = { '.woff2': 'woff2', '.woff': 'woff', '.ttf': 'truetype', '.otf': 'opentype' };
+  const fonts = [];
+  for (const [role, fam] of Object.entries(((raw.tokens || {}).type || {}).families || {})) {
+    const carried = [];
+    for (const entry of fam.files || []) {
+      const rel = typeof entry === 'string' ? entry : entry.file;
+      const fp = path.join(dir, rel);
+      if (!fs.existsSync(fp)) {
+        throw new Error(`the ${role} typeface lists ${rel}, and that file is not there.`);
+      }
+      const ext = path.extname(fp).toLowerCase();
+      if (!FONT[ext]) {
+        throw new Error(`the ${role} typeface lists ${rel}, which is not a font file. `
+          + `Use ${Object.keys(FONT).join(', ')}. A .pfb or a .dfont cannot be shown in a browser.`);
+      }
+      const bytes = fs.readFileSync(fp);
+      carried.push({
+        file: rel, path: fp, mime: FONT[ext], format: FORMAT[ext], bytes: bytes.length,
+        weight: (typeof entry === 'object' && entry.weight) || 400,
+        style: (typeof entry === 'object' && entry.style) || 'normal',
+        src: `data:${FONT[ext]};base64,${bytes.toString('base64')}`,
+      });
+    }
+    if (carried.length) fonts.push({ role, family: fam.family, licence: fam.licence || '', files: carried });
+  }
+
   const needs = { horizontal: ['mark', 'wordmark'], stacked: ['mark', 'wordmark'], mark: ['mark'], wordmark: ['wordmark'] };
   for (const l of rules.lockups) {
     const want = (needs[l] || []).filter((a) => !assets[a]);
@@ -244,7 +331,7 @@ function load(file) {
   // here, which meant every rule override in a project file was read as absent
   // and the defaults quietly won. Nothing complained, because a default is a
   // perfectly good answer right up until somebody wanted a different one.
-  return { brand: raw.brand, latinName, language, direction, version: raw.version || '0.0.0', dir, tokens, assets, photography, rules, master,
+  return { brand: raw.brand, latinName, language, direction, version: raw.version || '0.0.0', dir, tokens, assets, photography, fonts, rules, master,
     system: raw.system || {}, content: raw.content || {}, report };
 }
 

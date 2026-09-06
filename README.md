@@ -122,7 +122,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 138 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 348 tests.
+of it. 352 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -516,7 +516,27 @@ to press untreated** — the same document showed a brand picture in the brand's
 own colours on the page it publishes and in whatever the camera saw on the page
 it prints, with nothing said about either.
 
-Still to do: a run on **your** identity job. Fifteen identities the engine had
-not seen is worth a great deal more than fifteen passes over one, but none of
+The seventeenth needed one line of Python to find: **every typeface in every
+fixture was `google: true`.** Sixteen identities, six families, and not one
+licensed — which is what most serious identities are built on, and the only path
+the engine had never taken. **Winterbourne** is a chamber orchestra whose
+identity is its typography, and it ships the faces it is licensed to ship.
+
+A type scale written the way a designer would write one — `{ "base": 16,
+"ratio": 1.25 }` — **crashed the build**, because `tokens.type` was the one
+token block nobody validated. A typeface not hosted by Google **reached no
+document at all**: the CSS named it and every reader saw the fallback, including
+on the manual's type specimen page, which carried the licensed name above type
+set in Georgia. A specimen that shows the wrong face is worse than no specimen,
+because it is offered as proof. And every document was **fetching a typeface the
+identity never chose**, because the documents' own furniture hard-coded two.
+
+The app found the same hole from the other end: it had never asked what the
+typeface was, and hard-coded Archivo and Literata into every project it built.
+It asks now, and the interface it asks in was rebuilt around what a designer
+actually does — see `docs/app-ux-plan.md`.
+
+Still to do: a run on **your** identity job. Sixteen identities the engine had
+not seen is worth a great deal more than sixteen passes over one, but none of
 them came out of your exporter — and the normaliser is the part that most needs
 to meet one.

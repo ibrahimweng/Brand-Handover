@@ -10,11 +10,11 @@
   'use strict';
   const esc = R.esc;
 
-  const fontLink = (type) => {
-    const fams = Object.values((type && type.families) || {}).filter((f) => f.google)
-      .map((f) => 'family=' + encodeURIComponent(f.family).replace(/%20/g, '+') + ':wght@' + (f.weights || [400]).join(';'));
-    return fams.length ? `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?${fams.join('&')}&display=swap">` : '';
-  };
+  // A fourth copy of this used to live here and only knew about fonts Google
+  // hosts. It is worked out once in Node by src/typeface.js and travels in the
+  // bundle, because this module also runs in a browser and a second answer is
+  // a second thing to disagree with the manual.
+  const fontLink = (bundle) => bundle.fontHead || '';
 
   const CSS = () => `
 :root{--shell:#15181A;--ink:#E9EBEC;--dim:#8A9198;--line:#2A2E31}
@@ -168,7 +168,7 @@ html,body{margin:0;background:var(--shell);color:var(--ink);font-family:ui-sans-
     return `<!doctype html><html lang="${esc(bundle.language || 'en')}" dir="${esc(bundle.direction || 'ltr')}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(bundle.brand)}${o.title ? ' · ' + esc(o.title) : ''}</title>
-${fontLink(bundle.type)}
+${fontLink(bundle)}
 <style>${CSS()}${pageCss(sh)}${BLOCK_CSS}</style></head><body>
 <div class="hp-bar">
   <b>${esc(bundle.brand)}</b><span>${esc(bundle.version)}</span>

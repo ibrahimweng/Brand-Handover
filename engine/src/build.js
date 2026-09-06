@@ -351,6 +351,45 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     }
   }
 
+  // ---- the typeface, where the identity ships one ----
+  // A client who is handed webfonts needs the files and needs to be told what
+  // they may do with them, because a licence is the half of a typeface that is
+  // not in the file.
+  const TF = require('./typeface');
+  for (const fam of project.fonts || []) {
+    for (const f of fam.files) {
+      write(`09-type/${path.basename(f.file)}`, Buffer.from(f.src.split(',')[1], 'base64'));
+      if (f.bytes > 400 * 1024) {
+        warnings.push(`${path.basename(f.file)} is ${Math.round(f.bytes / 1024)} KB, and every document `
+          + `carries it inline. Subset the face to the characters the brand actually sets, or the manual, `
+          + `the deck and the canvas each grow by that much.`);
+      }
+    }
+  }
+  if ((project.fonts || []).length) {
+    const terms = project.fonts.filter((f) => f.licence)
+      .map((f) => `${f.family}\n  ${f.licence}`).join('\n\n');
+    write('09-type/LICENCE.txt', `The typefaces in this folder\n`
+      + `${'='.repeat(27)}\n\n`
+      + `These files are part of the identity and are supplied with it. A typeface\n`
+      + `is licensed, not owned, and the terms below travel with the files.\n\n`
+      + (terms || 'No terms were stated in the project. Ask whoever supplied the typeface\n'
+        + 'before putting it on a website or passing it on.') + '\n');
+    notes.push(`the ${project.fonts.length === 1 ? 'typeface is' : 'typefaces are'} in 09-type, `
+      + `with the licence terms beside them, and inlined in every document so nothing has to be installed to read one.`);
+  }
+  // A face named in the tokens that is neither hosted nor shipped will be asked
+  // for by name and silently replaced by the fallback, while the manual's
+  // specimen page goes on saying it is the face. Nothing said so for sixteen
+  // rounds, because every fixture happened to use a font Google hosts.
+  for (const miss of TF.unreachable(project.tokens.type, project.fonts)) {
+    warnings.push(`the ${miss.role} typeface is "${miss.family}", and nothing can fetch it: it is not `
+      + `marked "google": true and no files are listed for it. Every document will name it and set `
+      + `${miss.fallback ? miss.fallback.split(',')[0] : 'whatever the reader happens to have'} instead, `
+      + `including the specimen page that is meant to prove what it looks like. Add "files" to the family `
+      + `with the webfont you are licensed to ship, or "google": true if it is served from there.`);
+  }
+
   const gen = pattern.everyTile(mark, sys.pattern, ways, pairs);
   if (gen.ok) {
     for (const t of gen.tiles) {

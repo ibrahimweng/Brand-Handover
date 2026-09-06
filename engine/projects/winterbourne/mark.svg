@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Winterbourne: a stream that runs only in winter. Five strokes of a stave,
+     the middle one absent, under the arc of a held note. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <g data-slot="ink" fill="none" stroke="#23303A" stroke-width="7" stroke-linecap="round">
+    <path d="M26 84 L26 52"/>
+    <path d="M43 84 L43 40"/>
+    <path d="M77 84 L77 40"/>
+    <path d="M94 84 L94 52"/>
+    <path d="M20 30 C40 12, 80 12, 100 30"/>
+  </g>
+</svg>

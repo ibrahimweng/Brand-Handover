@@ -1,0 +1,214 @@
+{
+  "brand": "Winterbourne",
+  "version": "1.0.0",
+  "assets": {
+    "mark": "mark.svg",
+    "wordmark": "wordmark.svg"
+  },
+  "tokens": {
+    "colour": {
+      "slate": {
+        "hex": "#23303A",
+        "role": "primary",
+        "cmyk": [
+          82,
+          63,
+          48,
+          40
+        ]
+      },
+      "paper": {
+        "hex": "#F7F5F0",
+        "role": "ground",
+        "cmyk": [
+          3,
+          3,
+          6,
+          0
+        ]
+      },
+      "sedge": {
+        "hex": "#6E7F6B",
+        "role": "secondary",
+        "cmyk": [
+          58,
+          35,
+          60,
+          12
+        ]
+      },
+      "quill": {
+        "hex": "#B4423A",
+        "role": "accent",
+        "cmyk": [
+          22,
+          88,
+          84,
+          12
+        ],
+        "textSafe": false,
+        "maxCoverage": 0.04
+      }
+    },
+    "type": {
+      "families": {
+        "display": {
+          "family": "Liberation Serif",
+          "weights": [
+            400,
+            700
+          ],
+          "files": [
+            {
+              "file": "fonts/liberation-serif-regular.ttf",
+              "weight": 400,
+              "style": "normal"
+            },
+            {
+              "file": "fonts/liberation-serif-bold.ttf",
+              "weight": 700,
+              "style": "normal"
+            }
+          ],
+          "licence": "Liberation Serif, SIL Open Font Licence 1.1. It may be redistributed with this package, embedded in documents, and used on the web. It may not be sold on its own.",
+          "fallback": "Georgia,\"Times New Roman\",serif",
+          "note": "The logotype, every headline, and the composer name on a programme. It is the identity; nothing else may set the name."
+        },
+        "text": {
+          "family": "Liberation Sans",
+          "weights": [
+            400
+          ],
+          "files": [
+            {
+              "file": "fonts/liberation-sans-regular.ttf",
+              "weight": 400,
+              "style": "normal"
+            }
+          ],
+          "licence": "Liberation Sans, SIL Open Font Licence 1.1. Same terms as the display face.",
+          "fallback": "Helvetica,Arial,sans-serif",
+          "note": "Programme notes, personnel lists, and anything read for more than a line."
+        }
+      },
+      "scale": [
+        {
+          "name": "Display",
+          "family": "display",
+          "size": 56,
+          "leading": 58,
+          "weight": 700,
+          "tracking": -0.02,
+          "sample": "One composer at a time"
+        },
+        {
+          "name": "H1",
+          "family": "display",
+          "size": 36,
+          "leading": 41,
+          "weight": 700,
+          "tracking": -0.01,
+          "sample": "The winter season"
+        },
+        {
+          "name": "H2",
+          "family": "display",
+          "size": 25,
+          "leading": 30,
+          "weight": 400,
+          "sample": "Eighteen players, no conductor"
+        },
+        {
+          "name": "H3",
+          "family": "text",
+          "size": 18,
+          "leading": 24,
+          "weight": 400,
+          "sample": "Programme notes and personnel"
+        },
+        {
+          "name": "Body",
+          "family": "text",
+          "size": 17,
+          "leading": 28,
+          "weight": 400,
+          "sample": "The orchestra takes its name from a stream that runs only in winter."
+        },
+        {
+          "name": "Small",
+          "family": "text",
+          "size": 14,
+          "leading": 21,
+          "weight": 400,
+          "sample": "Doors at seven. The hall seats two hundred and ten."
+        },
+        {
+          "name": "Caption",
+          "family": "text",
+          "size": 12,
+          "leading": 17,
+          "weight": 400,
+          "tracking": 0.08,
+          "sample": "Winterbourne, winter season"
+        }
+      ]
+    }
+  },
+  "rules": {
+    "lockups": [
+      "horizontal",
+      "stacked",
+      "mark",
+      "wordmark"
+    ],
+    "colourways": [
+      {
+        "name": "slate",
+        "on": "paper",
+        "slots": {
+          "ink": "#23303A"
+        }
+      },
+      {
+        "name": "reverse",
+        "on": "slate",
+        "slots": {
+          "ink": "#F7F5F0"
+        }
+      },
+      {
+        "name": "sedge",
+        "on": "paper",
+        "slots": {
+          "ink": "#6E7F6B"
+        }
+      }
+    ],
+    "formats": [
+      "svg",
+      "png"
+    ],
+    "pngWidths": [
+      512,
+      1024
+    ],
+    "naming": "{brand}-{lockup}-{colourway}",
+    "clearSpaceRatio": 0.3
+  },
+  "content": {
+    "positioning": "Winterbourne plays the chamber repertoire in rooms small enough to hear the players breathe.",
+    "introduction": "Eighteen players, no conductor, and a season built around one composer at a time. The orchestra takes its name from a stream that runs only in winter: present when the ground is full, gone by June, and none the less a river for it.",
+    "markRationale": "Four strokes of a stave with the middle one missing, under the arc of a held note. The gap is the point — a winterbourne is defined by the part of the year it is absent.",
+    "colourRationale": "Slate carries everything and Paper is warm rather than white, because the programmes are printed on uncoated stock and a cold white would fight it. Sedge is for surfaces. Quill marks the one thing on a page that matters and never more than four percent of it.",
+    "typeRationale": "The logotype is set in the display face and outlined, so the wordmark and the headline of a programme note are the same drawing. This is a typographic identity: the typeface is not a supporting decision, it is the decision.",
+    "misuse": [
+      "Do not set the name in a substitute face. The wordmark is artwork; the licensed face sets everything else.",
+      "Do not stretch. Scale both axes together, always.",
+      "Do not close the gap in the stave. The absence is the mark.",
+      "Do not put Quill behind text. It is there to be the loudest thing on a page, once.",
+      "Do not recolour outside the approved colourways.",
+      "Do not place the mark on low contrast. Use the reversed lockup."
+    ],
+    "constructionNotes": "The stave strokes sit on a seven unit stroke at 17 unit centres, the outer pair shortened by twelve units. The arc is struck at 1.6 times the mark width, crossing the top quarter. Everything is a whole fraction of the 120 unit box."
+  }
+}

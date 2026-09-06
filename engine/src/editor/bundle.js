@@ -93,6 +93,11 @@ function bundle(project, measured, files = []) {
     ])),
     colours, roles,
     type: project.tokens.type || {},
+    // what a document has to put in its head to be set in this identity's own
+    // typeface — worked out once, here, rather than four times downstream
+    fonts: (project.fonts || []).map((f) => ({ role: f.role, family: f.family, licence: f.licence,
+      files: f.files.map((x) => ({ file: x.file, weight: x.weight, style: x.style, bytes: x.bytes })) })),
+    fontHead: require('../typeface').head(project.tokens.type, project.fonts),
     measured: {
       markInk: measured.markInk, markViewBox: measured.markViewBox,
       clearSpace: measured.clearSpace, minimumSize: measured.minimumSize, slots: measured.slots,

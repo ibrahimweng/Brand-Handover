@@ -4438,6 +4438,107 @@ test('every file the engine reads at run time is one the deploy is told to carry
     'vercel.json no longer carries engine/src, so the files above would not reach a function');
 });
 
+// ---- the typeface the identity is set in ----
+
+const WB = projectLoader.load(path.join(__dirname, '..', 'projects', 'winterbourne', 'project.json'));
+const wbM = measure(WB);
+
+test('a typeface the project ships reaches every document', async () => {
+  // Sixteen rounds of fixtures and every family was google: true, so the only
+  // path that had ever run was a link to a font somebody else hosts. A brand on
+  // a licensed face reached no document at all: the family was named in the CSS,
+  // no @font-face was ever written, and every page fell through to its fallback
+  // while the manual's specimen carried the licensed name above type set in
+  // Georgia. A specimen showing the wrong face is worse than no specimen.
+  assert.ok(WB.fonts.length >= 2, 'the fixture stopped shipping its typeface');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-type-'));
+  await build(WB, dir);
+  for (const f of ['guidelines.html', 'deck.html', 'published.html', 'editor.html']) {
+    const html = fs.readFileSync(path.join(dir, f), 'utf8');
+    assert.ok(/@font-face/.test(html), `${f} names the typeface and never loads it`);
+    assert.ok(html.indexOf('Liberation Serif') > -1, `${f} does not mention the display face`);
+    // the bytes, not a link to somebody else's server
+    assert.ok(/src:url\(data:font\//.test(html), `${f} has an @font-face with nothing in it`);
+  }
+  // and the files themselves travel, with the terms that govern them
+  assert.ok(fs.existsSync(path.join(dir, '09-type', 'LICENCE.txt')), 'the fonts shipped with no licence');
+  const lic = fs.readFileSync(path.join(dir, '09-type', 'LICENCE.txt'), 'utf8');
+  assert.ok(lic.indexOf('Open Font Licence') > -1, 'the licence text did not travel');
+  assert.strictEqual(fs.readdirSync(path.join(dir, '09-type')).filter((n) => /\.(ttf|otf|woff2?)$/.test(n)).length, 3);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('a typeface named and unreachable is said so, not silently replaced', async () => {
+  const TF = require('../src/typeface');
+  // neither hosted nor shipped: the commonest way to write a licensed face
+  const named = { families: { display: { family: 'Founders Grotesk', fallback: 'Helvetica,sans-serif' } } };
+  assert.deepStrictEqual(TF.unreachable(named, []).map((u) => u.family), ['Founders Grotesk']);
+  assert.deepStrictEqual(TF.unreachable({ families: { d: { family: 'Archivo', google: true } } }, []), []);
+  assert.deepStrictEqual(TF.unreachable(named, [{ role: 'display', family: 'Founders Grotesk', files: [] }]), []);
+
+  // and the build says it out loud, naming what the reader will get instead
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-unreach-'));
+  const thin = Object.assign({}, WB, { fonts: [] });
+  const r = await build(thin, dir);
+  const said = r.warnings.filter((w) => /typeface/.test(w));
+  assert.strictEqual(said.length, 2, `expected both families flagged, got ${said.length}`);
+  assert.ok(/Georgia/.test(said.join(' ')), 'it did not say what the reader would actually see');
+  assert.ok(/specimen/.test(said.join(' ')), 'it did not mention the page that is meant to prove the face');
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('a type scale written the way a designer would write it is refused, not crashed', () => {
+  // `{ base: 16, ratio: 1.25 }` is how anybody would describe a type scale cold.
+  // It reached the document layer and came back as
+  // "(t.scale || []).map is not a function". A crash is not a refusal.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-scale-'));
+  fs.copyFileSync(path.join(__dirname, '..', 'projects', 'winterbourne', 'mark.svg'), path.join(dir, 'mark.svg'));
+  const write = (type) => {
+    fs.writeFileSync(path.join(dir, 'project.json'), JSON.stringify({ brand: 'S',
+      assets: { mark: 'mark.svg' }, tokens: { type },
+      rules: { lockups: ['mark'], colourways: [{ name: 'a', on: 'g', slots: { ink: '#000' } }] } }));
+    try { projectLoader.load(path.join(dir, 'project.json')); return null; } catch (e) { return e.message; }
+  };
+  const bad = [
+    [{ scale: { base: 16, ratio: 1.25 } }, /scale is not a list/],
+    [{ families: { display: { google: true } } }, /has no "family" name/],
+    [{ scale: [{ name: 'H1', size: 0 }] }, /not a size/],
+    [{ families: { text: { family: 'X' } }, scale: [{ name: 'H1', size: 20, family: 'display' }] }, /families has text/],
+  ];
+  for (const [type, want] of bad) {
+    const msg = write(type);
+    assert.ok(msg, `${JSON.stringify(type)} was accepted`);
+    assert.ok(want.test(msg), `wrong refusal for ${JSON.stringify(type)}: ${msg}`);
+    assert.ok(!/is not a function|undefined/.test(msg), `that is a crash, not a refusal: ${msg}`);
+  }
+  // and the shape every fixture uses still loads
+  assert.strictEqual(write({ families: { display: { family: 'X', google: true } },
+    scale: [{ name: 'H1', family: 'display', size: 38, leading: 42 }] }), null);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('a document does not fetch a typeface the identity never chose', async () => {
+  // Every deck asked Google for Spline Sans Mono and the manual for Schibsted
+  // Grotesk, because the documents' own furniture named them. For an identity
+  // whose face is licensed, that was the only webfont the deck loaded: a font
+  // from nobody's identity, while the identity's own was absent.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-stray-'));
+  await build(WB, dir);
+  for (const f of ['guidelines.html', 'deck.html', 'published.html', 'editor.html']) {
+    const html = fs.readFileSync(path.join(dir, f), 'utf8');
+    const links = html.match(/fonts\.googleapis\.com[^"']*/g) || [];
+    assert.deepStrictEqual(links, [], `${f} still fetches ${links.join(', ')}`);
+  }
+  fs.rmSync(dir, { recursive: true, force: true });
+
+  // a project that does use google fonts still gets its link
+  const g = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-goog-'));
+  await build(project, g);
+  assert.ok(/fonts\.googleapis\.com/.test(fs.readFileSync(path.join(g, 'guidelines.html'), 'utf8')),
+    'a google face stopped being fetched');
+  fs.rmSync(g, { recursive: true, force: true });
+});
+
 drain().then(() => {
   for (const d of [out, out2]) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);

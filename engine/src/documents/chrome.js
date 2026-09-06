@@ -7,18 +7,15 @@
 // is a sentence, because that style is unreadable at that length. Every
 // fixture's misuse captions were three words until one arrived whose captions
 // were the sentences a real manual writes.
-const fontLink = (type) => {
-  const fams = Object.values((type && type.families) || {})
-    .filter((f) => f.google)
-    .map((f) => `family=${encodeURIComponent(f.family).replace(/%20/g, '+')}:wght@${(f.weights || [400]).join(';')}`);
-  return fams.length
-    ? `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?${fams.join('&')}&display=swap">` : '';
-};
+// Answered in one place now: src/typeface.js. A face that ships with the project
+// is inlined, a face somebody else hosts is linked, and neither document has to
+// know which it got.
+const TF = require('../typeface');
+const fontLink = (type, fonts) => TF.head(type, fonts);
 
 const CSS = `
 :root{--paper:#FCFCFB;--surface:#fff;--sunk:#F2F2F0;--ink:#0E1011;--ink-2:#5A5F63;--ink-3:#8B9197;--rule:#E3E5E6;--rule-2:#C7CACC;
---ui:"Schibsted Grotesk","Helvetica Neue",Helvetica,Arial,sans-serif;--mono:"Spline Sans Mono",ui-monospace,Menlo,monospace}
+--ui:"Schibsted Grotesk","Helvetica Neue",Helvetica,Arial,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 @media (prefers-color-scheme:dark){:root:not([data-theme=light]){--paper:#0C0D0F;--surface:#141618;--sunk:#101214;--ink:#ECEEF0;--ink-2:#9BA1A7;--ink-3:#6B7177;--rule:#232629;--rule-2:#34383C}}
 :root[data-theme=dark]{--paper:#0C0D0F;--surface:#141618;--sunk:#101214;--ink:#ECEEF0;--ink-2:#9BA1A7;--ink-3:#6B7177;--rule:#232629;--rule-2:#34383C}
 *{box-sizing:border-box}body{background:var(--paper);color:var(--ink);font-family:var(--ui);font-size:16px;line-height:1.6;margin:0;-webkit-font-smoothing:antialiased}
@@ -93,10 +90,10 @@ footer{margin-top:70px;padding-top:22px;border-top:2px solid var(--ink);font-fam
 const escText = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-const shell = ({ title, type, body, favicon, language = 'en', direction = 'ltr' }) => `<!doctype html>
+const shell = ({ title, type, fonts, body, favicon, language = 'en', direction = 'ltr' }) => `<!doctype html>
 <html lang="${escText(language)}" dir="${escText(direction)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${escText(title)}</title>${favicon ? `\n<link rel="icon" href="${favicon}">` : ''}
-${fontLink(type)}
+${fontLink(type, fonts)}
 <style>${CSS}</style></head><body><div class="page">${body}</div></body></html>`;
 
 module.exports = { shell, CSS, fontLink, escText };

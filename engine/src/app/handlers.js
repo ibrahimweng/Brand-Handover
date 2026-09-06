@@ -158,6 +158,24 @@ function inspect(input) {
     }
     const m = measure(project);
     const geo = require('../geometry');
+
+    // Every lockup the artwork can make, composed by the engine and handed to
+    // the page with its colour slots still marked. The browser repaints those
+    // slots as a swatch is touched, so a designer sees the actual lockup in the
+    // actual colour without a round trip — and without a second implementation
+    // of lockup geometry to disagree with the one that writes the package.
+    const { buildVariant } = require('../variants');
+    const neutral = { name: 'preview', slots: Object.fromEntries(
+      (m.slots.length ? m.slots : ['all']).map((k) => [k, '#111111'])) };
+    const lockups = {};
+    for (const l of lockupsFor(mark, wordmark)) {
+      try {
+        const v = buildVariant({ markSrc: project.assets.mark && project.assets.mark.source,
+          wordmarkSrc: project.assets.wordmark && project.assets.wordmark.source,
+          lockup: l, colourway: neutral, rules: project.rules, measured: m });
+        lockups[l] = v.svg;
+      } catch (e) { /* a lockup that cannot be composed is simply not offered */ }
+    }
     return {
       ok: true,
       findings: project.report,
@@ -176,6 +194,7 @@ function inspect(input) {
       clean: { mark: project.assets.mark && project.assets.mark.source,
         wordmark: project.assets.wordmark && project.assets.wordmark.source },
       lockups: lockupsFor(mark, wordmark),
+      art: lockups,
     };
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

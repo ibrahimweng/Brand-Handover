@@ -8,7 +8,7 @@ const M = require('../editor/model');
 
 const CSS = (t) => `
 :root{--deep:${t.primary};--ink2:${t.secondary};--accent:${t.accent};--ground:${t.ground};
---f:${t.display};--ft:${t.text};--fm:"Spline Sans Mono",ui-monospace,Menlo,monospace;
+--f:${t.display};--ft:${t.text};--fm:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 --shell:#141618;--si:#EDEEEA;--sd:#7C838A;--sr:#2A2E31}
 :root[data-theme=light]{--shell:#E8E8E4;--si:#14171A;--sd:#6B7278;--sr:#CFD0CB}
 @media (prefers-color-scheme:light){:root:not([data-theme=dark]){--shell:#E8E8E4;--si:#14171A;--sd:#6B7278;--sr:#CFD0CB}}
@@ -259,7 +259,7 @@ function deck(ctx) {
   const { fontLink } = require('./chrome');
   return `<!doctype html><html lang="${b.esc(p.language || 'en')}" dir="${b.esc(p.direction || 'ltr')}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${b.esc(p.brand)} Brand Deck</title>
-${fontLink(p.tokens.type)}<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spline+Sans+Mono:wght@400;500&display=swap">
+${fontLink(p.tokens.type, p.fonts)}
 <style>${CSS(t)}</style></head><body>
 <div class="wrap">
   <div class="topbar"><span>${b.esc(p.brand)} · brand deck</span><span><b id="ttl"></b></span></div>
