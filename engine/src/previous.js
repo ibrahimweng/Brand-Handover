@@ -281,6 +281,25 @@ function compare(prev, next) {
         : `The pair is now good for ${ALLOWS[after.verdict]}, where the last version allowed ${ALLOWS[before.verdict]}.`));
   }
 
+  // ------ a pair that used to be distinguishable and is not any more. A moved
+  // colour is already reported above; this is what the move cost, which is a
+  // different fact and the one nobody would go looking for.
+  const cvA = new Set(((prev.colourVision || {}).collapses || []).map((c) => c.pair.slice().sort().join('/')));
+  for (const c of ((next.colourVision || {}).collapses || [])) {
+    const key = c.pair.slice().sort().join('/');
+    if (cvA.has(key)) continue;
+    if (!prev.colour || !prev.colour[c.pair[0]] || !prev.colour[c.pair[1]]) continue;   // a new colour is not a regression
+    out.push(change('breaking', 'warning', 'colourVision',
+      `${c.pair.join(' and ')} could be told apart in the last version and cannot now: they are ${c.normal} `
+      + `apart to most readers and ${c.worst.distance} to a ${c.worst.kind.replace(/pia$/, 'pe')}.`,
+      'A colour moved and took this with it. Contrast is a ratio of luminance and does not catch it: both of '
+      + 'these still pass every ratio in the table. Anything that uses the two to mean different things — a '
+      + 'key, a chart, a status, a map — stopped working for those readers at this version and nothing on '
+      + 'the page says so.',
+      'Move one of them back or further, or give whatever uses them a second channel — a shape, a fill, a '
+      + 'word — and name it in tokens.sets so the engine holds the next version to it.'));
+  }
+
   // ------ the icon grid, which is derived and therefore moves without being touched
   const ia = (prev.system || {}).icons || {}, ib = (next.system || {}).icons || {};
   if (ia.stroke != null && ib.stroke != null && ia.stroke !== ib.stroke) {

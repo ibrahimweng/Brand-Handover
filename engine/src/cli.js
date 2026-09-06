@@ -417,7 +417,15 @@ async function main(argv) {
   const started = Date.now();
   let result;
   try { result = await build(project, outDir, { log: (m) => console.log(`  ${m}`), licence: ent.result }); }
-  catch (e) { console.error(e.message); return 1; }
+  catch (e) {
+    // The loader has reported findings in the designer's language since the
+    // beginning; a refusal raised while building printed one line of an Error
+    // and lost the why and the how with it. Nothing had ever thrown findings
+    // from in here, so nothing had ever noticed.
+    if (e.findings) console.error(require('./report').format(e.findings, { name: project.brand }));
+    else console.error(e.message);
+    return 1;
+  }
 
   const bytes = result.written.reduce((n, f) => n + f.bytes, 0);
   console.log(`  wrote ${result.written.length} files (${(bytes / 1024).toFixed(0)} KB) to ${path.relative(process.cwd(), outDir)} in ${Date.now() - started} ms`);

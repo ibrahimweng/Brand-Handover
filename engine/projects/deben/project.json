@@ -1,0 +1,218 @@
+{
+  "brand": "Deben",
+  "version": "1.0.0",
+  "assets": {
+    "mark": "mark.svg",
+    "wordmark": "wordmark.svg"
+  },
+  "tokens": {
+    "colour": {
+      "estuary": {
+        "hex": "#1F4E5F",
+        "role": "primary",
+        "cmyk": [
+          88,
+          58,
+          45,
+          26
+        ],
+        "pantone": "5473 C"
+      },
+      "paper": {
+        "hex": "#F6F4EF",
+        "role": "ground",
+        "cmyk": [
+          3,
+          3,
+          6,
+          0
+        ],
+        "pantone": "11-0601"
+      },
+      "silt": {
+        "hex": "#6B665C",
+        "role": "neutral",
+        "cmyk": [
+          52,
+          47,
+          57,
+          18
+        ],
+        "pantone": "417 C"
+      },
+      "clear": {
+        "hex": "#557B2E",
+        "role": "secondary",
+        "cmyk": [
+          63,
+          27,
+          100,
+          10
+        ],
+        "pantone": "370 C"
+      },
+      "prepare": {
+        "hex": "#E0A02A",
+        "role": "accent",
+        "cmyk": [
+          10,
+          39,
+          92,
+          0
+        ],
+        "pantone": "1235 C"
+      },
+      "act": {
+        "hex": "#A8442F",
+        "role": "alert",
+        "cmyk": [
+          22,
+          84,
+          88,
+          12
+        ],
+        "pantone": "7599 C"
+      }
+    },
+    "sets": {
+      "states": {
+        "of": [
+          "clear",
+          "prepare",
+          "act"
+        ],
+        "why": "The three warning states. They appear together on every gauge board, tide table, roadside sign and phone alert, and a reader has to tell them apart at a glance, often at speed and in bad light.",
+        "apartBy": {
+          "clear": "an open ring, and the word Clear",
+          "prepare": "a half filled ring, and the word Prepare",
+          "act": "a solid disc, and the word Act now"
+        }
+      }
+    },
+    "type": {
+      "families": {
+        "display": {
+          "family": "Bitter",
+          "google": true,
+          "weights": [
+            500,
+            700
+          ],
+          "fallback": "Georgia,serif"
+        },
+        "text": {
+          "family": "Public Sans",
+          "google": true,
+          "weights": [
+            400,
+            600
+          ],
+          "fallback": "Helvetica,Arial,sans-serif"
+        }
+      },
+      "scale": [
+        {
+          "name": "Display",
+          "family": "display",
+          "size": 46,
+          "leading": 52,
+          "weight": 700,
+          "sample": "High water 14:20"
+        },
+        {
+          "name": "H1",
+          "family": "display",
+          "size": 31,
+          "leading": 37,
+          "weight": 700,
+          "sample": "Flood warnings in force"
+        },
+        {
+          "name": "H2",
+          "family": "display",
+          "size": 23,
+          "leading": 29,
+          "weight": 500,
+          "sample": "What the states mean"
+        },
+        {
+          "name": "H3",
+          "family": "text",
+          "size": 18,
+          "leading": 24,
+          "weight": 600,
+          "sample": "Sign up for alerts"
+        },
+        {
+          "name": "Body",
+          "family": "text",
+          "size": 17,
+          "leading": 27,
+          "weight": 400,
+          "sample": "Act now: flooding is expected within two hours."
+        },
+        {
+          "name": "Small",
+          "family": "text",
+          "size": 14,
+          "leading": 21,
+          "weight": 400,
+          "sample": "Gauge readings update every 15 minutes."
+        },
+        {
+          "name": "Caption",
+          "family": "text",
+          "size": 12,
+          "leading": 17,
+          "weight": 600,
+          "tracking": 0.08,
+          "sample": "Deben Estuary"
+        }
+      ]
+    }
+  },
+  "rules": {
+    "lockups": [
+      "horizontal",
+      "stacked",
+      "mark",
+      "wordmark"
+    ],
+    "colourways": [
+      {
+        "name": "estuary",
+        "on": "paper",
+        "slots": {
+          "ink": "#1F4E5F"
+        }
+      },
+      {
+        "name": "reverse",
+        "on": "estuary",
+        "slots": {
+          "ink": "#F6F4EF"
+        }
+      },
+      {
+        "name": "mono",
+        "on": "paper",
+        "slots": {
+          "ink": "#000000"
+        }
+      }
+    ],
+    "formats": [
+      "svg",
+      "png"
+    ],
+    "pngWidths": [
+      512,
+      1024
+    ],
+    "naming": "{brand}-{lockup}-{colourway}"
+  },
+  "content": {
+    "positioning": "Deben warns the estuary when the water is coming.",
+    "markRationale": "A gauge board: the staff, the high water mark, and the level now."
+  }
+}

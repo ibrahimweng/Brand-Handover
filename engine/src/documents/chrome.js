@@ -75,6 +75,15 @@ figcaption.said{font-family:var(--ui);font-size:12px;letter-spacing:0;text-trans
 .ctr em{font-family:var(--mono);font-style:normal;font-size:13px;text-align:right;font-variant-numeric:tabular-nums}
 .ctr i{font-family:var(--mono);font-style:normal;font-size:10px;letter-spacing:.06em;text-transform:uppercase;text-align:right}
 .v-ok{color:#1B7A4B}.v-warn{color:#8A6410}.v-bad{color:#C2352B}
+.cvtab{border-top:1px solid var(--rule-2);margin-top:6px}
+.cvr{display:grid;grid-template-columns:150px minmax(0,1fr);gap:16px;align-items:center;padding:9px 4px;border-bottom:1px solid var(--rule)}
+.cvr b{font-size:13.5px;font-weight:500;color:var(--ink-2)}
+.cvr.head{border-bottom:1px solid var(--rule-2);padding-bottom:7px}
+.cvr.head b{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase}
+.cvs{display:flex;gap:6px}
+.cvsw{flex:1 1 0;height:34px;border:1px solid rgba(0,0,0,.1);display:block}
+.cvn{flex:1 1 0;font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:640px){.cvr{grid-template-columns:1fr;gap:5px}.cvsw{height:26px}}
 .ftab{border-top:1px solid var(--rule-2);margin-top:26px}
 .ftr{display:grid;grid-template-columns:118px minmax(0,1fr) 104px 104px;gap:14px;align-items:baseline;padding:11px 4px;border-bottom:1px solid var(--rule)}
 .ftr.head{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);padding:0 4px 9px}

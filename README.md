@@ -674,6 +674,45 @@ draft of the partner contrast check reported Ingleby's mark as disappearing into
 a page it reads on perfectly well, because it tested the white of their sail,
 which sits inside their own blue disc.
 
+The twenty-fourth asked what every package here says about accessibility. The
+answer is a WCAG contrast ratio, and a contrast ratio is a ratio of **luminance**
+— the right measure for text on a ground, and silent about the thing colour is
+mostly used for. Two colours can sit at a comfortable ratio against the page and
+be the same colour *as each other* to one reader in sixteen, because what
+separates them is hue, and hue is what a colour vision deficiency takes away.
+Twenty-three rounds, no mention of it anywhere.
+
+**Deben** warns an estuary when the water is coming: clear, prepare, act. Its
+green and its red are 67 ΔE apart, 2.8 apart to a deuteranope, and both pass
+every contrast check in the package. `tokens.sets` is the only place a project
+can say *these are read together and have to be told apart* — and saying it is
+what invites the check, because a palette has more pairs than meanings and
+reporting all of them is noise. A set that collapses and has no second channel
+is refused; the answer is `apartBy`, one per member, an open ring and a half
+ring and a solid disc, checked so that no two of them share it.
+
+**Everything else it found was already here.** Twelve of the twenty-four palettes
+carry a pair that separates for most readers and not for all. Vesper's whole
+identity is a gradient, and one length of it does not travel at all for a
+tritanope — that stretch is a flat fill, and whatever the movement was doing is
+not happening. Northline has two colours 101 ΔE apart that a protanope reads as
+one.
+
+And **the first version of the simulation was wrong.** The coefficients in
+Viénot, Brettel and Mollon are defined on cone responses, and most versions in
+circulation apply them straight to linear RGB — where they do not preserve the
+achromatic axis. The first thing the module drew was Deben's near-white paper
+rendered as cyan. A dichromat sees white as white; a simulation that moves it is
+wrong everywhere. The maths was corrected, and then the fixture had to be
+redesigned, because the wrong version had exaggerated the red-green collapse and
+the two colours it was built around turned out to be perfectly distinguishable.
+
+Two more, both structural. `tokens` was outside the unread-key audit entirely,
+so a whole branch of a project file could be shipped with nothing reading it —
+which is exactly what `tokens.sets` did on its first run. And a refusal raised
+while *building* printed one line of an `Error` and lost its why and its how,
+because nothing had ever thrown findings from inside `build`.
+
 Still to do: a run on **your** identity job. Twenty identities the engine had
 not seen is worth a great deal more than twenty passes over one, but none of
 them came out of your exporter — and the normaliser is the part that most needs

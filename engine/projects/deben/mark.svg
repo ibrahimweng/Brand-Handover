@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Deben 1.0: a gauge board. The staff, the high water mark, the level now. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <g data-slot="ink" fill="none" stroke="#1F4E5F" stroke-width="11" stroke-linecap="round">
+    <path d="M28 102 V22"/>
+    <path d="M28 38 H94"/>
+    <path d="M28 72 H74"/>
+  </g>
+</svg>

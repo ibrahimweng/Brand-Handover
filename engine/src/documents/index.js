@@ -96,7 +96,7 @@ function context(project, measured, files, brandJson) {
     ? { since: project.previous.version.text,
         entries: require('../previous').compare(project.previous.data, brandJson) }
     : null;
-  return { project, measured, colours, roles, primary, ground, accent, primaryColourway, noun, system, pattern, hasSystem, changes, floors, pairs,
+  return { project, sets: project.sets || null, measured, colours, roles, primary, ground, accent, primaryColourway, noun, system, pattern, hasSystem, changes, floors, pairs,
     partnerRule: typeof partnerRule === 'undefined' ? null : partnerRule,
     variants, variantFor, files, brandJson, contrast: contrast.matrix(colours),
     content: project.content || {} };
@@ -139,7 +139,11 @@ function guidelines(ctx) {
       // only where the artwork has one, so ten projects without a gradient get
       // no empty section and the numbering does not shift under them
       (b.gradientSpec(ctx) ? sec('2.2', 'The gradient', 'system', b.gradientSpec(ctx)) : '') +
-      sec(b.gradientSpec(ctx) ? '2.3' : '2.2', 'Contrast and accessibility', 'system', b.contrastTable(ctx)))}
+      sec(b.gradientSpec(ctx) ? '2.3' : '2.2', 'Contrast and accessibility', 'system', b.contrastTable(ctx)) +
+      // A ratio of luminance answers whether text can be read on a ground, and
+      // nothing in twenty-three packages asked whether two of these colours can
+      // be told from each other.
+      sec(b.gradientSpec(ctx) ? '2.4' : '2.3', 'Colour vision', 'system', b.colourVision(ctx)))}
 
   ${chapter('03', 'Typography',
       sec('3.1', 'The typefaces', 'system', b.typeSpecimen(ctx) + words(c.typeRationale)) +

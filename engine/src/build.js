@@ -19,7 +19,106 @@ const KEYS_READ = {
     'naming', 'lockups', 'formats', 'pngWidths', 'stock', 'colourways', 'iconInk', 'iconBg',
     'iconSizes', 'faviconSizes', 'social', 'partners', 'documents'],
   system: ['icons', 'icon', 'pattern', 'motion', 'photography', 'nameSetting'],
+  // tokens was outside this audit entirely, so a whole branch of a project file
+  // could be written, saved and shipped without anything reading it. The
+  // twenty-fourth round added tokens.sets and the engine accepted it in
+  // silence — the same silence the audit exists to break.
+  tokens: ['colour', 'type', 'sets'],
 };
+
+// What the palette looks like to somebody who does not see it the way you do.
+//
+// Everything this engine has ever said about accessibility is a WCAG contrast
+// ratio, which is a ratio of luminance. It is the right measure for text on a
+// ground and it says nothing at all about whether two colours can be told from
+// each other, because the thing that separates most pairs is hue and hue is
+// what a colour vision deficiency takes away. See src/vision.js.
+function visionFindings(project, rules, warnings, notes, carry) {
+  const V = require('./vision');
+  const colours = project.tokens.colour || {};
+  const floor = Number(rules.minColourSeparation) > 0 ? Number(rules.minColourSeparation) : 12;
+  const found = V.collapses(colours, floor);
+  if (carry) {
+    carry.separation = floor;
+    carry.collapses = found.map((f) => ({ pair: f.pair, hex: f.hex, normal: f.normal,
+      worst: f.worst, seen: Object.fromEntries(Object.entries(f.seen).map(([k, v]) => [k, v.distance])) }));
+    carry.sets = Object.entries(project.sets || {}).map(([name, set]) => ({
+      name, of: set.of, why: set.why, apartBy: set.apartBy || null,
+      toldApartByColourAlone: !(set.apartBy && set.of.every((c) => set.apartBy[c])) }));
+  }
+  const byPair = new Map(found.map((f) => [f.pair.slice().sort().join('/'), f]));
+  const blockers = [];
+
+  // A set is a promise that these are read together and told apart. Break it
+  // and the identity does not work — not for a minority of readers in some
+  // situations, but for one man in sixteen every time the thing is used.
+  for (const [name, set] of Object.entries(project.sets || {})) {
+    const hits = [];
+    for (let i = 0; i < set.of.length; i++) {
+      for (let j = i + 1; j < set.of.length; j++) {
+        const key = [set.of[i], set.of[j]].sort().join('/');
+        if (byPair.has(key)) hits.push(byPair.get(key));
+      }
+    }
+    if (!hits.length) continue;
+    const covered = set.apartBy && set.of.every((c) => set.apartBy[c]);
+    const list = hits.map((h) => `${h.pair.join(' and ')} (${h.hex.join(' and ')}) go from `
+      + `${h.normal} apart to ${h.worst.distance} for ${V.say(h.worst.kind)}, ${V.howMany(h.worst.kind)}`).join('; ');
+    if (covered) {
+      notes.push(`in the "${name}" set, ${list}. That is carried by ${set.of.map((c) => `${c}, which is also `
+        + `${set.apartBy[c]}`).join('; ')} — so nothing in the set is told apart by colour alone, and the `
+        + 'collapse costs a reader nothing.');
+    } else {
+      blockers.push({ level: 'blocker', code: 'colourVision',
+        what: `the "${name}" set is told apart by colour alone, and ${hits.length === 1 ? 'one of its pairs is' : `${hits.length} of its pairs are`} `
+          + `the same colour to some readers: ${list}.`,
+        why: `${set.why} None of that reaches a reader who cannot separate those two, and nothing else in `
+          + 'the set distinguishes them: no shape, no symbol, no fill, no word. A contrast ratio does not '
+          + 'catch this — every one of these colours passes against the ground it sits on. Luminance is what '
+          + 'WCAG measures and hue is what is missing.',
+        how: `Give every colour in the set a second channel and say what it is, in tokens.sets.${name}.apartBy `
+          + '— { "clear": "an open ring", "prepare": "a half ring", "act": "a solid disc" }. Moving the two '
+          + 'colours further apart is the other answer and a harder one: they have to stay apart for all '
+          + 'three kinds at once and still be the colours the organisation is known by.' });
+    }
+  }
+
+  // The rest of the palette is a note. Two colours that collapse are only a
+  // fault if something depends on telling them apart, and most pairs in most
+  // palettes never appear side by side. Say what is true and let the designer
+  // decide which pairs matter — that is what tokens.sets is for.
+  const loose = found.filter((f) => !Object.values(project.sets || {}).some((set) =>
+    set.of.indexOf(f.pair[0]) > -1 && set.of.indexOf(f.pair[1]) > -1));
+  if (loose.length) {
+    notes.push(`${loose.length === 1 ? 'one pair in this palette separates' : `${loose.length} pairs in this palette separate`} `
+      + `for most readers and not for all: ${loose.map((f) => `${f.pair.join('/')} ${f.normal} to `
+        + `${f.worst.distance} for ${V.say(f.worst.kind)}`).join(', ')}. `
+      + 'Every one of them passes its contrast checks, because contrast is luminance and this is hue. '
+      + 'Nothing here says these pairs carry a meaning — if any of them does, name them in tokens.sets and '
+      + 'the engine will hold them to it.');
+  }
+
+  // A gradient between two colours that somebody cannot separate is a flat fill
+  // to that reader. Vesper's runs ember to flare to dusk, and to a protanope the
+  // second half of it does not move.
+  for (const asset of [project.assets.mark, project.assets.wordmark]) {
+    if (!asset || !asset.source) continue;
+    for (const g of svgu.gradients(svgu.parse(asset.source)) || []) {
+      const id = g.id || g.kind;
+      const stops = (g.stops || []).map((st) => st.hex).filter(Boolean);
+      for (let i = 0; i + 1 < stops.length; i++) {
+        const got = V.apart(stops[i], stops[i + 1]);
+        if (got.normal < floor || got.worst.distance >= floor) continue;
+        warnings.push(`the gradient "${id}" runs from ${stops[i]} to ${stops[i + 1]}, and to `
+          + `${V.say(got.worst.kind)} — ${V.howMany(got.worst.kind)} — those two are the same colour `
+          + `(${got.worst.distance} apart, where they are ${got.normal} apart to you). That length of the `
+          + 'gradient is a flat fill to them: it does not travel, and whatever the movement was doing is not '
+          + 'happening. Move one of the stops, or put a third between them that all three kinds can see.');
+      }
+    }
+  }
+  return blockers;
+}
 
 // What a pair says that neither half does. Every one of these is a number the
 // partner's own manual does not contain and ours did not either, because until
@@ -81,6 +180,57 @@ function partnerFindings(project, prule, made, measured, rules, floors) {
         + `marks on one measurement is the convention and it is only ever a starting point; a logotype beside a `
         + `symbol is the case it fails on. Set rules.partners.matchRatio below 1 to bring them down, or `
         + `"match": "width" to size them across instead.`);
+    }
+  }
+  return out;
+}
+
+// A key the engine does not read is a setting the designer wrote and the engine
+// ignored. system.icon does nothing, because the engine reads system.icons;
+// clearspaceRatio does nothing, because it is clearSpaceRatio. In both cases the
+// manual quietly shows the default and there is no way to tell from the outside
+// that anything was dropped. rules, system and tokens are checked: content is
+// the designer's own prose and none of the engine's business.
+//
+// It lives out here, and is exported, because the suite audits every fixture in
+// the repository the same way. It used to read the engine's key list — the
+// twenty-first round's fix — and keep its own copy of which object each section
+// names, which is the same defect one level down: adding tokens as a third
+// section sent it looking in project.system, and it failed on a project that
+// was right. One implementation, called twice.
+const SECTION = {
+  rules: (p) => p.rules,
+  system: (p) => p.system || {},
+  tokens: (p) => p.tokens || {},
+};
+
+function unreadKeys(project) {
+  const nearest = (key, options) => {
+    const dist = (a, b) => {
+      const m2 = [[]];
+      for (let i = 0; i <= a.length; i++) m2[i] = [i];
+      for (let j = 0; j <= b.length; j++) m2[0][j] = j;
+      for (let i = 1; i <= a.length; i++) {
+        for (let j = 1; j <= b.length; j++) {
+          m2[i][j] = a[i - 1] === b[j - 1] ? m2[i - 1][j - 1]
+            : 1 + Math.min(m2[i - 1][j], m2[i][j - 1], m2[i - 1][j - 1]);
+        }
+      }
+      return m2[a.length][b.length];
+    };
+    const hit = options.map((o) => ({ o, d: dist(key.toLowerCase(), o.toLowerCase()) }))
+      .sort((a, b) => a.d - b.d)[0];
+    return hit && hit.d <= Math.max(2, Math.round(key.length / 3)) ? hit.o : null;
+  };
+  const out = [];
+  for (const [where, allowed] of Object.entries(KEYS_READ)) {
+    const obj = SECTION[where](project) || {};
+    for (const key of Object.keys(obj)) {
+      if (allowed.indexOf(key) > -1) continue;
+      const guess = nearest(key, allowed);
+      out.push(`${where}.${key} is set, and nothing reads it`
+        + (guess ? `. Did you mean ${where}.${guess}?` : '.')
+        + ' Whatever you meant it to change is still on its default.');
     }
   }
   return out;
@@ -214,41 +364,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       + `you meant — it is a fraction of the mark, not a multiple of it.`);
   }
 
-  // A key the engine does not read is a setting the designer wrote and the
-  // engine ignored. system.icon does nothing, because the engine reads
-  // system.icons; clearspaceRatio does nothing, because it is clearSpaceRatio.
-  // In both cases the manual quietly shows the default and there is no way to
-  // tell from the outside that anything was dropped. Only rules and system are
-  // checked: content is the designer's own prose and none of the engine's
-  // business what else they keep in it.
-  const READS = KEYS_READ;
-  const nearest = (key, options) => {
-    const dist = (a, b) => {
-      const m2 = [[]];
-      for (let i = 0; i <= a.length; i++) m2[i] = [i];
-      for (let j = 0; j <= b.length; j++) m2[0][j] = j;
-      for (let i = 1; i <= a.length; i++) {
-        for (let j = 1; j <= b.length; j++) {
-          m2[i][j] = a[i - 1] === b[j - 1] ? m2[i - 1][j - 1]
-            : 1 + Math.min(m2[i - 1][j], m2[i][j - 1], m2[i - 1][j - 1]);
-        }
-      }
-      return m2[a.length][b.length];
-    };
-    const hit = options.map((o) => ({ o, d: dist(key.toLowerCase(), o.toLowerCase()) }))
-      .sort((a, b) => a.d - b.d)[0];
-    return hit && hit.d <= Math.max(2, Math.round(key.length / 3)) ? hit.o : null;
-  };
-  for (const [where, allowed] of Object.entries(READS)) {
-    const obj = where === 'rules' ? project.rules : (project.system || {});
-    for (const key of Object.keys(obj || {})) {
-      if (allowed.indexOf(key) > -1) continue;
-      const guess = nearest(key, allowed);
-      warnings.push(`${where}.${key} is set, and nothing reads it`
-        + (guess ? `. Did you mean ${where}.${guess}?` : '.')
-        + ' Whatever you meant it to change is still on its default.');
-    }
-  }
+  for (const w of unreadKeys(project)) warnings.push(w);
 
   const saidMissing = new Set();
   const keptSlots = new Set();     // slots a colourway left painted as the master drew them
@@ -310,6 +426,15 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
         if (rules.formats.includes('ai')) write(`${dir}/${base}.ai`, pdf);
       }
     }
+  }
+
+  // Asked before anything is written, because it can stop the build.
+  const vision = {};
+  const visionBlockers = visionFindings(project, rules, warnings, notes, vision);
+  if (visionBlockers.length) {
+    const e = new Error(visionBlockers[0].what);
+    e.findings = visionBlockers;
+    throw e;
   }
 
   // The master's floor is the one every package has stated, and it is the floor
@@ -672,6 +797,16 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       },
     },
     contrast: pairs.map((p) => ({ pair: `${p.fg} on ${p.bg}`, ratio: p.ratio, verdict: p.use })),
+    // Contrast above is luminance, and answers whether text can be read on a
+    // ground. This answers a different question that nothing here had ever
+    // asked: whether two of these colours can be told from each other. See
+    // src/vision.js. Distances are CIE ΔE*ab; the simulation is Viénot 1999.
+    colourVision: {
+      separation: vision.separation,
+      note: `two colours less than ${vision.separation} ΔE apart cannot be reliably told apart side by side`,
+      collapses: vision.collapses,
+      sets: vision.sets,
+    },
     system: {
       // A name that is set rather than drawn is a rule, and rules go in here
       nameSetting: project.nameSetting ? {
@@ -782,7 +917,20 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     ...(partnerLockups.length ? [
       '                  A pair with a partner holds at neither brand\'s figure.',
       '                  11-partners and the manual state each one.'] : []),
-    `  Colourways      ${rules.colourways.map((c) => c.name).join(', ')}.`, '',
+    `  Colourways      ${rules.colourways.map((c) => c.name).join(', ')}.`,
+    // A contrast ratio is luminance. Whether two of these can be told apart is
+    // a different question, and no read me had ever carried the answer.
+    ...(vision.collapses && vision.collapses.length ? [
+      '  Telling colours',
+      `  apart          ${vision.collapses.length === 1 ? 'one pair separates' : `${vision.collapses.length} pairs separate`} for most readers and not for all:`,
+      ...vision.collapses.map((c) => `                    ${c.pair.join(' and ')} — ${c.normal} apart, `
+        + `${c.worst.distance} to a ${c.worst.kind.replace(/pia$/, 'pe')}`),
+      '                  The manual shows the palette as each of them sees it.',
+    ] : []),
+    ...(Object.keys(project.sets || {}).length ? [
+      ...Object.entries(project.sets).map(([n, set]) => `  ${n.padEnd(15)} ${set.of.join(', ')} are read together. `
+        + `${set.apartBy ? 'Each also carries a shape or a word; never colour alone.' : 'Told apart by colour alone.'}`),
+    ] : []), '',
     'brand.json holds all of the above in a form software can read.',
     // Twenty-one packages made that promise and nothing ever collected on it.
     // It is worth saying who does, because it changes what the file is for:
@@ -883,4 +1031,4 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   return { measured, written, warnings, notes, contrast: pairs };
 }
 
-module.exports = { build, KEYS_READ };
+module.exports = { build, KEYS_READ, unreadKeys };

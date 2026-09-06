@@ -141,6 +141,25 @@ produced, and the build reports what moved between them:
       previous/
         brand.json      copied out of the package that shipped as 1.4.0
 
+Colours that are read together and have to be told apart are named as a set, and
+what tells each of them apart other than its colour is named beside it:
+
+    "tokens": {
+      "sets": {
+        "states": {
+          "of": ["clear", "prepare", "act"],
+          "why": "shown together on every gauge board and roadside sign",
+          "apartBy": { "clear": "an open ring", "prepare": "a half ring",
+                       "act": "a solid disc" }
+        }
+      }
+    }
+
+A set whose colours collapse for some readers and which has no second channel is
+refused. `rules.minColourSeparation` is the distance below which two colours stop
+being reliably different, in CIE ΔE*ab; it defaults to 12 and moves like every
+other rule here.
+
 An identity whose mark appears beside somebody else's carries their artwork, one
 file per ground they have agreed to stand on:
 
@@ -2396,6 +2415,73 @@ white, inside their blue disc, where white is exactly right — was reported as
 disappearing into a page it reads on perfectly well. A mark has a silhouette as
 long as one of its colours reads.
 
+## A twenty-fourth identity
+
+Every claim this engine has ever made about accessibility is a WCAG contrast
+ratio, and a contrast ratio is a ratio of **luminance**. It is the right measure
+for text on a ground, and it is silent about the thing colour is mostly used
+for. Two colours can sit at a comfortable ratio against the page and be the same
+colour *as each other* to one reader in sixteen, because what separates them is
+hue and hue is what a colour vision deficiency takes away. A grep across
+twenty-three rounds found no mention of it anywhere.
+
+**Deben** warns an estuary when the water is coming, in three states:
+
+    "sets": {
+      "states": {
+        "of": ["clear", "prepare", "act"],
+        "why": "They appear together on every gauge board, tide table,
+                roadside sign and phone alert, and a reader has to tell
+                them apart at a glance, often at speed and in bad light."
+      }
+    }
+
+`tokens.sets` is the only place a project says *these are read together and have
+to be told apart*, and saying so is what invites the check — a palette of six
+colours has fifteen pairs and most of them never appear side by side, so
+reporting all fifteen is noise. Naming the three that carry a meaning turns a
+curiosity into a requirement. Deben's green and red are 67 ΔE apart and 2.8
+apart to a deuteranope, and both pass every contrast check in the package:
+
+    ✗ the "states" set is told apart by colour alone, and one of its pairs
+      is the same colour to some readers
+      → Give every colour in the set a second channel and say what it is,
+        in tokens.sets.states.apartBy
+
+The answer is `apartBy`, one per member: an open ring, a half ring, a solid
+disc. The engine checks that every member has one and that no two share it —
+a second channel only some of the set carries is not a second channel — and
+then the manual prints the palette four times over, once as you see it and once
+for each of the three dichromacies.
+
+**Everything else it found was already in the repository.** Twelve of the
+twenty-four palettes carry a pair that separates for most readers and not for
+all; those are notes, because a pair is only a fault if something depends on
+telling it apart, and `tokens.sets` is how a project says which. Vesper's whole
+identity is a gradient, and one length of it — flare to ember, 63 ΔE — does not
+travel at all for a tritanope: that stretch is a flat fill, and whatever the
+movement was doing is not happening. Northline's `signal` and `north` are 101
+apart and 8.6 apart to a protanope.
+
+And **the first version of the simulation was wrong**, in a way worth writing
+down. The coefficients in Viénot, Brettel and Mollon are defined on *cone
+responses*, and most of the versions circulating apply them straight to linear
+RGB. Done that way they do not preserve the achromatic axis: the first thing
+this module drew was Deben's near-white paper rendered as cyan. A dichromat sees
+white as white, grey as grey and black as black, and a simulation that moves
+them is wrong everywhere, not only on the greys. RGB → LMS, project, LMS → RGB —
+and the fixture had to be redesigned, because the wrong maths had exaggerated
+the red-green collapse and the amber and red it was built around turned out to
+be perfectly distinguishable.
+
+Two more. `tokens` was outside the unread-key audit entirely, so a whole branch
+of a project file could be written, saved and shipped with nothing reading it —
+which is exactly what `tokens.sets` did on its first run. And a refusal raised
+while *building* printed one line of an `Error` and lost its why and its how:
+the loader has reported findings in the designer's language since the first
+week, and nothing had ever thrown findings from inside `build`, so nothing had
+ever noticed.
+
 ## A front door
 
 Sixteen rounds, and the only way into the engine was to hand-write a project
@@ -2513,6 +2599,7 @@ the mechanism. The name was the cause, and renaming the payload is the fix.
     projects/skerry/  the twenty-first: a symbol, and a name that is set not drawn
     projects/tarnbrook/ the twenty-second: a second version, built against its first
     projects/kilnsey/ the twenty-third: half of every pair belongs to somebody else
+    projects/deben/   the twenty-fourth: two of its colours are one colour to some readers
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package

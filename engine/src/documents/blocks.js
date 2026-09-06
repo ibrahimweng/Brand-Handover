@@ -307,6 +307,56 @@ function floorTable(ctx) {
     <p class="note">A minimum size belongs to a drawing, and there are ${ctx.project.rules.lockups.length} of them in this package. Use the figure for the folder the file came out of, not the one above it${over.length ? `: ${over.length === 1 ? 'one of them does' : `${over.length} of them do`} not hold at ${esc(geo.floorText(ctx.measured.minimumSize, 'px'))} — a lockup sets the name beside the mark at a fraction of its height, so it is wider than the mark and its finest part is finer, and both put the floor up` : ''}.</p>`;
 }
 
+// The palette, as three other people see it.
+//
+// Every contrast table this engine has printed answers one question — can text
+// be read on this ground — and it is a ratio of luminance. Whether two of these
+// colours can be told from each other is a different question with a different
+// answer, and no package had ever asked it. See src/vision.js.
+function colourVision(ctx) {
+  const V = require('../vision');
+  const floor = Number(ctx.project.rules.minColourSeparation) > 0
+    ? Number(ctx.project.rules.minColourSeparation) : 12;
+  const names = Object.keys(ctx.colours);
+  const found = V.collapses(ctx.colours, floor);
+  const kinds = Object.keys(V.KINDS);
+  const swatch = (hex) => `<span class="cvsw" style="background:${hex}"></span>`;
+  const row = (label, how) => `<div class="cvr"><b>${esc(label)}</b><div class="cvs">`
+    + names.map((n) => `${swatch(how(ctx.colours[n].hex))}`).join('') + `</div></div>`;
+  const strip = `<div class="cvtab">
+    <div class="cvr head"><b></b><div class="cvs">${names.map((n) =>
+      `<span class="cvn">${esc(n)}</span>`).join('')}</div></div>
+    ${row('As you see it', (h) => h)}
+    ${kinds.map((k) => row(k, (h) => V.simulate(h, k))).join('')}
+  </div>`;
+
+  const sets = Object.entries(ctx.project.sets || {}).map(([name, set]) => {
+    const covered = set.apartBy && set.of.every((c) => set.apartBy[c]);
+    return `<p class="note"><b>The ${esc(name)} set.</b> ${esc(set.why)} `
+      + (covered
+        ? `Nothing in it is told apart by colour alone: ${set.of.map((c) =>
+          `<b>${esc(c)}</b> is ${esc(set.apartBy[c])}`).join(', ')}. That is the rule, and it is the rule `
+          + 'because two of these colours are one colour to some readers.'
+        : 'These are told apart by colour alone.')
+      + '</p>';
+  }).join('');
+
+  const list = found.length
+    ? `<p class="note"><b>${found.length === 1 ? 'One pair separates' : `${found.length} pairs separate`} for most readers and not for all.</b> `
+      + found.map((f) => `${esc(f.pair.join(' and '))} are ${f.normal} apart to you and `
+        + `${f.worst.distance} to ${esc(V.say(f.worst.kind))}, ${esc(V.howMany(f.worst.kind))}`).join('; ')
+      + `. Every one of them passes the contrast table above, because that table measures luminance and this is hue.</p>`
+    : `<p class="note"><b>Every pair in this palette that separates for you separates for all three.</b> `
+      + `Nothing here is told apart by hue alone.</p>`;
+
+  return strip + list + sets
+    + `<p class="note">Distances are CIE ΔE*ab, where about ${floor} is the point at which two flat colours
+    side by side stop being reliably different. The three rows are dichromacy — one cone type absent —
+    simulated after Viénot, Brettel and Mollon (1999). The commoner condition is anomalous trichromacy,
+    where the cone is present and shifted: those readers see a reduced version of the same thing, so every
+    pair named here is at least harder for them and often exactly this.</p>`;
+}
+
 // Half of each of these is not ours, and almost nothing above applies to it.
 function partnerLockups(ctx) {
   const r = ctx.partnerRule || {};
@@ -671,5 +721,5 @@ function changes(ctx) {
     + `</p><div class="chgs">${breaking.map(row).join('')}${news.map(row).join('')}</div>`;
 }
 
-module.exports = { TXT, esc, changes, floorTable, partnerLockups, inked, gradientSpec, inksOf, patternSpec, photographySpec, iconSpec, willWriteIcons, motionSpec, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, markSpecimen, lockupRow, construction, clearSpace,
+module.exports = { TXT, esc, changes, floorTable, partnerLockups, colourVision, inked, gradientSpec, inksOf, patternSpec, photographySpec, iconSpec, willWriteIcons, motionSpec, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, markSpecimen, lockupRow, construction, clearSpace,
   minimumSize, lockups, misuse, palette, contrastTable, typeSpecimen, typeScale, assetIndex, brandJsonBlock };

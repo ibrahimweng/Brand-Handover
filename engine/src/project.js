@@ -163,6 +163,63 @@ function load(file) {
     }
   }
 
+  // A set is a declaration that these colours are read together and have to be
+  // told apart. It is the only place a project says so, and saying so is what
+  // invites the check: a palette of five colours has ten pairs and most of them
+  // never appear side by side, so reporting all ten is noise. Naming the three
+  // that mean something turns a curiosity into a requirement.
+  const sets = (raw.tokens || {}).sets;
+  if (sets !== undefined) {
+    const known = Object.keys((raw.tokens || {}).colour || {});
+    if (typeof sets !== 'object' || Array.isArray(sets)) {
+      problems.push('tokens.sets is not an object. It names groups of colours that are read together —'
+        + ' "states": { "of": ["clear", "prepare", "act"], "why": "…" }.');
+    } else {
+      for (const [name, set] of Object.entries(sets)) {
+        const at = `tokens.sets.${name}`;
+        if (!set || typeof set !== 'object' || Array.isArray(set)) {
+          problems.push(`${at} is not an object. It holds "of", the colours in the set, and "why" they are read together.`);
+          continue;
+        }
+        if (!Array.isArray(set.of) || set.of.length < 2) {
+          problems.push(`${at}.of is not a list of two or more colours. A set of one has nothing to be told apart from.`);
+          continue;
+        }
+        for (const c of set.of) {
+          if (known.indexOf(c) < 0) {
+            problems.push(`${at} contains "${c}", which is not a colour in this palette.`
+              + ` The palette is ${known.join(', ')}.`);
+          }
+        }
+        if (!set.why || String(set.why).length < 12) {
+          problems.push(`${at} does not say why these are read together. The engine holds a set to a`
+            + ' harder standard than the rest of the palette, and the reason is what the manual prints'
+            + ' beside the swatches. One sentence: where they appear together and who has to tell them apart.');
+        }
+        if (set.apartBy !== undefined) {
+          const ab = set.apartBy;
+          if (typeof ab !== 'object' || Array.isArray(ab)) {
+            problems.push(`${at}.apartBy is not an object. It names, for each colour in the set, what tells it`
+              + ' apart other than its colour — a symbol, a fill, a word.');
+          } else {
+            const missing = (set.of || []).filter((c) => !ab[c] || String(ab[c]).length < 3);
+            if (missing.length && missing.length < (set.of || []).length) {
+              problems.push(`${at}.apartBy covers some of the set and not ${missing.join(', ')}.`
+                + ' A second channel that only some members have is not a second channel: the ones without it'
+                + ' are still told apart by colour alone.');
+            }
+            const said = (set.of || []).map((c) => String(ab[c] || '').trim().toLowerCase()).filter(Boolean);
+            const dupe = said.find((x, i) => said.indexOf(x) !== i);
+            if (dupe !== undefined) {
+              problems.push(`${at}.apartBy gives "${dupe}" to more than one colour in the set, so those two`
+                + ' are still told apart by colour alone.');
+            }
+          }
+        }
+      }
+    }
+  }
+
   // Eight rounds of checking the artwork and the rules, and `tokens.type` was
   // never looked at once. A scale written as `{ base: 16, ratio: 1.25 }` — which
   // is how a designer would write a type scale if you asked them cold — got as
@@ -482,7 +539,7 @@ function load(file) {
   // here, which meant every rule override in a project file was read as absent
   // and the defaults quietly won. Nothing complained, because a default is a
   // perfectly good answer right up until somebody wanted a different one.
-  return { brand: raw.brand, latinName, language, direction, version: raw.version || '0.0.0', dir, tokens, assets, photography, fonts, documents, nameSetting, rules, master, previous, partners,
+  return { brand: raw.brand, latinName, language, direction, version: raw.version || '0.0.0', dir, tokens, sets: (raw.tokens || {}).sets || null, assets, photography, fonts, documents, nameSetting, rules, master, previous, partners,
     system: raw.system || {}, content: raw.content || {}, report };
 }
 

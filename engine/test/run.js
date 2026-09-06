@@ -3100,19 +3100,25 @@ test('every project in the repo sets only things that are read', () => {
   const names = fs.readdirSync(path.join(__dirname, '..', 'projects'))
     .filter((d) => fs.existsSync(path.join(__dirname, '..', 'projects', d, 'project.json')));
   assert.ok(names.length >= 10, `${names.length} projects`);
-  // the engine's own list, not a copy of it: a key added there was missing here
-  // and the audit failed on a project that was right
-  const READS = require('../src/build').KEYS_READ;
+  // The engine's own audit, not a copy of it. Reading the engine's key list was
+  // the twenty-first round's fix; this test still kept its own copy of which
+  // object each section names, so adding tokens as a third section sent it
+  // looking in project.system and it failed on a project that was right —
+  // the same defect one level down. One implementation, called twice.
+  const { unreadKeys } = require('../src/build');
   for (const n of names) {
     const p = projectLoader.load(path.join(__dirname, '..', 'projects', n, 'project.json'));
-    for (const [where, allowed] of Object.entries(READS)) {
-      const obj = where === 'rules' ? p.rules : (p.system || {});
-      for (const key of Object.keys(obj || {})) {
-        if (where === 'rules' && ['pattern'].indexOf(key) > -1) continue;
-        assert.ok(allowed.indexOf(key) > -1, `${n} sets ${where}.${key}, which nothing reads`);
-      }
-    }
+    assert.deepStrictEqual(unreadKeys(p), [], `${n} sets something nothing reads`);
   }
+});
+test('the audit that finds unread keys can still find one', () => {
+  const { unreadKeys } = require('../src/build');
+  const p = projectLoader.load(PROJECT);
+  const bent = Object.assign({}, p, { tokens: Object.assign({}, p.tokens, { spacing: { base: 8 } }),
+    rules: Object.assign({}, p.rules, { clearspaceRatio: 0.3 }) });
+  const said = unreadKeys(bent);
+  assert.ok(said.some((w) => /tokens\.spacing is set, and nothing reads it/.test(w)), said.join('\n'));
+  assert.ok(said.some((w) => /Did you mean rules\.clearSpaceRatio/.test(w)), said.join('\n'));
 });
 
 console.log('\nan eleventh identity');
@@ -5366,6 +5372,157 @@ test('a previous package written before lockup floors existed reports none', () 
     'previous', 'brand.json'), 'utf8'));
   const found = P2.compare(old, kilnBrand).filter((c) => c.code === 'lockupMinSize');
   assert.deepStrictEqual(found, []);
+});
+
+
+// ---------------------------------------------------------------------------
+console.log('\nthe palette, to somebody who does not see it the way you do');
+const VIS = require('../src/vision');
+const DEBEN = path.join(__dirname, '..', 'projects', 'deben', 'project.json');
+
+test('a dichromat sees white as white, grey as grey and black as black', () => {
+  // The first version of this module projected in linear RGB using coefficients
+  // that are defined on cone responses. It rendered Deben's near white paper as
+  // cyan for a protanope, which is not a subtle error: a simulation that moves
+  // the achromatic axis is wrong everywhere, not only on the greys.
+  for (const grey of ['#FFFFFF', '#CCCCCC', '#808080', '#333333', '#000000']) {
+    for (const kind of Object.keys(VIS.KINDS)) {
+      const seen = VIS.simulate(grey, kind);
+      assert.ok(VIS.distance(grey, seen) < 0.5, `${grey} moved to ${seen} for a ${kind}`);
+    }
+  }
+});
+test('a hue that is present is not invented or destroyed', () => {
+  // sanity in the other direction: a deuteranope still separates blue from
+  // yellow, which is the axis they have
+  assert.ok(VIS.apart('#1F4E5F', '#E0A02A').seen.deuteranopia.distance > 40);
+  // and loses the one they do not
+  assert.ok(VIS.apart('#557B2E', '#A8442F').seen.deuteranopia.distance < 5);
+});
+test('a pair that was always the same colour is not a finding', () => {
+  const near = { a: { hex: '#F6F4EF' }, b: { hex: '#F7F5F2' } };
+  assert.deepStrictEqual(VIS.collapses(near, 12), []);
+});
+test('the palettes in this repo are asked the question', () => {
+  // twelve of the twenty-four carry a pair that separates for most readers and
+  // not for all, and every one of those pairs passes its contrast checks
+  let carrying = 0;
+  for (const name of fs.readdirSync(path.join(__dirname, '..', 'projects'))) {
+    const pr = projectLoader.load(path.join(__dirname, '..', 'projects', name, 'project.json'));
+    if (VIS.collapses(pr.tokens.colour, 12).length) carrying++;
+  }
+  assert.ok(carrying >= 8, `only ${carrying} palettes carry a collapsing pair; the check may have stopped working`);
+});
+
+console.log('\na set is a promise that these can be told apart');
+const debenRaw = () => JSON.parse(fs.readFileSync(DEBEN, 'utf8'));
+const buildDeben = async (mut) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-cv-'));
+  const raw = debenRaw();
+  mut(raw);
+  for (const f of ['mark.svg', 'wordmark.svg']) {
+    fs.copyFileSync(path.join(path.dirname(DEBEN), f), path.join(dir, f));
+  }
+  fs.writeFileSync(path.join(dir, 'project.json'), JSON.stringify(raw));
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-cvo-'));
+  try {
+    const pr = projectLoader.load(path.join(dir, 'project.json'));
+    const r = await build(pr, out);
+    return { ok: true, result: r, out };
+  } catch (e) { return { ok: false, error: e, out }; }
+  finally { fs.rmSync(dir, { recursive: true, force: true }); }
+};
+
+test('a set told apart by colour alone, whose colours collapse, is refused', async () => {
+  const got = await buildDeben((raw) => { delete raw.tokens.sets.states.apartBy; });
+  fs.rmSync(got.out, { recursive: true, force: true });
+  assert.ok(!got.ok, 'it built a flood warning palette whose green and red are one colour');
+  const f = got.error.findings && got.error.findings[0];
+  assert.ok(f && f.level === 'blocker', 'a crash is not a refusal');
+  for (const k of ['what', 'why', 'how']) assert.ok(f[k] && f[k].length > 20, `no ${k}`);
+  assert.ok(/clear and act/.test(f.what), f.what);
+  assert.ok(/Luminance is what WCAG measures and hue is what is missing/.test(f.why));
+  assert.ok(/apartBy/.test(f.how));
+});
+test('the same set with a second channel builds, and says so', async () => {
+  const got = await buildDeben(() => {});
+  assert.ok(got.ok, got.error && got.error.message);
+  const said = (got.result.notes || []).join(' ');
+  assert.ok(/nothing in the set is told apart by colour alone/.test(said), said.slice(0, 200));
+  const brand = JSON.parse(fs.readFileSync(path.join(got.out, 'brand.json'), 'utf8'));
+  assert.strictEqual(brand.colourVision.sets[0].toldApartByColourAlone, false);
+  assert.strictEqual(brand.colourVision.collapses[0].pair.join('/'), 'clear/act');
+  const html = fs.readFileSync(path.join(got.out, 'guidelines.html'), 'utf8');
+  assert.ok(html.indexOf('Colour vision') > -1, 'the manual does not show the palette simulated');
+  assert.ok(/deuteranopia/.test(html));
+  assert.ok(/A pair with a partner|Telling colours/.test(fs.readFileSync(path.join(got.out, 'README.txt'), 'utf8')));
+  fs.rmSync(got.out, { recursive: true, force: true });
+});
+test('a second channel that only covers half the set is refused', async () => {
+  const got = await buildDeben((raw) => { delete raw.tokens.sets.states.apartBy.act; });
+  fs.rmSync(got.out, { recursive: true, force: true });
+  assert.ok(!got.ok);
+  assert.ok(/apartBy covers some of the set and not act/.test(got.error.message), got.error.message);
+});
+test('two members given the same second channel is refused', async () => {
+  const got = await buildDeben((raw) => { raw.tokens.sets.states.apartBy.act = 'an open ring, and the word Clear'; });
+  fs.rmSync(got.out, { recursive: true, force: true });
+  assert.ok(!got.ok);
+  assert.ok(/to more than one colour in the set/.test(got.error.message), got.error.message);
+});
+test('a set naming a colour that is not in the palette is refused', async () => {
+  const got = await buildDeben((raw) => { raw.tokens.sets.states.of.push('teal'); });
+  fs.rmSync(got.out, { recursive: true, force: true });
+  assert.ok(!got.ok);
+  assert.ok(/is not a colour in this palette/.test(got.error.message), got.error.message);
+});
+test('a set that does not say why is refused', async () => {
+  const got = await buildDeben((raw) => { delete raw.tokens.sets.states.why; });
+  fs.rmSync(got.out, { recursive: true, force: true });
+  assert.ok(!got.ok);
+  assert.ok(/does not say why these are read together/.test(got.error.message), got.error.message);
+});
+test('a token branch nothing reads is caught, the way rules and system are', async () => {
+  const got = await buildDeben((raw) => { raw.tokens.spacing = { base: 8 }; });
+  assert.ok(got.ok);
+  assert.ok((got.result.warnings || []).some((w) => /tokens\.spacing is set, and nothing reads it/.test(w)));
+  fs.rmSync(got.out, { recursive: true, force: true });
+});
+test('a gradient between two colours somebody cannot separate is a flat fill', async () => {
+  // Vesper's whole identity is its gradient, and one length of it does not
+  // travel for a tritanope.
+  const vp = projectLoader.load(path.join(__dirname, '..', 'projects', 'vesper', 'project.json'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-grad-'));
+  const r = await build(vp, dir);
+  fs.rmSync(dir, { recursive: true, force: true });
+  const said = r.warnings.filter((w) => /that length of the gradient is a flat fill/i.test(w));
+  assert.strictEqual(said.length, 1, `expected one gradient finding, got ${said.length}`);
+  assert.ok(/#B8336A|#C2620E/.test(said[0]), said[0]);
+});
+test('a refusal raised while building reaches the designer, not just its first line', async () => {
+  // The loader has reported findings in the designer's language since the
+  // beginning. Nothing had ever thrown findings from inside build, so the
+  // build's own catch printed one line of an Error and lost the why with it.
+  const { main } = require('../src/cli');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-cli-'));
+  const raw = debenRaw();
+  delete raw.tokens.sets.states.apartBy;
+  for (const f of ['mark.svg', 'wordmark.svg']) {
+    fs.copyFileSync(path.join(path.dirname(DEBEN), f), path.join(dir, f));
+  }
+  fs.writeFileSync(path.join(dir, 'project.json'), JSON.stringify(raw));
+  const said = [];
+  const realErr = console.error, realLog = console.log;
+  console.error = (...a) => said.push(a.join(' '));
+  console.log = () => {};
+  let code;
+  try { code = await main(['build', path.join(dir, 'project.json'), '-o', path.join(dir, 'out')]); }
+  finally { console.error = realErr; console.log = realLog; fs.rmSync(dir, { recursive: true, force: true }); }
+  assert.strictEqual(code, 1);
+  const text = said.join('\n');
+  assert.ok(/Must fix before this can be used/.test(text), text.slice(0, 300));
+  assert.ok(/Luminance is what WCAG measures/.test(text), 'the why was lost');
+  assert.ok(/apartBy/.test(text), 'the how was lost');
 });
 
 drain().then(() => {

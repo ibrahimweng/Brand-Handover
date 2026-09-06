@@ -1358,6 +1358,42 @@ question was asked of the wrong unit: a mark has a silhouette as long as one of
 its colours reads. Before checking a set, decide whether the property belongs to
 the members or to the set.
 
+**One measure standing in for a whole subject.** Every accessibility claim in
+every package was a WCAG contrast ratio. It is a good measure, correctly
+implemented, prominently displayed — and it answers exactly one question, about
+text on a ground. Because it was there and it was rigorous, nobody noticed that
+the other question, whether two colours can be told from each other, had never
+been asked at all. A thorough answer to one part of a subject is the best
+possible camouflage for the rest of it. Worth asking of anything the codebase is
+proud of: what question does this actually answer, and what neighbouring
+question does its presence stop me asking?
+
+**Borrowed maths, checked against an invariant.** The dichromat simulation was
+implemented from coefficients that are everywhere on the web, applied in the
+space everybody applies them in, and it was wrong: it did not preserve the
+achromatic axis, and drew a near-white paper as cyan. The error was visible
+within seconds of rendering it, and would have been invisible in the numbers
+alone — the collapse it reported for the fixture looked entirely plausible and
+was an artefact. Every borrowed transform has an invariant that costs one line
+to assert: white stays white, a rotation preserves length, a projection is
+idempotent. Assert it before trusting a single output.
+
+**And the fixture built against wrong maths was wrong too.** Correcting the
+simulation meant the palette designed to fail no longer failed, and had to be
+redesigned around a pair that collapses under the correct model. A fixture built
+to exercise a computation is only as good as the computation; when the
+computation moves, re-derive the fixture rather than keeping the one that used
+to produce an interesting result.
+
+**A check that keeps its own copy — the same defect, one level down.** The
+twenty-first round found the suite keeping its own copy of the key list it
+audits, and fixed it by exporting the list. The suite went on keeping its own
+copy of *which object each section names*, so adding a third section sent it
+looking in the wrong place and it failed on a project that was right. Exporting
+the data was not enough; the thing to export was the check. If a test and the
+code it guards both have to know how something works, only one of them should
+be written.
+
 ---
 
 Prior art checked September 2026: Logo Package Express, Standards, Brandpad,
