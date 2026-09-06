@@ -45,6 +45,15 @@ const DEFAULTS = {
   wordmarkHeightRatio: 0.34,
   formats: ['svg', 'png'],
   pngWidths: [512, 1024],
+  // Every other "what gets written" rule has a default and these two did not,
+  // so a project that did not name its icon sizes shipped no icons at all —
+  // while brand.json carried the whole icon specification and the manual kept
+  // its chapter on the grid. Two of seventeen projects hit it, both written
+  // after the check that would have caught it stopped being run by hand.
+  // Thirteen of the other fifteen declare exactly these, which is what makes
+  // them the default rather than a guess.
+  iconSizes: [1024, 180],
+  faviconSizes: [16, 32],
   naming: '{brand}-{lockup}-{colourway}',
 };
 

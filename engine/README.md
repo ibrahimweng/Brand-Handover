@@ -1991,6 +1991,57 @@ The faces travel too: `09-type/` with the files and a `LICENCE.txt` beside them,
 because a licence is the half of a typeface that is not in the file, and a client
 handed webfonts needs to know what they may do with them.
 
+## An eighteenth identity
+
+The audit was of the artwork rather than the project file, and it said the same
+thing three ways: **the largest mark in seventeen identities is 23 paths.**
+Every fixture is a handful of strokes, where the thinnest ink is a fair proxy
+for what survives at a small size and every drawing is its own icon.
+
+**Ravelston** is a distillery with a heraldic crest it did not commission and
+cannot replace: a hatched shield, a chevron and three casks, 46 paths, drawn to
+be cut into stone at half a metre across.
+
+The first thing it exposed was not about detail at all.
+
+**A package with no icons in it, documenting an icon system.** `rules.iconSizes`
+and `rules.faviconSizes` were the only "what gets written" rules with no
+default — `formats`, `pngWidths`, `naming`, `clearSpaceRatio` all have one — so
+`for (const size of rules.iconSizes || [])` skipped in silence. Sixteen of
+eighteen projects happened to name their sizes. The two that did not were the
+last two written, and both shipped `brand.json` carrying the whole icon
+specification — box, stroke, curve radius — and a manual chapter on the grid,
+into a package containing no icons whatsoever. Nothing said a word.
+
+Thirteen of the sixteen declare exactly `[1024, 180]` and `[16, 32]`, which is
+what makes those the default rather than a guess. And the manual's chapter is
+now tied to whether icons get written at all, because a section describing what
+the reader has not been given is worse than no section.
+
+The second was the crest's own doing. With icons finally written, the check
+that has existed since the thirteenth round did its job:
+
+> 1 app icon was written where the thinnest part of the mark paints under the
+> 2.4 px this project sets… this artwork needs 195 px square before it holds
+> together… Draw a simplified icon mark — fewer parts, heavier strokes.
+
+**And a project could not carry the answer.** `assets.icon` was loaded,
+normalised, and then ignored: icons were always cut from the master. The file
+the advice asked for could be checked by `check --icon` and used by nothing.
+Ravelston ships one — the chevron and one bar, at 13 units of stroke, which is
+not a smaller crest but a different drawing meaning the same thing — and the
+icons come out of it. The read me, `brand.json` and the manual all say which
+drawing they came from, because a client who sees icons that are not the mark
+should be told that is deliberate.
+
+The crest also settled a hypothesis in the negative, which is worth recording:
+the hatching is five units of ink to one and a fifth of paper, and the guess was
+that the paper would close long before the ink thinned, making the stated floor
+a lie. It does not. Rendered at the engine's 116 px the bars still separate;
+they collapse around 48. The floor is honest, and the reason to say so is that
+a defect I went looking for and did not find is a defect somebody else does not
+have to go looking for.
+
 ## A front door
 
 Sixteen rounds, and the only way into the engine was to hand-write a project
@@ -2102,6 +2153,7 @@ the mechanism. The name was the cause, and renaming the payload is the fix.
     projects/yarrow/    the fifteenth: all four rule blocks, each overridden in part
     projects/saltmarsh/ the sixteenth: the identity is the photography
     projects/winterbourne/ the seventeenth: a licensed typeface, shipped with it
+    projects/ravelston/ the eighteenth: an engraved crest, and an icon of its own
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package

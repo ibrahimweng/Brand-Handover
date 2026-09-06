@@ -462,9 +462,24 @@ function photographySpec(ctx) {
       : ''}Crops are ${(r.ratios || []).map(esc).join(', ')}. The editor measures the mark against the pixels actually under it and says which colourway reads there, so this is a rule you can check rather than one you have to remember.</p>`;
 }
 
+// Whether this project writes icons at all — a property of its rules, which is
+// always there, rather than of a file list that may not have been passed.
+const willWriteIcons = (ctx) => {
+  const r = (ctx.project && ctx.project.rules) || {};
+  return ((r.iconSizes || []).length + (r.faviconSizes || []).length) > 0;
+};
+
 function iconSpec(ctx) {
   const r = ctx.system.icons;
   if (!r) return '';
+  // Where the identity has a separate drawing for small sizes, say so here.
+  // The engine has been telling designers to draw one since the thirteenth
+  // round; now that a project can carry it, the manual has to explain why the
+  // icons are not the mark.
+  const simplified = ctx.project.assets.icon ? `<p class="note">The icons are not the mark. `
+    + `A crest or any drawing with fine parts closes up at icon sizes, so this identity has a `
+    + `simplified drawing for them — fewer parts, heavier strokes, the same meaning. `
+    + `It is what everything in <code>05-icons</code> is cut from.</p>` : '';
   const k = 200 / r.box, m = (r.box - r.live) / 2;
   const line = ctx.accent.hex;
   return `<figure><div class="stage tight">
@@ -481,7 +496,8 @@ function iconSpec(ctx) {
     which is the same margin an icon keeps. Its narrowest part is ${r.derivedFrom.markStroke} units, which is
     <b>${svgu.round(r.strokeRatio * 100, 1)} per cent</b> of the box, so an icon's stroke is ${r.stroke} in a ${r.box} box.
     Ends are ${esc(r.cap)}, corners ${esc(r.join)}, and the set is ${r.filled ? 'filled' : 'drawn in outline'}.
-    Redraw the ${ctx.noun} and these move with it. Run <code>check &lt;icon.svg&gt; --icon</code> to have one measured against them.</p>`;
+    Redraw the ${ctx.noun} and these move with it. Run <code>check &lt;icon.svg&gt; --icon</code> to have one measured against them.</p>
+    ${simplified}`;
 }
 
 function motionSpec(ctx) {
@@ -553,5 +569,5 @@ function assetIndex(ctx) {
 
 const brandJsonBlock = (ctx) => `<pre>${esc(JSON.stringify(ctx.brandJson, null, 2))}</pre>`;
 
-module.exports = { TXT, esc, inked, gradientSpec, inksOf, patternSpec, photographySpec, iconSpec, motionSpec, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, markSpecimen, lockupRow, construction, clearSpace,
+module.exports = { TXT, esc, inked, gradientSpec, inksOf, patternSpec, photographySpec, iconSpec, willWriteIcons, motionSpec, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, markSpecimen, lockupRow, construction, clearSpace,
   minimumSize, lockups, misuse, palette, contrastTable, typeSpecimen, typeScale, assetIndex, brandJsonBlock };

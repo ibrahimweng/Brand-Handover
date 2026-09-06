@@ -4295,8 +4295,11 @@ test('a lone logotype is built as a logotype, not as a mark called one', async (
   await APP.make({ brand: 'Logotype', wordmark: wm,
     colours: [{ name: 'ink', hex: '#222222', role: 'primary' }, { name: 'paper', hex: '#FFFFFF', role: 'ground' }],
     lockups: ['wordmark'] }, dir);
+  // 05-icons comes too, now that the sizes have a default: a logotype identity
+  // still needs a favicon, and it is cut from the logotype for want of anything
+  // else. What it must NOT do is call the logotype a mark.
   const folders = fs.readdirSync(dir).filter((f) => /^\d\d-/.test(f));
-  assert.deepStrictEqual(folders, ['04-wordmark'], `it wrote ${folders.join(', ')}`);
+  assert.deepStrictEqual(folders, ['04-wordmark', '05-icons'], `it wrote ${folders.join(', ')}`);
   fs.rmSync(dir, { recursive: true, force: true });
 
   // and a symbol on its own is still a symbol
@@ -4537,6 +4540,83 @@ test('a document does not fetch a typeface the identity never chose', async () =
   assert.ok(/fonts\.googleapis\.com/.test(fs.readFileSync(path.join(g, 'guidelines.html'), 'utf8')),
     'a google face stopped being fetched');
   fs.rmSync(g, { recursive: true, force: true });
+});
+
+// ---- icons: what gets written, and what it is cut from ----
+
+const RV = projectLoader.load(path.join(__dirname, '..', 'projects', 'ravelston', 'project.json'));
+
+test('a package writes icons without being asked to name the sizes', async () => {
+  // Every "what gets written" rule has a default — formats, pngWidths, naming,
+  // clearSpaceRatio — and these two did not. `rules.iconSizes || []` skipped
+  // silently, so two of seventeen projects shipped no icons at all while
+  // brand.json carried the whole icon specification and the manual kept its
+  // chapter on the grid.
+  assert.ok(Array.isArray(projectLoader.DEFAULTS.iconSizes) && projectLoader.DEFAULTS.iconSizes.length,
+    'iconSizes has no default again');
+  assert.ok(Array.isArray(projectLoader.DEFAULTS.faviconSizes) && projectLoader.DEFAULTS.faviconSizes.length,
+    'faviconSizes has no default again');
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-icons-'));
+  await build(RV, dir);
+  const written = fs.readdirSync(path.join(dir, '05-icons'));
+  assert.ok(written.some((f) => /^icon-/.test(f)), 'no app icon');
+  assert.ok(written.some((f) => /^favicon-/.test(f)), 'no favicon');
+  assert.ok(written.indexOf('favicon.ico') > -1, 'no .ico');
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('a package does not document icons it does not contain', async () => {
+  // The other half: turning the sizes off has to take the chapter with it, and
+  // say so. A section describing what the reader has not been given is worse
+  // than no section.
+  const off = Object.assign({}, RV, { rules: Object.assign({}, RV.rules, { iconSizes: [], faviconSizes: [] }) });
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-noicons-'));
+  const r = await build(off, dir);
+  assert.ok(!fs.existsSync(path.join(dir, '05-icons')), 'it wrote icons after all');
+  const html = fs.readFileSync(path.join(dir, 'guidelines.html'), 'utf8');
+  assert.ok(html.indexOf('The icon grid') < 0, 'the manual still specifies a grid for icons that are absent');
+  assert.ok(r.warnings.some((w) => /no icons were written/.test(w)), 'it went quiet about it');
+  fs.rmSync(dir, { recursive: true, force: true });
+
+  // and with the sizes on, the chapter is back
+  const on = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-icons2-'));
+  await build(RV, on);
+  assert.ok(fs.readFileSync(path.join(on, 'guidelines.html'), 'utf8').indexOf('The icon grid') > -1);
+  fs.rmSync(on, { recursive: true, force: true });
+});
+
+test('the simplified icon the engine asks for is the one the icons are cut from', async () => {
+  // Since the thirteenth round the engine has said "draw a simplified icon mark
+  // — fewer parts, heavier strokes". assets.icon was loaded, normalised and
+  // then ignored: the file the advice asked for was checked by `check --icon`
+  // and used by nothing.
+  assert.ok(RV.assets.icon, 'the fixture stopped shipping a simplified icon');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-iconart-'));
+  await build(RV, dir);
+  const written = fs.readFileSync(path.join(dir, '05-icons', 'icon-180.png'));
+  const from = (src) => geo.renderPng(require('../src/export')
+    .iconSquare(src, { size: 180, background: RV.rules.iconBg || '#000000',
+      ink: RV.rules.iconInk || '#FFFFFF', radius: 0.22 }), 180);
+  assert.ok(from(RV.assets.icon.source).equals(written), 'the icons are not cut from assets.icon');
+  assert.ok(!from(RV.assets.mark.source).equals(written), 'the icons are still cut from the mark');
+
+  // the crest on its own would be refused at that size; the simplified one is not
+  const crestOnly = Object.assign({}, RV, { assets: { mark: RV.assets.mark, wordmark: RV.assets.wordmark } });
+  const bare = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-crest-'));
+  const r = await build(crestOnly, bare);
+  assert.ok(r.warnings.some((w) => /icon.*smudge|smudge/.test(w)),
+    'a 46 path crest at 180 px went out with nothing said');
+  assert.ok(r.warnings.some((w) => /assets\.icon/.test(w)),
+    'the advice does not name the field that takes the answer');
+  fs.rmSync(bare, { recursive: true, force: true });
+
+  // and the package says which drawing they came from, in all three places
+  assert.ok(fs.readFileSync(path.join(dir, 'README.txt'), 'utf8').indexOf('icon.svg') > -1, 'the read me does not say');
+  assert.strictEqual(JSON.parse(fs.readFileSync(path.join(dir, 'brand.json'), 'utf8')).generated.iconsFrom, 'icon.svg');
+  assert.ok(fs.readFileSync(path.join(dir, 'guidelines.html'), 'utf8').indexOf('The icons are not the mark') > -1,
+    'the manual does not explain why the icons differ');
+  fs.rmSync(dir, { recursive: true, force: true });
 });
 
 drain().then(() => {

@@ -1,0 +1,193 @@
+{
+  "brand": "Ravelston",
+  "version": "1.0.0",
+  "assets": {
+    "mark": "mark.svg",
+    "wordmark": "wordmark.svg",
+    "icon": "icon.svg"
+  },
+  "tokens": {
+    "colour": {
+      "oak": {
+        "hex": "#2E2016",
+        "role": "primary",
+        "cmyk": [
+          55,
+          68,
+          78,
+          72
+        ]
+      },
+      "linen": {
+        "hex": "#F3EEE3",
+        "role": "ground",
+        "cmyk": [
+          5,
+          5,
+          12,
+          0
+        ]
+      },
+      "copper": {
+        "hex": "#9C5B2E",
+        "role": "secondary",
+        "cmyk": [
+          30,
+          72,
+          92,
+          22
+        ]
+      },
+      "seal": {
+        "hex": "#7A1F2B",
+        "role": "accent",
+        "cmyk": [
+          30,
+          96,
+          76,
+          32
+        ],
+        "textSafe": false,
+        "maxCoverage": 0.05
+      }
+    },
+    "type": {
+      "families": {
+        "display": {
+          "family": "Literata",
+          "google": true,
+          "weights": [
+            400,
+            500
+          ],
+          "fallback": "Georgia,serif"
+        },
+        "text": {
+          "family": "Archivo",
+          "google": true,
+          "weights": [
+            400,
+            500
+          ],
+          "fallback": "Helvetica,Arial,sans-serif"
+        }
+      },
+      "scale": [
+        {
+          "name": "Display",
+          "family": "display",
+          "size": 54,
+          "leading": 58,
+          "weight": 500,
+          "tracking": -0.01,
+          "sample": "Distilled at Ravelston since 1843"
+        },
+        {
+          "name": "H1",
+          "family": "display",
+          "size": 35,
+          "leading": 40,
+          "weight": 500,
+          "sample": "The warehouse and the water"
+        },
+        {
+          "name": "H2",
+          "family": "display",
+          "size": 24,
+          "leading": 29,
+          "weight": 400,
+          "sample": "Cask, char and time"
+        },
+        {
+          "name": "H3",
+          "family": "text",
+          "size": 18,
+          "leading": 24,
+          "weight": 500,
+          "sample": "Bottling notes"
+        },
+        {
+          "name": "Body",
+          "family": "text",
+          "size": 17,
+          "leading": 27,
+          "weight": 400,
+          "sample": "The crest was cut for the gate in 1843 and has been redrawn four times since."
+        },
+        {
+          "name": "Small",
+          "family": "text",
+          "size": 14,
+          "leading": 21,
+          "weight": 400,
+          "sample": "Cask strength, non chill filtered."
+        },
+        {
+          "name": "Caption",
+          "family": "text",
+          "size": 12,
+          "leading": 17,
+          "weight": 500,
+          "tracking": 0.08,
+          "sample": "Ravelston distillery"
+        }
+      ]
+    }
+  },
+  "rules": {
+    "lockups": [
+      "horizontal",
+      "stacked",
+      "mark",
+      "wordmark"
+    ],
+    "colourways": [
+      {
+        "name": "oak",
+        "on": "linen",
+        "slots": {
+          "ink": "#2E2016"
+        }
+      },
+      {
+        "name": "reverse",
+        "on": "oak",
+        "slots": {
+          "ink": "#F3EEE3"
+        }
+      },
+      {
+        "name": "copper",
+        "on": "linen",
+        "slots": {
+          "ink": "#9C5B2E"
+        }
+      }
+    ],
+    "formats": [
+      "svg",
+      "png"
+    ],
+    "pngWidths": [
+      512,
+      1024
+    ],
+    "naming": "{brand}-{lockup}-{colourway}"
+  },
+  "content": {
+    "positioning": "Ravelston has been distilling above the same spring since 1843, and the crest was cut for the gate that year.",
+    "introduction": "A working distillery with a heraldic crest it did not commission and cannot replace. The mark is an engraving: a hatched shield, a chevron, and three casks. It was drawn to be cut into stone at half a metre across.",
+    "markRationale": "Heraldic hatching reads as a colour to anybody who knows the convention and as texture to everybody else. The chevron carries the eye to the casks. None of it was designed for a screen and all of it has to work on one.",
+    "colourRationale": "Oak is the ink and Linen is the paper. Copper is for the still house and the cask ends. Seal is for the wax and appears once on anything.",
+    "typeRationale": "A serif with enough weight to sit beside an engraving without looking apologetic, and a plain sans for everything a customer actually has to read.",
+    "misuse": [
+      "Do not use the crest below its smallest size. The hatching closes and it becomes a dark shape.",
+      "Do not redraw the hatching at a different pitch to make it work small. Use the simplified mark.",
+      "Do not stretch. Scale both axes together, always.",
+      "Do not recolour outside the approved colourways.",
+      "Do not add a drop shadow to make it look engraved. It is engraved.",
+      "Do not place it on a photograph without the reversed lockup."
+    ],
+    "constructionNotes": "The shield is 228 wide inside a 240 box, tapering below 58 percent of its height. The hatch is five units of ink to one and a fifth of paper, which is the pitch the original was cut at."
+  }
+}

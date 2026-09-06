@@ -377,7 +377,7 @@ publishing, all three kinds of block, image slots, page sizes and the
 photography treatment, print work with bleed, CMYK, and a printed piece through
 Typst, mockups, the licence half of accounts, and a local app that takes artwork
 and gives back the package without anybody writing a project file. 138 files from one master,
-352 tests, and sixteen more identities in the repo that the engine had not been
+355 tests, and seventeen more identities in the repo that the engine had not been
 written against.
 
 Three things the plan had wrong, found by building rather than by thinking.
@@ -1156,6 +1156,43 @@ Neither would have found it alone — the fixture rounds never varied the field,
 and the app was a form that collected what the engine already accepted. Building
 the front door and inventing the hard identity are the same activity pointed at
 different halves of the same gap.
+
+**Audit the artwork, not only the project file.** Seventeen rounds of listing
+which keys projects set, and nobody had listed what the drawings themselves are
+made of. One table — bytes, paths, elements, raster, text, gradient, aspect —
+said the largest mark in the repo is 23 paths, every wordmark is a single merged
+path, and nothing has ever contained a raster or a live gradient except the one
+fixture built to. The inputs are a field to audit like any other.
+
+**The rule with no default is the rule that gets skipped in silence.**
+`formats`, `pngWidths`, `naming` and `clearSpaceRatio` all have defaults;
+`iconSizes` and `faviconSizes` did not, so `rules.iconSizes || []` wrote nothing
+and said nothing. Sixteen of eighteen projects covered it by habit. Worth
+looking for directly: every `|| []` and `|| {}` on a rule is a silent skip
+waiting for the first project that does not restate the obvious.
+
+**Advice that names an artefact the system cannot accept is not advice.** The
+engine had been saying "draw a simplified icon mark" since the thirteenth round,
+and `assets.icon` was loaded, normalised and ignored. This is the third time the
+same shape has turned up — the photographs an identity is built on, the licensed
+typeface it is set in, and now the icon it needs for small sizes — and the tell
+is the same every time: a sentence in a finding that tells the designer to make
+something, with no field to put it in. Grep the findings for imperatives and ask
+of each one where the result goes.
+
+**A section describing what the reader has not been given is worse than no
+section.** Two packages carried a full icon specification into a package with no
+icons. The first fix gated the chapter on the list of files written, which
+promptly hid the chapter from every caller that did not pass one — the same bug,
+reintroduced by its own fix. It is asked of the rules now, which are intrinsic.
+Gating what a document contains on a parameter a caller may forget is how a
+document loses a chapter quietly.
+
+**Record the hypothesis that failed.** The crest was built expecting its hatching
+to close at the certified minimum size, making the floor a lie. Measured, it does
+not: the bars separate at 116 px and collapse around 48. That is worth writing
+down, because the next person to suspect it can read the measurement instead of
+repeating the work.
 
 ---
 

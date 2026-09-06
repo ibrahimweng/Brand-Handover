@@ -114,7 +114,16 @@ function guidelines(ctx) {
     const parts = [
       ['The pattern', b.patternSpec(ctx)],
       ['Photography', b.photographySpec(ctx)],
-      ['The icon grid', b.iconSpec(ctx)],
+      // Only where there will be icons. Two projects shipped a chapter
+      // specifying the icon grid — box, stroke, curve radius, the lot — into a
+      // package with no icons in it, because the sizes to write were the one
+      // "what gets written" rule with no default. A section describing what
+      // the reader has not been given is worse than no section.
+      //
+      // Asked of the rules, not of the file list handed in: gating a chapter on
+      // a parameter a caller can forget to pass is how a document loses a
+      // chapter silently, which is the thing being fixed.
+      ['The icon grid', b.willWriteIcons(ctx) && b.iconSpec(ctx)],
       ['Motion', b.motionSpec(ctx)],
     ].filter(([, body]) => body);
     if (!parts.length) return '';

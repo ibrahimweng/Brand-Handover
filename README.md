@@ -122,7 +122,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 138 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 352 tests.
+of it. 355 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -536,7 +536,23 @@ typeface was, and hard-coded Archivo and Literata into every project it built.
 It asks now, and the interface it asks in was rebuilt around what a designer
 actually does — see `docs/app-ux-plan.md`.
 
-Still to do: a run on **your** identity job. Sixteen identities the engine had
-not seen is worth a great deal more than sixteen passes over one, but none of
+The eighteenth audited the artwork rather than the project file, and the answer
+was stark: **the largest mark in seventeen identities is 23 paths.** **Ravelston**
+is a distillery with a heraldic crest of 46 — hatched shield, chevron, three
+casks — drawn to be cut into stone.
+
+It exposed a package **documenting an icon system it did not contain**.
+`iconSizes` and `faviconSizes` were the only "what gets written" rules with no
+default, so a project that did not name them shipped no icons at all, while
+`brand.json` carried the full specification and the manual kept its chapter on
+the grid. Sixteen of eighteen projects covered it by habit; the two that did not
+were the two most recently written. And once icons were finally written, the
+check that has existed since the thirteenth round said the crest needs 195 px
+before it holds together and told the designer to draw a simplified icon — **which
+the project had no way to carry**. It does now, and the read me, `brand.json` and
+the manual all say which drawing the icons came from.
+
+Still to do: a run on **your** identity job. Seventeen identities the engine had
+not seen is worth a great deal more than seventeen passes over one, but none of
 them came out of your exporter — and the normaliser is the part that most needs
 to meet one.

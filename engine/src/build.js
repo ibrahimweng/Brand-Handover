@@ -224,7 +224,19 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // ---- icons, favicons and social crops, all cut from the same master ----
   // icons are cut from the master, which for a logotype identity is the
   // logotype: there is no symbol to cut
-  const mark = masterOf(project).source;
+  // A detailed mark cannot be an icon, and the engine has been saying so since
+  // the thirteenth round: "draw a simplified icon mark — fewer parts, heavier
+  // strokes". A project could not carry the answer. assets.icon was loaded,
+  // normalised and then ignored, so the file the advice asked for was checked
+  // by `check --icon` and used by nothing. Icons are cut from it where there is
+  // one, and from the master where there is not.
+  const iconArt = project.assets.icon || masterOf(project);
+  const mark = iconArt.source;
+  const iconFrom = project.assets.icon ? path.basename(project.assets.icon.path) : path.basename(masterOf(project).path);
+  // and the floor is measured off whatever the icons are actually cut from
+  const iconMeasured = project.assets.icon
+    ? { markInk: geo.inkBox(mark), minimumSize: geo.minimumSize(mark, rules) }
+    : measured;
   const iconInk = rules.iconInk || '#FFFFFF';
   const iconBg = rules.iconBg || '#000000';
   const favPngs = [];
@@ -249,7 +261,18 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     favPngs.push({ size, data: png });
   }
   if (favPngs.length) write('05-icons/favicon.ico', exp.ico(favPngs));
-  const icons = exp.iconFloor(measured, rules) || { thinIcons: [], thinFavicons: [], clears: [] };
+  // What the package documents and what it contains have to be the same list.
+  // brand.json carried a full icon specification — box, stroke, curve radius —
+  // for a package with no icons in it, and the manual kept its chapter on the
+  // grid, because `rules.iconSizes || []` skipped silently when nothing named
+  // the sizes. The rule has a default now; this is the check that the next
+  // thing of this kind does not get to be silent either.
+  if (!written.some((f) => /^05-icons\//.test(f.path))) {
+    warnings.push('no icons were written, because rules.iconSizes and rules.faviconSizes are both empty. '
+      + 'brand.json still carries the icon grid the mark derives, so anybody reading it will expect files '
+      + 'that are not there. Set the sizes, or say plainly in the handover that icons are somebody else\'s job.');
+  }
+  const icons = exp.iconFloor(iconMeasured, rules) || { thinIcons: [], thinFavicons: [], clears: [] };
   if (icons.thinIcons.length) {
     const list = icons.thinIcons.map((t) => `${t.name} at ${t.at} px`).join(', ');
     warnings.push(`${icons.thinIcons.length} app icon`
@@ -259,13 +282,14 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       + `a smudge at them: this artwork needs ${icons.smallest} px square before it holds together`
       + `${icons.clears.length ? `, so only ${icons.clears.join(' and ')} come out of it clean` : `, and nothing asked for is that big`}. `
       + (icons.squarish
-        ? `Draw a simplified icon mark — fewer parts, heavier strokes — and run `
-          + `\`check <icon.svg> --icon\` against it, which measures the same thing and will say when it clears.`
+        ? `Draw a simplified icon mark — fewer parts, heavier strokes — run `
+          + `\`check <icon.svg> --icon\` against it, which measures the same thing and will say when it `
+          + `clears, and set it as assets.icon so the package is cut from it.`
         : `The shape is the reason: this artwork is ${icons.aspect} times longer than it is deep, and an `
           + `icon is square, so it is drawn to fit its longest side and fills ${icons.coverage}% of the `
           + `square where a square mark fills about 46%. No amount of thickening fixes that. Draw a `
           + `device for square places — a monogram, an initial, the part of the mark that stands alone — `
-          + `and run \`check <icon.svg> --icon\` against it.`));
+          + `run \`check <icon.svg> --icon\` against it, and set it as assets.icon.`));
   } else if (!icons.squarish) {
     // it clears the stroke rule and still wastes seven eighths of the square:
     // Kvist has shipped that way since the round it arrived, and Spire since
@@ -454,7 +478,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       motion: sys.motion,
       photography: sys.photography,
     },
-    generated: { measuredFrom: path.basename(masterOf(project).path), files: written.length + 1,
+    generated: { measuredFrom: path.basename(masterOf(project).path), iconsFrom: iconFrom, files: written.length + 1,
       builtUnder: licence && licence.ok ? { plan: licence.licence.plan, fingerprint: lic0.fingerprint(licence.licence) } : null },
   };
   write('brand.json', JSON.stringify(brandJson, null, 2));
@@ -481,6 +505,13 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     `Every file here was cut from ${path.basename(masterOf(project).path)} at the moment this package`,
     'was built. Nothing was drawn or renamed by hand, so no old variant can be',
     'hiding in a folder.', '',
+    // …except the icons, when the identity has a drawing of its own for them.
+    // The line above was flatly untrue as soon as one did, and a client seeing
+    // icons that do not match the mark deserves to be told it is deliberate.
+    ...(project.assets.icon ? [
+      `The icons are the exception: they are cut from ${iconFrom}, which is the`,
+      'simplified drawing this identity uses where the full mark would close up.',
+      'That is deliberate, and the manual shows both.', ''] : []),
     'Which file to use',
     '-----------------',
     // Four hardcoded lines, in a package that writes the lockups the project
