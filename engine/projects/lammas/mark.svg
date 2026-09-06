@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Lammas: the loaf-mass, the first harvest. A sheaf bound once. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <g data-slot="ink" fill="none" stroke="#2B2A26" stroke-width="8" stroke-linecap="round">
+    <path d="M60 104 L60 30"/>
+    <path d="M60 52 C42 44, 34 28, 34 14"/>
+    <path d="M60 52 C78 44, 86 28, 86 14"/>
+    <path d="M34 74 h52"/>
+  </g>
+</svg>

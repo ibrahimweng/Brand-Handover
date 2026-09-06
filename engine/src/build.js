@@ -478,6 +478,8 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       motion: sys.motion,
       photography: sys.photography,
     },
+    documents: (project.documents || []).map((d) => ({ name: d.name, pages: d.pages,
+      size: (d.doc.page && d.doc.page.size) || 'slide-16x9' })),
     generated: { measuredFrom: path.basename(masterOf(project).path), iconsFrom: iconFrom, files: written.length + 1,
       builtUnder: licence && licence.ok ? { plan: licence.licence.plan, fingerprint: lic0.fingerprint(licence.licence) } : null },
   };
@@ -535,15 +537,32 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     const docs = require('./documents');
     const { deck } = require('./documents/deck');
     const ctx = docs.context(project, measured, written.slice(), brandJson);
+    // the manual is written before the bundle exists, so it keeps the list it
+    // had; only the pages a designer lays out claim to index the whole package
     write('guidelines.html', docs.guidelines(ctx));
     write('deck.html', deck(ctx));
     const { editorHtml } = require('./editor/emit');
     const { bundle: mkBundle, starterDoc } = require('./editor/bundle');
     const EM = require('./editor/model');
     const { publish } = require('./editor/publish');
-    const bu = mkBundle(project, measured, written.slice());
+    // A page in the package that lists the package has to list all of it. The
+    // bundle was built from what had been written so far, which is everything
+    // except the documents themselves, the read me's companions and the zip —
+    // so an asset index laid out by a designer reported 45 files in a package
+    // of 57 and did not mention the folder its own page was in. Every name
+    // still to come is known here; only the sizes are not, and nothing in the
+    // index reads a size.
+    const pending = ['guidelines.html', 'deck.html', 'editor.html', 'document.json',
+      'published.html', 'usage.json', 'LICENCE.txt', `${naming.slug(project.latinName)}-brand-package.zip`]
+      .concat((project.documents || []).flatMap((d) => {
+        const slug = naming.slug(d.name) || naming.slug(path.basename(d.file, '.json')) || 'piece';
+        return [`10-documents/${slug}.html`, `10-documents/${slug}.json`];
+      }))
+      .filter((f) => !written.some((w) => w.path === f))
+      .map((f) => ({ path: f, bytes: 0 }));
+    const bu = mkBundle(project, measured, written.concat(pending));
     const document = starterDoc(bu);
-    write('editor.html', editorHtml(project, measured, written.slice()));
+    write('editor.html', editorHtml(project, measured, written.concat(pending)));
     // a document carries the photographs it uses, or it opens with empty slots
     const IMG = require('./editor/images');
     const keep = IMG.used(document);
@@ -552,6 +571,28 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     write('document.json', JSON.stringify(
       Object.keys(carried).length ? Object.assign({}, document, { images: carried }) : document, null, 2));
     write('published.html', publish(document, bu, { title: 'Guidelines' }));
+
+    // ---- the pieces the designer laid out ----
+    // A generated cover is what the engine can make without being told
+    // anything. The pieces an identity is actually delivered as — a poster, a
+    // programme, a ticket — are laid out by a person, and until now there was
+    // nowhere in a project to keep them, so they did not survive a rebuild.
+    for (const d of project.documents || []) {
+      const slug = naming.slug(d.name) || naming.slug(path.basename(d.file, '.json')) || 'piece';
+      write(`10-documents/${slug}.html`, publish(d.doc, bu, { title: d.name }));
+      write(`10-documents/${slug}.json`, JSON.stringify(d.doc, null, 2));
+      // the same question asked of the cover, asked of the pages somebody drew
+      for (const t of EM.overfullText(d.doc, project.tokens.type)) {
+        warnings.push(`in "${d.name}", page ${t.page} ("${t.pageName}"): the ${t.style} text needs about `
+          + `${t.lines} lines — ${t.needs} units against the ${t.has} its block has — so "${t.text}…" `
+          + `runs past the bottom of it. Make the block ${t.over} units taller, or set it smaller.`);
+      }
+    }
+    if ((project.documents || []).length) {
+      notes.push(`the ${project.documents.length} piece${project.documents.length > 1 ? 's' : ''} laid out for this `
+        + `identity ${project.documents.length > 1 ? 'are' : 'is'} in 10-documents, as pages to read and as `
+        + `documents to open on the canvas: ${project.documents.map((d) => d.name).join(', ')}.`);
+    }
     // A block is a rectangle somebody drew and the words are somebody's
     // writing, and nothing had ever asked whether the second fits the first.
     // On screen the surplus was swallowed; in print it ran through whatever was

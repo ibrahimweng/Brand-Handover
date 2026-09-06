@@ -156,6 +156,11 @@ html,body{margin:0;background:var(--shell);color:var(--ink);font-family:ui-sans-
   function publish(doc, bundle, opts) {
     const o = opts || {};
     const sh = sheets(doc);
+    // The renderer is shared with the canvas on purpose. Tell it which of the
+    // two it is drawing for the length of this call and no longer, or the
+    // editor stops offering to take a photograph the moment somebody publishes.
+    if (R.publishing) R.publishing(true);
+    try {
     const pages = doc.pages.map((p, i) => {
       const e = sh.of(p);
       return `<section class="hp-page ${e.cls}${e.box.bleed ? ' hp-b' : ''}" style="background:${bundle.roles.ground.hex}" aria-label="Page ${i + 1}, ${esc(p.name)}">`
@@ -191,6 +196,7 @@ p.style.transform='scale('+a+')';p.style.marginBottom=(a<1?-(1-a)*h:0)+'px'})}
 addEventListener('resize',fit);fit()})();
 <\/script>
 </body></html>`;
+    } finally { if (R.publishing) R.publishing(false); }
   }
 
   return { publish, CSS, BLOCK_CSS };

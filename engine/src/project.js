@@ -246,7 +246,7 @@ function load(file) {
   // nothing to show but a grey ramp.
   const photography = [];
   for (const [key, rel] of Object.entries(raw.assets)) {
-    if (key === 'photography') continue;
+    if (key === 'photography' || key === 'documents') continue;
     const p = path.join(dir, rel);
     if (!fs.existsSync(p)) throw new Error(`the project points at ${rel} for the ${key}, and that file is not there`);
     assets[key] = { path: p, source: fs.readFileSync(p, 'utf8') };
@@ -268,6 +268,45 @@ function load(file) {
       w: size.w, h: size.h, src: `data:${mime};base64,${bytes.toString('base64')}`,
       caption: (typeof entry === 'object' && entry.caption) || '' });
   }
+  // ---- the pages the designer laid out ----
+  // The canvas exists so a designer can lay out the pieces an identity is
+  // actually delivered as — a poster, a programme, a ticket — and until now
+  // there was nowhere to put them. Every package's document.json was the cover
+  // the engine generates, so the designer's own pages were not part of the
+  // identity's source and did not survive a rebuild. This is the fourth time
+  // the same shape has turned up: the photographs, the typeface, the icon, and
+  // now the layouts.
+  const M = require('./editor/model');
+  const documents = [];
+  for (const entry of raw.assets.documents || []) {
+    const rel = typeof entry === 'string' ? entry : entry.file;
+    const dp = path.join(dir, rel);
+    if (!fs.existsSync(dp)) throw new Error(`the project lists ${rel} under assets.documents, and that file is not there.`);
+    let doc;
+    try { doc = JSON.parse(fs.readFileSync(dp, 'utf8')); }
+    catch (e) { throw new Error(`${rel} is not readable JSON: ${e.message}`); }
+    if (!doc || !Array.isArray(doc.pages) || !doc.pages.length) {
+      throw new Error(`${rel} is not a document this can open. A document has a "pages" list —`
+        + ' it is the file the canvas saves, so lay the piece out there and use what it writes.');
+    }
+    for (const [i, page] of doc.pages.entries()) {
+      if (!Array.isArray(page.blocks)) throw new Error(`${rel} page ${i + 1} has no "blocks" list.`);
+      for (const b of page.blocks) {
+        if (M.KINDS.indexOf(b.type) < 0) {
+          throw new Error(`${rel} has a "${b.type}" block on page ${i + 1}, and there is no such block.`
+            + ` The kinds are ${M.KINDS.join(', ')}.`);
+        }
+      }
+    }
+    if (doc.page && doc.page.size && !M.SHEETS[doc.page.size]) {
+      throw new Error(`${rel} is set on a "${doc.page.size}" page, which is not a size this knows.`
+        + ` The sizes are ${Object.keys(M.SHEETS).join(', ')}.`);
+    }
+    documents.push({ file: rel, path: dp,
+      name: (typeof entry === 'object' && entry.name) || path.basename(rel, '.json'),
+      pages: doc.pages.length, doc });
+  }
+
   // ---- the typeface the identity is actually set in ----
   // Every fixture for sixteen rounds declared google: true, so the only path
   // that had ever run was a link to a font somebody else hosts. A brand built
@@ -340,7 +379,7 @@ function load(file) {
   // here, which meant every rule override in a project file was read as absent
   // and the defaults quietly won. Nothing complained, because a default is a
   // perfectly good answer right up until somebody wanted a different one.
-  return { brand: raw.brand, latinName, language, direction, version: raw.version || '0.0.0', dir, tokens, assets, photography, fonts, rules, master,
+  return { brand: raw.brand, latinName, language, direction, version: raw.version || '0.0.0', dir, tokens, assets, photography, fonts, documents, rules, master,
     system: raw.system || {}, content: raw.content || {}, report };
 }
 

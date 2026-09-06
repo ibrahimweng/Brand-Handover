@@ -377,7 +377,7 @@ publishing, all three kinds of block, image slots, page sizes and the
 photography treatment, print work with bleed, CMYK, and a printed piece through
 Typst, mockups, the licence half of accounts, and a local app that takes artwork
 and gives back the package without anybody writing a project file. 138 files from one master,
-359 tests, and eighteen more identities in the repo that the engine had not been
+364 tests, and nineteen more identities in the repo that the engine had not been
 written against.
 
 Three things the plan had wrong, found by building rather than by thinking.
@@ -1223,6 +1223,41 @@ is not an approximation of anything — `W` really is 1.09 em and `i` really is
 every one. They cost a browser run to obtain and would have cost the same again
 each time somebody wondered. A number in a comment is a claim; a fixture is a
 check.
+
+**The fourth time a shape appears, it is not a coincidence, it is the design.**
+A project could not carry the photographs the identity was built on, then the
+typeface it was set in, then the icon it needed for small sizes, and now the
+pages somebody laid out. Each was found separately, by a fixture built to need
+it. The pattern is always the same: the engine can *use* the thing, and has
+somewhere to put it at run time, and there is no field in a project for it — so
+the thing only exists while somebody is holding it. Worth going through the
+whole of what a canvas or a build can consume and asking, of each, whether a
+project can supply it. That list would have found all four at once.
+
+**A shared renderer has to know which surface it is drawing.** The canvas and
+the published page use the same code on purpose, which is why they cannot drift.
+But a canvas is a place to work and says "drop a photograph here", and a
+published page is something a client reads, and that sentence printed on a
+ticket is the editor leaking out of the door. Sharing is right; being unaware of
+the context is not. The flag is set for the length of one call and cleared in a
+`finally`, because a mode left on is the next bug.
+
+**Defaulting a reference is worse than having none.** `on || PAGE` clamped a
+block against the default slide when the caller did not say what page the block
+was on. Not clamping would have been correct: the caller's explicit size is the
+best information available. Falling back to a plausible default made the wrong
+answer look deliberate, and the symptom was invisible — the content was drawn,
+in the ground colour, on the ground. A default is only safe when it is a
+*decision*; where it stands in for knowledge the code does not have, it is a
+guess wearing a constant's clothes. This is the second round running that this
+has come up.
+
+**A page that describes the package must be built from the finished package.**
+The asset index counted the files written before it, which is not the same list
+as the files in the package. Anything self-describing has this problem — the
+count in the deck, the read me's folder list, the index — and the fix is the
+same each time: work out the whole list first, then write it, rather than asking
+half way through.
 
 ---
 

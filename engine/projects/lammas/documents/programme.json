@@ -1,0 +1,107 @@
+{
+ "version": 1,
+ "brand": "Lammas",
+ "page": {
+  "size": "a4-landscape",
+  "w": 1122,
+  "h": 794
+ },
+ "grid": 8,
+ "pages": [
+  {
+   "id": "p9",
+   "name": "Programme, cover",
+   "blocks": [
+    {
+     "id": "ba",
+     "type": "lockup",
+     "x": 80,
+     "y": 72,
+     "w": 480,
+     "h": 160,
+     "props": {
+      "lockup": "horizontal",
+      "colourway": "primary",
+      "on": "ground"
+     }
+    },
+    {
+     "id": "bb",
+     "type": "rule",
+     "x": 80,
+     "y": 280,
+     "w": 962,
+     "h": 2,
+     "props": {
+      "colour": "primary",
+      "weight": 2
+     }
+    },
+    {
+     "id": "bc",
+     "type": "text",
+     "x": 80,
+     "y": 312,
+     "w": 620,
+     "h": 120,
+     "props": {
+      "text": "The 2032 programme, and everything the festival is set in.",
+      "style": "H1",
+      "align": "left",
+      "colour": "primary"
+     }
+    },
+    {
+     "id": "bd",
+     "type": "text",
+     "x": 80,
+     "y": 470,
+     "w": 620,
+     "h": 120,
+     "props": {
+      "text": "Printed on the mill’s own paper. The type is set at the sizes on the following page and at no others.",
+      "style": "Body",
+      "align": "left",
+      "colour": "primary"
+     }
+    }
+   ]
+  },
+  {
+   "id": "pe",
+   "name": "Type and assets",
+   "blocks": [
+    {
+     "id": "bf",
+     "type": "typeSpecimen",
+     "x": 80,
+     "y": 72,
+     "w": 962,
+     "h": 400,
+     "props": {}
+    },
+    {
+     "id": "bg",
+     "type": "rule",
+     "x": 80,
+     "y": 504,
+     "w": 962,
+     "h": 1,
+     "props": {
+      "colour": "primary",
+      "weight": 1
+     }
+    },
+    {
+     "id": "bh",
+     "type": "assetIndex",
+     "x": 80,
+     "y": 530,
+     "w": 962,
+     "h": 210,
+     "props": {}
+    }
+   ]
+  }
+ ]
+}

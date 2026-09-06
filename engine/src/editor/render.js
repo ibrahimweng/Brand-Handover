@@ -143,7 +143,8 @@
     slot: (b, bu) => {
       const im = (bu.images || {})[b.props.image];
       if (!im) {
-        return `<div class="hb-slot"><b>${esc(b.props.label)}</b><span>drop an image here</span></div>`;
+        // an empty slot on a published page is a hole, not an instruction
+        return PUBLISHED ? '' : `<div class="hb-slot"><b>${esc(b.props.label)}</b><span>drop an image here</span></div>`;
       }
       const fit = b.props.fit === 'contain' ? 'contain' : 'cover';
       const pos = `${Number(b.props.focusX) || 0}% ${Number(b.props.focusY) || 0}%`;
@@ -187,6 +188,9 @@
           + fitSvg(art, 0) + `</div></div>`
         : '';
       if (!im) {
+        // published, the art alone on the ground, and nothing said to the reader
+        // about a photograph they were never going to add
+        if (PUBLISHED) return inner ? `<div style="position:absolute;inset:0;overflow:hidden">${inner}</div>` : '';
         return `<div class="hb-slot"><b>Mockup</b><span>drop a photograph here</span></div>`
           + (inner ? `<div style="position:absolute;inset:0;overflow:hidden">${inner}</div>` : '');
       }
@@ -385,6 +389,13 @@
     },
   };
 
+  // Which of the two this is drawing. The canvas is a place to work and says
+  // "drop a photograph here"; a published page is something a client reads, and
+  // an instruction to the designer printed on a ticket is the editor leaking
+  // out of the door. The renderer is shared on purpose, so it is told.
+  let PUBLISHED = false;
+  const publishing = (on) => { PUBLISHED = !!on; };
+
   function block(b, bundle) {
     const fn = BLOCK[b.type];
     if (!fn) return `<div class="hb-missing">no renderer for "${esc(b.type)}"</div>`;
@@ -407,5 +418,5 @@
     `<div class="hb-page" data-page="${p.id}" style="position:relative;width:${size.w}px;height:${size.h}px;background:${bundle.roles.ground.hex};overflow:hidden">`
     + p.blocks.map((b) => positioned(b, bundle)).join('') + `</div>`;
 
-  return { block, positioned, page, colour, cwName, typeStyle, esc, construction, clearSpace, BLOCK };
+  return { block, positioned, page, colour, cwName, typeStyle, esc, construction, clearSpace, publishing, BLOCK };
 }));

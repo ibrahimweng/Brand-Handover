@@ -159,8 +159,15 @@ const SIZES = {
 function makeBlock(type, at = {}, on) {
   if (!KINDS.includes(type)) throw new Error(`there is no block called "${type}"`);
   const s = SIZES[type], sheetOn = on || PAGE;
-  // a block never opens wider than the page it lands on
-  const w = Math.min(at.w || s.w, sheetOn.w), h = Math.min(at.h || s.h, sheetOn.h);
+  // A block never opens wider than the page it lands on — but only when it has
+  // been told which page that is. `on || PAGE` clamped against the default
+  // slide instead, so a caller that did not pass one had its sizes quietly cut
+  // to 1280 x 720: a poster's full-bleed fill, 1080 x 1920, came out 720 tall
+  // and everything below it was set in the ground colour on the ground. An
+  // explicit size from the caller is the best information there is; clamping it
+  // against a page the block is not on is worse than not clamping at all.
+  const clamp = on ? ((v, max) => Math.min(v, max)) : ((v) => v);
+  const w = clamp(at.w || s.w, sheetOn.w), h = clamp(at.h || s.h, sheetOn.h);
   return {
     id: id('b'), type,
     x: at.x !== undefined ? at.x : Math.round((sheetOn.w - w) / 2),

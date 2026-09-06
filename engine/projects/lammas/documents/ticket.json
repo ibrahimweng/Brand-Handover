@@ -1,0 +1,94 @@
+{
+ "version": 1,
+ "brand": "Lammas",
+ "page": {
+  "size": "a5",
+  "w": 559,
+  "h": 794
+ },
+ "grid": 8,
+ "pages": [
+  {
+   "id": "pi",
+   "name": "Ticket",
+   "blocks": [
+    {
+     "id": "bj",
+     "type": "surface",
+     "x": 0,
+     "y": 0,
+     "w": 559,
+     "h": 400,
+     "props": {
+      "image": "i1el7zox1xga",
+      "quad": [
+       [
+        0.2,
+        0.24
+       ],
+       [
+        0.8,
+        0.24
+       ],
+       [
+        0.8,
+        0.6
+       ],
+       [
+        0.2,
+        0.6
+       ]
+      ],
+      "art": "lockup",
+      "lockup": "stacked",
+      "colourway": "reverse",
+      "blend": "multiply",
+      "opacity": 1,
+      "surfaceWidthMm": 0,
+      "treatment": false
+     }
+    },
+    {
+     "id": "bk",
+     "type": "rule",
+     "x": 48,
+     "y": 440,
+     "w": 463,
+     "h": 2,
+     "props": {
+      "colour": "primary",
+      "weight": 2
+     }
+    },
+    {
+     "id": "bl",
+     "type": "text",
+     "x": 48,
+     "y": 472,
+     "w": 463,
+     "h": 110,
+     "props": {
+      "text": "Admit one\nBarn 3, Thursday",
+      "style": "H2",
+      "align": "left",
+      "colour": "primary"
+     }
+    },
+    {
+     "id": "bm",
+     "type": "text",
+     "x": 48,
+     "y": 660,
+     "w": 463,
+     "h": 60,
+     "props": {
+      "text": "Lammas Festival 2032 · non transferable",
+      "style": "Small",
+      "align": "left",
+      "colour": "primary"
+     }
+    }
+   ]
+  }
+ ]
+}

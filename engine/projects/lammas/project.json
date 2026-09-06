@@ -1,0 +1,212 @@
+{
+  "brand": "Lammas",
+  "version": "1.0.0",
+  "assets": {
+    "mark": "mark.svg",
+    "wordmark": "wordmark.svg",
+    "photography": [
+      {
+        "file": "photography/bag-on-the-trestle.png",
+        "caption": "a bag on the trestle, the morning of the first day"
+      }
+    ],
+    "documents": [
+      {
+        "file": "documents/poster.json",
+        "name": "Poster"
+      },
+      {
+        "file": "documents/programme.json",
+        "name": "Programme"
+      },
+      {
+        "file": "documents/ticket.json",
+        "name": "Ticket"
+      }
+    ]
+  },
+  "tokens": {
+    "colour": {
+      "rye": {
+        "hex": "#2B2A26",
+        "role": "primary",
+        "cmyk": [
+          65,
+          60,
+          65,
+          55
+        ]
+      },
+      "flour": {
+        "hex": "#F6F1E4",
+        "role": "ground",
+        "cmyk": [
+          3,
+          4,
+          12,
+          0
+        ]
+      },
+      "field": {
+        "hex": "#7C8C4A",
+        "role": "secondary",
+        "cmyk": [
+          55,
+          30,
+          90,
+          12
+        ]
+      },
+      "ember": {
+        "hex": "#C4562A",
+        "role": "accent",
+        "cmyk": [
+          15,
+          78,
+          92,
+          4
+        ],
+        "textSafe": false,
+        "maxCoverage": 0.06
+      }
+    },
+    "type": {
+      "families": {
+        "display": {
+          "family": "Archivo",
+          "google": true,
+          "weights": [
+            500,
+            700
+          ],
+          "fallback": "Helvetica,Arial,sans-serif"
+        },
+        "text": {
+          "family": "Literata",
+          "google": true,
+          "weights": [
+            400
+          ],
+          "fallback": "Georgia,serif"
+        }
+      },
+      "scale": [
+        {
+          "name": "Display",
+          "family": "display",
+          "size": 96,
+          "leading": 96,
+          "weight": 700,
+          "tracking": -0.03,
+          "sample": "LAMMAS FESTIVAL"
+        },
+        {
+          "name": "H1",
+          "family": "display",
+          "size": 38,
+          "leading": 44,
+          "weight": 700,
+          "tracking": -0.02,
+          "sample": "The 2032 programme"
+        },
+        {
+          "name": "H2",
+          "family": "display",
+          "size": 26,
+          "leading": 34,
+          "weight": 500,
+          "sample": "Eleven days in the last week of the harvest"
+        },
+        {
+          "name": "H3",
+          "family": "display",
+          "size": 19,
+          "leading": 25,
+          "weight": 500,
+          "sample": "Barns, a mill and one field"
+        },
+        {
+          "name": "Body",
+          "family": "text",
+          "size": 17,
+          "leading": 27,
+          "weight": 400,
+          "sample": "Printed on the mill's own paper."
+        },
+        {
+          "name": "Small",
+          "family": "text",
+          "size": 14,
+          "leading": 21,
+          "weight": 400,
+          "sample": "Non transferable."
+        },
+        {
+          "name": "Caption",
+          "family": "display",
+          "size": 13,
+          "leading": 18,
+          "weight": 500,
+          "tracking": 0.08,
+          "sample": "1–11 August · Wyre Vale"
+        }
+      ]
+    }
+  },
+  "rules": {
+    "lockups": [
+      "horizontal",
+      "stacked",
+      "mark",
+      "wordmark"
+    ],
+    "colourways": [
+      {
+        "name": "rye",
+        "on": "flour",
+        "slots": {
+          "ink": "#2B2A26"
+        }
+      },
+      {
+        "name": "reverse",
+        "on": "rye",
+        "slots": {
+          "ink": "#F6F1E4"
+        }
+      },
+      {
+        "name": "field",
+        "on": "flour",
+        "slots": {
+          "ink": "#7C8C4A"
+        }
+      }
+    ],
+    "formats": [
+      "svg",
+      "png"
+    ],
+    "pngWidths": [
+      512,
+      1024
+    ],
+    "naming": "{brand}-{lockup}-{colourway}"
+  },
+  "content": {
+    "positioning": "Lammas is eleven days of music, walking and bread in the last week of the harvest.",
+    "introduction": "Twenty two events across six barns, a mill and one field, run by fourteen people and a great many volunteers. The identity exists to be printed on the mill's own paper by a jobbing printer in the next village, and everything in it was drawn with that in mind.",
+    "markRationale": "A sheaf bound once. Two ears out of one stalk and a single band, which is as much as survives being screen printed onto a canvas bag at arm's length.",
+    "colourRationale": "Rye is the ink and Flour is the paper, which is warm because the mill's stock is. Field is for surfaces and maps. Ember marks one thing on a page and never more than six percent of it.",
+    "typeRationale": "One grotesque for everything that shouts and one serif for everything that is read sitting down. The poster is set at 96 and the ticket at 26, and there is nothing in between on purpose.",
+    "misuse": [
+      "Do not set the poster in anything but the display size. It is a poster.",
+      "Do not stretch. Scale both axes together, always.",
+      "Do not recolour outside the approved colourways.",
+      "Do not put Ember behind text.",
+      "Do not redraw the sheaf with more ears. It is bound once for a reason.",
+      "Do not use the reversed lockup on Flour. It disappears."
+    ],
+    "constructionNotes": "The stalk is the full height of the box less eight units at each end. The ears leave the stalk at forty three percent of its height and reach the top of the box. The band sits at sixty two percent."
+  }
+}

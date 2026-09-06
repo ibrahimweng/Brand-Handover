@@ -1,0 +1,107 @@
+{
+ "version": 1,
+ "brand": "Lammas",
+ "page": {
+  "size": "story",
+  "w": 1080,
+  "h": 1920
+ },
+ "grid": 8,
+ "pages": [
+  {
+   "id": "p1",
+   "name": "Poster",
+   "blocks": [
+    {
+     "id": "b2",
+     "type": "fill",
+     "x": 0,
+     "y": 0,
+     "w": 1080,
+     "h": 1920,
+     "props": {
+      "colour": "primary"
+     }
+    },
+    {
+     "id": "b3",
+     "type": "mark",
+     "x": 390,
+     "y": 180,
+     "w": 300,
+     "h": 300,
+     "props": {
+      "colourway": "reverse",
+      "on": "primary"
+     }
+    },
+    {
+     "id": "b4",
+     "type": "text",
+     "x": 96,
+     "y": 620,
+     "w": 888,
+     "h": 420,
+     "props": {
+      "text": "LAMMAS\nFESTIVAL\n2032",
+      "style": "Display",
+      "align": "left",
+      "colour": "ground"
+     }
+    },
+    {
+     "id": "b5",
+     "type": "rule",
+     "x": 96,
+     "y": 1120,
+     "w": 888,
+     "h": 3,
+     "props": {
+      "colour": "ground",
+      "weight": 3
+     }
+    },
+    {
+     "id": "b6",
+     "type": "text",
+     "x": 96,
+     "y": 1170,
+     "w": 888,
+     "h": 220,
+     "props": {
+      "text": "Eleven days of music, walking and bread in the last week of the harvest. Twenty two events across six barns, a mill and one field.",
+      "style": "H2",
+      "align": "left",
+      "colour": "ground"
+     }
+    },
+    {
+     "id": "b7",
+     "type": "rule",
+     "x": 96,
+     "y": 1470,
+     "w": 888,
+     "h": 1,
+     "props": {
+      "colour": "ground",
+      "weight": 1
+     }
+    },
+    {
+     "id": "b8",
+     "type": "text",
+     "x": 96,
+     "y": 1510,
+     "w": 888,
+     "h": 120,
+     "props": {
+      "text": "1–11 August · Wyre Vale · lammas.example",
+      "style": "Caption",
+      "align": "left",
+      "colour": "ground"
+     }
+    }
+   ]
+  }
+ ]
+}
