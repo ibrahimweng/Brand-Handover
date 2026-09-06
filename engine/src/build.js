@@ -17,7 +17,8 @@ const { masterOf } = require('./project');
 const KEYS_READ = {
   rules: ['clearSpaceRatio', 'minStrokePx', 'minStrokeMm', 'lockupGapRatio', 'wordmarkHeightRatio',
     'naming', 'lockups', 'formats', 'pngWidths', 'stock', 'colourways', 'iconInk', 'iconBg',
-    'iconSizes', 'faviconSizes', 'social', 'partners', 'documents', 'ladder', 'fabrication', 'family'],
+    'iconSizes', 'faviconSizes', 'social', 'partners', 'documents', 'ladder', 'fabrication', 'family',
+    'accessibility'],
   system: ['icons', 'icon', 'pattern', 'motion', 'photography', 'nameSetting', 'grid'],
   // tokens was outside this audit entirely, so a whole branch of a project file
   // could be written, saved and shipped without anything reading it. The
@@ -984,7 +985,8 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // software was wrong about the size of the thing it describes.
   const pending = ['README.txt', 'brand.json'].concat(project.previous ? ['CHANGES.txt'] : [])
     .concat(rules.documents === false ? [] : ['guidelines.html', 'deck.html', 'editor.html', 'document.json',
-      'published.html', 'usage.json', 'LICENCE.txt', `${naming.slug(project.latinName)}-brand-package.zip`]
+      'published.html', 'usage.json', 'LICENCE.txt', 'ACCESSIBILITY.txt',
+      `${naming.slug(project.latinName)}-brand-package.zip`]
       .concat((project.documents || []).flatMap((d) => {
         const slug = naming.slug(d.name) || naming.slug(path.basename(d.file, '.json')) || 'piece';
         return [`10-documents/${slug}.html`, `10-documents/${slug}.json`];
@@ -1305,6 +1307,35 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     write('document.json', JSON.stringify(
       Object.keys(carried).length ? Object.assign({}, document, { images: carried }) : document, null, 2));
     write('published.html', publish(document, bu, { title: 'Guidelines' }));
+
+    // ---- the documents this engine just wrote ----
+    //
+    // It has printed a WCAG contrast table since the first week, measuring the
+    // client's palette against the grounds the client will set text on, in a
+    // document whose own captions were 3.18 to 1. Twenty-eight identities. The
+    // engine checked the identity's accessibility and never once checked its
+    // own. See src/access.js.
+    const ACC = require('./access');
+    const chrome = require('./documents/chrome');
+    const pages = {
+      'guidelines.html': docs.guidelines(ctx),
+      'deck.html': deck(ctx),
+      'published.html': publish(document, bu, { title: 'Guidelines' }),
+    };
+    const acc = ACC.audit(pages, chrome.CSS, (rules.accessibility || {}));
+    for (const f of acc.findings) {
+      const line = `${f.page ? `in ${f.page}, ` : ''}${f.what} ${f.why} ${f.how}`;
+      if (f.level === 'blocker') { const e = new Error(f.what); e.findings = [Object.assign({}, f, { what: line })]; throw e; }
+      warnings.push(line);
+    }
+    write('ACCESSIBILITY.txt', ACC.statement(acc, { brand: project.brand,
+      standard: (rules.accessibility || {}).standard || 'WCAG 2.2 AA' }));
+    if (!acc.findings.length) {
+      notes.push(`the three documents in this package were measured against `
+        + `${(rules.accessibility || {}).standard || 'WCAG 2.2 AA'} when it was built and ACCESSIBILITY.txt says `
+        + 'what was checked. The canvas is an application rather than a document and is not in that file: its '
+        + 'own accessibility is a separate question and this package does not claim an answer to it.');
+    }
 
     // ---- the pieces the designer laid out ----
     // A generated cover is what the engine can make without being told

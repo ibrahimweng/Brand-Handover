@@ -141,6 +141,17 @@ produced, and the build reports what moved between them:
       previous/
         brand.json      copied out of the package that shipped as 1.4.0
 
+An identity can state the standard its documents are held to:
+
+    "accessibility": { "standard": "WCAG 2.2 AA" }
+
+Every build measures the manual, the deck and the published page — the chrome's
+own type against the ground the page paints, in both themes, at the size each
+rule sets; one first level heading and no level skipped; a landmark to skip to;
+an accessible name on every drawing that carries meaning and `aria-hidden` on
+every one that does not — and writes `ACCESSIBILITY.txt` saying what was checked
+and what it came to.
+
 An identity whose mark builds names the parts in the artwork and gives each of
 them a step:
 
@@ -2765,6 +2776,51 @@ Round twenty-five's grid check caught this round's own artwork twice: the arcs
 were at five and a half units of radius, and the transmitter's radius put its
 extremes between grid lines.
 
+## A twenty-ninth identity
+
+The twenty-fourth round taught this engine to ask whether the client's colours
+can be told apart, and it has printed a WCAG contrast table since the first week
+— measuring the palette against the grounds the client will set text on, on a
+page whose own captions are ten and a half pixels of grey measuring **3.18 to
+one**.
+
+Twenty-eight identities. Every caption, every column heading, every chapter
+number and the footer of every manual, deck and published page, in both themes,
+below the standard printed beside them. **The engine checked the identity's
+accessibility and had never once checked its own.**
+
+`src/access.js` reads the stylesheet the documents actually ship — not a copy of
+its values — works out which token paints which rule and at what size, and
+measures every pair against the ground it sits on in each theme. Then it reads
+the HTML for what a document has to get right whatever it is about. It found
+five things:
+
+- **`--ink-3` failed in both themes**, across nineteen rules each. One token.
+- **Seventeen of the twenty drawings** on a manual page had no accessible name
+  and were not hidden, so a screen reader announced them as unlabelled graphics
+  or skipped them, depending which one it was. `scaled()` names a specimen when
+  told what it is and hides it when the caption beside it is the name.
+- **No `<main>`** on the manual or the deck: nothing to skip to.
+- **The published page had no first level heading at all.**
+- And the audit's own first answer was wrong. It took the page's ground to be
+  `--surface`, because that is what a token called surface sounds like. The page
+  paints `--paper`, a shade darker, and the shade is the whole answer: **4.47
+  against 4.61 for a figure that has to clear 4.5.** A browser found it in one
+  measurement while the arithmetic here had been agreeing with itself. It reads
+  the ground off the `body` rule now.
+
+**Rookhope** runs twelve libraries on one ticket, and states the standard its
+documents are held to:
+
+    "accessibility": { "standard": "WCAG 2.2 AA" }
+
+Every package now carries `ACCESSIBILITY.txt`: what was checked, what it
+measured, and what it came to — written by measuring the pages beside it rather
+than by describing them, so it changes when they do. The hairlines between rows
+are named in it as excluded and why, rather than quietly left out. And the canvas
+is named as an application rather than a document, whose own accessibility is a
+separate question this package does not claim an answer to.
+
 ## A front door
 
 Sixteen rounds, and the only way into the engine was to hand-write a project
@@ -2887,6 +2943,7 @@ the mechanism. The name was the cause, and renaming the payload is the fix.
     projects/ancroft/ the twenty-sixth: thread, vinyl, stone and cast metal
     projects/harbourne/ the twenty-seventh: three museums, one mark, one difference each
     projects/farne/   the twenty-eighth: a mark that arrives, in a file that plays it
+    projects/rookhope/ the twenty-ninth: the documents the engine writes, measured
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package

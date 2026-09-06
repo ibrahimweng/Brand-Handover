@@ -1481,6 +1481,23 @@ they made a chapter of a manual that could not be acted on at all. Worth asking
 of anything the documents describe: does the thing it names exist, and is it in
 the package?
 
+**The tool is not exempt from the standard it enforces.** Twenty-four rounds of
+building checks for the client's accessibility, printed on pages that had never
+been checked at all. It is not hypocrisy, it is a blind spot with a shape:
+everything the engine looks at is *input*, and its own output is the one thing
+that never arrives through the door it inspects. Every tool that measures
+something should be pointed at itself once, deliberately, because nothing else
+will ever do it.
+
+**Verify a measurement in the thing being measured.** The contrast audit read the
+stylesheet, resolved the tokens, did the arithmetic correctly, and compared
+against the wrong background — `--surface`, because that is what a token called
+surface sounds like, rather than `--paper`, which is what `body` sets. The error
+was a shade, and the shade decided the answer. Arithmetic over a model of a page
+will agree with itself all day; a browser rendering the actual page disagreed
+immediately. Where a real environment can be asked, ask it, even when the maths
+is not in doubt.
+
 ---
 
 Prior art checked September 2026: Logo Package Express, Standards, Brandpad,

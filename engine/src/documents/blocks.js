@@ -29,9 +29,15 @@ function inked(ctx, hex, which) {
 
 // `css` overrides the width the browser lays the mark out at, while the width
 // and height attributes stay at the true size for a reader with no styles.
-function scaled(svg, width, css) {
+// A specimen is either something a reader needs described or decoration of the
+// caption beside it, and every one of them was neither: seventeen of the twenty
+// drawings on a manual page had no accessible name and were not hidden, so a
+// screen reader announced them as unlabelled graphics or skipped them, depending
+// which one it was. Say which. `label` names it; no label means the caption next
+// to it is the name and the drawing itself is decoration of it.
+function scaled(svg, width, css, label) {
   // a document should not fail to build because one variant is absent
-  if (!svg) return `<div style="width:${css || `${width}px`};height:${Math.round(width / 3)}px"></div>`;
+  if (!svg) return `<div style="width:${css || `${width}px`};height:${Math.round(width / 3)}px" aria-hidden="true"></div>`;
   return svg.replace(/<svg([^>]*)>/, (m, attrs) => {
     // height="auto" is not a length, so it is not an SVG attribute. The style
     // beside it was doing the work and the attribute was only ever an error in
@@ -40,7 +46,9 @@ function scaled(svg, width, css) {
     const vb = /viewBox="\s*([-\d.eE]+)[,\s]+([-\d.eE]+)[,\s]+([-\d.eE]+)[,\s]+([-\d.eE]+)/.exec(attrs);
     const h = vb && Number(vb[3]) > 0
       ? ` height="${svgu.round(width * (Number(vb[4]) / Number(vb[3])), 2)}"` : '';
-    return `<svg${attrs.replace(/\s(width|height)="[^"]*"/g, '')} width="${width}"${h}`
+    const named = label ? ` role="img" aria-label="${esc(label)}"` : ' aria-hidden="true"';
+    return `<svg${attrs.replace(/\s(width|height)="[^"]*"/g, '')
+      .replace(/\s(role|aria-label|aria-hidden)="[^"]*"/g, '')} width="${width}"${h}${named}`
       + ` style="width:${css || `${width}px`};height:auto;display:block">`;
   });
 }

@@ -131,7 +131,8 @@ test('the file count is exactly what the rules ask for', () => {
     + (r.faviconSizes || []).length + ((r.faviconSizes || []).length ? 1 : 0)  // favicons plus the .ico
     + Object.keys(r.social || {}).length                    // social crops
     + patternTiles()                                        // the pattern, at every density, in every colourway
-    + 4                                                     // brand.json, README.txt, LICENCE.txt and usage.json
+    + 5                                                     // brand.json, README.txt, LICENCE.txt, usage.json
+                                                            // and ACCESSIBILITY.txt
     + (r.documents === false ? 0 : 5)                       // manual, deck, editor, document.json, published.html
     + (r.zip === false ? 0 : 1);                            // the package itself
   assert.strictEqual(result.written.length, expected, `expected ${expected} files, got ${result.written.length}`);
@@ -6069,9 +6070,90 @@ test('the manual plays the sequence it specifies', () => {
   assert.ok(fs.readdirSync(out).indexOf('15-motion') < 0);
 });
 
+
+// ---------------------------------------------------------------------------
+console.log('\nthe engine\'s own documents');
+const ACC = require('../src/access');
+const CHROME = require('../src/documents/chrome');
+const ROOK = path.join(__dirname, '..', 'projects', 'rookhope', 'project.json');
+const rook = projectLoader.load(ROOK);
+let rookOut;
+before(async () => {
+  rookOut = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-rook-'));
+  await build(rook, rookOut);
+});
+
+test('the ground is read off the stylesheet, not assumed from a token name', () => {
+  // The page paints --paper, and a token called surface is what it sounds like
+  // it should be. The difference is a shade, and the shade is the whole answer:
+  // 4.47 against 4.61 for a figure that has to clear 4.5.
+  assert.strictEqual(ACC.pageGround(CHROME.CSS), 'paper');
+});
+test('every rule that sets type in the documents\' own colours meets the standard', () => {
+  const got = ACC.chromeContrast(CHROME.CSS);
+  assert.ok(got.length > 40, `only ${got.length} text rules found; the reader has stopped reading`);
+  const bad = got.filter((m) => !m.passes);
+  assert.deepStrictEqual(bad.map((b) => `${b.theme} ${b.selector} ${b.ratio}`), []);
+  // both themes were looked at
+  assert.ok(got.some((m) => m.theme === 'light') && got.some((m) => m.theme === 'dark'));
+});
+test('and the check can still fail, on the values it used to ship', () => {
+  const was = CHROME.CSS.replace('--ink-3:#6E747A', '--ink-3:#8B9197').replace('--ink-3:#7E858B', '--ink-3:#6B7177');
+  const bad = ACC.chromeContrast(was).filter((m) => !m.passes);
+  assert.ok(bad.length >= 30, `only ${bad.length} failures found in the values that shipped for 28 rounds`);
+  assert.ok(bad.every((b) => b.token === 'ink-3'), 'it is not all one token');
+  const worst = bad.sort((a, b) => a.ratio - b.ratio)[0];
+  assert.ok(worst.ratio < 3.3 && worst.needs === 4.5, JSON.stringify(worst));
+});
+test('the size rule is WCAG\'s, not a rounding of it', () => {
+  assert.strictEqual(ACC.needs(9.5, 400), 4.5);
+  assert.strictEqual(ACC.needs(18.66, 400), 3);
+  assert.strictEqual(ACC.needs(14, 700), 3);
+  assert.strictEqual(ACC.needs(14, 400), 4.5);
+});
+test('every document in a package has one first level heading, a landmark and no anonymous drawing', () => {
+  for (const f of ['guidelines.html', 'deck.html', 'published.html']) {
+    const html = fs.readFileSync(path.join(rookOut, f), 'utf8');
+    assert.deepStrictEqual(ACC.structure(html).map((x) => `${f}: ${x.code}`), [], `${f} is not clean`);
+  }
+});
+test('the structure checks can each fail', () => {
+  const codes = (html) => ACC.structure(html).map((f) => f.code);
+  assert.ok(codes('<html><main><h2>a</h2></main></html>').indexOf('headingTop') > -1);
+  assert.ok(codes('<html lang="en"><main><h1>a</h1><h3>b</h3></main></html>').indexOf('headingOrder') > -1);
+  assert.ok(codes('<html lang="en"><h1>a</h1></html>').indexOf('landmark') > -1);
+  assert.ok(codes('<html lang="en"><main><h1>a</h1><svg></svg></main></html>').indexOf('graphicName') > -1);
+  assert.ok(codes('<html lang="en"><main><h1>a</h1><img src="x"></main></html>').indexOf('imgAlt') > -1);
+  assert.ok(codes('<html lang="en"><main><h1>a</h1><a tabindex="3">x</a></main></html>').indexOf('tabindex') > -1);
+  assert.ok(codes('<html><main><h1>a</h1></main></html>').indexOf('lang') > -1);
+  // and a page that is right trips none of them
+  assert.deepStrictEqual(codes('<html lang="en"><main><h1>a</h1><h2>b</h2>'
+    + '<svg aria-hidden="true"></svg><img src="x" alt=""></main></html>'), []);
+});
+test('the package says what was measured, and does not claim what was not', () => {
+  const txt = fs.readFileSync(path.join(rookOut, 'ACCESSIBILITY.txt'), 'utf8');
+  assert.ok(/Checked against WCAG 2\.2 AA, by measurement/.test(txt));
+  assert.ok(/guidelines\.html, deck\.html, published\.html/.test(txt));
+  assert.ok(/Everything above passed/.test(txt), txt.slice(0, 400));
+  // the tokens are in it with their real numbers
+  assert.ok(/ink-3 in light/.test(txt) && /#6E747A/.test(txt));
+  // and the hairlines are excluded with a reason rather than quietly
+  assert.ok(/they are decoration and are drawn as such deliberately/.test(txt));
+  // the canvas is an application and the package does not pretend otherwise
+  const readme = fs.readFileSync(path.join(rookOut, 'README.txt'), 'utf8');
+  assert.ok(fs.readdirSync(rookOut).indexOf('ACCESSIBILITY.txt') > -1);
+  assert.ok(readme.length > 100);
+});
+test('the asset index counts the file, like every other file', () => {
+  const brand = JSON.parse(fs.readFileSync(path.join(rookOut, 'brand.json'), 'utf8'));
+  const onDisk = fs.readdirSync(rookOut, { recursive: true })
+    .filter((f) => fs.statSync(path.join(rookOut, f)).isFile()).length;
+  assert.strictEqual(brand.generated.files, onDisk);
+});
+
 drain().then(() => {
 
-  for (const d of [out, out2, tbOut, kilnOut, orielOut, ancOut, harbOut, farneOut]) if (d) fs.rmSync(d, { recursive: true, force: true });
+  for (const d of [out, out2, tbOut, kilnOut, orielOut, ancOut, harbOut, farneOut, rookOut]) if (d) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);
   process.exit(failed ? 1 : 0);
 });

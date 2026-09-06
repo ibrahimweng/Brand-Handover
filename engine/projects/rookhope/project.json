@@ -1,0 +1,56 @@
+{
+  "brand": "Rookhope",
+  "version": "1.0.0",
+  "assets": { "mark": "mark.svg", "wordmark": "wordmark.svg" },
+  "tokens": {
+    "colour": {
+      "board":  { "hex": "#243B33", "role": "primary",   "cmyk": [82, 52, 70, 52], "pantone": "3435 C" },
+      "leaf":   { "hex": "#F5F4EF", "role": "ground",    "cmyk": [4, 3, 8, 0],     "pantone": "11-0601" },
+      "ticket": { "hex": "#A8442F", "role": "accent",    "cmyk": [22, 84, 88, 12], "pantone": "7599 C" },
+      "shelf":  { "hex": "#5C6266", "role": "neutral",   "cmyk": [58, 45, 42, 12], "pantone": "431 C" },
+      "linen":  { "hex": "#4C6B7A", "role": "secondary", "cmyk": [76, 48, 38, 14], "pantone": "5415 C" }
+    },
+    "type": {
+      "families": {
+        "display": { "family": "Fraunces", "google": true, "weights": [500, 700], "fallback": "Georgia,serif" },
+        "text":    { "family": "Public Sans", "google": true, "weights": [400, 600], "fallback": "Helvetica,Arial,sans-serif" }
+      },
+      "scale": [
+        { "name": "Display", "family": "display", "size": 46, "leading": 52, "weight": 700, "sample": "Twelve libraries, one ticket" },
+        { "name": "H1", "family": "display", "size": 32, "leading": 38, "weight": 700, "sample": "What is on this week" },
+        { "name": "H2", "family": "display", "size": 23, "leading": 29, "weight": 500, "sample": "Joining the library" },
+        { "name": "H3", "family": "text", "size": 18, "leading": 24, "weight": 600, "sample": "Opening hours" },
+        { "name": "Body", "family": "text", "size": 17, "leading": 28, "weight": 400, "sample": "Everything we publish has to be readable by everybody who pays for it." },
+        { "name": "Small", "family": "text", "size": 15, "leading": 23, "weight": 400, "sample": "Large print and audio on request." },
+        { "name": "Caption", "family": "text", "size": 13, "leading": 18, "weight": 600, "tracking": 0.06, "sample": "ROOKHOPE LIBRARIES" }
+      ]
+    }
+  },
+  "rules": {
+    "lockups": ["horizontal", "stacked", "mark", "wordmark"],
+    "colourways": [
+      { "name": "board",   "on": "leaf",  "slots": { "ink": "#243B33" } },
+      { "name": "reverse", "on": "board", "slots": { "ink": "#F5F4EF" } },
+      { "name": "mono",    "on": "leaf",  "slots": { "ink": "#000000" } }
+    ],
+    "accessibility": { "standard": "WCAG 2.2 AA" },
+    "formats": ["svg", "png"],
+    "pngWidths": [512, 1024],
+    "naming": "{brand}-{lockup}-{colourway}"
+  },
+  "system": {
+    "grid": { "unit": 12, "box": 240, "note": "Twenty units square. The spine at ten across, the leaves from three to seventeen, the boards at seven and the fore edges at fifteen." }
+  },
+  "content": {
+    "positioning": "Rookhope runs twelve libraries on one ticket.",
+    "markRationale": "A book open on a table, seen from the side, with nothing in it that a photocopier cannot hold.",
+    "misuse": [
+      "Do not set the smallest type in anything but the darkest ink.",
+      "Do not use the mark below the size in the read me.",
+      "Do not stretch it.",
+      "Do not rotate it.",
+      "Do not put it on a photograph without a scrim.",
+      "Do not recolour it outside the colourways."
+    ]
+  }
+}

@@ -45,7 +45,7 @@ html,body{margin:0;background:var(--shell);color:var(--ink);font-family:ui-sans-
 `;
 
   // block styles the published page needs, kept identical to the editor's
-  const BLOCK_CSS = `
+  const BLOCK_CSS = `\n/* The page has a name, and it is the one thing on it that was not said out\n   loud. Visually the masthead block says it; a reader who is not looking at\n   the page needs it as a heading. */\n.hp-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}\n
 .hb-slot{width:100%;height:100%;border:1.5px dashed rgba(128,128,128,.45);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:rgba(128,128,128,.85)}
 .hb-slot b{font-family:ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:500}
 .hb-slot span{font-family:ui-monospace,Menlo,monospace;font-size:10px;opacity:.75}
@@ -175,6 +175,7 @@ html,body{margin:0;background:var(--shell);color:var(--ink);font-family:ui-sans-
 <title>${esc(bundle.brand)}${o.title ? ' · ' + esc(o.title) : ''}</title>
 ${fontLink(bundle)}
 <style>${CSS()}${pageCss(sh)}${BLOCK_CSS}</style></head><body>
+<h1 class="hp-sr">${esc(o.title || bundle.brand)}</h1>
 <div class="hp-bar">
   <b>${esc(bundle.brand)}</b><span>${esc(bundle.version)}</span>
   <span>${doc.pages.length} page${doc.pages.length === 1 ? '' : 's'}</span>

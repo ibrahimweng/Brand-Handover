@@ -820,6 +820,28 @@ length of the line, and a fill has no length to dash.
 curves and four durations are a real default; a sequence is about particular
 parts of a particular drawing, and inventing one describes a mark nobody drew.
 
+The twenty-ninth turned the engine on itself. It has printed a WCAG contrast
+table since the first week, measuring the client's palette against the grounds
+the client will set text on — on a page whose own captions were **3.18 to one**.
+Twenty-eight identities: every caption, every column heading, every chapter
+number and the footer of every manual, deck and published page, in both themes,
+below the standard printed beside them. **The engine checked the identity's
+accessibility and had never checked its own.**
+
+It found five things. One token failing in both themes across thirty-eight
+rules. **Seventeen of twenty drawings** on a manual page with no accessible name
+and not hidden. No `<main>` to skip to. A published page with **no first level
+heading at all**. And its own first answer wrong: the audit took the page's
+ground to be `--surface`, because that is what a token called surface sounds
+like — the page paints `--paper`, a shade darker, and the shade was the whole
+answer, 4.47 against 4.61 for a figure that has to clear 4.5. A browser found it
+in one measurement while the arithmetic had been agreeing with itself.
+
+**Rookhope** runs twelve libraries on one ticket and states the standard its
+documents are held to. Every package now carries `ACCESSIBILITY.txt` — what was
+checked, what it measured, what it came to — written by measuring the pages
+beside it rather than describing them.
+
 Still to do: a run on **your** identity job. Twenty identities the engine had
 not seen is worth a great deal more than twenty passes over one, but none of
 them came out of your exporter — and the normaliser is the part that most needs

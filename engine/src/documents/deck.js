@@ -17,6 +17,7 @@ const CSS = (t) => `
 .topbar,.ctrl{width:min(100%,calc((100vh - 132px)*16/9))}
 .topbar{display:flex;justify-content:space-between;gap:16px;font-family:var(--fm);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--sd)}
 .topbar b{color:var(--si);font-weight:500}
+main.stage{display:block}
 .stage{width:min(100%,calc((100vh - 132px)*16/9));aspect-ratio:16/9;position:relative;overflow:hidden;container-type:size;background:var(--deep);box-shadow:0 2px 26px rgba(0,0,0,.28)}
 .slide svg{max-width:100%;height:auto}
 .slide{position:absolute;inset:0;display:none;padding:5.6cqw 6.6cqw;flex-direction:column;justify-content:center;color:var(--ground);background:var(--deep)}
@@ -274,7 +275,7 @@ ${fontLink(p.tokens.type, p.fonts)}
 <style>${CSS(t)}</style></head><body>
 <div class="wrap">
   <div class="topbar"><span>${b.esc(p.brand)} · brand deck</span><span><b id="ttl"></b></span></div>
-  <div class="stage" id="stage" role="region" aria-roledescription="carousel" aria-label="${b.esc(p.brand)} brand deck">${S.join('')}</div>
+  <main class="stage" id="stage" role="region" aria-roledescription="carousel" aria-label="${b.esc(p.brand)} brand deck">${S.join('')}</main>
   <div class="ctrl"><button class="btn" id="prev" type="button">← Prev</button>
   <div class="dots" id="dots" role="tablist" aria-label="Slides"></div>
   <button class="btn" id="next" type="button">Next →</button><span class="hint">Arrow keys</span></div>

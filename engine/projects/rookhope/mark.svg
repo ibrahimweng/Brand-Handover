@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Rookhope: a book open on a table, seen from the side. Twelve unit module,
+     twenty units square: the spine at ten across, the leaves from three to
+     seventeen, the boards at seven and the fore edges at fifteen. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+  <g data-slot="ink" fill="none" stroke="#243B33" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M120 60 L36 84 V180 L120 156 Z"/>
+    <path d="M120 60 L204 84 V180 L120 156 Z"/>
+  </g>
+</svg>

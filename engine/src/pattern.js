@@ -98,7 +98,7 @@ function swatch(markSource, rules, ink, on, w, h, id) {
   if (!t.ok) return null;
   // a random id makes the same pattern a different file every time it is written
   const pid = 'pat-' + (id || ('t' + Math.abs(hash(String(rules.tile) + rules.weight + colour)).toString(36)));
-  return `<svg xmlns="${svgu.NS}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="width:100%;height:100%;display:block">`
+  return `<svg xmlns="${svgu.NS}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true" style="width:100%;height:100%;display:block">`
     + `<defs><pattern id="${pid}" width="${t.width}" height="${t.height}" patternUnits="userSpaceOnUse">${t.body}</pattern></defs>`
     + `<rect width="${w}" height="${h}" fill="${on}"/><rect width="${w}" height="${h}" fill="url(#${pid})"/></svg>`;
 }

@@ -51,9 +51,13 @@
   }
 
   // fit an SVG string into a box without distorting it
-  const fitSvg = (svg, pad) =>
+  // Every drawing on a published page is the content of that page, so each
+  // one says what it is. They were anonymous, and a reader using a screen
+  // reader got a page of unlabelled graphics.
+  const fitSvg = (svg, pad, label) =>
     svg.replace(/<svg([^>]*)>/, (m, a) =>
-      `<svg${a.replace(/\s(width|height|style)="[^"]*"/g, '')} preserveAspectRatio="xMidYMid meet" `
+      `<svg${a.replace(/\s(width|height|style|role|aria-label|aria-hidden)="[^"]*"/g, '')} `
+      + `preserveAspectRatio="xMidYMid meet" role="img" aria-label="${esc(label || 'The mark')}" `
       + `style="width:100%;height:100%;display:block;padding:${pad || 0}px;box-sizing:border-box">`);
 
   // A rule block states its own rule. That is the whole point of the kind: you
@@ -185,7 +189,7 @@
           + `mix-blend-mode:${b.props.blend === 'normal' ? 'normal' : esc(b.props.blend || 'multiply')};`
           + `opacity:${b.props.opacity === undefined ? 1 : b.props.opacity}">`
           + `<div style="position:absolute;inset:12%;display:flex;align-items:center;justify-content:center">`
-          + fitSvg(art, 0) + `</div></div>`
+          + fitSvg(art, 0, 'The mark, shown with its clear space marked out around it.') + `</div></div>`
         : '';
       if (!im) {
         // published, the art alone on the ground, and nothing said to the reader
@@ -201,12 +205,14 @@
     },
 
     mark: (b, bu) => `<div style="width:100%;height:100%;background:${colour(bu, b.props.on)};display:flex;align-items:center;justify-content:center">
-      ${fitSvg(bu.marks[cwName(bu, b.props.colourway, b.props.on)] || Object.values(bu.marks)[0], 14)}</div>`,
+      ${fitSvg(bu.marks[cwName(bu, b.props.colourway, b.props.on)] || Object.values(bu.marks)[0], 14,
+        `The mark in the ${cwName(bu, b.props.colourway, b.props.on)} colourway.`)}</div>`,
 
     lockup: (b, bu) => {
       const key = `${b.props.lockup}:${cwName(bu, b.props.colourway, b.props.on)}`;
       return `<div style="width:100%;height:100%;background:${colour(bu, b.props.on)};display:flex;align-items:center;justify-content:center">
-        ${fitSvg(bu.variants[key] || bu.variants[Object.keys(bu.variants)[0]], 16)}</div>`;
+        ${fitSvg(bu.variants[key] || bu.variants[Object.keys(bu.variants)[0]], 16,
+          `The ${esc(String(key).replace(':', ' lockup in ')) } colourway.`)}</div>`;
     },
 
     construction: (b, bu) => `<div style="width:100%;height:100%;background:${colour(bu, b.props.on || 'ground')}">${construction(bu, cwName(bu, b.props.colourway || 'primary'), colour(bu, b.props.line || 'neutral'))}</div>`,
@@ -227,7 +233,7 @@
       const svg = bu.marks[cwName(bu, b.props.colourway || 'primary')] || Object.values(bu.marks)[0];
       return `<div class="hb-sizes">${steps.map((s) =>
         `<figure><div class="cell">
-         <span style="display:block;width:min(${s.px}px,${r3((s.px / big) * 100)}%)">${fitSvg(svg)}</span></div>
+         <span style="display:block;width:min(${s.px}px,${r3((s.px / big) * 100)}%)">${fitSvg(svg, 0, `The mark at ${s.px} pixels, which is ${esc(s.label)}.`)}</span></div>
          <figcaption>${esc(s.caption)} · ${esc(s.label)}</figcaption></figure>`).join('')}</div>`;
     },
 

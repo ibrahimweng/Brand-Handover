@@ -14,11 +14,12 @@ const TF = require('../typeface');
 const fontLink = (type, fonts) => TF.head(type, fonts);
 
 const CSS = `
-:root{--paper:#FCFCFB;--surface:#fff;--sunk:#F2F2F0;--ink:#0E1011;--ink-2:#5A5F63;--ink-3:#8B9197;--rule:#E3E5E6;--rule-2:#C7CACC;
+:root{--paper:#FCFCFB;--surface:#fff;--sunk:#F2F2F0;--ink:#0E1011;--ink-2:#5A5F63;--ink-3:#6E747A;--rule:#E3E5E6;--rule-2:#C7CACC;
 --ui:"Schibsted Grotesk","Helvetica Neue",Helvetica,Arial,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--paper:#0C0D0F;--surface:#141618;--sunk:#101214;--ink:#ECEEF0;--ink-2:#9BA1A7;--ink-3:#6B7177;--rule:#232629;--rule-2:#34383C}}
-:root[data-theme=dark]{--paper:#0C0D0F;--surface:#141618;--sunk:#101214;--ink:#ECEEF0;--ink-2:#9BA1A7;--ink-3:#6B7177;--rule:#232629;--rule-2:#34383C}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--paper:#0C0D0F;--surface:#141618;--sunk:#101214;--ink:#ECEEF0;--ink-2:#9BA1A7;--ink-3:#7E858B;--rule:#232629;--rule-2:#34383C}}
+:root[data-theme=dark]{--paper:#0C0D0F;--surface:#141618;--sunk:#101214;--ink:#ECEEF0;--ink-2:#9BA1A7;--ink-3:#7E858B;--rule:#232629;--rule-2:#34383C}
 *{box-sizing:border-box}body{background:var(--paper);color:var(--ink);font-family:var(--ui);font-size:16px;line-height:1.6;margin:0;-webkit-font-smoothing:antialiased}
+main.page{display:block}
 .page{max-width:1040px;margin:0 auto;padding:0 30px 90px}p{margin:0}
 h1,h2,h3,h4{font-family:var(--ui);margin:0;text-wrap:balance}
 .mast{padding:44px 0 32px;border-bottom:2px solid var(--ink)}
@@ -129,6 +130,6 @@ const shell = ({ title, type, fonts, body, favicon, language = 'en', direction =
 <html lang="${escText(language)}" dir="${escText(direction)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${escText(title)}</title>${favicon ? `\n<link rel="icon" href="${favicon}">` : ''}
 ${fontLink(type, fonts)}
-<style>${CSS}</style></head><body><div class="page">${body}</div></body></html>`;
+<style>${CSS}</style></head><body><main class="page">${body}</main></body></html>`;
 
 module.exports = { shell, CSS, fontLink, escText };
