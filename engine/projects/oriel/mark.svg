@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Oriel, tier 1 of 4: the full mark.
+     Built on a 15 unit module, 16 units square. Every point is a multiple of it:
+     the bay 3U..13U across and 3U..11U down, the corbel to 14U, the transom at
+     6U, the mullions at 5U, 7U, 9U, 11U. Stroke 10 = two thirds of a unit. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+  <g data-slot="ink" fill="none" stroke="#1B2B4B" stroke-width="10" stroke-linecap="butt" stroke-linejoin="miter">
+    <path d="M45 45 H195 V165 H45 Z"/>
+    <path data-pattern="source" d="M45 165 L120 210 L195 165"/>
+    <path d="M45 90 H195"/>
+    <path d="M75 45 V165"/>
+    <path d="M105 45 V165"/>
+    <path d="M135 45 V165"/>
+    <path d="M165 45 V165"/>
+  </g>
+</svg>

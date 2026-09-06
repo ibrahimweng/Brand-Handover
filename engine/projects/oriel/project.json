@@ -1,0 +1,88 @@
+{
+  "brand": "Oriel",
+  "version": "1.0.0",
+  "assets": {
+    "mark": "mark.svg",
+    "wordmark": "wordmark.svg",
+    "tiers": [
+      { "name": "standard", "file": "mark-standard.svg",
+        "note": "Two mullions instead of four, at one unit. The default in print." },
+      { "name": "compact", "file": "mark-compact.svg",
+        "note": "The bay and its corbel. Nothing inside survives below this." },
+      { "name": "monogram", "file": "mark-monogram.svg",
+        "note": "The silhouette with one aperture. Nothing in it is thinner than three units." }
+    ]
+  },
+  "tokens": {
+    "colour": {
+      "ink":     { "hex": "#1B2B4B", "role": "primary",   "cmyk": [96, 82, 40, 32], "pantone": "295 C" },
+      "lime":    { "hex": "#F4F2ED", "role": "ground",    "cmyk": [4, 3, 7, 0],     "pantone": "11-0601" },
+      "verdigris": { "hex": "#2E7D74", "role": "secondary", "cmyk": [82, 30, 55, 10], "pantone": "5483 C" },
+      "ochre":   { "hex": "#C98A1E", "role": "accent",    "cmyk": [18, 45, 100, 2], "pantone": "1245 C" },
+      "lead":    { "hex": "#6E7378", "role": "neutral",   "cmyk": [56, 44, 41, 8],  "pantone": "430 C" },
+      "rose":    { "hex": "#B04A4A", "role": "alert",     "cmyk": [22, 82, 70, 8],  "pantone": "1805 C" }
+    },
+    "sets": {
+      "programme": {
+        "of": ["verdigris", "ochre", "rose"],
+        "why": "The three programme strands — Collection, Commissions, Learning. They are printed together on every season card, wall panel and listings page, and a visitor reads them as a key.",
+        "apartBy": {
+          "verdigris": "a solid bar above the title, and the word Collection",
+          "ochre": "a hairline rule above the title, and the word Commissions",
+          "rose": "no rule at all, and the word Learning"
+        }
+      }
+    },
+    "type": {
+      "families": {
+        "display": { "family": "Fraunces", "google": true, "weights": [400, 600, 700], "fallback": "Georgia,serif" },
+        "text":    { "family": "Public Sans", "google": true, "weights": [400, 500, 600], "fallback": "Helvetica,Arial,sans-serif" },
+        "mono":    { "family": "IBM Plex Mono", "google": true, "weights": [400], "fallback": "ui-monospace,monospace" }
+      },
+      "scale": [
+        { "name": "Poster", "family": "display", "size": 82, "leading": 80, "weight": 700, "tracking": -0.03, "sample": "Nine Rooms" },
+        { "name": "Display", "family": "display", "size": 54, "leading": 58, "weight": 600, "tracking": -0.02, "sample": "A season of new commissions" },
+        { "name": "H1", "family": "display", "size": 36, "leading": 42, "weight": 600, "sample": "The Collection" },
+        { "name": "H2", "family": "display", "size": 25, "leading": 31, "weight": 400, "sample": "Rooms one to nine" },
+        { "name": "H3", "family": "text", "size": 18, "leading": 24, "weight": 600, "sample": "Free, no booking" },
+        { "name": "Body", "family": "text", "size": 17, "leading": 28, "weight": 400, "sample": "The bay was added in 1892 and has been the front of the building ever since." },
+        { "name": "Small", "family": "text", "size": 14, "leading": 21, "weight": 400, "sample": "Open Tuesday to Sunday, 10am to 6pm." },
+        { "name": "Label", "family": "mono", "size": 11, "leading": 16, "weight": 400, "tracking": 0.12, "sample": "COMMISSIONS 2026" }
+      ]
+    }
+  },
+  "rules": {
+    "lockups": ["horizontal", "stacked", "mark", "wordmark"],
+    "ladder": ["horizontal", "mark", "standard", "compact", "monogram"],
+    "colourways": [
+      { "name": "ink",       "on": "lime",      "slots": { "ink": "#1B2B4B" } },
+      { "name": "reverse",   "on": "ink",       "slots": { "ink": "#F4F2ED" } },
+      { "name": "verdigris", "on": "lime",      "slots": { "ink": "#2E7D74" } },
+      { "name": "chalk",     "on": "verdigris", "slots": { "ink": "#F4F2ED" } },
+      { "name": "mono",      "on": "lime",      "slots": { "ink": "#000000" } }
+    ],
+    "clearSpaceRatio": 0.2,
+    "formats": ["svg", "png"],
+    "pngWidths": [512, 1024],
+    "iconSizes": [1024, 180],
+    "faviconSizes": [16, 32],
+    "naming": "{brand}-{lockup}-{colourway}"
+  },
+  "system": {
+    "grid": { "unit": 15, "box": 240, "note": "Sixteen units square. Every point in every tier is a multiple of the unit; the stroke weights are two thirds, one and four thirds of it." },
+    "motion": { "durations": { "quick": 140, "base": 260, "considered": 520, "slow": 1000 } }
+  },
+  "content": {
+    "positioning": "Oriel is a gallery in a building whose front is a bay window.",
+    "markRationale": "The bay itself, drawn in elevation on the building's own module: the light, the transom, the mullions and the corbel that carries it.",
+    "constructionNotes": "Nothing in any tier is placed by eye. The box is sixteen units square, the bay is ten units across and eight deep, and the corbel falls three units below it.",
+    "misuse": [
+      "Do not use the full mark below the size at which it stops holding; the ladder says which drawing to use instead.",
+      "Do not redraw a tier to sit between two of them.",
+      "Do not stretch the mark to fill a space.",
+      "Do not rotate it.",
+      "Do not put it on a photograph without a scrim.",
+      "Do not recolour it outside the colourways."
+    ]
+  }
+}

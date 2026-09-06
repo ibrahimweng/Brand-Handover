@@ -1394,6 +1394,36 @@ the data was not enough; the thing to export was the check. If a test and the
 code it guards both have to know how something works, only one of them should
 be written.
 
+**Half an answer looks exactly like a whole one.** Giving every drawing its own
+minimum size was a real fix and it closed the question so convincingly that the
+obvious follow-up — *and below that?* — went unasked for two rounds. A number
+that is correct feels finished. Worth asking of any measurement the engine
+reports: what does the reader do with it, and what do they do when it runs out?
+
+**Test a check by making it fire.** Two of this round's checks were wrong in
+opposite directions and both read perfectly well. One could never fire: it
+excused a rung whose stroke was relatively heavier, and a rung that holds smaller
+always is, so the escape was every case. The other fired on everything: it
+compared each rung with whatever preceded it, and a ladder is entitled to change
+shape at the step where the name drops off. Neither was visible in the code.
+Both were obvious the moment something was fed in that should trip them. A check
+that has never been seen to fire is a comment.
+
+**One name for two things is a bug with a delay.** A local called `mark` was the
+artwork icons are cut from and the shape the pattern is cut from, and it was
+correct for twenty-four rounds because those were the same file. The moment a
+ladder could say which drawing is used at icon sizes, the pattern started coming
+off a monogram. The variable did not change; what it meant did. When a new
+concept splits an old identity in two, grep for every use of the old name before
+deciding the change is small.
+
+**A diagram that illustrates a claim is making it.** The construction grid in
+the manual had been six divisions of the box since the first week, over marks
+built on modules of eight, twelve and fifteen — under a caption saying the mark
+was constructed on this grid. Nobody typed a false number; the picture said it.
+Drawing something is an assertion, and it should be derived and checked like any
+other.
+
 ---
 
 Prior art checked September 2026: Logo Package Express, Standards, Brandpad,

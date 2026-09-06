@@ -195,14 +195,34 @@ function construction(ctx, opts = {}) {
   // caption 261 px below it and nothing in between. Fit to the longer side as
   // before, but let the canvas take the shape of what is drawn on it.
   const S = 260, pad = 30, CAP = 26, k = (S - pad * 2) / Math.max(vb.w, vb.h);
-  const capText = `fills ${ink.w} × ${ink.h} · ${ctx.measured.minimumSize.from === 'stem' ? 'narrowest stem' : 'stroke'} ${ctx.measured.minimumSize.thinnestStroke}`;
-  const W = svgu.round(roomFor(pad * 2 + vb.w * k, capText, `${vb.w} unit box`));
+  const mod0 = (ctx.system && ctx.system.grid) || null;
+  const capText = `fills ${ink.w} × ${ink.h} · ${ctx.measured.minimumSize.from === 'stem' ? 'narrowest stem' : 'stroke'} ${ctx.measured.minimumSize.thinnestStroke}`
+    + (mod0 ? ` · ${mod0.unit} unit module, ${mod0.across} across` : '');
+  // Both captions were written twice — once to work out how wide the canvas has
+  // to be, and again, in full, inside the <text> that draws them. They agreed
+  // for as long as nobody edited one of them. Adding the module to the lower one
+  // sized the canvas for a caption it then did not draw.
+  const boxText = mod0 ? `${vb.w} unit box · ${mod0.across} modules of ${mod0.unit}` : `${vb.w} unit box`;
+  const W = svgu.round(roomFor(pad * 2 + vb.w * k, capText, boxText));
   const H = svgu.round(pad * 2 + vb.h * k);
   const X = (v) => svgu.round(pad + (v - vb.x) * k), Y = (v) => svgu.round(pad + (v - vb.y) * k);
+  // Six divisions of the box, since the beginning, over artwork built on a
+  // module of whatever it was actually built on — a decoration of a diagram
+  // under a caption that says the mark was constructed on this grid. Where a
+  // project states its module, this draws that, and the build checks that every
+  // point in the artwork is on it. Where none is stated it stays six, and the
+  // caption says so rather than claiming a construction nobody declared.
+  const mod = (ctx.system && ctx.system.grid) || null;
+  const divX = mod ? Math.max(1, Math.round(vb.w / mod.unit)) : 6;
+  const divY = mod ? Math.max(1, Math.round(vb.h / mod.unit)) : 6;
   const grid = [];
-  for (let i = 0; i <= 6; i++) {
-    const gx = X(vb.x + (vb.w / 6) * i), gy = Y(vb.y + (vb.h / 6) * i);
-    grid.push(`<path d="M${gx} ${Y(vb.y)}V${Y(vb.y + vb.h)}"/><path d="M${X(vb.x)} ${gy}H${X(vb.x + vb.w)}"/>`);
+  for (let i = 0; i <= divX; i++) {
+    const gx = X(vb.x + (vb.w / divX) * i);
+    grid.push(`<path d="M${gx} ${Y(vb.y)}V${Y(vb.y + vb.h)}"/>`);
+  }
+  for (let i = 0; i <= divY; i++) {
+    const gy = Y(vb.y + (vb.h / divY) * i);
+    grid.push(`<path d="M${X(vb.x)} ${gy}H${X(vb.x + vb.w)}"/>`);
   }
   // Two things this drawing used to get wrong, both invisible until a master
   // arrived whose viewBox does not begin at 0 0.
@@ -228,8 +248,8 @@ function construction(ctx, opts = {}) {
     <rect x="${X(vb.x)}" y="${Y(vb.y)}" width="${svgu.round(vb.w * k)}" height="${svgu.round(vb.h * k)}" fill="none" stroke="${line}" stroke-width=".9" opacity=".55"/>
     <rect x="${X(ink.x)}" y="${Y(ink.y)}" width="${svgu.round(ink.w * k)}" height="${svgu.round(ink.h * k)}" fill="none" stroke="${ctx.accent.hex}" stroke-width="1" stroke-dasharray="4 3"/>
     <g clip-path="url(#${clip})"><g transform="translate(${X(vb.x)} ${Y(vb.y)}) scale(${svgu.round(k, 6)})${vb.x || vb.y ? ` translate(${-vb.x} ${-vb.y})` : ''}">${svgu.innerXML(svgu.parse(inked(ctx, paint)))}</g></g>
-    <text x="${W / 2}" y="16" ${TXT} fill="${line}" text-anchor="middle">${vb.w} unit box</text>
-    <text x="${W / 2}" y="${H + 16}" ${TXT} fill="${ctx.accent.hex}" text-anchor="middle">fills ${ink.w} × ${ink.h} · ${ctx.measured.minimumSize.from === 'stem' ? 'narrowest stem' : 'stroke'} ${ctx.measured.minimumSize.thinnestStroke}</text>
+    <text x="${W / 2}" y="16" ${TXT} fill="${line}" text-anchor="middle">${esc(boxText)}</text>
+    <text x="${W / 2}" y="${H + 16}" ${TXT} fill="${ctx.accent.hex}" text-anchor="middle">${esc(capText)}</text>
   </svg>`;
 }
 
@@ -305,6 +325,36 @@ function floorTable(ctx) {
     <div class="ftr head"><span>Folder</span><span>What disappears first</span><span>On screen</span><span>In print</span></div>
     ${rows}</div>
     <p class="note">A minimum size belongs to a drawing, and there are ${ctx.project.rules.lockups.length} of them in this package. Use the figure for the folder the file came out of, not the one above it${over.length ? `: ${over.length === 1 ? 'one of them does' : `${over.length} of them do`} not hold at ${esc(geo.floorText(ctx.measured.minimumSize, 'px'))} — a lockup sets the name beside the mark at a fraction of its height, so it is wider than the mark and its finest part is finer, and both put the floor up` : ''}.</p>`;
+}
+
+// Which drawing at which size.
+//
+// Every manual this engine has written printed a minimum size and stopped
+// there, which answers "how small may this go" and leaves the question that
+// follows it — "and below that?" — to the reader, in a layout somebody else
+// built, at a size nobody chose. A ladder answers it: each rung is drawn here at
+// the smallest size it is used at, so the page is the specimen and the
+// specification at once.
+function ladderBlock(ctx) {
+  const rungs = ctx.ladder;
+  const bottom = rungs[rungs.length - 1];
+  const cells = rungs.map((r) => {
+    const band = r.to == null ? `${r.from} px and above` : `${r.from} to ${r.to} px`;
+    const print = r.printTo == null ? `${r.printFrom} mm and above` : `${r.printFrom} to ${r.printTo} mm`;
+    return `<figure><div class="stage tight rung">${r.svg ? scaled(r.svg, r.from, `${r.from}px`) : ''}</div>
+      <figcaption class="said"><b>${esc(r.name)}</b> — ${esc(band)}, ${esc(print)}.
+      ${r.parts != null ? `${r.parts} ${r.parts === 1 ? 'piece' : 'pieces'} of ink. ` : ''}${esc(r.note || '')}
+      Shown here at ${r.from} px, the smallest it is used at.</figcaption></figure>`;
+  }).join('');
+  return `<div class="rungs">${cells}</div>
+    <p class="note"><b>Read it downwards.</b> Use the drawing whose band the size falls in. The switch is not a
+    preference and not a judgement made in the moment: each rung is used from the size at which it holds down to
+    the size at which the next one takes over, and those numbers are what the drawings measure, not what anybody
+    decided they should be.</p>
+    <p class="note"><b>Below ${esc(String(bottom.from))} px there is nothing.</b> That is the identity's floor, and it
+    is ${esc(String(rungs[0].from))} px for the drawing at the top of this ladder — the difference between the two is
+    the whole reason the ladder exists. Every icon and favicon in this package is cut from
+    <b>${esc(bottom.name)}</b>, because that is the drawing this identity uses at the sizes an icon lives at.</p>`;
 }
 
 // The palette, as three other people see it.
@@ -721,5 +771,5 @@ function changes(ctx) {
     + `</p><div class="chgs">${breaking.map(row).join('')}${news.map(row).join('')}</div>`;
 }
 
-module.exports = { TXT, esc, changes, floorTable, partnerLockups, colourVision, inked, gradientSpec, inksOf, patternSpec, photographySpec, iconSpec, willWriteIcons, motionSpec, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, markSpecimen, lockupRow, construction, clearSpace,
+module.exports = { TXT, esc, changes, floorTable, partnerLockups, colourVision, ladderBlock, inked, gradientSpec, inksOf, patternSpec, photographySpec, iconSpec, willWriteIcons, motionSpec, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, markSpecimen, lockupRow, construction, clearSpace,
   minimumSize, lockups, misuse, palette, contrastTable, typeSpecimen, typeScale, assetIndex, brandJsonBlock };

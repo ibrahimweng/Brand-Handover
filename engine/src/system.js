@@ -233,6 +233,47 @@ function motionRules(override) {
   }, override || {});
 }
 
+// ---------------------------------------------------------------- the module
+// A construction grid is the first thing a serious set of guidelines shows and
+// the last thing anybody checks. The manual has drawn one since the beginning —
+// six divisions of the box, chosen because six looks like a grid — over artwork
+// built on a module of fifteen. It was a decoration of a diagram, and a
+// decoration that says "this mark was built on this grid" is a claim.
+//
+// Where a project states its module, the diagram draws that one, and every
+// point in the artwork is asked whether it is on it.
+function gridRules(override, measured) {
+  const vb = measured.markViewBox;
+  if (!override || !(Number(override.unit) > 0)) return null;
+  const unit = Number(override.unit);
+  const box = Number(override.box) > 0 ? Number(override.box) : vb.w;
+  return { unit, box, across: round(box / unit, 3), note: override.note || null,
+    declared: true };
+}
+
+// The points a drawing passes through that are not on the module. Tolerance is
+// a hundredth of a unit: a normaliser that flattens a transform leaves values
+// like 44.999998, and that is the same point.
+function offGrid(source, unit, tol = 0.01) {
+  const doc = svgu.parse(source);
+  const off = [];
+  let total = 0;
+  svgu.eachPainted(doc, (el) => {
+    if (!el.getAttribute) return;
+    const tag = String(el.nodeName).replace(/^.*:/, '').toLowerCase();
+    if (tag !== 'path') return;
+    for (const [x, y] of pathPoints(el.getAttribute('d') || '')) {
+      total += 1;
+      const dx = Math.abs(x / unit - Math.round(x / unit)) * unit;
+      const dy = Math.abs(y / unit - Math.round(y / unit)) * unit;
+      if (dx <= tol && dy <= tol) continue;
+      off.push({ x: round(x, 3), y: round(y, 3),
+        by: round(Math.max(dx, dy), 3) });
+    }
+  });
+  return { total, off: off.sort((a, b) => b.by - a.by) };
+}
+
 const bezier = (e) => `cubic-bezier(${e.join(', ')})`;
 const round = (n, dp = 2) => Number(n.toFixed(dp));
 
@@ -248,7 +289,8 @@ function resolve(project, measured) {
     pattern: patternRules(sys.pattern),
     motion: motionRules(sys.motion),
     photography: require('./photography').rules(sys.photography),
+    grid: gridRules(sys.grid, measured),
   };
 }
 
-module.exports = { resolve, merge, iconRules, checkIcon, pathPoints, patternRules, motionRules, bezier, round };
+module.exports = { resolve, merge, iconRules, checkIcon, pathPoints, gridRules, offGrid, patternRules, motionRules, bezier, round };

@@ -250,6 +250,25 @@ function strokeWidths(doc) {
   return [...found].sort((a, b) => a - b);
 }
 
+// How many separate pieces of ink a drawing is made of. A path may hold several
+// subpaths and an optimiser will merge paths freely, so the count is of
+// subpaths — every M or m in the data — plus every painted shape that is not a
+// path. It survives SVGO, which merging path elements does not, and it is the
+// one measurement that says whether one drawing is simpler than another.
+const SHAPES = ['circle', 'rect', 'ellipse', 'line', 'polyline', 'polygon'];
+function inkParts(doc) {
+  let n = 0;
+  eachPainted(doc, (el) => {
+    if (!el.getAttribute) return;
+    const tag = String(el.nodeName).replace(/^.*:/, '').toLowerCase();
+    if (SHAPES.indexOf(tag) > -1) { n += 1; return; }
+    if (tag !== 'path') return;
+    const d = el.getAttribute('d') || '';
+    n += (d.match(/[Mm]/g) || []).length;
+  });
+  return n;
+}
+
 // Smallest stroke-width painted anywhere in the document. This is what decides
 // the minimum size, because it is the first thing to disappear.
 function thinnestStroke(doc) {
@@ -277,4 +296,4 @@ function compose(parts, width, height) {
 const round = (n, dp = 3) => Number(n.toFixed(dp));
 
 module.exports = { KEEP, dropUnusedPaint, gradientSlots, gradients, paintBySlot, parse, serialize, viewBox, applyColourway, slotsUsed, thinnestStroke,
-  strokeWidths, innerXML, compose, round, NS, eachPainted, NEVER_DRAWN };
+  strokeWidths, inkParts, innerXML, compose, round, NS, eachPainted, NEVER_DRAWN };

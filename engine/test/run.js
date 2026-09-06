@@ -5525,9 +5525,198 @@ test('a refusal raised while building reaches the designer, not just its first l
   assert.ok(/apartBy/.test(text), 'the how was lost');
 });
 
+
+// ---------------------------------------------------------------------------
+console.log('\na floor is a switch point, not a wall');
+const LAD = require('../src/ladder');
+const ORIEL = path.join(__dirname, '..', 'projects', 'oriel', 'project.json');
+const oriel = projectLoader.load(ORIEL);
+const orielM = measure(oriel);
+const orielFloors = require('../src/variants').floors(oriel, orielM);
+let orielOut, orielBrand;
+before(async () => {
+  orielOut = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-oriel-'));
+  await build(oriel, orielOut);
+  orielBrand = JSON.parse(fs.readFileSync(path.join(orielOut, 'brand.json'), 'utf8'));
+});
+
+test('the rungs are ordered by what they measure, and the bands meet', () => {
+  const list = LAD.rungs(oriel, orielM, orielFloors);
+  const bands = LAD.bands(list);
+  assert.strictEqual(list.length, 5);
+  for (let i = 1; i < bands.length; i++) {
+    assert.ok(bands[i].from < bands[i - 1].from, `${bands[i].name} does not hold smaller than ${bands[i - 1].name}`);
+    assert.strictEqual(bands[i].to, bands[i - 1].from - 1, `there is a gap above ${bands[i].name}`);
+  }
+  assert.strictEqual(bands[0].to, null, 'the top rung has a ceiling');
+});
+test('the identity holds far below the drawing at the top of it', () => {
+  const bands = LAD.bands(LAD.rungs(oriel, orielM, orielFloors));
+  const bottom = bands[bands.length - 1].from;
+  assert.ok(bottom * 4 < bands[0].from, `${bottom} px against ${bands[0].from} px is not much of a ladder`);
+  assert.strictEqual(bottom, orielBrand.logo.ladder[orielBrand.logo.ladder.length - 1].fromPx);
+});
+test('every rung is drawn in every colourway, and none is invented', () => {
+  const files = fs.readdirSync(path.join(orielOut, '12-ladder')).filter((f) => f.endsWith('.svg'));
+  const tiers = oriel.tiers.map((t) => t.name);
+  assert.strictEqual(files.length, tiers.length * oriel.rules.colourways.length);
+  for (const t of tiers) {
+    for (const cw of oriel.rules.colourways) {
+      assert.ok(files.indexOf(`oriel-${t}-${cw.name}.svg`) > -1, `no ${t} in ${cw.name}`);
+    }
+  }
+  // and a tier is painted from the colourway, not left as it was drawn
+  const rev = fs.readFileSync(path.join(orielOut, '12-ladder', 'oriel-compact-reverse.svg'), 'utf8');
+  assert.ok(rev.indexOf('#F4F2ED') > -1 && rev.indexOf('#1B2B4B') < 0, rev.slice(0, 200));
+});
+test('icons are cut from the drawing the identity uses at icon sizes', () => {
+  assert.strictEqual(orielBrand.generated.iconsFrom, 'mark-monogram.svg');
+  // the point of the ladder, in one number: every size asked for now clears
+  assert.deepStrictEqual(orielBrand.logo.icons.under, []);
+  assert.ok(orielBrand.logo.icons.smallestSquarePx <= 16,
+    `the monogram needs ${orielBrand.logo.icons.smallestSquarePx} px and a favicon is 16`);
+});
+
+const ladderAttempt = async (mut) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-lad-'));
+  const raw = JSON.parse(fs.readFileSync(ORIEL, 'utf8'));
+  for (const f of fs.readdirSync(path.dirname(ORIEL))) {
+    if (f.endsWith('.svg')) fs.copyFileSync(path.join(path.dirname(ORIEL), f), path.join(dir, f));
+  }
+  mut(raw, dir);
+  fs.writeFileSync(path.join(dir, 'project.json'), JSON.stringify(raw));
+  try {
+    const pr = projectLoader.load(path.join(dir, 'project.json'));
+    const r = await build(pr, path.join(dir, 'out'));
+    return { ok: true, warnings: r.warnings || [] };
+  } catch (e) { return { ok: false, error: e }; }
+  finally { fs.rmSync(dir, { recursive: true, force: true }); }
+};
+const refused = (got, re) => {
+  assert.ok(!got.ok, 'it built');
+  const f = got.error.findings && got.error.findings[0];
+  assert.ok(f && f.level === 'blocker', `a crash is not a refusal: ${got.error.message}`);
+  for (const k of ['what', 'why', 'how']) assert.ok(f[k] && f[k].length > 20, `no ${k}`);
+  assert.ok(re.test(f.what), f.what);
+};
+
+test('a rung that does not hold smaller than the one above it is refused', async () => {
+  refused(await ladderAttempt((raw) => {
+    raw.rules.ladder = ['horizontal', 'mark', 'compact', 'standard', 'monogram'];
+  }), /does not hold any smaller/);
+});
+test('a rung named in the ladder that is neither lockup nor tier is refused', async () => {
+  refused(await ladderAttempt((raw) => { raw.rules.ladder = ['horizontal', 'trapdoor']; }),
+    /has no lockup and no tier called that/);
+});
+test('a ladder of one rung is refused', async () => {
+  refused(await ladderAttempt((raw) => { raw.rules.ladder = ['mark']; }), /fewer than two rungs/);
+});
+test('a tier whose file is missing is refused', async () => {
+  refused(await ladderAttempt((raw) => { raw.assets.tiers[1].file = 'nope.svg'; }), /that file is not there/);
+});
+test('a rung with more in it than the one above is a warning, not a silence', async () => {
+  const got = await ladderAttempt((raw, dir) => {
+    let bars = '';
+    for (let i = 0; i < 12; i++) bars += `<path d="M${30 + i * 15} 60 V180"/>`;
+    fs.writeFileSync(path.join(dir, 'mark-compact.svg'),
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"><g data-slot="ink" fill="none" `
+      + `stroke="#1B2B4B" stroke-width="20">${bars}</g></svg>`);
+    raw.rules.ladder = ['mark', 'compact'];
+  });
+  assert.ok(got.ok, got.error && got.error.message);
+  assert.ok(got.warnings.some((w) => /has more in it: 12 pieces of ink against 7/.test(w)), got.warnings.join('\n'));
+});
+test('the check for a rung with more in it can actually fire', () => {
+  // Its first version let a heavier stroke stand as a reason to say nothing.
+  // A floor is the box divided by the thinnest thing in it, so a rung that
+  // holds smaller always has relatively heavier lines — the escape was every
+  // case, and the check could never fire at all.
+  const list = LAD.rungs(oriel, orielM, orielFloors);
+  const fake = list.slice(0, 2).map((r, i) => Object.assign({}, r, { parts: i === 0 ? 3 : 9 }));
+  assert.ok(LAD.check(fake, oriel).some((f) => f.code === 'ladderDetail'));
+});
+test('a tier of a different shape from the mark is a warning', async () => {
+  const got = await ladderAttempt((raw, dir) => {
+    fs.writeFileSync(path.join(dir, 'mark-compact.svg'),
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"><g data-slot="ink" fill="none" '
+      + 'stroke="#1B2B4B" stroke-width="20"><path d="M20 100 H220"/></g></svg>');
+    raw.rules.ladder = ['mark', 'compact'];
+  });
+  assert.ok(got.ok);
+  assert.ok(got.warnings.some((w) => /tall for its width and the mark is/.test(w)), got.warnings.join('\n'));
+});
+test('a ladder that steps down through lockups is not called a shape change', () => {
+  // A horizontal lockup is 0.43 tall for its width and the mark under it is 1.1,
+  // and that step is the point of the step. Comparing each rung with whatever is
+  // above it flagged every well-made ladder in the repository.
+  assert.deepStrictEqual(
+    LAD.check(LAD.rungs(oriel, orielM, orielFloors), oriel).filter((f) => f.code === 'ladderShape'), []);
+});
+test('a tier that does not carry the master\'s slots is a warning', async () => {
+  const got = await ladderAttempt((raw, dir) => {
+    fs.writeFileSync(path.join(dir, 'mark-compact.svg'),
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"><g fill="none" stroke="#1B2B4B" '
+      + 'stroke-width="20"><path d="M45 45 H195 V165 H45 Z"/><path d="M45 165 L120 210 L195 165"/></g></svg>');
+    raw.rules.ladder = ['mark', 'compact'];
+  });
+  assert.ok(got.ok);
+  assert.ok(got.warnings.some((w) => /ink is missing from it/.test(w)), got.warnings.join('\n'));
+});
+test('the package says which drawing at which size', () => {
+  const readme = fs.readFileSync(path.join(orielOut, 'README.txt'), 'utf8');
+  assert.ok(/the mark steps down through simpler drawings/.test(readme));
+  for (const b of orielBrand.logo.ladder) assert.ok(readme.indexOf(b.rung) > -1, `${b.rung} not in the read me`);
+  const html = fs.readFileSync(path.join(orielOut, 'guidelines.html'), 'utf8');
+  assert.ok(html.indexOf('The mark at every size') > -1, 'the manual has no ladder chapter');
+  // an identity without one gets no empty chapter
+  assert.ok(fs.readFileSync(path.join(out, 'guidelines.html'), 'utf8').indexOf('The mark at every size') < 0);
+});
+
+console.log('\nthe module a mark says it was built on');
+test('every point in every Oriel drawing is on the module it declares', () => {
+  const S = require('../src/system');
+  const grid = S.resolve(oriel, orielM).grid;
+  assert.strictEqual(grid.unit, 15);
+  assert.strictEqual(grid.across, 16);
+  for (const [name, src] of [['mark', oriel.assets.mark.source]].concat(oriel.tiers.map((t) => [t.name, t.source]))) {
+    const got = S.offGrid(src, grid.unit);
+    assert.ok(got.total > 4, `${name} has ${got.total} points`);
+    assert.deepStrictEqual(got.off, [], `${name} is off its own module`);
+  }
+});
+test('a point moved off the module is found and named', async () => {
+  const got = await ladderAttempt((raw, dir) => {
+    fs.writeFileSync(path.join(dir, 'mark.svg'),
+      fs.readFileSync(path.join(path.dirname(ORIEL), 'mark.svg'), 'utf8').replace('M45 90 H195', 'M45 88 H195'));
+  });
+  assert.ok(got.ok);
+  const said = got.warnings.filter((w) => /unit module/.test(w));
+  assert.strictEqual(said.length, 1, got.warnings.join('\n'));
+  assert.ok(/45,88 is 2 out/.test(said[0]), said[0]);
+});
+test('the construction diagram draws the module, and says so once', () => {
+  const html = fs.readFileSync(path.join(orielOut, 'guidelines.html'), 'utf8');
+  assert.ok(html.indexOf('16 modules of 15') > -1, 'the diagram does not name the module');
+  assert.ok(html.indexOf('15 unit module, 16 across') > -1, 'the caption does not name the module');
+  // an identity that declares none keeps the plain caption and claims nothing
+  const plain = fs.readFileSync(path.join(out, 'guidelines.html'), 'utf8');
+  assert.ok(plain.indexOf('unit box') > -1 && plain.indexOf('modules of') < 0);
+});
+test('the pattern is cut from the master, not from whatever icons come from', () => {
+  // `mark` in the build meant the icon artwork and the pattern source at once.
+  // It stopped being one thing the moment a ladder could say which drawing is
+  // used at icon sizes, and Fathom's whole identity is its pattern.
+  assert.strictEqual(orielBrand.generated.iconsFrom, 'mark-monogram.svg');
+  assert.ok(fs.readdirSync(orielOut).indexOf('07-pattern') > -1, 'no pattern was written');
+  const tile = fs.readFileSync(path.join(orielOut, '07-pattern',
+    fs.readdirSync(path.join(orielOut, '07-pattern'))[0]), 'utf8');
+  assert.ok(tile.length > 200);
+});
+
 drain().then(() => {
 
-  for (const d of [out, out2, tbOut, kilnOut]) if (d) fs.rmSync(d, { recursive: true, force: true });
+  for (const d of [out, out2, tbOut, kilnOut, orielOut]) if (d) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);
   process.exit(failed ? 1 : 0);
 });

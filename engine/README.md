@@ -141,6 +141,22 @@ produced, and the build reports what moved between them:
       previous/
         brand.json      copied out of the package that shipped as 1.4.0
 
+An identity that steps down through simpler drawings as it gets smaller ships
+each of them, and states the order:
+
+    "assets": { "mark": "mark.svg", "tiers": [
+      { "name": "compact",  "file": "mark-compact.svg",  "note": "…" },
+      { "name": "monogram", "file": "mark-monogram.svg", "note": "…" } ] },
+    "rules":  { "ladder": ["horizontal", "mark", "compact", "monogram"] }
+
+A rung is a lockup the package already contains or a tier drawn for the purpose.
+Each band runs from the size its drawing holds at up to where the rung above
+takes over; the order is checked against what the drawings measure; icons are cut
+from the bottom rung. A mark built on a module says so, and every point in it is
+checked against that module:
+
+    "system": { "grid": { "unit": 15, "box": 240 } }
+
 Colours that are read together and have to be told apart are named as a set, and
 what tells each of them apart other than its colour is named beside it:
 
@@ -2482,6 +2498,76 @@ the loader has reported findings in the designer's language since the first
 week, and nothing had ever thrown findings from inside `build`, so nothing had
 ever noticed.
 
+## A twenty-fifth identity
+
+The twenty-third round gave every drawing in a package its own floor, which was
+right and half an answer. A floor still meant **stop**. Below it the engine had
+nothing to say, and the manual's advice at 20 px was the same as its advice at
+2 px — which is not how any identity worth the name behaves. Below the size at
+which the full mark stops holding you do not stop using the mark. You move to a
+simpler drawing of it, and below that to a simpler one again, until what is left
+is a silhouette that survives at sixteen pixels. This is the standard pattern in
+responsive identity work, and the engine had no concept of it at all.
+
+**Oriel** is a gallery in a building whose front is a bay window, and its mark is
+that bay drawn in elevation on the building's own module — sixteen units square,
+every point a multiple of fifteen, stroke weights of two thirds, one and four
+thirds of a unit. It ships as five drawings:
+
+    "ladder": ["horizontal", "mark", "standard", "compact", "monogram"]
+
+    horizontal    100 px and above
+    mark          58–99 px
+    standard      39–57 px      two mullions instead of four
+    compact       29–38 px      the bay and its corbel, nothing inside
+    monogram      13–28 px      the silhouette with one aperture
+
+Which drawings are in the ladder is a decision and the project states it. The
+order is not a decision: it is what the drawings measure, and a stated order that
+disagrees with the measurement is refused rather than accepted. So is a rung
+named in the ladder that is neither a lockup nor a tier, a tier whose file is
+missing, and a ladder of one — which is a minimum size with a longer name.
+
+Every rung is cut in every colourway into `12-ladder`, each band runs from the
+size the drawing holds at up to where the one above takes over, and the bands
+meet with no gap. **The identity holds at 13 px where the drawing at the top of
+the ladder holds at 100.** Every icon and favicon is cut from the bottom rung,
+because that is the drawing this identity uses at the sizes an icon lives at,
+and all four sizes clear where the full mark would have cleared none.
+
+**And a construction grid is a claim.** The manual has drawn one since the
+beginning: six divisions of the box, chosen because six looks like a grid, over
+artwork built on whatever it was actually built on — a decoration, under a
+caption saying the mark was constructed on it. Where a project states its module
+the diagram now draws that module, and every point in the master and in every
+tier is asked whether it is on it, to a hundredth of a unit. Oriel's forty-six
+points all are. Move one two units and the build names it.
+
+Four things it found on the way, all of them mine or older.
+
+**`mark` in the build meant two things.** It was the artwork icons are cut from
+and the shape the pattern is cut from, and those were the same file until a
+ladder could say which drawing is used at icon sizes. Fathom's whole identity is
+its pattern; it would have been cut from a monogram and nothing would have said
+so.
+
+**A check that could never fire.** The first version of "is this rung simpler
+than the one above" let a heavier stroke stand as a reason to say nothing. A
+floor is the box divided by the thinnest thing in it, so a rung that holds
+smaller *always* has relatively heavier lines: the escape clause was every case.
+It went unnoticed until the check was tested rather than read.
+
+**A check that cried wolf.** The first version of "is this rung the same shape as
+the one above" compared each rung with whatever preceded it, and flagged every
+well-made ladder in the repository — a horizontal lockup is 0.43 tall for its
+width and the mark under it is 1.1, and that step is the entire point of the
+step. It asks of the tiers against the mark they are drawings of, which is the
+only comparison that means anything.
+
+**Both captions on the construction diagram were written twice** — once to work
+out how wide the canvas has to be, and again in full inside the text that draws
+them. They agreed for as long as nobody edited one.
+
 ## A front door
 
 Sixteen rounds, and the only way into the engine was to hand-write a project
@@ -2600,6 +2686,7 @@ the mechanism. The name was the cause, and renaming the payload is the fix.
     projects/tarnbrook/ the twenty-second: a second version, built against its first
     projects/kilnsey/ the twenty-third: half of every pair belongs to somebody else
     projects/deben/   the twenty-fourth: two of its colours are one colour to some readers
+    projects/oriel/   the twenty-fifth: five drawings of one mark, one for each size
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package

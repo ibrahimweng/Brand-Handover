@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Oriel, tier 4 of 4: the silhouette with one aperture. Nothing is thinner
+     than 3 units anywhere in it, which is what lets it hold at favicon size. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+  <g data-slot="ink" fill="#1B2B4B" fill-rule="evenodd" stroke="none">
+    <path d="M45 45 H195 V165 L120 210 L45 165 Z M90 90 H150 V120 H90 Z"/>
+  </g>
+</svg>

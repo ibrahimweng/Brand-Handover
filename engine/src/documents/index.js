@@ -71,6 +71,22 @@ function context(project, measured, files, brandJson) {
   // the build uses, so the manual and the package cannot disagree about how
   // small anything may go.
   const floors = require('../variants').floors(project, measured);
+  // Which drawing at which size, and what each of them looks like in the
+  // colourway this document is set in. Worked out from the same module the
+  // build uses, so the manual and the package cannot disagree.
+  let ladder = null;
+  if ((project.rules.ladder || []).length) {
+    const LAD = require('../ladder');
+    const list = LAD.rungs(project, measured, floors);
+    const bands = LAD.bands(list);
+    ladder = list.map((r, i) => Object.assign({}, bands[i], {
+      parts: r.parts, note: r.note || null,
+      svg: r.kind === 'tier'
+        ? (() => { const d = require('../svg').parse(r.source);
+          require('../svg').applyColourway(d, primaryColourway.slots); return require('../svg').serialize(d); })()
+        : variants[`${r.name}:${primaryColourway.name}`] || null,
+    }));
+  }
   const pairs = [];
   if ((project.partners || []).length) {
     const PT = require('../partners');
@@ -96,7 +112,7 @@ function context(project, measured, files, brandJson) {
     ? { since: project.previous.version.text,
         entries: require('../previous').compare(project.previous.data, brandJson) }
     : null;
-  return { project, sets: project.sets || null, measured, colours, roles, primary, ground, accent, primaryColourway, noun, system, pattern, hasSystem, changes, floors, pairs,
+  return { project, sets: project.sets || null, measured, colours, roles, primary, ground, accent, primaryColourway, noun, system, pattern, hasSystem, changes, floors, pairs, ladder,
     partnerRule: typeof partnerRule === 'undefined' ? null : partnerRule,
     variants, variantFor, files, brandJson, contrast: contrast.matrix(colours),
     content: project.content || {} };
@@ -130,9 +146,14 @@ function guidelines(ctx) {
       sec('1.2', 'Construction', 'system', b.construction(ctx) + words(c.constructionNotes)) +
       sec('1.3', 'Clear space', 'system', b.clearSpace(ctx)) +
       sec('1.4', 'Minimum size', 'system', b.minimumSize(ctx)) +
-      sec('1.5', 'The lockup system', 'system', b.lockups(ctx)) +
-      (ctx.pairs.length ? sec('1.6', 'Partner lockups', 'once', b.partnerLockups(ctx)) : '') +
-      sec(ctx.pairs.length ? '1.7' : '1.6', 'Misuse', 'system', b.misuse(ctx)))}
+      // A floor says how small one drawing goes. Where an identity has said what
+      // happens below it, that is the next thing the reader needs and it goes
+      // straight after the number it answers.
+      (ctx.ladder ? sec('1.5', 'The mark at every size', 'once', b.ladderBlock(ctx)) : '') +
+      (() => { let n = ctx.ladder ? 6 : 5;
+        return sec(`1.${n++}`, 'The lockup system', 'system', b.lockups(ctx))
+          + (ctx.pairs.length ? sec(`1.${n++}`, 'Partner lockups', 'once', b.partnerLockups(ctx)) : '')
+          + sec(`1.${n}`, 'Misuse', 'system', b.misuse(ctx)); })())}
 
   ${chapter('02', 'Colour',
       sec('2.1', 'The palette', 'system', b.palette(ctx) + words(c.colourRationale)) +

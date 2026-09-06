@@ -120,7 +120,15 @@ function floors(project, measured) {
       wordmarkSrc: project.assets.wordmark && project.assets.wordmark.source,
       lockup, colourway: project.rules.colourways[0], rules: project.rules, measured,
     });
-    out[lockup] = geo.minimumSize(v.svg, project.rules);
+    // the floor, and the two other things a drawing can be compared on: the
+    // shape of its ink and how many pieces it is made of. The ladder needs all
+    // three, and building each variant twice to get them would be the same
+    // measurement done from two places.
+    out[lockup] = Object.assign(geo.minimumSize(v.svg, project.rules), {
+      ink: geo.inkBox(v.svg),
+      viewBox: svgu.viewBox(svgu.parse(v.svg)),
+      parts: svgu.inkParts(svgu.parse(v.svg)),
+    });
   }
   return out;
 }

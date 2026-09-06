@@ -7,13 +7,15 @@ const naming = require('./naming');
 const svgu = require('./svg');
 const PREV = require('./previous');
 const PARTNERS = require('./partners');
+const LADDER = require('./ladder');
 
 // What an asset key means. One file each, or a list of them — and nothing else,
 // so a kind nobody has thought of yet is a question rather than a stack trace.
 const ASSET_SINGLE = { mark: 'the symbol', wordmark: 'the logotype',
   icon: 'the simplified drawing icons are cut from' };
 const ASSET_LISTS_ARE = { photography: 'the photography', documents: 'the pieces somebody laid out',
-  partners: 'the partners whose marks stand beside yours' };
+  partners: 'the partners whose marks stand beside yours',
+  tiers: 'the simpler drawings the mark steps down to' };
 const ASSET_LISTS = Object.keys(ASSET_LISTS_ARE);
 
 // The pixel size, read from the file's own header. A photograph placed at a size
@@ -521,6 +523,10 @@ function load(file) {
     asset.slots = n.slots;
   }
 
+  // The simpler drawings the mark steps down to as it gets smaller. They are
+  // normalised like any other artwork of ours, because they are ours.
+  const tiers = raw.assets.tiers ? LADDER.load(fs, path, dir, raw.assets.tiers, { brand: raw.brand }) : [];
+
   // Artwork that is not ours. It is loaded last of the assets because refusing it
   // needs the colourways this project cuts: the keys of a partner's files say
   // which of our grounds their versions are for, and a key we do not cut names
@@ -539,7 +545,7 @@ function load(file) {
   // here, which meant every rule override in a project file was read as absent
   // and the defaults quietly won. Nothing complained, because a default is a
   // perfectly good answer right up until somebody wanted a different one.
-  return { brand: raw.brand, latinName, language, direction, version: raw.version || '0.0.0', dir, tokens, sets: (raw.tokens || {}).sets || null, assets, photography, fonts, documents, nameSetting, rules, master, previous, partners,
+  return { brand: raw.brand, latinName, language, direction, version: raw.version || '0.0.0', dir, tokens, sets: (raw.tokens || {}).sets || null, assets, photography, fonts, documents, nameSetting, rules, master, previous, partners, tiers,
     system: raw.system || {}, content: raw.content || {}, report };
 }
 

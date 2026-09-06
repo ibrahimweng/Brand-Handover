@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Oriel, tier 2 of 4: two mullions instead of four, stroke 15 = one unit. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+  <g data-slot="ink" fill="none" stroke="#1B2B4B" stroke-width="15" stroke-linecap="butt" stroke-linejoin="miter">
+    <path d="M45 45 H195 V165 H45 Z"/>
+    <path d="M45 165 L120 210 L195 165"/>
+    <path d="M45 90 H195"/>
+    <path d="M90 45 V165"/>
+    <path d="M150 45 V165"/>
+  </g>
+</svg>

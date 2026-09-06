@@ -17,8 +17,8 @@ const { masterOf } = require('./project');
 const KEYS_READ = {
   rules: ['clearSpaceRatio', 'minStrokePx', 'minStrokeMm', 'lockupGapRatio', 'wordmarkHeightRatio',
     'naming', 'lockups', 'formats', 'pngWidths', 'stock', 'colourways', 'iconInk', 'iconBg',
-    'iconSizes', 'faviconSizes', 'social', 'partners', 'documents'],
-  system: ['icons', 'icon', 'pattern', 'motion', 'photography', 'nameSetting'],
+    'iconSizes', 'faviconSizes', 'social', 'partners', 'documents', 'ladder'],
+  system: ['icons', 'icon', 'pattern', 'motion', 'photography', 'nameSetting', 'grid'],
   // tokens was outside this audit entirely, so a whole branch of a project file
   // could be written, saved and shipped without anything reading it. The
   // twenty-fourth round added tokens.sets and the engine accepted it in
@@ -367,6 +367,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   for (const w of unreadKeys(project)) warnings.push(w);
 
   const saidMissing = new Set();
+  const saidMissingTier = new Set();
   const keptSlots = new Set();     // slots a colourway left painted as the master drew them
   const rgbShaded = [];            // PDFs carrying a gradient, which jsPDF writes as DeviceRGB
   const gradientSlots = new Set([
@@ -456,6 +457,46 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       + `brand.json has them all.`);
   }
 
+  // ---- the ladder: which drawing at which size ----
+  //
+  // A floor answers "how small may this go". A ladder answers the question that
+  // follows it, which is the one a client actually has: "and below that?" See
+  // src/ladder.js.
+  const LAD = require('./ladder');
+  let ladder = null;
+  if ((rules.ladder || []).length) {
+    const list = LAD.rungs(project, measured, floors);
+    for (const f of LAD.check(list, project)) {
+      if (f.level === 'blocker') { const e = new Error(f.what); e.findings = [f]; throw e; }
+      warnings.push(`${f.what} ${f.why} ${f.how}`);
+    }
+    ladder = { rungs: list, bands: LAD.bands(list) };
+    for (const r of list) {
+      if (r.kind !== 'tier') continue;
+      for (const colourway of rules.colourways) {
+        const doc = svgu.parse(r.source);
+        const { missing } = svgu.applyColourway(doc, colourway.slots);
+        if (missing.length && !saidMissingTier.has(`${r.name}:${colourway.name}`)) {
+          saidMissingTier.add(`${r.name}:${colourway.name}`);
+        }
+        const svg = svgu.serialize(doc);
+        const base = naming.fileName(rules.naming, { brand: project.latinName, lockup: r.name, colourway: colourway.name });
+        if (rules.formats.includes('svg')) write(`12-ladder/${base}.svg`, svg);
+        if (rules.formats.includes('png')) {
+          for (const w of rules.pngWidths) write(`12-ladder/${base}-${w}.png`, geo.renderPng(svg, w));
+        }
+      }
+    }
+    // The bottom rung is the identity's real floor, and everything the package
+    // said about "the smallest usable size" was about the top of the ladder.
+    const bottom = list[list.length - 1];
+    notes.push(`this identity steps down through ${list.length} drawings rather than stopping at one: `
+      + `${ladder.bands.map((b) => `${b.name} ${b.to == null ? `${b.from} px and up` : `${b.from}–${b.to} px`}`).join(', ')}. `
+      + `The mark alone holds at ${measured.minimumSize.screenPx} px and the identity holds at `
+      + `${bottom.minimumSize.screenPx} px, because below ${measured.minimumSize.screenPx} px it is `
+      + `${bottom.name === list[1].name ? 'a simpler drawing' : 'simpler drawings'} rather than a smaller one.`);
+  }
+
   // ---- the pairs: our lockup, a rule, and somebody else's mark ----
   //
   // Everything above this line was cut from one master and is the client's to
@@ -502,13 +543,20 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // normalised and then ignored, so the file the advice asked for was checked
   // by `check --icon` and used by nothing. Icons are cut from it where there is
   // one, and from the master where there is not.
-  const iconArt = project.assets.icon || masterOf(project);
-  const mark = iconArt.source;
-  const iconFrom = project.assets.icon ? path.basename(project.assets.icon.path) : path.basename(masterOf(project).path);
+  // Icons are the mark at the smallest sizes anything uses it, so where an
+  // identity has said which drawing it uses down there, that is the drawing
+  // they are cut from. assets.icon is the same answer for an identity with one
+  // alternative rather than a ladder of them, and it still wins where it is set.
+  const bottomRung = ladder && ladder.rungs.length
+    ? ladder.rungs[ladder.rungs.length - 1] : null;
+  const iconArt = project.assets.icon
+    || (bottomRung && bottomRung.kind === 'tier' ? { source: bottomRung.source, path: bottomRung.file } : null)
+    || masterOf(project);
+  const iconSource = iconArt.source;
+  const iconFrom = path.basename(iconArt.path || masterOf(project).path);
   // and the floor is measured off whatever the icons are actually cut from
-  const iconMeasured = project.assets.icon
-    ? { markInk: geo.inkBox(mark), minimumSize: geo.minimumSize(mark, rules) }
-    : measured;
+  const iconMeasured = iconArt === masterOf(project) ? measured
+    : { markInk: geo.inkBox(iconSource), minimumSize: geo.minimumSize(iconSource, rules) };
   const iconInk = rules.iconInk || '#FFFFFF';
   const iconBg = rules.iconBg || '#000000';
   const favPngs = [];
@@ -523,11 +571,11 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // Hallward is the case: a 766 px floor against a 180 px icon paints at
   // 0.49 px, and it ships nothing that clears its own rule at all.
   for (const size of rules.iconSizes || []) {
-    const svg = exp.iconSquare(mark, { size, background: iconBg, ink: iconInk, radius: 0.22 });
+    const svg = exp.iconSquare(iconSource, { size, background: iconBg, ink: iconInk, radius: 0.22 });
     write(`05-icons/icon-${size}.png`, geo.renderPng(svg, size));
   }
   for (const size of rules.faviconSizes || []) {
-    const svg = exp.iconSquare(mark, { size, background: iconBg, ink: iconInk });
+    const svg = exp.iconSquare(iconSource, { size, background: iconBg, ink: iconInk });
     const png = geo.renderPng(svg, size);
     write(`05-icons/favicon-${size}.png`, png);
     favPngs.push({ size, data: png });
@@ -544,6 +592,25 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       + 'brand.json still carries the icon grid the mark derives, so anybody reading it will expect files '
       + 'that are not there. Set the sizes, or say plainly in the handover that icons are somebody else\'s job.');
   }
+  // A construction grid is a claim, and this is the first time anything has
+  // checked it. Every drawing the identity says is built on the module is asked
+  // whether it is: the master, and every rung of the ladder.
+  if (sys.grid) {
+    const drawings = [[path.basename(masterOf(project).path), masterOf(project).source]]
+      .concat((project.tiers || []).map((t) => [t.file, t.source]));
+    for (const [name, src] of drawings) {
+      const g = system.offGrid(src, sys.grid.unit);
+      if (!g.off.length) continue;
+      warnings.push(`${name} says it is built on a ${sys.grid.unit} unit module and `
+        + `${g.off.length} of its ${g.total} points ${g.off.length === 1 ? 'is' : 'are'} not on it: `
+        + `${g.off.slice(0, 4).map((o) => `${o.x},${o.y} is ${o.by} out`).join(', ')}`
+        + `${g.off.length > 4 ? `, and ${g.off.length - 4} more` : ''}. `
+        + 'The manual draws that module over the artwork and says the mark was built on it, which is a claim '
+        + 'about every point in the drawing. Move them onto the module, or take system.grid out and the '
+        + 'diagram goes back to showing the box rather than a grid nothing was built on.');
+    }
+  }
+
   // A mark drawn in one weight hands the icon grid that weight and there is
   // nothing to say. A mark drawn in several hands it one of them, and which one
   // is a decision the engine has just made on the designer's behalf.
@@ -615,8 +682,8 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
 
   for (const [name, spec] of Object.entries(rules.social || {})) {
     const svg = spec.w === spec.h
-      ? exp.iconSquare(mark, { size: spec.w, background: iconBg, ink: iconInk, radius: spec.round ? 0.5 : 0 })
-      : exp.banner(mark, { width: spec.w, height: spec.h, background: iconBg, ink: iconInk });
+      ? exp.iconSquare(iconSource, { size: spec.w, background: iconBg, ink: iconInk, radius: spec.round ? 0.5 : 0 })
+      : exp.banner(iconSource, { width: spec.w, height: spec.h, background: iconBg, ink: iconInk });
     write(`06-social/${naming.slug(name)}-${spec.w}x${spec.h}.png`, geo.renderPng(svg, spec.w));
   }
 
@@ -695,7 +762,12 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       + `with the webfont you are licensed to ship, or "google": true if it is served from there.`);
   }
 
-  const gen = pattern.everyTile(mark, sys.pattern, ways, pairs);
+  // the pattern is cut from the master, which is not the drawing icons come from:
+  // `mark` here used to mean both, and started meaning the monogram the moment a
+  // ladder could say which drawing is used at icon sizes. Fathom's whole identity
+  // is its pattern; it would have been cut from the wrong file and nothing would
+  // have said so.
+  const gen = pattern.everyTile(masterOf(project).source, sys.pattern, ways, pairs);
   if (gen.ok) {
     for (const t of gen.tiles) {
       write(`07-pattern/pattern-${naming.slug(t.density)}-${naming.slug(t.colourway)}.svg`, t.tile);
@@ -769,6 +841,17 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
         screenPx: f.screenPx, printMm: f.printMm, screenPxHigh: f.screenPxHigh, printMmHigh: f.printMmHigh,
         squarish: f.squarish, from: f.from, width: f.thinnestStroke, basis: f.basis,
       }])),
+      // Which drawing at which size. A floor says how small one drawing goes;
+      // this says what happens below it, all the way down. See src/ladder.js.
+      ladder: ladder ? ladder.bands.map((b, i) => ({
+        rung: b.name, kind: b.kind, fromPx: b.from, toPx: b.to,
+        fromMm: b.printFrom, toMm: b.printTo,
+        parts: ladder.rungs[i].parts,
+        file: ladder.rungs[i].kind === 'tier' ? `12-ladder/${naming.fileName(rules.naming,
+          { brand: project.latinName, lockup: b.name, colourway: rules.colourways[0].name })}.svg`
+          : `${naming.folderFor(b.name)}/`,
+        note: ladder.rungs[i].note || null,
+      })) : null,
       lockups: rules.lockups,
       colourways: rules.colourways.map((c) => c.name),
       // Half of each of these is not ours. See src/partners.js.
@@ -918,6 +1001,17 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       '                  A pair with a partner holds at neither brand\'s figure.',
       '                  11-partners and the manual state each one.'] : []),
     `  Colourways      ${rules.colourways.map((c) => c.name).join(', ')}.`,
+    // Every read me has printed one smallest size and stopped. Where an
+    // identity says what happens below it, that is the useful half.
+    ...(ladder ? [
+      '  At every size    the mark steps down through simpler drawings rather',
+      '                  than stopping. Use the one whose band the size falls in:',
+      ...ladder.bands.map((b) => `                    ${b.name.padEnd(13)} `
+        + `${b.to == null ? `${b.from} px and above` : `${b.from}–${b.to} px`}`
+        + `${b.to == null ? '' : `, ${b.printFrom}–${b.printTo} mm`}`),
+      `                  Below ${ladder.bands[ladder.bands.length - 1].from} px there is nothing. 12-ladder holds the drawings`,
+      '                  that are not lockups; icons are cut from the last of them.',
+    ] : []),
     // A contrast ratio is luminance. Whether two of these can be told apart is
     // a different question, and no read me had ever carried the answer.
     ...(vision.collapses && vision.collapses.length ? [

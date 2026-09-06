@@ -713,6 +713,40 @@ which is exactly what `tokens.sets` did on its first run. And a refusal raised
 while *building* printed one line of an `Error` and lost its why and its how,
 because nothing had ever thrown findings from inside `build`.
 
+The twenty-fifth took the twenty-third round's answer and finished it. Every
+drawing had been given its own floor, which was right — and a floor still meant
+**stop**. Below it the engine had nothing to say, so its advice at 20 px was its
+advice at 2 px. That is not how a serious identity behaves: below the size at
+which the full mark holds you move to a simpler drawing of it, and below that to
+a simpler one again, until what is left survives at sixteen pixels.
+
+**Oriel** is a gallery in a building whose front is a bay window. Its mark is
+that bay in elevation, built on the building's own module — sixteen units square,
+every point a multiple of fifteen — and it ships as **five drawings, one for each
+size band**: the horizontal lockup above 100 px, the mark to 58, then two
+mullions instead of four, then the bay and its corbel alone, then a silhouette
+with one aperture that holds at **13 px**. The bands meet with no gap. Which
+drawings are in the ladder is a decision the project states; the order is not,
+and a stated order that disagrees with what the drawings measure is refused.
+Every icon and favicon is cut from the bottom rung, so all four sizes clear where
+the full mark would have cleared none.
+
+**And a construction grid is a claim.** The manual had drawn one since the
+beginning — six divisions of the box, chosen because six looks like a grid, over
+artwork built on something else entirely. Where a project states its module the
+diagram draws that module, and every point in every drawing is checked against
+it. Oriel's forty-six are all on it; move one two units and the build names it.
+
+Four things came out of the work, all of them mine or older. `mark` in the build
+meant the artwork icons come from *and* the shape the pattern is cut from, which
+were the same file until a ladder could say otherwise. A check that could never
+fire — a rung that holds smaller always has relatively heavier lines, so "unless
+it is heavier" was every case, and it took testing rather than reading to see it.
+A check that cried wolf on every well-made ladder, by comparing a wide lockup
+with the square mark below it. And both captions on the construction diagram were
+written twice — once to size the canvas, once to draw it — and agreed only for as
+long as nobody edited one.
+
 Still to do: a run on **your** identity job. Twenty identities the engine had
 not seen is worth a great deal more than twenty passes over one, but none of
 them came out of your exporter — and the normaliser is the part that most needs
