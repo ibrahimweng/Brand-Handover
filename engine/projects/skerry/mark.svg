@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Skerry: a roundel with a channel through it. The bar is the crossing. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <g data-slot="ink" fill="none" stroke="#12414F" stroke-width="11">
+    <circle cx="60" cy="60" r="43"/>
+    <path d="M8 60 H112" stroke-linecap="butt"/>
+  </g>
+</svg>

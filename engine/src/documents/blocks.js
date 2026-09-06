@@ -284,10 +284,27 @@ function minimumSize(ctx) {
 }
 
 function lockups(ctx) {
-  return `<div class="row2">` + ctx.project.rules.lockups.map((l) => {
+  const grid = `<div class="row2">` + ctx.project.rules.lockups.map((l) => {
     const v = ctx.variantFor(l, ctx.primaryColourway.name);
     return `<figure><div class="stage">${scaled(v, 190)}</div><figcaption>${esc(l)}</figcaption></figure>`;
   }).join('') + `</div>`;
+  // Where the name is set rather than drawn, that rule *is* the lockup, and it
+  // is the most important thing this page has to say. Nothing said it, because
+  // until now every identity handed the engine a drawing of its name.
+  const n = ctx.project.nameSetting;
+  if (!n) return grid;
+  const fam = ((ctx.project.tokens.type || {}).families || {})[n.family] || {};
+  return `${grid}
+    <p class="note"><b>The name is not drawn.</b> It is set in
+    <b>${esc(n.drawn.family)}</b> at weight ${n.drawn.weight}${n.transform === 'uppercase' ? ', in capitals' : ''},
+    tracked ${svgu.round(Number(n.tracking) * 1000, 0)}/1000 of an em, at
+    <b>${svgu.round(Number(n.heightRatio) * 100, 1)} per cent</b> of the mark's ink height —
+    ${ctx.measured.markInk.h} units, so the name stands
+    ${svgu.round(ctx.measured.markInk.h * Number(n.heightRatio), 2)}. Set it that way and it is
+    right; the files in <code>04-wordmark</code> are that setting outlined at build time, so they
+    need no font to render and will not go out of step with a sign.
+    ${esc(fam.family || n.drawn.family)} is the ${esc(n.family)} face in the palette above:
+    change it there and the name is redrawn with it.</p>`;
 }
 
 function misuse(ctx) {

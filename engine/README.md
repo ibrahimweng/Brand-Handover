@@ -2157,6 +2157,58 @@ not, and nothing in the index reads a size. It is exact now, for every project
 in the repository, and the suite checks the package against the index rather
 than against itself.
 
+## A twenty-first identity
+
+Twenty identities and **every one of them had a wordmark** — a drawing of the
+name, artwork, fixed. Marlow inverted it in the thirteenth round, a logotype
+with no symbol; nothing had ever been the other inversion. A mark that stands
+alone: Nike, Apple, Shell, Target, the Olympic rings.
+
+**Skerry** runs eleven islands on one timetable. Its mark is a roundel with the
+channel cut through it, painted on hulls and printed at nine millimetres on a
+ticket, and **its name is not drawn**. It is set, in the network's own face, at
+fifty eight per cent of the mark's height.
+
+For that kind of identity the lockup is not two pieces of artwork. It is the
+mark, and the name at a stated size and distance — a rule rather than a file,
+and the single most important thing the manual has to say. There was nowhere in
+a project to say it. The engine could take the mark and had nothing at all to
+tell anybody about the name.
+
+    "system": {
+      "nameSetting": {
+        "family": "display", "weight": 700,
+        "heightRatio": 0.58, "tracking": 0.03, "transform": "uppercase"
+      }
+    }
+
+The name is outlined from the face the project ships — the seventeenth round's
+work, used for something else — so the files still need no font to render,
+which is the whole reason a wordmark is artwork in the first place and stays
+true when the engine is the one drawing it. Everything downstream then works
+unchanged, because by then there is a wordmark.
+
+Three things it caught on the way, two of them mine.
+
+**A symbol that is the whole identity was described as a fallback.** The read
+me said `03-mark` is for "avatars, app icons, and anywhere the name is already
+present" — exactly backwards when there is no name to be present anywhere. The
+same sentence the thirteenth round rewrote for a logotype, unrewritten for its
+mirror.
+
+**The rule stated a size that something else silently overruled.** The lockups
+are composed from `rules.wordmarkHeightRatio`, and the new rule said the same
+thing in a different field. Skerry asked for 0.58 and would have got the 0.34
+default without a word, which is the fifteenth round's defect returning the
+moment a second way to say one number existed. It is one field now, and a
+project that states both differently is refused rather than resolved.
+
+**The audit kept its own copy of the list it audits.** `system.nameSetting` was
+added to the engine's list of keys that are read, and the suite's check has its
+own — so the check failed on a project that was correct. Two lists of one thing
+is the defect this engine keeps finding in other people's code; it was inside
+the check. The list is exported now and the test reads it.
+
 ## A front door
 
 Sixteen rounds, and the only way into the engine was to hand-write a project
@@ -2271,12 +2323,14 @@ the mechanism. The name was the cause, and renaming the payload is the fix.
     projects/ravelston/ the eighteenth: an engraved crest, and an icon of its own
     projects/yamabiko/ the nineteenth: Japanese, which has no spaces in it
     projects/lammas/  the twentieth: it ships the pages somebody laid out
+    projects/skerry/  the twenty-first: a symbol, and a name that is set not drawn
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package
     src/build.js      write the package, brand.json and the read me
     src/cli.js        check, measure, build, edit and publish
     src/typeface.js   how a typeface reaches a document, decided once
+    src/setname.js    a name that is set in the brand's face rather than drawn
     src/app/          the front door: handlers.js, server.js, client.html
     ../api/           the same two handlers, as functions, for hosting it
     ../site/build.js  every identity, built into one site, index and all

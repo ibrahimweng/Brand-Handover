@@ -1,0 +1,219 @@
+{
+  "brand": "Skerry",
+  "version": "2.3.0",
+  "assets": {
+    "mark": "mark.svg"
+  },
+  "tokens": {
+    "colour": {
+      "channel": {
+        "hex": "#12414F",
+        "role": "primary",
+        "cmyk": [
+          88,
+          58,
+          42,
+          32
+        ]
+      },
+      "shell": {
+        "hex": "#F2F4F3",
+        "role": "ground",
+        "cmyk": [
+          4,
+          2,
+          3,
+          0
+        ]
+      },
+      "wake": {
+        "hex": "#4E8C93",
+        "role": "secondary",
+        "cmyk": [
+          70,
+          32,
+          38,
+          4
+        ]
+      },
+      "buoy": {
+        "hex": "#D8622B",
+        "role": "accent",
+        "cmyk": [
+          8,
+          76,
+          92,
+          1
+        ],
+        "textSafe": false,
+        "maxCoverage": 0.05
+      }
+    },
+    "type": {
+      "families": {
+        "display": {
+          "family": "Skerry Sans",
+          "weights": [
+            400,
+            700
+          ],
+          "files": [
+            {
+              "file": "fonts/skerry-sans-bold.ttf",
+              "weight": 700,
+              "style": "normal"
+            },
+            {
+              "file": "fonts/skerry-sans-regular.ttf",
+              "weight": 400,
+              "style": "normal"
+            }
+          ],
+          "fallback": "Helvetica,Arial,sans-serif",
+          "licence": "Liberation Sans, SIL Open Font Licence 1.1, subsetted and renamed for this identity. It may be redistributed with this package and embedded in documents.",
+          "note": "The name, every sign, and every timetable heading."
+        },
+        "text": {
+          "family": "Skerry Sans",
+          "weights": [
+            400
+          ],
+          "files": [
+            {
+              "file": "fonts/skerry-sans-regular.ttf",
+              "weight": 400,
+              "style": "normal"
+            }
+          ],
+          "fallback": "Helvetica,Arial,sans-serif",
+          "note": "Sailing notices and anything read standing up in the wind."
+        }
+      },
+      "scale": [
+        {
+          "name": "Display",
+          "family": "display",
+          "size": 52,
+          "leading": 56,
+          "weight": 700,
+          "tracking": -0.02,
+          "sample": "Eleven islands, one timetable"
+        },
+        {
+          "name": "H1",
+          "family": "display",
+          "size": 34,
+          "leading": 40,
+          "weight": 700,
+          "sample": "Winter sailings"
+        },
+        {
+          "name": "H2",
+          "family": "display",
+          "size": 24,
+          "leading": 30,
+          "weight": 700,
+          "sample": "Foot passengers and freight"
+        },
+        {
+          "name": "H3",
+          "family": "display",
+          "size": 18,
+          "leading": 24,
+          "weight": 700,
+          "sample": "Pier notices"
+        },
+        {
+          "name": "Body",
+          "family": "text",
+          "size": 17,
+          "leading": 27,
+          "weight": 400,
+          "sample": "The last sailing leaves the north pier at seventeen forty."
+        },
+        {
+          "name": "Small",
+          "family": "text",
+          "size": 14,
+          "leading": 21,
+          "weight": 400,
+          "sample": "Subject to weather."
+        },
+        {
+          "name": "Caption",
+          "family": "display",
+          "size": 12,
+          "leading": 17,
+          "weight": 700,
+          "tracking": 0.1,
+          "sample": "Skerry ferries"
+        }
+      ]
+    }
+  },
+  "system": {
+    "nameSetting": {
+      "family": "display",
+      "weight": 700,
+      "tracking": 0.03,
+      "transform": "uppercase",
+      "heightRatio": 0.58
+    }
+  },
+  "rules": {
+    "lockups": [
+      "horizontal",
+      "stacked",
+      "mark",
+      "wordmark"
+    ],
+    "colourways": [
+      {
+        "name": "channel",
+        "on": "shell",
+        "slots": {
+          "ink": "#12414F"
+        }
+      },
+      {
+        "name": "reverse",
+        "on": "channel",
+        "slots": {
+          "ink": "#F2F4F3"
+        }
+      },
+      {
+        "name": "wake",
+        "on": "shell",
+        "slots": {
+          "ink": "#4E8C93"
+        }
+      }
+    ],
+    "formats": [
+      "svg",
+      "png"
+    ],
+    "pngWidths": [
+      512,
+      1024
+    ],
+    "naming": "{brand}-{lockup}-{colourway}"
+  },
+  "content": {
+    "positioning": "Skerry runs eleven islands on one timetable, in weather that decides most of it.",
+    "introduction": "Six vessels, forty two piers and a printed timetable that has to be legible in rain, at dusk, at arm's length. The roundel is painted on hulls, cut into pier signs and printed at nine millimetres on a ticket, and it has to be the same shape in all three.",
+    "markRationale": "A ring with the channel cut through it. Nothing inside the ring, because at nine millimetres anything inside it closes up, and because a hull is repainted by people with rollers.",
+    "colourRationale": "Channel is the hull colour and the ink. Shell is the paper and the superstructure. Wake is for surfaces and maps. Buoy is for the one thing on a page that has to be seen from the pier.",
+    "typeRationale": "The name is not drawn. It is set in the network's own face at fifty eight percent of the mark's height, and that rule is the identity as much as the roundel is. A drawn logotype would go out of step with the signs the first time a sign was made.",
+    "misuse": [
+      "Do not draw the name. It is set, in the network face, at the stated size.",
+      "Do not put anything inside the ring. It closes at ticket size.",
+      "Do not stretch. Scale both axes together, always.",
+      "Do not recolour outside the approved colourways.",
+      "Do not set the name in another face because the network face is not installed. Install it.",
+      "Do not use Buoy behind text."
+    ],
+    "constructionNotes": "The ring is forty three units of a hundred and twenty box with an eleven unit stroke. The bar runs the full width of the box at the centre line, butt ended, so it meets the artboard edge and reads as a channel rather than a strike."
+  }
+}

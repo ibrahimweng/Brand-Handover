@@ -377,7 +377,7 @@ publishing, all three kinds of block, image slots, page sizes and the
 photography treatment, print work with bleed, CMYK, and a printed piece through
 Typst, mockups, the licence half of accounts, and a local app that takes artwork
 and gives back the package without anybody writing a project file. 138 files from one master,
-364 tests, and nineteen more identities in the repo that the engine had not been
+368 tests, and twenty more identities in the repo that the engine had not been
 written against.
 
 Three things the plan had wrong, found by building rather than by thinking.
@@ -1258,6 +1258,38 @@ as the files in the package. Anything self-describing has this problem — the
 count in the deck, the read me's folder list, the index — and the fix is the
 same each time: work out the whole list first, then write it, rather than asking
 half way through.
+
+**Every inversion has a second inversion.** The thirteenth round found the
+engine refusing a logotype with no symbol, and fixed it. The mirror — a symbol
+with no logotype — sat unexamined for eight more rounds, and the very sentence
+that round rewrote was still backwards for it. When a fix is "we assumed A and
+B, and A alone is legitimate", ask immediately whether B alone is too. The
+answer is usually yes and the second case is usually already written down
+nearby, in the same function, in the branch you did not take.
+
+**A new way to say an existing number brings back the old bug.** The name's
+height beside the mark was already `rules.wordmarkHeightRatio`. Adding
+`nameSetting.heightRatio` created two fields for one measurement, and the
+project's statement lost to the default in silence — which is precisely the
+fifteenth round's defect. It reappeared inside the fix for something else,
+within an hour of being read about. Before adding a field, grep for the
+quantity: if something already means it, the new field is either that field or
+a refusal to have both.
+
+**A check that keeps its own copy of what it checks will fail on correct
+code.** The suite audits every project against the list of keys the engine
+actually reads, and kept its own copy of that list. Adding a key to the engine
+made the check fail on a project that was right — the check accusing the
+codebase of the check's own staleness. Exported now, and read rather than
+restated. Worth grepping for: any literal list in a test that also exists in
+`src/`.
+
+**The loader's declaration order has now caught three rounds running.** `sys`
+in the sixteenth, `tokens` in the seventeenth, `tokens` again here. A long
+function where later work needs earlier values, and the earlier values are
+declared halfway down. It is cheap to hit and cheap to fix each time, which is
+why it has not been fixed properly; the honest note is that this file wants
+splitting into load-then-derive rather than one pass.
 
 ---
 

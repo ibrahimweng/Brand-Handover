@@ -18,10 +18,8 @@
     "jsdom": "^30.0.1",
     "jspdf": "^4.2.1",
     "jszip": "^3.10.1",
+    "opentype.js": "^2.0.0",
     "svg2pdf.js": "^2.8.1",
     "svgo": "^3.0.0"
-  },
-  "devDependencies": {
-    "opentype.js": "^2.0.0"
   }
 }

@@ -9,6 +9,18 @@ const exp = require('./export');
 const contrast = require('./contrast');
 const { masterOf } = require('./project');
 
+// Every key a project may set that something actually reads. The suite audits
+// the fixtures against this, and kept its own copy of it — so a key added here
+// was missing there, and the audit failed on a project that was correct. Two
+// lists of one thing is the defect this engine keeps finding in other people's
+// code; it was in the check itself.
+const KEYS_READ = {
+  rules: ['clearSpaceRatio', 'minStrokePx', 'minStrokeMm', 'lockupGapRatio', 'wordmarkHeightRatio',
+    'naming', 'lockups', 'formats', 'pngWidths', 'stock', 'colourways', 'iconInk', 'iconBg',
+    'iconSizes', 'faviconSizes', 'social'],
+  system: ['icons', 'icon', 'pattern', 'motion', 'photography', 'nameSetting'],
+};
+
 async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   const measured = measure(project);
   log(`measured the master: ink ${measured.markInk.w} × ${measured.markInk.h}, ` +
@@ -125,12 +137,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // tell from the outside that anything was dropped. Only rules and system are
   // checked: content is the designer's own prose and none of the engine's
   // business what else they keep in it.
-  const READS = {
-    rules: ['clearSpaceRatio', 'minStrokePx', 'minStrokeMm', 'lockupGapRatio', 'wordmarkHeightRatio',
-      'naming', 'lockups', 'formats', 'pngWidths', 'stock', 'colourways', 'iconInk', 'iconBg',
-      'iconSizes', 'faviconSizes', 'social'],
-    system: ['icons', 'icon', 'pattern', 'motion', 'photography'],
-  };
+  const READS = KEYS_READ;
   const nearest = (key, options) => {
     const dist = (a, b) => {
       const m2 = [[]];
@@ -473,6 +480,14 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     },
     contrast: pairs.map((p) => ({ pair: `${p.fg} on ${p.bg}`, ratio: p.ratio, verdict: p.use })),
     system: {
+      // A name that is set rather than drawn is a rule, and rules go in here
+      nameSetting: project.nameSetting ? {
+        family: project.nameSetting.family, weight: project.nameSetting.weight,
+        heightRatio: project.nameSetting.heightRatio, tracking: project.nameSetting.tracking,
+        transform: project.nameSetting.transform, setIn: project.nameSetting.drawn.family,
+        note: 'the name is set in this face at this size beside the mark, not drawn. '
+          + '04-wordmark is that setting outlined, so it needs no font to render.',
+      } : null,
       icons: sys.icons,
       pattern: Object.assign({}, sys.pattern, { source: gen.ok ? 'the shape marked data-pattern in the master' : null }),
       motion: sys.motion,
@@ -490,13 +505,23 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // the whole identity is the logo.
   const lockupLines = (lockups, assets) => {
     const alone = !assets.mark;
+    // The mirror of the logotype case the thirteenth round fixed: a symbol that
+    // stands on its own was still described as the thing you reach for "where
+    // the name is already present", which is exactly backwards when there is no
+    // name to be present anywhere.
+    const symbolOnly = !!assets.mark && !assets.wordmark;
+    const set = !!project.nameSetting;
     const why = {
       horizontal: 'the default. Use this unless the space is too narrow.',
       stacked: 'when the space is narrower than it is tall.',
-      mark: 'avatars, app icons, and anywhere the name is already present.',
+      mark: symbolOnly
+        ? 'the identity. There is no drawn name: this is the whole of it.'
+        : 'avatars, app icons, and anywhere the name is already present.',
       wordmark: alone
         ? 'the logotype, which is the whole identity. Everything else is cut from it.'
-        : 'below the minimum size, where the mark stops reading.',
+        : set
+          ? 'the name on its own, set in the network face and outlined here so it needs no font.'
+          : 'below the minimum size, where the mark stops reading.',
     };
     return lockups.filter((l) => why[l])
       .map((l) => `  ${naming.folderFor(l).padEnd(15)} ${why[l]}`);
@@ -631,4 +656,4 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   return { measured, written, warnings, notes, contrast: pairs };
 }
 
-module.exports = { build };
+module.exports = { build, KEYS_READ };

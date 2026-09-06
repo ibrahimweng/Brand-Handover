@@ -122,7 +122,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 138 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 364 tests.
+of it. 368 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -588,7 +588,23 @@ ground, invisible rather than absent. And a page that **indexed the package
 indexed 45 files of 57**, because the list it was built from stopped where it
 happened to be standing.
 
-Still to do: a run on **your** identity job. Nineteen identities the engine had
-not seen is worth a great deal more than nineteen passes over one, but none of
+The twenty-first found that **every one of twenty identities had a wordmark** — a
+drawing of the name. Round thirteen fixed the logotype with no symbol; nothing
+had ever been the other inversion. **Skerry** is an island ferry network whose
+mark is a roundel and whose **name is not drawn**: it is set, in the network's own
+face, at fifty eight per cent of the mark's height.
+
+For that kind of identity the lockup is a rule, not two files — and it is the
+most important thing the manual has to say. There was nowhere to say it. The
+name is outlined from the shipped face now, so the files still need no font.
+Three things came out of it: a symbol that was the whole identity was **described
+as a fallback**, the mirror of the sentence round thirteen rewrote; the new rule
+**stated a size something else silently overruled**, which is round fifteen's
+defect returning the moment a second way to say one number existed; and the
+audit **kept its own copy of the list it audits**, so it failed on a project that
+was correct.
+
+Still to do: a run on **your** identity job. Twenty identities the engine had
+not seen is worth a great deal more than twenty passes over one, but none of
 them came out of your exporter — and the normaliser is the part that most needs
 to meet one.

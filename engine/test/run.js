@@ -3100,12 +3100,9 @@ test('every project in the repo sets only things that are read', () => {
   const names = fs.readdirSync(path.join(__dirname, '..', 'projects'))
     .filter((d) => fs.existsSync(path.join(__dirname, '..', 'projects', d, 'project.json')));
   assert.ok(names.length >= 10, `${names.length} projects`);
-  const READS = {
-    rules: ['clearSpaceRatio', 'minStrokePx', 'minStrokeMm', 'lockupGapRatio', 'wordmarkHeightRatio',
-      'naming', 'lockups', 'formats', 'pngWidths', 'stock', 'colourways', 'iconInk', 'iconBg',
-      'iconSizes', 'faviconSizes', 'social'],
-    system: ['icons', 'icon', 'pattern', 'motion', 'photography'],
-  };
+  // the engine's own list, not a copy of it: a key added there was missing here
+  // and the audit failed on a project that was right
+  const READS = require('../src/build').KEYS_READ;
   for (const n of names) {
     const p = projectLoader.load(path.join(__dirname, '..', 'projects', n, 'project.json'));
     for (const [where, allowed] of Object.entries(READS)) {
@@ -4816,6 +4813,107 @@ test('a page that indexes the package indexes all of it', async () => {
       `${project.brand}: the index lists files the package does not have`);
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+// ---- a name that is set rather than drawn ----
+
+const SK = projectLoader.load(path.join(__dirname, '..', 'projects', 'skerry', 'project.json'));
+
+test('a mark that stands alone can have a name that is set, not drawn', async () => {
+  // Twenty identities, every one with a wordmark — a drawing of the name. The
+  // mirror of the thirteenth round's logotype is at least as common: a symbol
+  // that stands alone with the name simply set in the brand's face. For those
+  // the lockup is not two files, it is a rule, and there was nowhere to put it.
+  assert.ok(!fs.existsSync(path.join(__dirname, '..', 'projects', 'skerry', 'wordmark.svg')),
+    'the fixture started shipping a drawn wordmark');
+  assert.ok(SK.nameSetting && SK.nameSetting.declared);
+  assert.ok(SK.assets.wordmark && SK.assets.wordmark.generated, 'no wordmark was drawn from the rule');
+
+  // outlined, so the file needs no font to render — the whole reason a wordmark
+  // is artwork, and it stays true when the engine is the one drawing it
+  assert.ok(/<path/.test(SK.assets.wordmark.source));
+  assert.ok(!/<text|font-family/.test(SK.assets.wordmark.source), 'it left live text in the artwork');
+  assert.strictEqual(SK.nameSetting.drawn.text, 'SKERRY');
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-set-'));
+  await build(SK, dir);
+  for (const f of ['01-horizontal', '02-stacked', '03-mark', '04-wordmark']) {
+    assert.ok(fs.existsSync(path.join(dir, f)), `${f} was not written`);
+  }
+  // the manual says the rule, because for this kind of identity it is the rule
+  const html = fs.readFileSync(path.join(dir, 'guidelines.html'), 'utf8');
+  assert.ok(html.indexOf('The name is not drawn') > -1, 'the manual does not say the name is set');
+  assert.ok(html.indexOf('58 per cent') > -1, 'the manual does not quote the size it is set at');
+  assert.strictEqual(JSON.parse(fs.readFileSync(path.join(dir, 'brand.json'), 'utf8'))
+    .system.nameSetting.heightRatio, 0.58);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('the name is stated once, not twice', () => {
+  // rules.wordmarkHeightRatio and the rule's heightRatio are the same
+  // measurement. Two ways to say one number is how the fifteenth round's defect
+  // came back: a project states a size and silently gets the default.
+  assert.strictEqual(SK.rules.wordmarkHeightRatio, SK.nameSetting.heightRatio);
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-two-'));
+  fs.copyFileSync(path.join(__dirname, '..', 'projects', 'skerry', 'mark.svg'), path.join(dir, 'mark.svg'));
+  fs.mkdirSync(path.join(dir, 'fonts'));
+  for (const f of fs.readdirSync(path.join(__dirname, '..', 'projects', 'skerry', 'fonts'))) {
+    fs.copyFileSync(path.join(__dirname, '..', 'projects', 'skerry', 'fonts', f), path.join(dir, 'fonts', f));
+  }
+  const base = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'projects', 'skerry', 'project.json'), 'utf8'));
+  const write = (mut) => {
+    const p = JSON.parse(JSON.stringify(base));
+    mut(p);
+    fs.writeFileSync(path.join(dir, 'project.json'), JSON.stringify(p));
+    try { return projectLoader.load(path.join(dir, 'project.json')) && null; } catch (e) { return e.message; }
+  };
+  // stated twice and differently: refused rather than picked
+  const clash = write((p) => { p.rules.wordmarkHeightRatio = 0.34; });
+  assert.ok(clash && /same measurement/.test(clash), `it picked one: ${clash}`);
+  // stated twice and agreeing: fine
+  assert.strictEqual(write((p) => { p.rules.wordmarkHeightRatio = 0.58; }), null);
+  // and a drawing and a rule for the same name is refused too
+  const both = write((p) => { p.assets.wordmark = 'mark.svg'; });
+  assert.ok(both && /Pick one/.test(both), `it accepted two answers for the name: ${both}`);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('a name cannot be set in a face the project does not ship', () => {
+  const SN = require('../src/setname');
+  const tokens = { type: { families: { display: { family: 'Founders Grotesk' }, text: { family: 'X' } } } };
+  const rule = SN.resolve({ system: { nameSetting: { family: 'display' } }, brand: 'A', tokens });
+  // named but never shipped: the engine will not guess at letterforms
+  const no = SN.refuse({ tokens, fonts: [], brand: 'A' }, rule);
+  assert.ok(no && /no font file was shipped/.test(no.what));
+  for (const k of ['what', 'why', 'how']) assert.ok(no[k] && no[k].length > 10, `the refusal has no ${k}`);
+  // a family that is not in the project at all
+  const bad = SN.resolve({ system: { nameSetting: { family: 'sausage' } }, brand: 'A', tokens });
+  assert.ok(/no such typeface/.test(SN.refuse({ tokens, fonts: [], brand: 'A' }, bad).what));
+  // and the one that does ship is accepted
+  assert.strictEqual(SN.refuse({ tokens: SK.tokens, fonts: SK.fonts, brand: 'Skerry' }, SK.nameSetting), null);
+});
+
+test('a symbol that is the whole identity is not described as a fallback', async () => {
+  // The mirror of the thirteenth round: the mark was still "for anywhere the
+  // name is already present", which is backwards when there is no name.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-sym-'));
+  const only = Object.assign({}, projectLoader.load(PROJECT));
+  only.assets = { mark: only.assets.mark };
+  only.rules = Object.assign({}, only.rules, { lockups: ['mark'] });
+  only.nameSetting = null;
+  await build(only, dir);
+  const readme = fs.readFileSync(path.join(dir, 'README.txt'), 'utf8');
+  assert.ok(readme.indexOf('the whole of it') > -1, `the read me still calls it a fallback:\n${readme}`);
+  assert.ok(readme.indexOf('anywhere the name is already present') < 0);
+  fs.rmSync(dir, { recursive: true, force: true });
+
+  // and a mark beside a name still reads the old way, because there it is true
+  const two = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-two2-'));
+  await build(projectLoader.load(PROJECT), two);
+  assert.ok(fs.readFileSync(path.join(two, 'README.txt'), 'utf8')
+    .indexOf('anywhere the name is already present') > -1);
+  fs.rmSync(two, { recursive: true, force: true });
 });
 
 drain().then(() => {

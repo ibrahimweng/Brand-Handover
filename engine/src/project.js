@@ -342,6 +342,49 @@ function load(file) {
     if (carried.length) fonts.push({ role, family: fam.family, licence: fam.licence || '', files: carried });
   }
 
+  // ---- a name that is set rather than drawn ----
+  // Twenty identities and every one had a wordmark: a drawing of the name.
+  // The mirror of the thirteenth round's logotype — a mark that stands alone
+  // and a name simply set in the brand's face — is at least as common, and for
+  // those the lockup is not two files. It is the mark, and the name at a stated
+  // size and distance, which is a rule. The engine outlines it here from the
+  // face the project ships, so everything downstream has a wordmark and needs
+  // to know nothing about where it came from.
+  const SN = require('./setname');
+  // `tokens` is not declared until the normaliser runs, further down. Reading it
+  // here is the third time this file's declaration order has caught something.
+  const rawTokens = raw.tokens || {};
+  const nameSetting = SN.resolve({ system: raw.system, brand: raw.brand, tokens: rawTokens });
+  if (nameSetting) {
+    if (assets.wordmark) {
+      throw new Error('this project both draws a wordmark and asks for the name to be set.'
+        + ' Pick one: assets.wordmark is a drawing, system.nameSetting is a rule, and two answers'
+        + ' to "what does the name look like" is how a sign and a letterhead stop matching.');
+    }
+    const no = SN.refuse({ tokens: rawTokens, fonts, brand: raw.brand }, nameSetting);
+    if (no) { const e = new Error(no.what); e.findings = [Object.assign({ level: 'blocker', code: 'nameSetting' }, no)]; throw e; }
+    // painted in the identity's own ink, so it is in the palette the moment it
+    // exists — the normaliser flags artwork that is not, and it was right to
+    const inkHex = (Object.values(rawTokens.colour || {}).find((c) => c && c.role === 'primary')
+      || Object.values(rawTokens.colour || {})[0] || {}).hex;
+    const drawn = SN.wordmark({ tokens: rawTokens, fonts }, nameSetting, require('opentype.js'), inkHex);
+    if (!drawn) throw new Error(`"${nameSetting.text}" has nothing in it that the ${nameSetting.family} face can draw.`);
+    assets.wordmark = { path: `${nameSetting.text} set in ${drawn.family}`, source: drawn.svg, generated: true };
+    // One number, not two. The rule says how tall the name is beside the mark,
+    // and that is the same quantity the lockups are composed from — so it is
+    // the same field. A project that states both differently is stating two
+    // sizes for one thing, and the engine says so rather than picking.
+    if (raw.rules && raw.rules.wordmarkHeightRatio !== undefined
+        && Number(raw.rules.wordmarkHeightRatio) !== Number(nameSetting.heightRatio)) {
+      throw new Error(`this project sets the name at ${nameSetting.heightRatio} of the mark's height and `
+        + `also sets rules.wordmarkHeightRatio to ${raw.rules.wordmarkHeightRatio}. They are the same `
+        + 'measurement. State it once, in system.nameSetting, and delete the other.');
+    }
+    rules.wordmarkHeightRatio = Number(nameSetting.heightRatio);
+    nameSetting.drawn = { width: drawn.width, height: drawn.height, family: drawn.family,
+      weight: drawn.weight, text: drawn.text };
+  }
+
   const needs = { horizontal: ['mark', 'wordmark'], stacked: ['mark', 'wordmark'], mark: ['mark'], wordmark: ['wordmark'] };
   for (const l of rules.lockups) {
     const want = (needs[l] || []).filter((a) => !assets[a]);
@@ -379,7 +422,7 @@ function load(file) {
   // here, which meant every rule override in a project file was read as absent
   // and the defaults quietly won. Nothing complained, because a default is a
   // perfectly good answer right up until somebody wanted a different one.
-  return { brand: raw.brand, latinName, language, direction, version: raw.version || '0.0.0', dir, tokens, assets, photography, fonts, documents, rules, master,
+  return { brand: raw.brand, latinName, language, direction, version: raw.version || '0.0.0', dir, tokens, assets, photography, fonts, documents, nameSetting, rules, master,
     system: raw.system || {}, content: raw.content || {}, report };
 }
 
