@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Kilnsey 1.0: a bracket left open, because the other half is somebody else's. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <g data-slot="ink" fill="none" stroke="#2B3A2E" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M26 98 V38 H94 V70"/>
+  </g>
+</svg>

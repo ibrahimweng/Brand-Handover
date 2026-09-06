@@ -67,11 +67,37 @@ function context(project, measured, files, brandJson) {
   // What moved since the last version, for the reader who has already built to
   // it. Worked out from the same two files the package compares — the previous
   // brand.json and this one — so the manual and CHANGES.txt cannot disagree.
+  // A floor per lockup and a floor per pair, worked out from the same modules
+  // the build uses, so the manual and the package cannot disagree about how
+  // small anything may go.
+  const floors = require('../variants').floors(project, measured);
+  const pairs = [];
+  if ((project.partners || []).length) {
+    const PT = require('../partners');
+    const prule = PT.rules(project);
+    for (const partner of project.partners) {
+      for (const cw of project.rules.colourways) {
+        if (!partner.versions[cw.name]) continue;
+        const host = buildVariant({
+          markSrc: project.assets.mark && project.assets.mark.source,
+          wordmarkSrc: project.assets.wordmark && project.assets.wordmark.source,
+          lockup: prule.with, colourway: cw, rules: project.rules, measured,
+        });
+        const composed = PT.lockup({ hostSvg: host.svg, hostInk: host.box, partner, way: cw.name,
+          rule: prule, ink: Object.values(cw.slots)[0] || '#000000' });
+        pairs.push({ partner, colourway: cw, composed,
+          floor: PT.floor(composed, host.svg, partner, cw.name, project) });
+      }
+    }
+    var partnerRule = prule;
+  }
+
   const changes = project.previous && brandJson
     ? { since: project.previous.version.text,
         entries: require('../previous').compare(project.previous.data, brandJson) }
     : null;
-  return { project, measured, colours, roles, primary, ground, accent, primaryColourway, noun, system, pattern, hasSystem, changes,
+  return { project, measured, colours, roles, primary, ground, accent, primaryColourway, noun, system, pattern, hasSystem, changes, floors, pairs,
+    partnerRule: typeof partnerRule === 'undefined' ? null : partnerRule,
     variants, variantFor, files, brandJson, contrast: contrast.matrix(colours),
     content: project.content || {} };
 }
@@ -105,7 +131,8 @@ function guidelines(ctx) {
       sec('1.3', 'Clear space', 'system', b.clearSpace(ctx)) +
       sec('1.4', 'Minimum size', 'system', b.minimumSize(ctx)) +
       sec('1.5', 'The lockup system', 'system', b.lockups(ctx)) +
-      sec('1.6', 'Misuse', 'system', b.misuse(ctx)))}
+      (ctx.pairs.length ? sec('1.6', 'Partner lockups', 'once', b.partnerLockups(ctx)) : '') +
+      sec(ctx.pairs.length ? '1.7' : '1.6', 'Misuse', 'system', b.misuse(ctx)))}
 
   ${chapter('02', 'Colour',
       sec('2.1', 'The palette', 'system', b.palette(ctx) + words(c.colourRationale)) +

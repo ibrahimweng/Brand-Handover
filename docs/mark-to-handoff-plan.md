@@ -1324,6 +1324,40 @@ unambiguous, and never revisited when a second candidate appeared. Worth asking
 of every derived value: *which* of the things it could be measured from, and
 what happens the day there are two?
 
+**A measurement is a property of a thing, and there is usually more than one
+thing.** The floor of an identity was measured off the master and printed once,
+and it was right about the master and wrong about every other drawing in the
+package — by a factor of five for Meridian's horizontal lockup and twenty for
+Beaumont's. The same error, one level up, is what a partner lockup makes
+undeniable: a pair has a floor that is neither brand's, and neither brand's
+manual contains it. Both had gone unnoticed for the same reason, which is that a
+single number looks complete. Worth asking of every figure a package states:
+*of what*, and what else is in the box that it is not true of.
+
+**The blacklist that grows by one crash.** Three kinds of asset — photography,
+documents, partners — arrived at the loader as a list where it expected a path,
+and each produced `path.join`'s type error rather than a sentence. Each time the
+fix was to add that key to a skip list, so the next kind was guaranteed to crash
+too. Naming what a single file *is*, and refusing anything else by name, costs
+the same to write and holds for kinds nobody has thought of. A skip list is a
+promise to be surprised again.
+
+**Half of the work is deciding what the engine is not entitled to do.** Every
+rule in this codebase assumes the artwork is the client's: normalise it,
+recolour it, cut it into a hundred files. None of that is permitted on a
+partner's mark, and the useful part of the partner work was not the composition
+but the list of things it must refuse — including the pairs it will not make,
+which are the ones a client most wants and only the partner can supply. A
+capability is defined as much by its refusals as by its output.
+
+**A check that tests every part will condemn a working whole.** The first partner
+contrast check asked whether each colour in their file read against our ground.
+Ingleby's sail is white and sits inside their blue disc, where white is exactly
+right, so a mark that reads perfectly well was reported as disappearing. The
+question was asked of the wrong unit: a mark has a silhouette as long as one of
+its colours reads. Before checking a set, decide whether the property belongs to
+the members or to the set.
+
 ---
 
 Prior art checked September 2026: Logo Package Express, Standards, Brandpad,

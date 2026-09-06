@@ -98,4 +98,31 @@ function measure(project) {
   return out;
 }
 
-module.exports = { buildVariant, measure, measureIcon };
+// A floor for every lockup, not just for the master.
+//
+// A minimum size is a property of a piece of artwork: a width, divided by the
+// thinnest thing inside it. Every package this engine has built states one —
+// measured off the master — and then hands over four lockups and a read me
+// telling the client that 01-horizontal is "the default, use this unless the
+// space is too narrow". A horizontal lockup is the mark with the logotype set
+// beside it at a fraction of its height, so it is three or four times wider than
+// the mark and its finest stem is a fraction of the mark's stroke. Both push the
+// floor up, and neither had ever been measured. At the figure Meridian's manual
+// prints, its horizontal lockup lays down 0.48 px of ink against a rule of 2.4;
+// Beaumont's lays down 0.14 against a rule of 3.
+//
+// Geometry does not change with colour, so each lockup is measured once.
+function floors(project, measured) {
+  const out = {};
+  for (const lockup of project.rules.lockups) {
+    const v = buildVariant({
+      markSrc: project.assets.mark && project.assets.mark.source,
+      wordmarkSrc: project.assets.wordmark && project.assets.wordmark.source,
+      lockup, colourway: project.rules.colourways[0], rules: project.rules, measured,
+    });
+    out[lockup] = geo.minimumSize(v.svg, project.rules);
+  }
+  return out;
+}
+
+module.exports = { buildVariant, measure, measureIcon, floors };

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Ingleby Sailing Club, white version for dark grounds. Supplied by the club. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <circle cx="60" cy="60" r="52" fill="none" stroke="#FFFFFF" stroke-width="6"/>
+  <path d="M60 24 L60 86 L30 86 Z" fill="#FFFFFF"/>
+  <path d="M68 40 L68 86 L92 86 Z" fill="#FFFFFF"/>
+</svg>

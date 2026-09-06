@@ -641,6 +641,39 @@ had been written at the moment it was written, and the read me, the manual, the
 deck, the canvas and the zip all come after. Every package ever built was wrong
 the same way, in the one file whose job is to be read by software.
 
+The twenty-third asked what a package contains that isn't the client's. The
+answer, for twenty-two identities, was **nothing**: every mark, logotype, icon,
+photograph and typeface belonged to the brand, and the whole method rests on it —
+one master, everything derived from it.
+
+**Kilnsey** makes grants in Wharfedale, and its mark is never seen alone. Every
+project it funds carries it beside the recipient's own, and that half is not
+Kilnsey's to change: not recoloured into the palette, not redrawn to fix its
+faults, and not swapped for another of their versions when the one for a ground
+is missing — where a partner has supplied no artwork, there is no pair, and only
+they can make one. What is left is measuring, and a pair does not behave like
+either of its halves. The Ravensworth pair holds at **549 px** where Kilnsey's
+own lockup holds at 152, because a pair is a third drawing: wider than ours, and
+containing whatever is finest in theirs. Their manual states their mark alone and
+ours states ours; the pair's figure is in neither.
+
+**Then the same question, asked of the package itself.** A minimum size belongs
+to a drawing — a width, divided by the thinnest thing in it. Every package this
+engine has built states one, measured off the master, and then hands over four
+lockups and a read me saying `01-horizontal` is "the default". At the figure
+Meridian's manual prints, its horizontal lockup lays down **0.48 px of ink
+against a rule of 2.4**. Beaumont's lays down 0.14 against a rule of 3.
+Twenty-three identities certifying a size at which their own default lockup is a
+smear. Every drawing states its own floor now, and the twenty-second round's
+comparator watches each of them from one version to the next.
+
+Two more, both older than the round: `assets.partners` reached `path.join` as an
+array and produced *"the path argument must be of type string"* — the third new
+kind of asset met by a Node type error rather than a sentence — and the first
+draft of the partner contrast check reported Ingleby's mark as disappearing into
+a page it reads on perfectly well, because it tested the white of their sail,
+which sits inside their own blue disc.
+
 Still to do: a run on **your** identity job. Twenty identities the engine had
 not seen is worth a great deal more than twenty passes over one, but none of
 them came out of your exporter — and the normaliser is the part that most needs

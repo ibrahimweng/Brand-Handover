@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Ravensworth Hospice. Supplied by the hospice, March 2026. Not ours to alter. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <g fill="none" stroke="#6E2A4B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M60 18 C48 34, 44 46, 44 58 a16 16 0 0 0 32 0 C76 46, 72 34, 60 18 Z"/>
+    <path d="M60 34 C54 44, 52 51, 52 58 a8 8 0 0 0 16 0 C68 51, 66 44, 60 34 Z"/>
+    <path d="M26 92 C40 84, 80 84, 94 92"/>
+    <path d="M26 100 C40 92, 80 92, 94 100"/>
+  </g>
+</svg>

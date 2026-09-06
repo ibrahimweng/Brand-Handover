@@ -4,6 +4,7 @@
 // takes the words from the project's content, and says so.
 const svgu = require('../svg');
 const geo = require('../geometry');
+const naming = require('../naming');
 const contrast = require('../contrast');
 
 // Diagrams style their own text. A derived block that needs the host page's
@@ -280,7 +281,63 @@ function minimumSize(ctx) {
   return `<div class="row3">` + steps.map((s) =>
     `<figure><div class="stage tight" style="background:${on.ground.hex}">${scaled(art, s.px, room(s.px))}</div>
      <figcaption>${esc(s.caption)} · ${s.label}</figcaption></figure>`).join('') + `</div>
-    <p class="note"><b>${geo.floorText(m, 'px')} on screen and ${geo.floorText(m, 'mm')} in print.</b> ${esc(m.basis)}, so holding the stroke at ${ctx.project.rules.minStrokePx} px and ${ctx.project.rules.minStrokeMm} mm puts the floor there. Move either rule and the floor moves with it.${m.squarish ? '' : ' Both figures are the width; the second is the height that goes with it.'}${big > 300 ? ` These three are in proportion to each other rather than at actual size: ${big} px is wider than this page.` : ''}</p>`;
+    <p class="note"><b>${geo.floorText(m, 'px')} on screen and ${geo.floorText(m, 'mm')} in print${ctx.noun === 'mark' ? ' for the mark alone' : ''}.</b> ${esc(m.basis)}, so holding the stroke at ${ctx.project.rules.minStrokePx} px and ${ctx.project.rules.minStrokeMm} mm puts the floor there. Move either rule and the floor moves with it.${m.squarish ? '' : ' Both figures are the width; the second is the height that goes with it.'}${big > 300 ? ` These three are in proportion to each other rather than at actual size: ${big} px is wider than this page.` : ''}</p>
+    ${floorTable(ctx)}`;
+}
+
+// One figure was printed here for twenty-three identities, and it is the floor
+// of the master — one of the four drawings in the package, and not the one the
+// read me tells you to reach for. A lockup sets the name beside the mark at a
+// fraction of its height: it is wider, and its finest part is finer, and both
+// put the floor up. Every drawing states its own.
+function floorTable(ctx) {
+  const rows = ctx.project.rules.lockups.map((l) => {
+    const f = ctx.floors[l];
+    if (!f) return '';
+    const over = f.screenPx > ctx.measured.minimumSize.screenPx * 1.05;
+    return `<div class="ftr"><b>${esc(naming.folderFor(l))}</b><span>${esc(f.basis)}</span>`
+      + `<em class="${over ? 'over' : ''}">${esc(geo.floorText(f, 'px'))}</em>`
+      + `<em>${esc(geo.floorText(f, 'mm'))}</em></div>`;
+  }).join('');
+  const over = ctx.project.rules.lockups.filter((l) => ctx.floors[l]
+    && ctx.floors[l].screenPx > ctx.measured.minimumSize.screenPx * 1.05);
+  return `<div class="ftab">
+    <div class="ftr head"><span>Folder</span><span>What disappears first</span><span>On screen</span><span>In print</span></div>
+    ${rows}</div>
+    <p class="note">A minimum size belongs to a drawing, and there are ${ctx.project.rules.lockups.length} of them in this package. Use the figure for the folder the file came out of, not the one above it${over.length ? `: ${over.length === 1 ? 'one of them does' : `${over.length} of them do`} not hold at ${esc(geo.floorText(ctx.measured.minimumSize, 'px'))} — a lockup sets the name beside the mark at a fraction of its height, so it is wider than the mark and its finest part is finer, and both put the floor up` : ''}.</p>`;
+}
+
+// Half of each of these is not ours, and almost nothing above applies to it.
+function partnerLockups(ctx) {
+  const r = ctx.partnerRule || {};
+  // These are not to one scale and cannot be: a logotype partner makes a pair
+  // two and a half times wider than a roundel one, and at a single factor the
+  // narrow ones are a smear. The minimum size block shrinks its three by one
+  // factor because they are the same drawing three times; these are four
+  // different drawings, so each is shown at a size it can be read at and the
+  // proportion is stated instead of drawn. Every specimen in this manual sits
+  // over its own measurements; this one does too.
+  const narrowest = Math.min(...ctx.pairs.map((p) => p.composed.width));
+  const cards = ctx.pairs.map((p) => {
+    const ground = (ctx.colours[p.colourway.on] || {}).hex || '#FFFFFF';
+    const missing = ctx.project.rules.colourways.map((c) => c.name).filter((c) => !p.partner.versions[c]);
+    const times = svgu.round(p.composed.width / narrowest, 1);
+    return `<figure><div class="stage tight" style="background:${ground}">`
+      + `${scaled(p.composed.svg, 400, '100%')}</div>
+      <figcaption class="said"><b>${esc(p.partner.name)}</b>, ${esc(p.colourway.name)} on ${esc(p.colourway.on)}.
+      Smallest use <b>${p.floor.screenPx} px</b> / ${p.floor.printMm} mm, set by ${esc(p.floor.setBy)}.
+      Their mark is placed at ${p.composed.scale} of the size they supplied it at, which makes the pair
+      ${Math.round(p.composed.width)} units wide${times > 1.05 ? ` — ${times} times the narrowest pair here` : ''}.${missing.length ? ` They have supplied no ${esc(missing.join(' or '))} version, so there is no pair on ${esc(missing.join(' or '))}.` : ''}
+      </figcaption></figure>`;
+  }).join('');
+  const owners = [...new Set(ctx.project.partners.map((p) => p.owner))];
+  return `<div class="row2">${cards}</div>
+    <p class="note">The ${ctx.pairs.length} above are drawn at a size each can be read at, not to one scale:
+    ${svgu.round(Math.max(...ctx.pairs.map((x) => x.composed.width)) / narrowest, 1)} separates the widest of them
+    from the narrowest, and at one factor the narrow ones cannot be read. The width of each is under it.</p>
+    <p class="note"><b>The rule.</b> Their mark is set to the same ${esc(r.match || 'height')} as ours${r.matchRatio !== 1 ? ` at ${r.matchRatio} of it` : ''}, with ${ctx.pairs[0] ? ctx.pairs[0].composed.gap : ''} units either side of a ${ctx.pairs[0] && ctx.pairs[0].composed.ruleWidth ? `${ctx.pairs[0].composed.ruleWidth} unit dividing rule` : 'plain gap'}, measured off our own ink height. Our half is ${esc(r.with || 'the primary lockup')}.</p>
+    <p class="note"><b>What may not be done to it.</b> ${esc(owners.join(', '))} own the artwork on the right of each pair. It is not recoloured into this palette, not redrawn, and not swapped for another of their versions when the one for a ground is missing — which version goes on which ground is theirs to decide. Where a pair is not shown above, it does not exist, and only they can supply it.</p>
+    <p class="note"><b>The smallest use is neither brand's.</b> A pair is a third drawing, wider than ours and containing whatever is finest in theirs, so it has a floor of its own. Their manual states their mark alone and this one states ours; the figure under each pair above is the only place the two are measured together.</p>`;
 }
 
 function lockups(ctx) {
@@ -614,5 +671,5 @@ function changes(ctx) {
     + `</p><div class="chgs">${breaking.map(row).join('')}${news.map(row).join('')}</div>`;
 }
 
-module.exports = { TXT, esc, changes, inked, gradientSpec, inksOf, patternSpec, photographySpec, iconSpec, willWriteIcons, motionSpec, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, markSpecimen, lockupRow, construction, clearSpace,
+module.exports = { TXT, esc, changes, floorTable, partnerLockups, inked, gradientSpec, inksOf, patternSpec, photographySpec, iconSpec, willWriteIcons, motionSpec, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, markSpecimen, lockupRow, construction, clearSpace,
   minimumSize, lockups, misuse, palette, contrastTable, typeSpecimen, typeScale, assetIndex, brandJsonBlock };

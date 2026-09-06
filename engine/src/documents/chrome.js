@@ -75,6 +75,15 @@ figcaption.said{font-family:var(--ui);font-size:12px;letter-spacing:0;text-trans
 .ctr em{font-family:var(--mono);font-style:normal;font-size:13px;text-align:right;font-variant-numeric:tabular-nums}
 .ctr i{font-family:var(--mono);font-style:normal;font-size:10px;letter-spacing:.06em;text-transform:uppercase;text-align:right}
 .v-ok{color:#1B7A4B}.v-warn{color:#8A6410}.v-bad{color:#C2352B}
+.ftab{border-top:1px solid var(--rule-2);margin-top:26px}
+.ftr{display:grid;grid-template-columns:118px minmax(0,1fr) 104px 104px;gap:14px;align-items:baseline;padding:11px 4px;border-bottom:1px solid var(--rule)}
+.ftr.head{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);padding:0 4px 9px}
+.ftr.head span:nth-child(3),.ftr.head span:nth-child(4){text-align:right}
+.ftr b{font-family:var(--mono);font-size:12.5px;font-weight:400;color:var(--ink-2)}
+.ftr span{font-size:14px;line-height:1.45;color:var(--ink-2)}
+.ftr em{font-family:var(--mono);font-style:normal;font-size:12.5px;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+.ftr em.over{color:#8A6410}
+@media (max-width:640px){.ftr{grid-template-columns:1fr 1fr;gap:4px 14px}.ftr span{grid-column:1/-1}.ftr.head{display:none}}
 .face{border:1px solid var(--rule);background:var(--surface);padding:22px 24px}.face+.face{margin-top:14px}
 .fn{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:14px}
 .fn h4{font-weight:600;font-size:17px}.fn span{font-family:var(--mono);font-size:11px;color:var(--ink-3)}

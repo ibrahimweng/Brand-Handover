@@ -141,6 +141,22 @@ produced, and the build reports what moved between them:
       previous/
         brand.json      copied out of the package that shipped as 1.4.0
 
+An identity whose mark appears beside somebody else's carries their artwork, one
+file per ground they have agreed to stand on:
+
+    projects/kilnsey/
+      project.json      "rules": { "partners": { "with": "horizontal", … } }
+      mark.svg
+      partners/
+        ingleby.svg           their version for our light ground
+        ingleby-reverse.svg   their version for our dark one
+
+`assets.partners` names each one, who owns it, and which of our colourways each
+of their files is for. The pairs are written to `11-partners`, each with a
+minimum size of its own, and a colourway they have not supplied a version for is
+not made: recolouring somebody else's mark to fit this palette is the one thing
+a partner lockup may never do.
+
 `previous` takes the brand.json from the root of the earlier package, whole and
 unedited. What comes back is `CHANGES.txt`, chapter 00 of the manual and a
 `changes` block in this version's own brand.json — the floor, clear space,
@@ -2306,6 +2322,80 @@ still to come already existed for the asset index; it is worked out before
 brand.json now, and both read it. Under it was a second one: Skerry ships one
 face for two roles, so the same file was written twice and counted twice.
 
+## A twenty-third identity
+
+Twenty-two identities, and every asset in every package belonged to the brand it
+described. The mark, the logotype, the icon, the photographs, the typeface: all
+of it the client's, all of it the engine's to clean, recolour, rescale and cut
+into a hundred files. The whole method rests on that — one master, everything
+derived from it — and a grep for anything resembling a second party found
+nothing at all.
+
+**Kilnsey** makes grants in Wharfedale and its mark is never seen alone. Every
+project it funds carries it beside the recipient's own, and the recipient's mark
+is not Kilnsey's to change:
+
+    "partners": [
+      { "name": "Ingleby Sailing Club", "owner": "Ingleby Sailing Club",
+        "files": { "crag": "partners/ingleby.svg",
+                   "reverse": "partners/ingleby-reverse.svg" } },
+      …
+    ]
+
+The keys are our colourway names, because that is the question being asked: on
+which of our grounds may this mark stand, and in which of their versions. They
+answer it once, with a file, and where there is no file there is no pair. Almost
+every rule the engine applies elsewhere is wrong here — their artwork is not
+recoloured into our palette, not redrawn to fix its faults, and not swapped for
+another of their versions when the one asked for is missing. Barrowden's file
+even marks its ink with `data-slot`, which in our own artwork means *paint this
+from the colourway*; in theirs it means nothing we are entitled to act on.
+
+What is left is measuring, and measuring is where the pair stops behaving like
+either of its halves.
+
+    the Ravensworth Hospice pair in crag holds at 549 px, where horizontal on
+    its own holds at 152 px — set by their mark
+
+A pair is a third drawing. It is wider than ours and it contains whatever is
+finest in theirs, and both put the floor up. Their manual states their mark
+alone and ours states ours, and the pair's own figure appears in neither. The
+first divider the engine drew between two marks was set at 0.4 of the thinnest
+thing we draw, which made **the rule between the brands the first thing to
+disappear** and the thing that decided how small the pair could go; it is drawn
+at the full weight now, and the check still fires if anyone thins it. Matched on
+height, Barrowden's logotype is 2.3 times the width of everything else in the
+pair, so the engine says so and names the two settings that change it: matching
+two marks on one measurement is the convention, and a logotype beside a symbol
+is the case it fails on.
+
+**And the same question, asked of the package itself, had a worse answer.**
+
+A minimum size is a property of a drawing: a width, divided by the thinnest thing
+inside it. Every package this engine has ever built states one, measured off the
+master — and then hands over four lockups and a read me saying `01-horizontal` is
+"the default, use this unless the space is too narrow". At the figure Meridian's
+manual prints, its horizontal lockup lays down **0.48 px** of ink against a rule
+of 2.4. Beaumont's lays down **0.14** against a rule of 3. Winterbourne's 0.18.
+Twenty-three identities, every one of them certifying a size at which its own
+default lockup is a smear.
+
+Every drawing states its own floor now — in the read me by folder, in a table in
+the manual, under each lockup in the deck, and in `logo.minSizes` in brand.json —
+and the twenty-second round's comparator watches each of them from one version to
+the next.
+
+Two more, both older than the round. `assets.partners` reached `path.join` as an
+array and produced *"the path argument must be of type string"* — the third
+time, after photography in the sixteenth round and documents in the
+twenty-second, that a new kind of asset was met by a Node type error and the
+skip list grew by one. The loader names what a single file is now, and anything
+else is a question with an answer. And the first draft of the partner contrast
+check tested every colour in their file against our ground, so Ingleby's sail —
+white, inside their blue disc, where white is exactly right — was reported as
+disappearing into a page it reads on perfectly well. A mark has a silhouette as
+long as one of its colours reads.
+
 ## A front door
 
 Sixteen rounds, and the only way into the engine was to hand-write a project
@@ -2422,6 +2512,7 @@ the mechanism. The name was the cause, and renaming the payload is the fix.
     projects/lammas/  the twentieth: it ships the pages somebody laid out
     projects/skerry/  the twenty-first: a symbol, and a name that is set not drawn
     projects/tarnbrook/ the twenty-second: a second version, built against its first
+    projects/kilnsey/ the twenty-third: half of every pair belongs to somebody else
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package

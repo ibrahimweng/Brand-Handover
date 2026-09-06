@@ -6,6 +6,15 @@ const contrast = require('./contrast');
 const naming = require('./naming');
 const svgu = require('./svg');
 const PREV = require('./previous');
+const PARTNERS = require('./partners');
+
+// What an asset key means. One file each, or a list of them — and nothing else,
+// so a kind nobody has thought of yet is a question rather than a stack trace.
+const ASSET_SINGLE = { mark: 'the symbol', wordmark: 'the logotype',
+  icon: 'the simplified drawing icons are cut from' };
+const ASSET_LISTS_ARE = { photography: 'the photography', documents: 'the pieces somebody laid out',
+  partners: 'the partners whose marks stand beside yours' };
+const ASSET_LISTS = Object.keys(ASSET_LISTS_ARE);
 
 // The pixel size, read from the file's own header. A photograph placed at a size
 // the engine does not know is a photograph the engine cannot say is too small
@@ -74,6 +83,33 @@ function load(file) {
   if (!raw.assets || (!raw.assets.mark && !raw.assets.wordmark)) {
     problems.push('the project does not say where the master artwork is. Set assets.mark for a '
       + 'symbol, assets.wordmark for a logotype, or both.');
+  }
+  // One drawing each, and each of them the brand's own. Every other kind of
+  // asset is a list, and the loader met each of them by crashing: photography
+  // in the sixteenth round, documents in the twenty-second and partners in the
+  // twenty-third all arrived at path.join as an array and produced "the path
+  // argument must be of type string" — a Node type error in place of the
+  // sentence this engine exists to write. The list of kinds to skip grew by one
+  // every time, one crash per kind, always after the fact. Name what a single
+  // file is instead, and check it here where a problem can still be reported,
+  // rather than beside the loop two hundred lines down where the throw has
+  // already happened.
+  for (const [key, rel] of Object.entries((raw.assets || {}))) {
+    if (ASSET_LISTS.indexOf(key) > -1) {
+      if (!Array.isArray(rel)) {
+        problems.push(`assets.${key} is ${typeof rel}, and ${ASSET_LISTS_ARE[key]} is a list.`
+          + ` Write it as "${key}": [ … ], even where there is only one.`);
+      }
+      continue;
+    }
+    if (!Object.prototype.hasOwnProperty.call(ASSET_SINGLE, key)) {
+      problems.push(`assets.${key} is not something the engine knows how to load. One file each is `
+        + `${Object.keys(ASSET_SINGLE).join(', ')}; a list of them is ${ASSET_LISTS.join(', ')}. `
+        + 'Anything else is read by nothing, so whatever is in it would not reach the package.');
+    } else if (typeof rel !== 'string') {
+      problems.push(`assets.${key} is ${Array.isArray(rel) ? 'a list' : typeof rel}, and `
+        + `${ASSET_SINGLE[key]} is one file. Write it as "${key}": "${key}.svg".`);
+    }
   }
   if (!raw.rules || !Array.isArray(raw.rules.colourways) || !raw.rules.colourways.length) {
     problems.push('the project defines no colourways (rules.colourways)');
@@ -246,8 +282,17 @@ function load(file) {
   // pictures the identity is built on, and the manual's photography page had
   // nothing to show but a grey ramp.
   const photography = [];
+  // One drawing each, and each of them the brand's own. Every other kind of
+  // asset is a list, and this loop met each of them by crashing: photography in
+  // the sixteenth round, documents in the twenty-second and partners in the
+  // twenty-third all arrived here as an array and were handed to path.join,
+  // which said "the path argument must be of type string" — a Node type error
+  // in place of the sentence this engine exists to write. The list of kinds to
+  // skip grew by one every time, one crash per kind, always after the fact.
+  // Name what a single file is instead, and anything else is a question with an
+  // answer rather than a stack trace.
   for (const [key, rel] of Object.entries(raw.assets)) {
-    if (key === 'photography' || key === 'documents') continue;
+    if (ASSET_LISTS.indexOf(key) > -1) continue;
     const p = path.join(dir, rel);
     if (!fs.existsSync(p)) throw new Error(`the project points at ${rel} for the ${key}, and that file is not there`);
     assets[key] = { path: p, source: fs.readFileSync(p, 'utf8') };
@@ -419,6 +464,14 @@ function load(file) {
     asset.slots = n.slots;
   }
 
+  // Artwork that is not ours. It is loaded last of the assets because refusing it
+  // needs the colourways this project cuts: the keys of a partner's files say
+  // which of our grounds their versions are for, and a key we do not cut names
+  // no ground at all.
+  const partners = raw.assets.partners
+    ? PARTNERS.load(fs, path, dir, raw.assets.partners, { brand: raw.brand, rules })
+    : [];
+
   // The package this one follows. It is loaded last, because refusing it needs
   // the brand and the version this project resolved to, not the raw ones.
   const previous = raw.previous
@@ -429,7 +482,7 @@ function load(file) {
   // here, which meant every rule override in a project file was read as absent
   // and the defaults quietly won. Nothing complained, because a default is a
   // perfectly good answer right up until somebody wanted a different one.
-  return { brand: raw.brand, latinName, language, direction, version: raw.version || '0.0.0', dir, tokens, assets, photography, fonts, documents, nameSetting, rules, master, previous,
+  return { brand: raw.brand, latinName, language, direction, version: raw.version || '0.0.0', dir, tokens, assets, photography, fonts, documents, nameSetting, rules, master, previous, partners,
     system: raw.system || {}, content: raw.content || {}, report };
 }
 

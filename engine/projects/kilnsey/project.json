@@ -1,0 +1,58 @@
+{
+  "brand": "Kilnsey",
+  "version": "1.0.0",
+  "assets": {
+    "mark": "mark.svg",
+    "wordmark": "wordmark.svg",
+    "partners": [
+      { "name": "Ingleby Sailing Club", "owner": "Ingleby Sailing Club",
+        "since": "2019", "approved": "2026-01-14",
+        "files": { "crag": "partners/ingleby.svg", "reverse": "partners/ingleby-reverse.svg" } },
+      { "name": "Ravensworth Hospice", "owner": "Ravensworth Hospice",
+        "since": "2022", "approved": "2026-03-11",
+        "files": { "crag": "partners/ravensworth.svg" } },
+      { "name": "Barrowden Museum", "owner": "Barrowden Museum Trust",
+        "since": "2024", "approved": "2026-02-02",
+        "files": { "crag": "partners/barrowden.svg" } }
+    ]
+  },
+  "tokens": {
+    "colour": {
+      "crag":      { "hex": "#2B3A2E", "role": "primary",   "cmyk": [74, 48, 70, 47], "pantone": "5605 C" },
+      "paper":     { "hex": "#F4F2EC", "role": "ground",    "cmyk": [5, 3, 8, 0],     "pantone": "7527 C" },
+      "scar":      { "hex": "#6E7F63", "role": "secondary", "cmyk": [58, 34, 66, 12], "pantone": "5763 C" },
+      "gritstone": { "hex": "#6B6257", "role": "neutral",   "cmyk": [52, 50, 58, 20], "pantone": "403 C" }
+    },
+    "type": {
+      "families": {
+        "display": { "family": "Fraunces", "google": true, "weights": [400, 600], "fallback": "Georgia,serif" },
+        "text":    { "family": "Public Sans", "google": true, "weights": [400, 500], "fallback": "Helvetica,Arial,sans-serif" }
+      },
+      "scale": [
+        { "name": "Display", "family": "display", "size": 46, "leading": 52, "weight": 600, "sample": "Grants made in Wharfedale since 1974" },
+        { "name": "H1", "family": "display", "size": 31, "leading": 37, "weight": 600, "sample": "What we fund" },
+        { "name": "H2", "family": "display", "size": 23, "leading": 29, "weight": 400, "sample": "Applying for a grant" },
+        { "name": "H3", "family": "text", "size": 18, "leading": 24, "weight": 500, "sample": "Deadlines and decisions" },
+        { "name": "Body", "family": "text", "size": 17, "leading": 27, "weight": 400, "sample": "Every project we fund carries our mark beside its own." },
+        { "name": "Small", "family": "text", "size": 14, "leading": 21, "weight": 400, "sample": "Registered charity 1041882." },
+        { "name": "Caption", "family": "text", "size": 12, "leading": 17, "weight": 500, "tracking": 0.08, "sample": "Supported by Kilnsey" }
+      ]
+    }
+  },
+  "rules": {
+    "lockups": ["horizontal", "stacked", "mark", "wordmark"],
+    "colourways": [
+      { "name": "crag",    "on": "paper", "slots": { "ink": "#2B3A2E" } },
+      { "name": "reverse", "on": "crag",  "slots": { "ink": "#F4F2EC" } },
+      { "name": "mono",    "on": "paper", "slots": { "ink": "#000000" } }
+    ],
+    "partners": { "with": "horizontal", "match": "height", "matchRatio": 1, "gapRatio": 0.9, "rule": true },
+    "formats": ["svg", "png"],
+    "pngWidths": [512, 1024],
+    "naming": "{brand}-{lockup}-{colourway}"
+  },
+  "content": {
+    "positioning": "Kilnsey makes grants in Wharfedale, and its mark is never seen alone.",
+    "markRationale": "A bracket left open on one side. The other half is whoever we funded."
+  }
+}

@@ -133,6 +133,52 @@ function compare(prev, next) {
         : 'Nothing to do. The old floor still holds, so existing applications stay inside the rule.'));
   }
 
+  // ------ and the same question of every lockup, because the twenty-third round
+  // gave each of them a floor of its own. A pair that has risen retires exactly
+  // what the master's rising retires, one folder at a time.
+  const la = A.minSizes || {}, lb = B.minSizes || {};
+  for (const l of Object.keys(lb)) {
+    const x = la[l], y = lb[l];
+    if (!x || !y || x.screenPx === y.screenPx) continue;
+    const up = y.screenPx > x.screenPx;
+    out.push(change(up ? 'breaking' : 'news', up ? 'warning' : 'fixed', 'lockupMinSize',
+      `the ${l} lockup now holds at ${y.screenPx} px / ${y.printMm} mm, where it held at ${x.screenPx} px / ${x.printMm} mm.`,
+      up ? `Every use of that one lockup below ${y.screenPx} px was inside the rule and is outside it now. `
+        + 'The mark\'s own floor says nothing about this: a lockup is a different drawing.'
+        : 'It survives further down than it did, so nothing already made in it is affected.',
+      up ? `Check where ${l} is placed and raise it, or use a lockup that holds at the size you need.`
+        : 'Nothing to do.'));
+  }
+
+  // ------ partners: artwork that is not ours, and a pair that stops existing
+  const qa = new Map(((A.partners || [])).map((p) => [p.name, p]));
+  const qb = new Map(((B.partners || [])).map((p) => [p.name, p]));
+  for (const [name, after] of qb) {
+    const before = qa.get(name);
+    if (!before) {
+      out.push(change('news', 'fixed', 'partnerAdded', `${name} is a new partner.`,
+        'Nothing already made carries the pair, so it adds to the set without disturbing anything.',
+        'The pairs they have supplied artwork for are in 11-partners.'));
+      continue;
+    }
+    const gone = (before.colourways || []).filter((c) => (after.colourways || []).indexOf(c) < 0);
+    if (gone.length) {
+      out.push(change('breaking', 'warning', 'partnerVersionWithdrawn',
+        `the ${name} pair is no longer made in ${gone.join(' or ')}.`,
+        `${after.owner || name} has withdrawn the version of their mark that stood on that ground, or it was `
+        + 'taken out of this project. Files already handed out still carry it and still look correct.',
+        `Ask ${after.owner || name} whether the version is withdrawn or only missing, and say which pair replaces it.`));
+    }
+  }
+  for (const [name, before] of qa) {
+    if (qb.has(name)) continue;
+    out.push(change('breaking', 'warning', 'partnerWithdrawn',
+      `${name} is no longer a partner in this package.`,
+      'Every pair made with them has gone with them, and nothing on the files anyone already holds says so. '
+      + 'A partner lockup outlives the partnership unless somebody withdraws it.',
+      `Say when the ${name} pair stops being used, and tell whoever is holding artwork of it.`));
+  }
+
   // ------ clear space
   const ca = A.clearSpaceUnits, cb = B.clearSpaceUnits;
   if (ca != null && cb != null && Math.abs(ca - cb) > 0.001) {

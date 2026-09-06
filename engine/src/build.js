@@ -17,9 +17,74 @@ const { masterOf } = require('./project');
 const KEYS_READ = {
   rules: ['clearSpaceRatio', 'minStrokePx', 'minStrokeMm', 'lockupGapRatio', 'wordmarkHeightRatio',
     'naming', 'lockups', 'formats', 'pngWidths', 'stock', 'colourways', 'iconInk', 'iconBg',
-    'iconSizes', 'faviconSizes', 'social'],
+    'iconSizes', 'faviconSizes', 'social', 'partners', 'documents'],
   system: ['icons', 'icon', 'pattern', 'motion', 'photography', 'nameSetting'],
 };
+
+// What a pair says that neither half does. Every one of these is a number the
+// partner's own manual does not contain and ours did not either, because until
+// there were two marks in one file there was nothing to measure it on.
+function partnerFindings(project, prule, made, measured, rules, floors) {
+  const out = [];
+  const cut = rules.colourways.map((c) => c.name);
+  for (const partner of project.partners) {
+    const missing = cut.filter((c) => !partner.versions[c]);
+    if (missing.length) {
+      out.push(`there is no ${partner.name} lockup in ${missing.join(' or ')}, because `
+        + `${partner.owner} has not supplied a version of their mark for ${missing.length > 1 ? 'those grounds' : 'that ground'}. `
+        + 'This is not a fault and there is nothing in this package that can fix it: recolouring somebody '
+        + `else's mark to fit our palette is the one thing a partner lockup may never do. Ask ${partner.owner} `
+        + `for their ${missing.join(' and ')} version, or say in the manual that the pair is not used there.`);
+    }
+    for (const [way, v] of Object.entries(partner.versions)) {
+      if (v.slots.length) {
+        out.push(`${partner.name}'s ${v.file} marks ${v.slots.length === 1 ? 'a part' : 'parts'} with `
+          + `data-slot (${v.slots.join(', ')}), which in our own artwork means "paint this from the colourway". `
+          + 'It is ignored here. Their file is placed exactly as they supplied it, because the version of '
+          + 'their mark that goes on a given ground is their decision and not a colour we may compute.');
+      }
+      const ground = (project.tokens.colour[(rules.colourways.find((c) => c.name === way) || {}).on] || {}).hex;
+      if (!ground) continue;
+      // Asked of the whole mark, not of each colour in it. Ingleby's sail is
+      // white and sits inside their blue disc, where white is exactly right;
+      // testing every ink against our ground said their mark disappeared into
+      // a page it reads on perfectly well. A mark has a silhouette as long as
+      // one of its colours reads, and it is gone when none of them does.
+      const best = v.inks.map((h) => contrast.ratio(h, ground)).sort((a, b) => b - a)[0] || 1;
+      if (v.inks.length && best < 1.6) {
+        out.push(`${partner.name}'s ${way} version paints ${v.inks.join(', ')}, and the closest of those to the `
+          + `${(rules.colourways.find((c) => c.name === way) || {}).on} ground we would put it on is `
+          + `${best.toFixed(2)} to 1. Nothing in their mark separates from our page, so the pair is our lockup `
+          + 'beside a blank. They will have another version for exactly this ground; ask for it.');
+      }
+    }
+  }
+  // the floor of a pair, which is neither brand's own
+  const ours = (floors[prule.with] || measured.minimumSize).screenPx;
+  for (const m of made) {
+    if (m.floor.screenPx <= ours * 1.05) continue;
+    out.push(`the ${m.partner.name} pair in ${m.colourway} holds at ${m.floor.screenPx} px / `
+      + `${m.floor.printMm} mm, where ${prule.with} on its own holds at ${ours} px. The floor of a pair is set `
+      + `by whichever of the two disappears first, and here it is ${m.floor.setBy}: `
+      + `${m.floor.parts.map((p) => `${p.label} ${p.screenPx} px`).join(', ')}. Neither manual contains this `
+      + `number — theirs states their mark alone and ours states ours — so a pair placed at our own figure is `
+      + `${(m.floor.screenPx / ours).toFixed(1)} times too small.`);
+  }
+  // and the optical question, which the engine cannot answer and can measure
+  const byPartner = new Map();
+  for (const m of made) if (!byPartner.has(m.partner.name)) byPartner.set(m.partner.name, m);
+  for (const m of byPartner.values()) {
+    const ratio = m.composed.partnerBox.w / (m.composed.width - m.composed.partnerBox.w);
+    if (ratio > 1.6) {
+      out.push(`matched on ${prule.match}, ${m.partner.name}'s mark is ${ratio.toFixed(1)} times the width of `
+        + `everything else in the pair, so the lockup reads as their artwork with ours attached. Matching two `
+        + `marks on one measurement is the convention and it is only ever a starting point; a logotype beside a `
+        + `symbol is the case it fails on. Set rules.partners.matchRatio below 1 to bring them down, or `
+        + `"match": "width" to size them across instead.`);
+    }
+  }
+  return out;
+}
 
 async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   const measured = measure(project);
@@ -35,6 +100,9 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // cost a build. Read the project, derive from it, then write: in that order.
   const system = require('./system');
   const sys = system.resolve(project, measured);
+  // one floor per lockup, because a floor belongs to a drawing and there are
+  // four of them in this package. See variants.floors.
+  const floors = require('./variants').floors(project, measured);
   const warnings = [];
   // Not everything worth saying is worth a warning. A gradient that reaches the
   // files it should is working as intended and still has to be described,
@@ -242,6 +310,62 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
         if (rules.formats.includes('ai')) write(`${dir}/${base}.ai`, pdf);
       }
     }
+  }
+
+  // The master's floor is the one every package has stated, and it is the floor
+  // of one of the four drawings in it. Say which of the others need more.
+  const overFloor = Object.entries(floors)
+    .filter(([, f]) => f.screenPx > measured.minimumSize.screenPx * 1.05)
+    .sort((a, b) => b[1].screenPx - a[1].screenPx);
+  if (overFloor.length) {
+    // A note, not a warning. It is true of every identity that has a logotype
+    // beside its mark, there is nothing in the artwork to fix, and the package
+    // now states each figure where it belongs. Warning about geometry on every
+    // project in the repository is how a report stops being read.
+    notes.push(`${overFloor.length === 1 ? 'one lockup does' : `${overFloor.length} of the lockups do`} not `
+      + `hold at ${geo.floorText(measured.minimumSize, 'px')}, which is the floor for `
+      + `${measured.master === 'wordmark' ? 'the logotype' : 'the mark'} alone: `
+      + `${overFloor.map(([l, f]) => `${l} needs ${geo.floorText(f, 'px')}`).join(', ')}. `
+      + `A lockup sets the name beside the mark at a fraction of its height, so it is wider than the mark and `
+      + `its finest part is finer, and both put the floor up. Every folder carries its own figure now, and `
+      + `brand.json has them all.`);
+  }
+
+  // ---- the pairs: our lockup, a rule, and somebody else's mark ----
+  //
+  // Everything above this line was cut from one master and is the client's to
+  // do as they like with. A partner lockup is the first thing in this package
+  // that is half somebody else's, and almost every rule the engine applies
+  // elsewhere is wrong here: their artwork is not recoloured into a colourway,
+  // not redrawn to fix its faults, and not substituted for one of their other
+  // versions when the one asked for is missing. What is left is measuring, and
+  // measuring is where the pair stops behaving like either of its halves.
+  const partnerLockups = [];
+  if ((project.partners || []).length) {
+    const PT = require('./partners');
+    const prule = PT.rules(project);
+    for (const partner of project.partners) {
+      for (const colourway of rules.colourways) {
+        const v = partner.versions[colourway.name];
+        if (!v) continue;                       // said once, below, with the reason
+        const host = buildVariant({
+          markSrc: project.assets.mark && project.assets.mark.source,
+          wordmarkSrc: project.assets.wordmark && project.assets.wordmark.source,
+          lockup: prule.with, colourway, rules, measured,
+        });
+        const composed = PT.lockup({ hostSvg: host.svg, hostInk: host.box, partner,
+          way: colourway.name, rule: prule, ink: Object.values(colourway.slots)[0] || '#000000' });
+        const fl = PT.floor(composed, host.svg, partner, colourway.name, project);
+        const base = `${naming.slug(project.latinName)}-${naming.slug(partner.name)}-${naming.slug(colourway.name)}`;
+        if (rules.formats.includes('svg')) write(`11-partners/${base}.svg`, composed.svg);
+        if (rules.formats.includes('png')) {
+          for (const w of rules.pngWidths) write(`11-partners/${base}-${w}.png`, geo.renderPng(composed.svg, w));
+        }
+        partnerLockups.push({ partner, colourway: colourway.name, ground: colourway.on,
+          file: `11-partners/${base}.svg`, composed, floor: fl, svg: composed.svg });
+      }
+    }
+    for (const w of partnerFindings(project, prule, partnerLockups, measured, rules, floors)) warnings.push(w);
   }
 
   // ---- icons, favicons and social crops, all cut from the same master ----
@@ -513,8 +637,26 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
         squarish: measured.minimumSize.squarish,
         from: measured.minimumSize.from, width: measured.minimumSize.thinnestStroke,
         basis: measured.minimumSize.basis },
+      // The floor above is the master's. This is every drawing in the package,
+      // because a client places a lockup, not a master, and no two of them
+      // disappear at the same size.
+      minSizes: Object.fromEntries(Object.entries(floors).map(([l, f]) => [l, {
+        screenPx: f.screenPx, printMm: f.printMm, screenPxHigh: f.screenPxHigh, printMmHigh: f.printMmHigh,
+        squarish: f.squarish, from: f.from, width: f.thinnestStroke, basis: f.basis,
+      }])),
       lockups: rules.lockups,
       colourways: rules.colourways.map((c) => c.name),
+      // Half of each of these is not ours. See src/partners.js.
+      partners: partnerLockups.length ? project.partners.map((pt) => ({
+        name: pt.name, owner: pt.owner, since: pt.since, approved: pt.approved,
+        colourways: pt.colourways,
+        missing: rules.colourways.map((c) => c.name).filter((c) => !pt.versions[c]),
+        lockups: partnerLockups.filter((m) => m.partner.name === pt.name).map((m) => ({
+          colourway: m.colourway, file: m.file, scale: m.composed.scale,
+          minSize: { screenPx: m.floor.screenPx, printMm: m.floor.printMm, setBy: m.floor.setBy,
+            parts: m.floor.parts },
+        })),
+      })) : null,
       // the square an icon has to be before this mark holds together in it, and
       // which of the ones asked for do. A favicon under it is expected; an app
       // icon under it means the artwork is too fine for the size it was cut at.
@@ -629,8 +771,17 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     'Rules that travel with it',
     '-------------------------',
     `  Clear space     ${measured.clearSpace} units on every side, which is ${rules.clearSpaceRatio} of the mark's height.`,
-    `  Smallest use    ${geo.floorText(measured.minimumSize, 'px')} on screen, ${geo.floorText(measured.minimumSize, 'mm')} in print.`,
-    `                  ${measured.minimumSize.basis}.`,
+    // One figure, for twenty-three packages, measured off the master and printed
+    // two lines under "01-horizontal — the default, use this unless the space is
+    // too narrow". A lockup is a different drawing from the mark and disappears
+    // at a different size. One line each.
+    '  Smallest use    every folder has its own, because every folder is a',
+    '                  different drawing:',
+    ...rules.lockups.map((l) => `                    ${naming.folderFor(l).padEnd(15)} `
+      + `${geo.floorText(floors[l], 'px')} on screen, ${geo.floorText(floors[l], 'mm')} in print`),
+    ...(partnerLockups.length ? [
+      '                  A pair with a partner holds at neither brand\'s figure.',
+      '                  11-partners and the manual state each one.'] : []),
     `  Colourways      ${rules.colourways.map((c) => c.name).join(', ')}.`, '',
     'brand.json holds all of the above in a form software can read.',
     // Twenty-one packages made that promise and nothing ever collected on it.

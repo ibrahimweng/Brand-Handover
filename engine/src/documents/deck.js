@@ -158,11 +158,22 @@ function deck(ctx) {
     <div class="four" style="margin-top:3.4cqw">${[2, 1.4, 1, 0.6].map((f) => {
       const px = Math.round(m.minimumSize.screenPx * f);
       return `<div class="cell">${plate(b.scaled(b.asColourway(ctx, markWay), px))}<p class="cap">${px} px${f === 1 ? ' · floor' : f < 1 ? ' · too small' : ''}</p></div>`;
-    }).join('')}</div>`);
+    }).join('')}</div>
+    <p class="sm">That is the ${ctx.noun} alone. A lockup is a different drawing and disappears at a different size — the next slide has each of them, and the manual has the table.</p>`);
+  const G = require('../geometry');
   add('The lockups', `<span class="bdg">The system</span><h2 style="margin-top:2cqw">${p.rules.lockups.length} arrangements, ${p.rules.colourways.length} colourways</h2>
     <div class="four" style="margin-top:3.4cqw">${p.rules.lockups.map((l) =>
-      `<div class="cell">${plate(b.scaled(ctx.variantFor(l, markWay.name), 190))}<p class="cap">${b.esc(l)}</p></div>`).join('')}</div>
-    <p class="sm">All ${p.rules.lockups.length * p.rules.colourways.length} cut from one master, so none of them can fall out of step with the others.</p>`);
+      `<div class="cell">${plate(b.scaled(ctx.variantFor(l, markWay.name), 190))}<p class="cap">${b.esc(l)}`
+      + `${ctx.floors[l] ? ` · ${b.esc(G.floorText(ctx.floors[l], 'px'))}` : ''}</p></div>`).join('')}</div>
+    <p class="sm">All ${p.rules.lockups.length * p.rules.colourways.length} cut from one master, so none of them can fall out of step with the others. The figure under each is the smallest it may be used at, which is its own and not the ${ctx.noun}'s.</p>`);
+  if (ctx.pairs.length) {
+    // The one slide in this deck whose artwork is half somebody else's.
+    add('Partner lockups', `<span class="bdg">Set once by you</span><h2 style="margin-top:2cqw">${ctx.project.partners.length} partners, ${ctx.pairs.length} pairs</h2>
+      <div class="four" style="margin-top:3.4cqw">${ctx.pairs.slice(0, 4).map((pr) =>
+        `<div class="cell" style="background:${(ctx.colours[pr.colourway.on] || {}).hex || '#FFF'}">`
+        + `${b.scaled(pr.composed.svg, 300, '100%')}<p class="cap">${b.esc(pr.partner.name)} · ${pr.floor.screenPx} px</p></div>`).join('')}</div>
+      <p class="sm">Half of each is not ours: not recoloured, not redrawn, and not made at all where they have not supplied a version. A pair is a third drawing, so its smallest use is neither brand's own figure.</p>`);
+  }
   const dontStyles = ['transform:scaleX(1.5)', 'transform:rotate(16deg)', '', 'filter:drop-shadow(3px 4px 4px rgba(0,0,0,.5))', '', ''];
   add('Misuse', `<span class="bdg">The system</span><h2 style="margin-top:2cqw">Six ways it breaks</h2>
     <div class="six" style="margin-top:2.6cqw">${(c.misuse || []).slice(0, 6).map((w, i) =>

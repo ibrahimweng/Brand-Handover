@@ -5181,9 +5181,196 @@ test('the read me names what reads brand.json, in both cases', () => {
     .test(fs.readFileSync(path.join(out, 'README.txt'), 'utf8')));
 });
 
+
+// ---------------------------------------------------------------------------
+console.log('\nassets the loader does not know');
+const KILN = path.join(__dirname, '..', 'projects', 'kilnsey', 'project.json');
+const withAssets = (over) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-as-'));
+  const raw = JSON.parse(fs.readFileSync(KILN, 'utf8'));
+  for (const f of ['mark.svg', 'wordmark.svg']) fs.copyFileSync(path.join(path.dirname(KILN), f), path.join(dir, f));
+  fs.mkdirSync(path.join(dir, 'partners'));
+  for (const f of fs.readdirSync(path.join(path.dirname(KILN), 'partners'))) {
+    fs.copyFileSync(path.join(path.dirname(KILN), 'partners', f), path.join(dir, 'partners', f));
+  }
+  raw.assets = Object.assign({}, raw.assets, over);
+  fs.writeFileSync(path.join(dir, 'project.json'), JSON.stringify(raw));
+  try { projectLoader.load(path.join(dir, 'project.json')); return null; }
+  catch (e) { return e; }
+  finally { fs.rmSync(dir, { recursive: true, force: true }); }
+};
+test('a list handed in where one file belongs is a sentence, not a type error', () => {
+  // photography in the sixteenth round, documents in the twenty-second and
+  // partners in the twenty-third all reached path.join as an array and produced
+  // "the path argument must be of type string". The skip list grew by one every
+  // time, one crash per kind, always after the fact.
+  const e = withAssets({ mark: ['a.svg', 'b.svg'] });
+  assert.ok(e && /assets\.mark is a list, and the symbol is one file/.test(e.message), e && e.message);
+  assert.ok(!/must be of type string/.test(e.message), 'still a Node type error');
+});
+test('an asset kind nobody has thought of is refused by name', () => {
+  const e = withAssets({ signage: ['x.svg'] });
+  assert.ok(e && /assets\.signage is not something the engine knows how to load/.test(e.message), e && e.message);
+});
+test('a list kind handed in as one file is refused the other way round', () => {
+  const e = withAssets({ partners: 'partners/ingleby.svg' });
+  assert.ok(e && /assets\.partners is string, and the partners whose marks stand beside yours is a list/
+    .test(e.message), e && e.message);
+});
+
+// ---------------------------------------------------------------------------
+console.log('\na floor for every lockup, not just for the master');
+test('a lockup does not hold at the floor measured off the master', () => {
+  const V = require('../src/variants');
+  const f = V.floors(project, m);
+  assert.ok(f.horizontal.screenPx > m.minimumSize.screenPx * 2,
+    `the horizontal lockup reports ${f.horizontal.screenPx} against the master's ${m.minimumSize.screenPx}`);
+  assert.strictEqual(f.mark.screenPx, m.minimumSize.screenPx, 'the mark disagrees with itself');
+});
+test('the master figure puts a lockup well under the rule it states', () => {
+  // Measured on the composed drawing, not asserted: at the one figure every
+  // package has printed, Meridian's horizontal lockup lays down a fifth of the
+  // ink its own rule requires.
+  const V = require('../src/variants');
+  const v = buildVariant({ markSrc: project.assets.mark.source, wordmarkSrc: project.assets.wordmark.source,
+    lockup: 'horizontal', colourway: project.rules.colourways[0], rules: project.rules, measured: m });
+  const box = svgu.viewBox(svgu.parse(v.svg));
+  const thin = geo.minimumSize(v.svg, project.rules).thinnestStroke;
+  const atMaster = thin * (m.minimumSize.screenPx / box.w);
+  assert.ok(atMaster < project.rules.minStrokePx / 2,
+    `it paints ${atMaster.toFixed(2)} px, and the rule is ${project.rules.minStrokePx}`);
+  const atOwn = thin * (V.floors(project, m).horizontal.screenPx / box.w);
+  assert.ok(atOwn >= project.rules.minStrokePx,
+    `at its own floor it paints ${atOwn.toFixed(2)} px, still under ${project.rules.minStrokePx}`);
+});
+
+// ---------------------------------------------------------------------------
+console.log('\nartwork that is not yours');
+const PT = require('../src/partners');
+const kiln = projectLoader.load(KILN);
+const kilnM = measure(kiln);
+let kilnOut, kilnBrand;
+before(async () => {
+  kilnOut = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-kiln-'));
+  await build(kiln, kilnOut);
+  kilnBrand = JSON.parse(fs.readFileSync(path.join(kilnOut, 'brand.json'), 'utf8'));
+});
+const partnerRefusal = (over) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-pt-'));
+  const raw = JSON.parse(fs.readFileSync(KILN, 'utf8'));
+  for (const f of ['mark.svg', 'wordmark.svg']) fs.copyFileSync(path.join(path.dirname(KILN), f), path.join(dir, f));
+  fs.mkdirSync(path.join(dir, 'partners'));
+  for (const f of fs.readdirSync(path.join(path.dirname(KILN), 'partners'))) {
+    fs.copyFileSync(path.join(path.dirname(KILN), 'partners', f), path.join(dir, 'partners', f));
+  }
+  raw.assets.partners = [over];
+  fs.writeFileSync(path.join(dir, 'project.json'), JSON.stringify(raw));
+  try { projectLoader.load(path.join(dir, 'project.json')); return null; }
+  catch (e) { return e; }
+  finally { fs.rmSync(dir, { recursive: true, force: true }); }
+};
+const wellSaid = (e) => {
+  assert.ok(e, 'the engine accepted it');
+  assert.ok(e.findings && e.findings.length === 1, 'a crash is not a refusal');
+  for (const k of ['what', 'why', 'how']) assert.ok(e.findings[0][k] && e.findings[0][k].length > 20, `no ${k}`);
+  return e.findings[0];
+};
+test('a partner with no artwork is refused rather than drawn from a description', () => {
+  const f = wellSaid(partnerRefusal({ name: 'Someone', files: {} }));
+  assert.ok(/no artwork is given for them/.test(f.what), f.what);
+  assert.ok(/will not draw somebody else's logo/.test(f.why));
+});
+test('a partner file that is not there is refused, and not substituted', () => {
+  const f = wellSaid(partnerRefusal({ name: 'Someone', files: { crag: 'partners/nope.svg' } }));
+  assert.ok(/that file is not there/.test(f.what), f.what);
+  assert.ok(/will not substitute one of\s+their other versions/.test(f.why.replace(/\s+/g, ' ')) ||
+    /not substitute one of their other versions/.test(f.why), f.why);
+});
+test('a version keyed to a colourway we do not cut is refused', () => {
+  const f = wellSaid(partnerRefusal({ name: 'Someone', files: { navy: 'partners/ingleby.svg' } }));
+  assert.ok(/does not cut one/.test(f.what), f.what);
+});
+test('a partner with no name is refused', () => {
+  assert.ok(/has no name/.test(wellSaid(partnerRefusal({ files: { crag: 'partners/ingleby.svg' } })).what));
+});
+test('their mark is scaled off ours and keeps its own colour', () => {
+  const prule = PT.rules(kiln);
+  const partner = kiln.partners.find((p) => p.name === 'Ingleby Sailing Club');
+  const host = buildVariant({ markSrc: kiln.assets.mark.source, wordmarkSrc: kiln.assets.wordmark.source,
+    lockup: prule.with, colourway: kiln.rules.colourways[0], rules: kiln.rules, measured: kilnM });
+  const c = PT.lockup({ hostSvg: host.svg, hostInk: host.box, partner, way: 'crag', rule: prule, ink: '#2B3A2E' });
+  // matched on ink height, to within a rounding of the scale
+  assert.ok(Math.abs(c.partnerBox.h - host.box.h) < 0.5, `${c.partnerBox.h} against ${host.box.h}`);
+  // and their blue is still their blue
+  assert.ok(c.svg.indexOf('#0B4F8A') > -1, 'their artwork was recoloured into our palette');
+});
+test('a data-slot in their file is not painted from our colourway', () => {
+  // Barrowden's file marks its ink, which in our own artwork means "paint this
+  // from the colourway". In theirs it means nothing we are entitled to act on.
+  const prule = PT.rules(kiln);
+  const partner = kiln.partners.find((p) => p.name === 'Barrowden Museum');
+  assert.ok(partner.versions.crag.slots.length, 'the fixture no longer carries a slot to ignore');
+  const host = buildVariant({ markSrc: kiln.assets.mark.source, wordmarkSrc: kiln.assets.wordmark.source,
+    lockup: prule.with, colourway: kiln.rules.colourways[1], rules: kiln.rules, measured: kilnM });
+  const c = PT.lockup({ hostSvg: host.svg, hostInk: host.box, partner, way: 'crag', rule: prule, ink: '#F4F2EC' });
+  assert.ok(c.svg.indexOf('#1F3352') > -1, 'their navy was painted over with our reverse ink');
+});
+test('the floor of a pair is neither brand\'s own', () => {
+  const V = require('../src/variants');
+  const ours = V.floors(kiln, kilnM)[PT.rules(kiln).with].screenPx;
+  const rows = kilnBrand.logo.partners.flatMap((p) => p.lockups.map((l) => [p.name, l]));
+  const fine = rows.find(([n]) => n === 'Ravensworth Hospice')[1];
+  assert.strictEqual(fine.minSize.setBy, 'their mark', 'a 2 unit line did not set the floor');
+  assert.ok(fine.minSize.screenPx > ours * 2, `${fine.minSize.screenPx} against our ${ours}`);
+  // and every pair states all three candidates, so the number can be checked
+  for (const [, l] of rows) {
+    assert.ok(l.minSize.parts.length >= 2, 'a pair reports one candidate for its floor');
+    assert.strictEqual(l.minSize.screenPx, Math.max(...l.minSize.parts.map((x) => x.screenPx)));
+  }
+});
+test('the dividing rule is not the thinnest thing in the pair', () => {
+  // At 0.4 of the thinnest thing we draw, the divider was finer than both marks
+  // and set the floor of every pair in the first identity to have any.
+  for (const p of kilnBrand.logo.partners) {
+    for (const l of p.lockups) assert.notStrictEqual(l.minSize.setBy, 'the rule between them');
+  }
+});
+test('a pair that cannot be made is a fact about ownership, not a fault', () => {
+  const ing = kilnBrand.logo.partners.find((p) => p.name === 'Ingleby Sailing Club');
+  assert.deepStrictEqual(ing.missing, ['mono']);
+  assert.strictEqual(ing.lockups.length, 2);
+  const files = fs.readdirSync(path.join(kilnOut, '11-partners'));
+  assert.ok(!files.some((f) => /mono/.test(f)), 'a mono pair was invented');
+  assert.ok(files.some((f) => /ingleby-sailing-club-reverse\.svg$/.test(f)));
+});
+test('the package says a floor per folder and a floor per pair', () => {
+  const readme = fs.readFileSync(path.join(kilnOut, 'README.txt'), 'utf8');
+  for (const l of kiln.rules.lockups) assert.ok(readme.indexOf(naming.folderFor(l)) > -1);
+  assert.ok(/A pair with a partner holds at neither brand's figure/.test(readme));
+  for (const l of kiln.rules.lockups) {
+    assert.ok(kilnBrand.logo.minSizes[l], `brand.json has no floor for ${l}`);
+  }
+  const html = fs.readFileSync(path.join(kilnOut, 'guidelines.html'), 'utf8');
+  assert.ok(html.indexOf('Partner lockups') > -1);
+  assert.ok(html.indexOf('What disappears first') > -1, 'the manual has no floor table');
+  // an identity with no partners gets no partner section and no empty heading
+  assert.ok(fs.readFileSync(path.join(out, 'guidelines.html'), 'utf8').indexOf('Partner lockups') < 0);
+  assert.ok(fs.readFileSync(path.join(out, 'README.txt'), 'utf8').indexOf('neither brand') < 0);
+});
+test('a previous package written before lockup floors existed reports none', () => {
+  // Tarnbrook's previous/brand.json came out of the twenty-second round and has
+  // no minSizes in it. Reading a field that is not there must say nothing, not
+  // claim every lockup moved.
+  const P2 = require('../src/previous');
+  const old = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'projects', 'tarnbrook',
+    'previous', 'brand.json'), 'utf8'));
+  const found = P2.compare(old, kilnBrand).filter((c) => c.code === 'lockupMinSize');
+  assert.deepStrictEqual(found, []);
+});
+
 drain().then(() => {
 
-  for (const d of [out, out2, tbOut]) if (d) fs.rmSync(d, { recursive: true, force: true });
+  for (const d of [out, out2, tbOut, kilnOut]) if (d) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);
   process.exit(failed ? 1 : 0);
 });
