@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Ancroft, tier 2 of 4: the hatching goes. Nothing under eight units. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+  <g data-slot="ink" fill="none" stroke="#123B2E" stroke-width="8" stroke-linecap="butt" stroke-linejoin="miter">
+    <path d="M48 36 H192 V120 C192 168 156 192 120 204 C84 192 48 168 48 120 Z"/>
+    <path d="M48 132 L120 96 L192 132"/>
+    <circle cx="84" cy="72" r="12"/><circle cx="120" cy="72" r="12"/><circle cx="156" cy="72" r="12"/>
+  </g>
+</svg>

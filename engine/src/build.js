@@ -17,7 +17,7 @@ const { masterOf } = require('./project');
 const KEYS_READ = {
   rules: ['clearSpaceRatio', 'minStrokePx', 'minStrokeMm', 'lockupGapRatio', 'wordmarkHeightRatio',
     'naming', 'lockups', 'formats', 'pngWidths', 'stock', 'colourways', 'iconInk', 'iconBg',
-    'iconSizes', 'faviconSizes', 'social', 'partners', 'documents', 'ladder'],
+    'iconSizes', 'faviconSizes', 'social', 'partners', 'documents', 'ladder', 'fabrication'],
   system: ['icons', 'icon', 'pattern', 'motion', 'photography', 'nameSetting', 'grid'],
   // tokens was outside this audit entirely, so a whole branch of a project file
   // could be written, saved and shipped without anything reading it. The
@@ -497,6 +497,62 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       + `${bottom.name === list[1].name ? 'a simpler drawing' : 'simpler drawings'} rather than a smaller one.`);
   }
 
+  // ---- the things it is actually made as ----
+  //
+  // Twenty-five identities specified in pixels and millimetres of ink, for
+  // brands that mostly exist as objects. See src/fabrication.js.
+  const FAB = require('./fabrication');
+  let made = null;
+  const fabList = FAB.rules(project);
+  if (fabList.length) {
+    const drawings = [{ name: measured.master, source: masterOf(project).source,
+      viewBox: measured.markViewBox, minimumSize: measured.minimumSize }]
+      .concat((project.tiers || []).map((t) => Object.assign({ name: t.name, source: t.source },
+        require('./ladder').measureOne(t.source, rules))));
+    made = FAB.plan(project, drawings, fabList);
+    for (const m of made) {
+      if (!m.drawing) {
+        warnings.push(`nothing in this identity can be ${m.process === 'cast' ? 'cast' : `made by ${m.process}`} `
+          + `at ${m.at} mm${m.note ? ` (${m.note})` : ''}. That process holds nothing finer than ${m.feature} mm — `
+          + `${m.what} — and at ${m.at} mm the simplest drawing here is `
+          + `${m.considered[m.considered.length - 1].thinnestMm} mm at its finest. `
+          + `The smallest each of them can be made at is `
+          + `${m.considered.map((c) => `${c.name} ${c.needsMm} mm`).join(', ')}. `
+          + 'Make it larger, or draw a rung simpler than the last one.');
+        continue;
+      }
+      const base = `${naming.slug(project.latinName)}-${naming.slug(m.process)}-${m.at}mm`;
+      const doc = svgu.parse(drawings.find((d) => d.name === m.drawing).source);
+      const { missing } = svgu.applyColourway(doc, rules.colourways[0].slots);
+      const one = svgu.serialize(doc)
+        .replace(/width="[^"]*"/, `width="${m.at}mm"`)
+        .replace(/height="[^"]*"/, `height="${m.heightMm}mm"`);
+      write(`13-fabrication/${base}.svg`, one);
+      if (m.drawing !== drawings[0].name) {
+        notes.push(`${m.note || `the ${m.process}`} is cut from ${m.drawing}, not from the full mark: at `
+          + `${m.at} mm the full mark's finest part is ${m.considered[0].thinnestMm} mm and ${m.process} holds `
+          + `nothing finer than ${m.feature} mm, because ${m.what}. ${m.drawing} measures ${m.thinnestMm} mm there.`);
+      }
+      if (m.outline) {
+        warnings.push(`the ${m.process} artwork at ${m.at} mm${m.note ? ` (${m.note})` : ''} is drawn in strokes, `
+          + `and ${m.also}. 13-fabrication holds it at size, and it still has to be outlined before it is sent.`);
+      }
+      if (m.corners) {
+        const line = `the ${m.process} at ${m.at} mm${m.note ? ` (${m.note})` : ''} is cut with a ${m.tool} mm `
+          + `tool, and ${m.also} There are ${m.corners} of them in ${m.drawing}, and the radius is `
+          + `${m.toolShare}% of the width — ${m.toolUnits} units of the ${m.at} mm.`;
+        // Not a fault and not avoidable. It is only worth saying where it shows.
+        if (m.toolShare >= 2) {
+          warnings.push(`${line} At that size it is visible, and nothing on screen shows it: the drawing `
+            + 'is not wrong, the corners will be round, and it is better to decide that here than to see it '
+            + 'in stone. Draw the corners at the tool\'s radius, or ask for a smaller tool.');
+        } else {
+          notes.push(`${line} That is small enough not to read at this size.`);
+        }
+      }
+    }
+  }
+
   // ---- the pairs: our lockup, a rule, and somebody else's mark ----
   //
   // Everything above this line was cut from one master and is the client's to
@@ -634,7 +690,11 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       + (icons.squarish
         ? `Draw a simplified icon mark — fewer parts, heavier strokes — run `
           + `\`check <icon.svg> --icon\` against it, which measures the same thing and will say when it `
-          + `clears, and set it as assets.icon so the package is cut from it.`
+          + `clears, and set it as assets.icon so the package is cut from it. `
+          // The engine has a better answer than one alternative drawing since
+          // the twenty-fifth round, and the advice had not caught up with it.
+          + `If it needs more than one — a simpler drawing again below that one — put them in assets.tiers `
+          + `and name the order in rules.ladder, and icons are cut from the last rung.`
         : `The shape is the reason: this artwork is ${icons.aspect} times longer than it is deep, and an `
           + `icon is square, so it is drawn to fit its longest side and fills ${icons.coverage}% of the `
           + `square where a square mark fills about 46%. No amount of thickening fixes that. Draw a `
@@ -852,6 +912,16 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
           : `${naming.folderFor(b.name)}/`,
         note: ladder.rungs[i].note || null,
       })) : null,
+      // What it is made as, which drawing goes to each maker, and what the
+      // process does to it that a screen does not show. See src/fabrication.js.
+      fabrication: made ? made.map((m) => ({
+        process: m.process, at: m.at, note: m.note, minFeatureMm: m.feature,
+        drawing: m.drawing, thinnestMm: m.thinnestMm,
+        file: m.drawing ? `13-fabrication/${naming.slug(project.latinName)}-${naming.slug(m.process)}-${m.at}mm.svg` : null,
+        needsOutlining: m.outline || false,
+        sharpCorners: m.corners == null ? null : m.corners,
+        smallestEach: m.considered,
+      })) : null,
       lockups: rules.lockups,
       colourways: rules.colourways.map((c) => c.name),
       // Half of each of these is not ours. See src/partners.js.
@@ -1011,6 +1081,13 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
         + `${b.to == null ? '' : `, ${b.printFrom}–${b.printTo} mm`}`),
       `                  Below ${ladder.bands[ladder.bands.length - 1].from} px there is nothing. 12-ladder holds the drawings`,
       '                  that are not lockups; icons are cut from the last of them.',
+    ] : []),
+    ...(made ? [
+      '  Made as         a process holds nothing finer than its own figure, so which',
+      '                  drawing goes to which maker is arithmetic, not taste:',
+      ...made.map((m) => `                    ${(`${m.process} ${m.at} mm`).padEnd(20)} `
+        + `${m.drawing ? `${m.drawing}, finest part ${m.thinnestMm} mm` : 'nothing here can be made this way'}`),
+      '                  13-fabrication holds each of them at true size, in millimetres.',
     ] : []),
     // A contrast ratio is luminance. Whether two of these can be told apart is
     // a different question, and no read me had ever carried the answer.

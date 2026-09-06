@@ -1424,6 +1424,30 @@ was constructed on this grid. Nobody typed a false number; the picture said it.
 Drawing something is an assertion, and it should be derived and checked like any
 other.
 
+**Advice you cannot check is a liability.** The engine had been telling clients
+about embroidery and vinyl for four rounds, in a sentence somebody wrote because
+it was true, in a package that could not have said whether any particular mark
+survives either. It read as authority. Everything else in these documents is
+derived and checkable; that sentence was a designer's rule of thumb wearing the
+same clothes. Either measure it or attribute it.
+
+**A percentile is a share of the sample, and the sample is not the subject.**
+The narrowest-feature scan discarded the bottom five per cent of what it found,
+to defend against anti-aliasing. That is sound when the samples are all of the
+same thing, and it is not what a shape gives you: a solid shield with a small cut
+in it produces two hundred samples of its outline and eleven of the narrow metal
+that is the actual answer. The fix was to discard a fixed handful rather than a
+proportion — the same defence, not indexed to something irrelevant. Whenever a
+threshold is expressed as a fraction, ask what it is a fraction *of*, and whether
+that quantity has anything to do with the question.
+
+**The oldest measurement is the least examined.** This one has been in the
+codebase since the first week, is used by every other measurement, has a careful
+comment above it, and was checked in three previous rounds — for whether it
+looks at strokes as well as fills, for whether it renders large enough, for
+whether it reads inherited attributes. Nobody had asked whether the statistic at
+the end of it was the right statistic. Age and a good comment are not evidence.
+
 ---
 
 Prior art checked September 2026: Logo Package Express, Standards, Brandpad,

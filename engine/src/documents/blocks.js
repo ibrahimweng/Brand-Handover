@@ -357,6 +357,36 @@ function ladderBlock(ctx) {
     <b>${esc(bottom.name)}</b>, because that is the drawing this identity uses at the sizes an icon lives at.</p>`;
 }
 
+// What it is made as.
+//
+// Every chapter before this one is about a screen or a page. A school's arms
+// spend most of their life in thread, vinyl, stone and metal, and until the
+// twenty-sixth round the only thing this manual had to say about any of that was
+// a minimum size in millimetres of ink.
+function fabrication(ctx) {
+  const list = ctx.fabrication;
+  if (!list || !list.length) return '';
+  const rows = list.map((m) => {
+    return `<div class="ftr"><b>${esc(m.process)} · ${m.at} mm</b>
+      <span>${m.note ? `${esc(m.note[0].toUpperCase() + m.note.slice(1))}. ` : ''}${m.drawing
+        ? `Cut from <b>${esc(m.drawing)}</b>, whose finest part measures ${m.thinnestMm} mm there. `
+          + `${esc(m.what[0].toUpperCase() + m.what.slice(1))}, so nothing finer than ${m.feature} mm goes to this maker.`
+          + `${m.needsOutlining ? ' The artwork is drawn in strokes and has to be outlined before it is sent.' : ''}`
+        : `<b>Nothing in this identity can be made this way at this size.</b> ${esc(m.what[0].toUpperCase() + m.what.slice(1))}.`}</span>
+      <em>${m.drawing ? `${m.thinnestMm} mm` : '—'}</em><em>${m.feature} mm</em></div>`;
+  }).join('');
+  return `<div class="ftab">
+    <div class="ftr head"><span>Made as</span><span>Which drawing, and why</span><span>Finest part</span><span>Process holds</span></div>
+    ${rows}</div>
+    <p class="note"><b>Every one of these is arithmetic.</b> A process has a smallest feature it can hold; a
+    drawing has a finest part; the size the thing is made at turns the second into millimetres. Where the full
+    mark does not survive, the drawing sent is the most detailed one that does — which is what the ladder in
+    1.5 is for. <code>13-fabrication</code> holds each of them at true size, in millimetres, ready to send.</p>
+    <p class="note">The figures a process holds are working ones and they are in <code>brand.json</code>. A maker
+    who knows their own machine knows better than this file: set <code>feature</code> on the entry and every
+    number above moves with it.</p>`;
+}
+
 // The palette, as three other people see it.
 //
 // Every contrast table this engine has printed answers one question — can text
@@ -771,5 +801,5 @@ function changes(ctx) {
     + `</p><div class="chgs">${breaking.map(row).join('')}${news.map(row).join('')}</div>`;
 }
 
-module.exports = { TXT, esc, changes, floorTable, partnerLockups, colourVision, ladderBlock, inked, gradientSpec, inksOf, patternSpec, photographySpec, iconSpec, willWriteIcons, motionSpec, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, markSpecimen, lockupRow, construction, clearSpace,
+module.exports = { TXT, esc, changes, floorTable, partnerLockups, colourVision, ladderBlock, fabrication, inked, gradientSpec, inksOf, patternSpec, photographySpec, iconSpec, willWriteIcons, motionSpec, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, markSpecimen, lockupRow, construction, clearSpace,
   minimumSize, lockups, misuse, palette, contrastTable, typeSpecimen, typeScale, assetIndex, brandJsonBlock };

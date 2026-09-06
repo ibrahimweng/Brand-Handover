@@ -141,6 +141,19 @@ produced, and the build reports what moved between them:
       previous/
         brand.json      copied out of the package that shipped as 1.4.0
 
+An identity that is made as physical things says what they are and how big:
+
+    "fabrication": [
+      { "process": "embroidery", "at": 70,  "note": "the blazer badge" },
+      { "process": "engraving",  "at": 240, "tool": 3, "note": "the gate" }
+    ]
+
+`at` is the width in millimetres. Processes are embroidery, vinyl, screenprint,
+foil, engraving and cast; each has a smallest feature it can hold, and `feature`
+on the entry moves it, because a maker who knows their own machine knows better
+than this file. The drawing sent to each is the most detailed one that survives,
+written to `13-fabrication` at true size in millimetres.
+
 An identity that steps down through simpler drawings as it gets smaller ships
 each of them, and states the order:
 
@@ -2568,6 +2581,60 @@ only comparison that means anything.
 out how wide the canvas has to be, and again in full inside the text that draws
 them. They agreed for as long as nobody edited one.
 
+## A twenty-sixth identity
+
+Since the twenty-second round the engine has been writing this sentence into
+packages: *"anything already made between 32 px and 64 px was inside the rule —
+small print, favicons, embroidery, anything cut in vinyl."* It had never measured
+one thing about embroidery or vinyl. Twenty-five identities specified in pixels
+and millimetres of ink, for brands that mostly exist as objects.
+
+**Ancroft** has been cutting the same arms into things since 1614: a blazer
+badge, a cap badge, a house tie, the stone over the gate, a minibus door, games
+kit, a bookplate, a bench plaque. Each is a process and a size:
+
+    { "process": "embroidery", "at": 70,  "note": "the blazer badge" }
+
+A process is a floor like every other floor here, in a unit the engine already
+works in. A satin stitch below about 1.3 mm will not lie down; vinyl below about
+2 mm tears when the waste is weeded; cast metal below 1.5 mm will not fill the
+mould. Given a drawing, its box and the size the thing is made at, whether it can
+be made is arithmetic — and the answer is the most detailed drawing that
+survives, which is what the twenty-fifth round's ladder is for:
+
+    embroidery 70 mm     standard, finest part 2.333 mm
+    embroidery 32 mm     compact,  finest part 1.6 mm
+    embroidery 18 mm     monogram, finest part 2.632 mm
+
+One process, three sizes, three different drawings, none of it decided by
+anybody. `13-fabrication` holds each of them at true size, in millimetres, ready
+to send. A size nothing can be made at is said out loud with the smallest each
+drawing could be made at beside it. The vinyl artwork is told it is drawn in
+strokes and a cutter follows outlines. And the stone is told what the tool does:
+a round bit cannot cut an internal corner at all, so the six in the shield come
+back with the bit's radius on them — 1.25% of the width at 240 mm, which is a
+note, and 5% on a 60 mm trophy, which is a warning.
+
+**And the measurement it all rests on was wrong.**
+
+`thinnestFeature` decides every minimum size in every package. For a filled
+shape it scans the render for runs that narrow, and then took the *fifth
+percentile* of them — a defence against one or two anti-aliased samples. But a
+percentile is a share of the sample, and the sample is however much outline the
+shape happens to have. Ancroft's monogram is a solid shield with a chevron cut
+out of it: the metal beside the cut is 36 units wide and appears on eleven
+scanlines out of two hundred and twenty. **The fifth percentile stepped straight
+past it and reported 84** — not the narrowest part, but the width of a fairly
+narrow one.
+
+Stepping over a fixed handful instead does the job the percentile was for and
+does not scale with the outline; the answer is stable from the second smallest
+to the ninth on every drawing in the repository, which is what says this is not
+noise being chased. Six identities were corrected, all upward, and two were
+checked by rendering: at the floor **Beaumont** has published since it was added,
+its finest stem paints **2.80 px against its own rule of 3**. Marlow's paints
+2.47. Spire's floor was 13 px and is 23.
+
 ## A front door
 
 Sixteen rounds, and the only way into the engine was to hand-write a project
@@ -2687,6 +2754,7 @@ the mechanism. The name was the cause, and renaming the payload is the fix.
     projects/kilnsey/ the twenty-third: half of every pair belongs to somebody else
     projects/deben/   the twenty-fourth: two of its colours are one colour to some readers
     projects/oriel/   the twenty-fifth: five drawings of one mark, one for each size
+    projects/ancroft/ the twenty-sixth: thread, vinyl, stone and cast metal
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package

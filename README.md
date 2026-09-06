@@ -747,6 +747,36 @@ with the square mark below it. And both captions on the construction diagram wer
 written twice — once to size the canvas, once to draw it — and agreed only for as
 long as nobody edited one.
 
+The twenty-sixth caught the engine writing advice it could not check. Since the
+twenty-second round its packages have said *"anything already made between 32 px
+and 64 px was inside the rule — small print, favicons, embroidery, anything cut
+in vinyl"*, and it had never measured one thing about embroidery or vinyl.
+Twenty-five identities specified in pixels and millimetres of ink, for brands
+that mostly exist as objects.
+
+**Ancroft** has been cutting the same arms into things since 1614 — a blazer
+badge, a cap badge, a house tie, the stone over the gate, a minibus door, kit, a
+bookplate, a bench plaque. A process is a floor like any other: a satin stitch
+below 1.3 mm will not lie down, vinyl below 2 mm tears when it is weeded, cast
+metal below 1.5 mm will not fill the mould. So which drawing goes to which maker
+is arithmetic. **One process at three sizes takes three different drawings** —
+the badge gets `standard`, the cap gets `compact`, the tie gets `monogram` — and
+`13-fabrication` holds each at true size in millimetres, ready to send. The
+cutter is told the artwork is drawn in strokes. The stonemason is told that a
+round bit cannot cut an internal corner at all, and what its radius costs at
+that size.
+
+**And the measurement it all rests on was wrong.** `thinnestFeature` decides
+every minimum size in every package, and for a filled shape it took the *fifth
+percentile* of the runs it found — a defence against one or two anti-aliased
+samples. But a percentile is a share of the sample, and the sample is however
+much outline the shape happens to have. Ancroft's monogram has 36 units of metal
+beside its chevron cut, on eleven scanlines out of two hundred and twenty, and
+the percentile **stepped straight past it and reported 84**. Six identities were
+corrected, all upward; two were checked by rendering. At the floor **Beaumont**
+has published since the day it was added, its finest stem paints **2.80 px
+against its own rule of 3**.
+
 Still to do: a run on **your** identity job. Twenty identities the engine had
 not seen is worth a great deal more than twenty passes over one, but none of
 them came out of your exporter — and the normaliser is the part that most needs

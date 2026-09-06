@@ -108,11 +108,25 @@ function context(project, measured, files, brandJson) {
     var partnerRule = prule;
   }
 
+  // What it is made as, if it is made as anything.
+  const fabrication = (() => {
+    const FAB = require('../fabrication');
+    const list = FAB.rules(project);
+    if (!list.length) return null;
+    const drawings = [{ name: measured.master, source: master.source,
+      viewBox: measured.markViewBox, minimumSize: measured.minimumSize }]
+      .concat((project.tiers || []).map((t) => Object.assign({ name: t.name, source: t.source },
+        require('../ladder').measureOne(t.source, project.rules))));
+    const out = FAB.plan(project, drawings, list);
+    out.masterName = measured.master;
+    return out;
+  })();
+
   const changes = project.previous && brandJson
     ? { since: project.previous.version.text,
         entries: require('../previous').compare(project.previous.data, brandJson) }
     : null;
-  return { project, sets: project.sets || null, measured, colours, roles, primary, ground, accent, primaryColourway, noun, system, pattern, hasSystem, changes, floors, pairs, ladder,
+  return { project, sets: project.sets || null, measured, colours, roles, primary, ground, accent, primaryColourway, noun, system, pattern, hasSystem, changes, floors, pairs, ladder, fabrication,
     partnerRule: typeof partnerRule === 'undefined' ? null : partnerRule,
     variants, variantFor, files, brandJson, contrast: contrast.matrix(colours),
     content: project.content || {} };
@@ -193,10 +207,20 @@ function guidelines(ctx) {
       parts.map(([title, body], i) => sec(`4.${i + 1}`, title, 'once', body)).join(''));
   })()}
 
-  ${chapter(ctx.hasSystem ? '05' : '04', 'Assets',
-      sec(ctx.hasSystem ? '5.1' : '4.1', 'What is in the package', 'system', b.assetIndex(ctx)) +
-      sec(ctx.hasSystem ? '5.2' : '4.2', 'The machine readable file', 'system',
-        `<p class="note">Shipped beside this page so the client's own tools can read the brand instead of guessing at it.</p>` + b.brandJsonBlock(ctx)))}
+  ${(() => {
+    // The chapters after 03 depend on what the identity has, so their numbers
+    // are counted rather than written down in four places.
+    const madeAs = !!(ctx.fabrication && ctx.fabrication.length);
+    let n = ctx.hasSystem ? 5 : 4;
+    const making = madeAs ? chapter(`0${n}`, 'Making it',
+      sec(`${n++}.1`, 'What it is made as', 'once', b.fabrication(ctx))) : '';
+    return `${making}
+
+  ${chapter(`0${n}`, 'Assets',
+      sec(`${n}.1`, 'What is in the package', 'system', b.assetIndex(ctx)) +
+      sec(`${n}.2`, 'The machine readable file', 'system',
+        `<p class="note">Shipped beside this page so the client's own tools can read the brand instead of guessing at it.</p>` + b.brandJsonBlock(ctx)))}`;
+  })()}
 
   <footer>
     Every measurement on this page was read off ${b.esc(require('path').basename(require('../project').masterOf(p).path))} when the package was built. None of it was typed in.<br>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Ancroft, tier 4 of 4: the shield solid with the chevron cut out of it.
+     Nothing in it is narrower than two units. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+  <g data-slot="ink" fill="#123B2E" fill-rule="evenodd" stroke="none">
+    <path d="M36 24 H204 V120 C204 180 168 204 120 216 C72 204 36 180 36 120 Z M72 132 L120 108 L168 132 L168 156 L120 132 L72 156 Z"/>
+  </g>
+</svg>

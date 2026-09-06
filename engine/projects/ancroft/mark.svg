@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Ancroft, tier 1 of 4: the full arms. Twelve unit module, twenty units square.
+     The hatched band is three units wide, which is the finest thing in the
+     identity and the reason the other three drawings exist. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+  <g data-slot="ink" fill="none" stroke="#123B2E" stroke-linecap="butt" stroke-linejoin="miter">
+    <path stroke-width="8" d="M48 36 H192 V120 C192 168 156 192 120 204 C84 192 48 168 48 120 Z"/>
+    <path data-pattern="source" stroke-width="8" d="M48 132 L120 96 L192 132"/>
+    <g stroke-width="8"><circle cx="84" cy="72" r="12"/><circle cx="120" cy="72" r="12"/><circle cx="156" cy="72" r="12"/></g>
+    <g stroke-width="3"><path d="M60 144 V168"/><path d="M72 144 V168"/><path d="M84 144 V168"/><path d="M96 144 V168"/><path d="M108 144 V168"/><path d="M120 144 V168"/><path d="M132 144 V168"/><path d="M144 144 V168"/><path d="M156 144 V168"/><path d="M168 144 V168"/><path d="M180 144 V168"/></g>
+  </g>
+</svg>

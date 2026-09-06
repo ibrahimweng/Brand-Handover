@@ -75,7 +75,7 @@ const clearSpace = (box, ratio) => svgu.round(box.h * ratio);
 // Not the minimum: a mitred corner and the tip of a curve taper to nothing, and
 // they are not what a reader loses first. The fifth percentile is stable across
 // resolutions and, on artwork whose stroke width is known, returns it exactly.
-const STEM_PERCENTILE = 0.05;
+const STEM_DISCARD = 2;         // runs to step over before believing the smallest
 const STEM_RENDER_PX = 600;
 const STEM_MIN_SAMPLES = 14;    // pixels across the thinnest thing before the answer is trusted
 const STEM_MAX_PX = 2600;
@@ -157,7 +157,22 @@ function scanAt(svgString, viewBox, wide) {
   }
   if (!runs.length) return null;
   runs.sort((a, b) => a - b);
-  const px = runs[Math.min(runs.length - 1, Math.floor(runs.length * STEM_PERCENTILE))];
+  // Near the smallest, not a percentile of the sample.
+  //
+  // A percentile is a defence against anti-aliasing: one or two runs come back
+  // a pixel narrower than the shape really is, and taking the minimum would
+  // believe them. But a percentile is a share of the *sample*, and the sample
+  // is dominated by however much outline the shape happens to have. Ancroft's
+  // monogram is a solid shield with a chevron cut out of it: the metal beside
+  // the cut is 36 units wide and shows up on eleven scanlines, out of two
+  // hundred and twenty. The fifth percentile stepped straight past it and
+  // reported 84 — not the narrowest part, but the width of a fairly narrow one.
+  //
+  // Discarding a fixed handful does the job the percentile was for and does
+  // not scale with the outline. The answer is stable from the second smallest
+  // to the ninth on every drawing in the repository, which is what says this is
+  // not noise being chased.
+  const px = runs[Math.min(runs.length - 1, STEM_DISCARD)];
   return { units: svgu.round(px * (viewBox.w / width), 2), px };
 }
 
