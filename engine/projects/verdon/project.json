@@ -1,0 +1,51 @@
+{
+  "brand": "Verdon",
+  "version": "1.0.0",
+  "language": "fr",
+  "direction": "ltr",
+  "assets": { "mark": "mark.svg", "wordmark": "wordmark.svg" },
+  "tokens": {
+    "colour": {
+      "gorge":   { "hex": "#1E4D4A", "role": "primary",   "cmyk": [88, 52, 60, 40], "pantone": "5473 C" },
+      "calcaire":{ "hex": "#F3F1EA", "role": "ground",    "cmyk": [5, 3, 9, 0],     "pantone": "11-0601" },
+      "riviere": { "hex": "#2E8C9E", "role": "secondary", "cmyk": [76, 26, 30, 2],  "pantone": "7710 C" },
+      "genet":   { "hex": "#C58A1C", "role": "accent",    "cmyk": [18, 45, 100, 2], "pantone": "1245 C" },
+      "roche":   { "hex": "#6A6560", "role": "neutral",   "cmyk": [52, 47, 52, 16], "pantone": "417 C" }
+    },
+    "type": {
+      "families": {
+        "display": { "family": "Fraunces", "google": true, "weights": [500, 700], "fallback": "Georgia,serif" },
+        "text":    { "family": "Public Sans", "google": true, "weights": [400, 600], "fallback": "Helvetica,Arial,sans-serif" }
+      },
+      "scale": [
+        { "name": "Display", "family": "display", "size": 46, "leading": 52, "weight": 700, "sample": "Un parc, deux rives" },
+        { "name": "H1", "family": "display", "size": 32, "leading": 38, "weight": 700, "sample": "Découvrir les gorges" },
+        { "name": "H2", "family": "display", "size": 23, "leading": 29, "weight": 500, "sample": "Sentiers et refuges" },
+        { "name": "H3", "family": "text", "size": 18, "leading": 24, "weight": 600, "sample": "Horaires d’ouverture" },
+        { "name": "Body", "family": "text", "size": 17, "leading": 28, "weight": 400, "sample": "Le parc s’étend sur quatre-vingt mille hectares de part et d’autre de la rivière." },
+        { "name": "Small", "family": "text", "size": 14, "leading": 21, "weight": 400, "sample": "Baignade interdite en amont du barrage." },
+        { "name": "Caption", "family": "text", "size": 12, "leading": 17, "weight": 600, "tracking": 0.08, "sample": "PARC DU VERDON" }
+      ]
+    }
+  },
+  "rules": {
+    "lockups": ["horizontal", "stacked", "mark", "wordmark"],
+    "colourways": [
+      { "name": "gorge",   "on": "calcaire", "slots": { "ink": "#1E4D4A" } },
+      { "name": "inverse", "on": "gorge",    "slots": { "ink": "#F3F1EA" } },
+      { "name": "mono",    "on": "calcaire", "slots": { "ink": "#000000" } }
+    ],
+    "accessibility": { "standard": "WCAG 2.2 AA" },
+    "formats": ["svg", "png"],
+    "pngWidths": [512, 1024],
+    "naming": "{brand}-{lockup}-{colourway}"
+  },
+  "system": {
+    "grid": { "unit": 12, "box": 240, "note": "Vingt unités de côté. Les versants à trois et dix-sept unités, la rivière au milieu." }
+  },
+  "content": {
+    "positioning": "Le Verdon est un parc naturel régional de quatre-vingt mille hectares.",
+    "markRationale": "Les deux versants de la gorge et la rivière qui passe entre eux.",
+    "constructionNotes": "Vingt unités de côté. Chaque point est un multiple du module."
+  }
+}

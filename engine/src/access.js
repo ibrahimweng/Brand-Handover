@@ -110,6 +110,58 @@ function chromeContrast(css, { minTextRatio = null } = {}) {
 
 const TAGS = (html, tag) => [...String(html).matchAll(new RegExp(`<${tag}\\b[^>]*>`, 'gi'))].map((m) => m[0]);
 
+// Whether the document is written in the language it says it is.
+//
+// The twenty-ninth round checked that a language was declared and never asked
+// whether it was true. Maayan's manual carried lang="he" dir="rtl" around 988
+// English words and twenty-one Hebrew ones, so a speech synthesiser was told to
+// read English in Hebrew — which is worse than saying nothing, because it is
+// said with confidence. Counting scripts is a coarse test and it is the one that
+// catches this: a page whose prose is almost entirely in a script its declared
+// language does not use is not in that language.
+const SCRIPTS = [
+  { name: 'latin', re: /[A-Za-z\u00C0-\u024F]/g, langs: /^(en|fr|de|es|it|pt|nl|da|sv|no|fi|pl|cs|tr|cy|ga|gd|is|hu|ro|hr|sl|sk|lt|lv|et|vi|id|ms|sw|af|eu|ca|gl)$/ },
+  { name: 'hebrew', re: /[\u0590-\u05FF]/g, langs: /^(he|yi)$/ },
+  { name: 'arabic', re: /[\u0600-\u06FF]/g, langs: /^(ar|fa|ur)$/ },
+  { name: 'cyrillic', re: /[\u0400-\u04FF]/g, langs: /^(ru|uk|bg|sr|mk|be|kk)$/ },
+  { name: 'greek', re: /[\u0370-\u03FF]/g, langs: /^el$/ },
+  { name: 'cjk', re: /[\u3040-\u30FF\u4E00-\u9FFF]/g, langs: /^(ja|zh|ko)$/ },
+];
+
+// Text that carries no lang of its own, so the document's claim applies to it.
+function unmarkedText(html) {
+  let s = String(html)
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<svg[\s\S]*?<\/svg>/gi, ' ');
+  // Drop every element that names its own language, with its content — but not
+  // <html>, whose declaration is the claim being tested rather than an exception
+  // to it. Stripping that first left three characters of text and the check
+  // returned "too little prose to judge" on every page in the repository.
+  for (let i = 0; i < 8; i++) {
+    const next = s.replace(/<(?!html\b|body\b)(\w+)[^>]*\slang="[^"]*"[^>]*>[\s\S]*?<\/\1>/gi, ' ');
+    if (next === s) break;
+    s = next;
+  }
+  return s.replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/gi, ' ');
+}
+
+function language(html) {
+  const decl = /<html[^>]*\slang="([^"]*)"/.exec(html);
+  if (!decl) return null;
+  const lang = decl[1].toLowerCase().split(/[-_]/)[0];
+  const text = unmarkedText(html);
+  const counts = SCRIPTS.map((sc) => ({ name: sc.name, langs: sc.langs,
+    n: (text.match(sc.re) || []).length }));
+  const total = counts.reduce((a, c) => a + c.n, 0);
+  if (total < 200) return null;                    // too little prose to judge
+  const top = counts.slice().sort((a, b) => b.n - a.n)[0];
+  const mine = counts.find((c) => c.langs.test(lang));
+  const share = mine ? mine.n / total : 0;
+  return { lang, total, top: top.name, topShare: Number((top.n / total).toFixed(3)),
+    ownShare: Number(share.toFixed(3)), ok: share >= 0.5 };
+}
+
 function structure(html) {
   const found = [];
   const levels = [...html.matchAll(/<h([1-6])\b/g)].map((m) => Number(m[1]));
@@ -162,6 +214,18 @@ function structure(html) {
       why: 'A positive tabindex takes an element out of the document order and puts it in front of everything '
         + 'else, so the keyboard order stops matching the reading order for the whole page.',
       how: 'Use 0, or nothing at all, and order the markup the way it should be read.' });
+  }
+  const lg = language(html);
+  if (lg && !lg.ok) {
+    found.push({ code: 'langWrong', level: 'blocker',
+      what: `the page says it is in ${lg.lang} and ${Math.round(lg.topShare * 100)} per cent of the text on it `
+        + `that carries no language of its own is ${lg.top}.`,
+      why: 'A speech synthesiser told the page is in one language and handed another reads it with that '
+        + "language's sounds, which is worse than being told nothing at all — it is said with confidence. And "
+        + 'a right to left document made of left to right prose is laid out backwards: headings against the '
+        + 'wrong edge, section numbers after their titles.',
+      how: 'A document is in the language it is written in. Set that on the page, and put the language of '
+        + 'anything else — the brand\'s name, its own words, a sample of its type — on those elements.' });
   }
   if (!/<html[^>]*\slang=/.test(html)) {
     found.push({ code: 'lang', level: 'warning',
@@ -256,4 +320,4 @@ function statement(result, { brand, standard = 'WCAG 2.2 AA' } = {}) {
   return L.join('\n');
 }
 
-module.exports = { audit, chromeContrast, structure, pageGround, themes, textRules, statement, needs, isLarge };
+module.exports = { audit, chromeContrast, structure, pageGround, language, unmarkedText, themes, textRules, statement, needs, isLarge };

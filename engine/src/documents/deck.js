@@ -269,7 +269,9 @@ function deck(ctx) {
     text: `'${((p.tokens.type || {}).families || {}).text?.family || 'Georgia'}',Georgia,serif`,
   };
   const { fontLink } = require('./chrome');
-  return `<!doctype html><html lang="${b.esc(p.language || 'en')}" dir="${b.esc(p.direction || 'ltr')}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  // The deck is in the language it is written in, like the manual beside it.
+  const L = require('../strings').resolve(p);
+  return `<!doctype html><html lang="${b.esc(L.lang)}" dir="${b.esc(L.dir)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${b.esc(p.brand)} Brand Deck</title>
 ${fontLink(p.tokens.type, p.fonts)}
 <style>${CSS(t)}</style></head><body>

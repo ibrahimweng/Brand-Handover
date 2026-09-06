@@ -1328,6 +1328,18 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       if (f.level === 'blocker') { const e = new Error(f.what); e.findings = [Object.assign({}, f, { what: line })]; throw e; }
       warnings.push(line);
     }
+    // A project in a language the engine cannot write gets an English document
+    // that says so, rather than an English document pretending to be in theirs.
+    const L = require('./strings').resolve(project);
+    if (!L.speaksBrand) {
+      warnings.push(`this identity is in ${L.brandLang} and its documents are written in ${L.name}. `
+        + `They say so: the page carries lang="${L.lang}" and ${project.brand}'s own words carry `
+        + `lang="${L.brandLang}"${L.brandDir !== L.dir ? ` dir="${L.brandDir}"` : ''}, which is what stops a `
+        + 'reader being told the whole document is in a language it is not — and, before the thirtieth round, '
+        + `stopped ${L.brandDir === 'rtl' ? 'an English manual being laid out right to left' : 'a page claiming a language it does not write'}. `
+        + `The engine writes ${L.available.join(' and ')}; adding ${L.brandLang} is a block of strings in `
+        + 'src/strings.js and nothing else.');
+    }
     write('ACCESSIBILITY.txt', ACC.statement(acc, { brand: project.brand,
       standard: (rules.accessibility || {}).standard || 'WCAG 2.2 AA' }));
     if (!acc.findings.length) {

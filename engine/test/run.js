@@ -2683,19 +2683,29 @@ test('a brand not named in a-z can be built at all', () => {
 });
 
 test('a document says what language it is in and which way it reads', () => {
-  // every one of the four declared itself English and laid itself out left to
-  // right, whatever was in it: a Hebrew manual told a screen reader to say
-  // Hebrew in an English voice.
+  // The seventh round made every document declare the brand's language, because
+  // all four declared English whatever was in them. That was half right and the
+  // wrong half: the manual is in English *about* a Hebrew brand, so declaring
+  // Hebrew told a screen reader to read 988 English words in a Hebrew voice and
+  // laid the whole page out right to left. The document carries the language it
+  // is written in; the brand's own words carry the brand's. See src/strings.js.
   assert.strictEqual(MY.language, 'he');
-  assert.strictEqual(MY.direction, 'rtl');       // derived, not stated
+  assert.strictEqual(MY.direction, 'rtl');       // still derived, still available
   const docs = require('../src/documents');
   const { deck } = require('../src/documents/deck');
   const emit = require('../src/editor/emit');
   const ctx = docs.context(MY, myM, [], {});
   for (const html of [docs.guidelines(ctx), deck(ctx), emit.editorHtml(MY, myM, [])]) {
     const tag = (/<html[^>]*>/.exec(html) || [])[0];
-    assert.ok(/lang="he"/.test(tag) && /dir="rtl"/.test(tag), `a document says ${tag}`);
+    assert.ok(/lang="en"/.test(tag) && /dir="ltr"/.test(tag), `a document says ${tag}`);
   }
+  // and the brand's own name is marked as its own, which is what makes both true
+  assert.ok(/lang="he"[^>]*dir="rtl"|dir="rtl"[^>]*lang="he"/.test(docs.guidelines(ctx)),
+    "the brand's own words are not marked as Hebrew");
+  // an identity in a language the engine writes gets a document in it
+  const VD = projectLoader.load(path.join(__dirname, '..', 'projects', 'verdon', 'project.json'));
+  const vtag = (/<html[^>]*>/.exec(docs.guidelines(docs.context(VD, measure(VD), [], {}))) || [])[0];
+  assert.ok(/lang="fr"/.test(vtag), `Verdon says ${vtag}`);
   // and the six that were already right are still right
   for (const p of [project, HAL, KV, HW, NL, PG]) {
     assert.strictEqual(p.language, 'en');
@@ -6151,9 +6161,100 @@ test('the asset index counts the file, like every other file', () => {
   assert.strictEqual(brand.generated.files, onDisk);
 });
 
+
+// ---------------------------------------------------------------------------
+console.log('\nwhat language the document is in');
+const STR = require('../src/strings');
+const VERD = path.join(__dirname, '..', 'projects', 'verdon', 'project.json');
+const verdon = projectLoader.load(VERD);
+let verdOut, maayOut;
+before(async () => {
+  verdOut = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-verd-'));
+  await build(verdon, verdOut);
+  maayOut = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-maay-'));
+  await build(projectLoader.load(path.join(__dirname, '..', 'projects', 'maayan', 'project.json')), maayOut);
+});
+
+test('a document is in the language it is written in, not the one it is about', () => {
+  const en = STR.resolve({ language: 'en' });
+  const fr = STR.resolve({ language: 'fr' });
+  const he = STR.resolve({ language: 'he', direction: 'rtl' });
+  assert.strictEqual(fr.lang, 'fr');
+  assert.strictEqual(he.lang, 'en', 'a Hebrew brand got a document claiming to be in Hebrew');
+  assert.strictEqual(he.dir, 'ltr', 'an English document was laid out right to left');
+  assert.strictEqual(he.brandLang, 'he');
+  assert.strictEqual(he.brandDir, 'rtl');
+  assert.ok(en.speaksBrand && fr.speaksBrand && !he.speaksBrand);
+});
+test('every string the English set has, the French set has too', () => {
+  const missing = Object.keys(STR.EN).filter((k) => STR.FR[k] === undefined);
+  assert.deepStrictEqual(missing, [], 'a French document would fall back to English mid-sentence');
+  // and nothing has been left as its key
+  for (const k of Object.keys(STR.EN)) assert.notStrictEqual(STR.FR[k], k);
+});
+test('a French identity gets a French document', () => {
+  const html = fs.readFileSync(path.join(verdOut, 'guidelines.html'), 'utf8');
+  assert.ok(/<html[^>]*lang="fr"/.test(html));
+  for (const phrase of ['Charte graphique', 'Zone de protection', 'Taille minimale',
+    'Tracé par le système', 'Ce que contient le dossier', 'Contraste et accessibilité']) {
+    assert.ok(html.indexOf(phrase) > -1, `missing: ${phrase}`);
+  }
+  // and no English chapter title survived
+  for (const stale of ['>Clear space<', '>Minimum size<', '>Colour<', '>Typography<', '>Assets<']) {
+    assert.ok(html.indexOf(stale) < 0, `English left in a French document: ${stale}`);
+  }
+});
+test('a language the engine cannot write gets an English document that says so', () => {
+  for (const f of ['guidelines.html', 'deck.html', 'published.html']) {
+    const html = fs.readFileSync(path.join(maayOut, f), 'utf8');
+    assert.ok(/<html[^>]*lang="en"/.test(html), `${f} still claims a language it is not in`);
+    assert.ok(!/<html[^>]*dir="rtl"/.test(html), `${f} lays an English document out right to left`);
+  }
+  // the brand's own words carry the brand's language
+  const g = fs.readFileSync(path.join(maayOut, 'guidelines.html'), 'utf8');
+  assert.ok(/lang="he"/.test(g), "the brand's own name is not marked as Hebrew");
+  assert.ok(/dir="rtl"/.test(g), "the brand's own name is not marked as right to left");
+});
+test('the language check catches a page that claims what it is not', () => {
+  const ACC2 = require('../src/access');
+  const real = fs.readFileSync(path.join(maayOut, 'guidelines.html'), 'utf8');
+  assert.strictEqual(ACC2.language(real).ok, true);
+  // the page exactly as it shipped for twenty-nine rounds
+  const was = real.replace('lang="en"', 'lang="he"');
+  const got = ACC2.language(was);
+  assert.strictEqual(got.ok, false);
+  assert.strictEqual(got.top, 'latin');
+  assert.ok(got.total > 1000, `only ${got.total} characters of prose were found`);
+  const f = ACC2.structure(was).find((x) => x.code === 'langWrong');
+  assert.ok(f && f.level === 'blocker', 'a page in the wrong language is not a blocker');
+  for (const k of ['what', 'why', 'how']) assert.ok(f[k].length > 20);
+});
+test('the check reads the document\'s own claim rather than stripping it', () => {
+  // The first version dropped every element carrying a lang, <html> included,
+  // and was left with three characters of text on every page in the repository.
+  const ACC2 = require('../src/access');
+  const t = ACC2.unmarkedText(fs.readFileSync(path.join(verdOut, 'guidelines.html'), 'utf8'));
+  assert.ok(t.length > 2000, `only ${t.length} characters survived the strip`);
+  // and text that does carry its own language is not counted against the page
+  const mixed = '<html lang="en"><body><p>' + 'the quick brown fox '.repeat(40)
+    + '<span lang="he">שלום שלום שלום</span></p></body></html>';
+  assert.strictEqual(ACC2.language(mixed).ok, true);
+});
+test('every identity in the repo says what it is in, and means it', () => {
+  const ACC2 = require('../src/access');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-lang-'));
+  return build(project, dir).then(() => {
+    for (const f of ['guidelines.html', 'deck.html', 'published.html']) {
+      const got = ACC2.language(fs.readFileSync(path.join(dir, f), 'utf8'));
+      assert.ok(!got || got.ok, `${f}: ${JSON.stringify(got)}`);
+    }
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+});
+
 drain().then(() => {
 
-  for (const d of [out, out2, tbOut, kilnOut, orielOut, ancOut, harbOut, farneOut, rookOut]) if (d) fs.rmSync(d, { recursive: true, force: true });
+  for (const d of [out, out2, tbOut, kilnOut, orielOut, ancOut, harbOut, farneOut, rookOut, verdOut, maayOut]) if (d) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);
   process.exit(failed ? 1 : 0);
 });

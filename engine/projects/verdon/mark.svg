@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Verdon : les gorges. Deux versants et la rivière entre eux.
+     Module de douze unités, vingt unités de côté. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+  <g data-slot="ink" fill="none" stroke="#1E4D4A" stroke-width="16" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M36 36 V144 L96 204"/>
+    <path d="M204 36 V144 L144 204"/>
+    <path data-pattern="source" d="M96 108 C120 132, 120 132, 144 108"/>
+  </g>
+</svg>

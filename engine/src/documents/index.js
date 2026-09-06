@@ -125,6 +125,9 @@ function context(project, measured, files, brandJson) {
   // The brands inside the brand, composed the way the build composes them, from
   // the same module, so the manual and the package cannot disagree.
   const familyRule = require('../family').rules(project);
+  // The language the document is written in, which is not the same question as
+  // the language the brand is in. See src/strings.js.
+  const L = require('../strings').resolve(project);
   const family = (project.family || []).length ? (() => {
     const FAM = require('../family');
     const SN = require('../setname');
@@ -157,70 +160,76 @@ function context(project, measured, files, brandJson) {
     ? { since: project.previous.version.text,
         entries: require('../previous').compare(project.previous.data, brandJson) }
     : null;
-  return { project, sets: project.sets || null, measured, colours, roles, primary, ground, accent, primaryColourway, noun, system, pattern, hasSystem, changes, floors, pairs, ladder, fabrication, familyRule, family,
+  return { project, sets: project.sets || null, measured, colours, roles, primary, ground, accent, primaryColourway, noun, system, pattern, hasSystem, changes, floors, pairs, ladder, fabrication, familyRule, family, L,
     partnerRule: typeof partnerRule === 'undefined' ? null : partnerRule,
     variants, variantFor, files, brandJson, contrast: contrast.matrix(colours),
     content: project.content || {} };
 }
 
-const BADGE = { system: '<span class="badge">Drawn by the system</span>',
-                once: '<span class="badge once">Set once by you</span>',
-                yours: '<span class="badge yours">Yours</span>' };
+const badges = (L) => ({
+  system: `<span class="badge">${b.esc(L.t('badgeSystem'))}</span>`,
+  once: `<span class="badge once">${b.esc(L.t('badgeOnce'))}</span>`,
+  yours: `<span class="badge yours">${b.esc(L.t('badgeYours'))}</span>`,
+});
+const BADGE = badges(require('../strings').resolve({}));
 
-const sec = (n, title, who, body) =>
-  `<div class="sec"><div class="sech"><h3><i>${n}</i>${b.esc(title)}</h3>${BADGE[who]}</div>${body}</div>`;
+const sec = (n, title, who, body, L) =>
+  `<div class="sec"><div class="sech"><h3><i>${n}</i>${b.esc(title)}</h3>`
+  + `${(L ? badges(L) : BADGE)[who]}</div>${body}</div>`;
 const chapter = (n, title, body) =>
   `<section class="chapter"><p class="chno">${n}</p><h2>${b.esc(title)}</h2>${body}</section>`;
-const words = (t) => (t ? `<p class="note">${b.esc(t)}</p>` : '');
+const words = (t, ctx) => (t ? `<p class="note">${ctx ? b.own(ctx, t) : b.esc(t)}</p>` : '');
 
 // ------------------------------------------------------------------ manual
 function guidelines(ctx) {
   const c = ctx.content, p = ctx.project;
+  const T = (k, v) => ctx.L.t(k, v);
+  const S = (n, title, who, body) => sec(n, title, who, body, ctx.L);
   const body = `
   <header class="mast">
-    <p class="eyebrow">Brand manual · generated from one master file</p>
-    <h1>${b.esc(p.brand)} brand manual</h1>
-    <p class="sub">${b.esc(c.positioning || '')} ${b.esc(c.introduction || '')}</p>
+    <p class="eyebrow">${b.esc(ctx.L.t('eyebrow'))}</p>
+    <h1>${ctx.L.t('manualTitle', { brand: '\u0000' }).split('\u0000').map(b.esc).join(b.own(ctx, p.brand))}</h1>
+    <p class="sub">${b.own(ctx, `${c.positioning || ''} ${c.introduction || ''}`.trim())}</p>
   </header>
 
-  ${ctx.changes ? chapter('00', `What changed since ${ctx.changes.since}`,
-      sec('0.1', 'Read this first', 'system', b.changes(ctx))) : ''}
+  ${ctx.changes ? chapter('00', T('chChanges', { version: ctx.changes.since }),
+      S('0.1', T('secReadFirst'), 'system', b.changes(ctx))) : ''}
 
-  ${chapter('01', ctx.noun === 'mark' ? 'The mark' : 'The logotype',
-      sec('1.1', ctx.noun === 'mark' ? 'The primary mark' : 'The logotype', 'system', b.markSpecimen(ctx) + words(c.markRationale)) +
-      sec('1.2', 'Construction', 'system', b.construction(ctx) + words(c.constructionNotes)) +
-      sec('1.3', 'Clear space', 'system', b.clearSpace(ctx)) +
-      sec('1.4', 'Minimum size', 'system', b.minimumSize(ctx)) +
+  ${chapter('01', T(ctx.noun === 'mark' ? 'chMark' : 'chLogotype'),
+      S('1.1', T(ctx.noun === 'mark' ? 'secPrimaryMark' : 'secPrimaryLogotype'), 'system', b.markSpecimen(ctx) + words(c.markRationale, ctx)) +
+      S('1.2', T('secConstruction'), 'system', b.construction(ctx) + words(c.constructionNotes, ctx)) +
+      S('1.3', T('secClearSpace'), 'system', b.clearSpace(ctx)) +
+      S('1.4', T('secMinimumSize'), 'system', b.minimumSize(ctx)) +
       // A floor says how small one drawing goes. Where an identity has said what
       // happens below it, that is the next thing the reader needs and it goes
       // straight after the number it answers.
-      (ctx.ladder ? sec('1.5', 'The mark at every size', 'once', b.ladderBlock(ctx)) : '') +
+      (ctx.ladder ? S('1.5', T('secEverySize'), 'once', b.ladderBlock(ctx)) : '') +
       (() => { let n = ctx.ladder ? 6 : 5;
-        return sec(`1.${n++}`, 'The lockup system', 'system', b.lockups(ctx))
-          + (ctx.pairs.length ? sec(`1.${n++}`, 'Partner lockups', 'once', b.partnerLockups(ctx)) : '')
-          + sec(`1.${n}`, 'Misuse', 'system', b.misuse(ctx)); })())}
+        return S(`1.${n++}`, T('secLockups'), 'system', b.lockups(ctx))
+          + (ctx.pairs.length ? S(`1.${n++}`, T('secPartners'), 'once', b.partnerLockups(ctx)) : '')
+          + S(`1.${n}`, T('secMisuse'), 'system', b.misuse(ctx)); })())}
 
-  ${chapter('02', 'Colour',
-      sec('2.1', 'The palette', 'system', b.palette(ctx) + words(c.colourRationale)) +
+  ${chapter('02', T('chColour'),
+      S('2.1', T('secPalette'), 'system', b.palette(ctx) + words(c.colourRationale, ctx)) +
       // only where the artwork has one, so ten projects without a gradient get
       // no empty section and the numbering does not shift under them
-      (b.gradientSpec(ctx) ? sec('2.2', 'The gradient', 'system', b.gradientSpec(ctx)) : '') +
-      sec(b.gradientSpec(ctx) ? '2.3' : '2.2', 'Contrast and accessibility', 'system', b.contrastTable(ctx)) +
+      (b.gradientSpec(ctx) ? S('2.2', T('secGradient'), 'system', b.gradientSpec(ctx)) : '') +
+      sec(b.gradientSpec(ctx) ? '2.3' : '2.2', T('secContrast'), 'system', b.contrastTable(ctx)) +
       // A ratio of luminance answers whether text can be read on a ground, and
       // nothing in twenty-three packages asked whether two of these colours can
       // be told from each other.
-      sec(b.gradientSpec(ctx) ? '2.4' : '2.3', 'Colour vision', 'system', b.colourVision(ctx)))}
+      sec(b.gradientSpec(ctx) ? '2.4' : '2.3', T('secColourVision'), 'system', b.colourVision(ctx)))}
 
-  ${chapter('03', 'Typography',
-      sec('3.1', 'The typefaces', 'system', b.typeSpecimen(ctx) + words(c.typeRationale)) +
-      sec('3.2', 'The scale', 'system', b.typeScale(ctx)))}
+  ${chapter('03', T('chType'),
+      S('3.1', T('secTypefaces'), 'system', b.typeSpecimen(ctx) + words(c.typeRationale, ctx)) +
+      S('3.2', T('secScale'), 'system', b.typeScale(ctx)))}
 
   ${(() => {
     // One chapter for the rule blocks, numbered around whichever of them this
     // project has. A section only where there is something to show.
     const parts = [
-      ['The pattern', b.patternSpec(ctx)],
-      ['Photography', b.photographySpec(ctx)],
+      [T('secPattern'), b.patternSpec(ctx)],
+      [T('secPhotography'), b.photographySpec(ctx)],
       // Only where there will be icons. Two projects shipped a chapter
       // specifying the icon grid — box, stroke, curve radius, the lot — into a
       // package with no icons in it, because the sizes to write were the one
@@ -230,14 +239,14 @@ function guidelines(ctx) {
       // Asked of the rules, not of the file list handed in: gating a chapter on
       // a parameter a caller can forget to pass is how a document loses a
       // chapter silently, which is the thing being fixed.
-      ['The icon grid', b.willWriteIcons(ctx) && b.iconSpec(ctx)],
-      ['Motion', b.motionSpec(ctx)],
+      [T('secIconGrid'), b.willWriteIcons(ctx) && b.iconSpec(ctx)],
+      [T('secMotion'), b.motionSpec(ctx)],
       // The sequence, playing, on the page that specifies it.
-      ['The ident', b.motionBuild(ctx)],
+      [T('secIdent'), b.motionBuild(ctx)],
     ].filter(([, body]) => body);
     if (!parts.length) return '';
-    return chapter('04', 'The system',
-      parts.map(([title, body], i) => sec(`4.${i + 1}`, title, 'once', body)).join(''));
+    return chapter('04', T('chSystem'),
+      parts.map(([title, body], i) => S(`4.${i + 1}`, title, 'once', body)).join(''));
   })()}
 
   ${(() => {
@@ -245,25 +254,29 @@ function guidelines(ctx) {
     // are counted rather than written down in four places.
     const madeAs = !!(ctx.fabrication && ctx.fabrication.length);
     let n = ctx.hasSystem ? 5 : 4;
-    const kin = ctx.family && ctx.family.length ? chapter(`0${n}`, 'The brands inside it',
-      sec(`${n++}.1`, 'Sub-brands', 'once', b.familyBlock(ctx))) : '';
-    const making = madeAs ? chapter(`0${n}`, 'Making it',
-      sec(`${n++}.1`, 'What it is made as', 'once', b.fabrication(ctx))) : '';
+    const kin = ctx.family && ctx.family.length ? chapter(`0${n}`, T('chFamily'),
+      S(`${n++}.1`, T('secSubBrands'), 'once', b.familyBlock(ctx))) : '';
+    const making = madeAs ? chapter(`0${n}`, T('chMaking'),
+      S(`${n++}.1`, T('secMadeAs'), 'once', b.fabrication(ctx))) : '';
     return `${kin}${making}
 
-  ${chapter(`0${n}`, 'Assets',
-      sec(`${n}.1`, 'What is in the package', 'system', b.assetIndex(ctx)) +
-      sec(`${n}.2`, 'The machine readable file', 'system',
-        `<p class="note">Shipped beside this page so the client's own tools can read the brand instead of guessing at it.</p>` + b.brandJsonBlock(ctx)))}`;
+  ${chapter(`0${n}`, T('chAssets'),
+      S(`${n}.1`, T('secInPackage'), 'system', b.assetIndex(ctx)) +
+      S(`${n}.2`, T('secMachineFile'), 'system',
+        `<p class="note">${b.esc(T('machineNote'))}</p>` + b.brandJsonBlock(ctx)))}`;
   })()}
 
   <footer>
-    Every measurement on this page was read off ${b.esc(require('path').basename(require('../project').masterOf(p).path))} when the package was built. None of it was typed in.<br>
-    Contrast ratios follow WCAG 2.2. CMYK is converted from hex and should be soft proofed against an ICC profile before print.<br>
-    ${b.esc(p.brand)} ${b.esc(p.version)} · ${ctx.files.length} files in the package.
+    ${b.esc(ctx.L.t('footerMeasured', { master: require('path').basename(require('../project').masterOf(p).path) }))}<br>
+    ${b.esc(ctx.L.t('footerContrast'))}<br>
+    ${ctx.L.t('footerFiles', { brand: '\u0000', version: b.esc(p.version), n: ctx.files.length })
+      .split('\u0000').map(b.esc).join(b.own(ctx, p.brand))}
   </footer>`;
-  return shell({ title: `${p.brand} Brand Manual`, type: p.tokens.type, fonts: p.fonts, body,
-    language: p.language, direction: p.direction });
+  // The document's language is the language it is written in, not the language
+  // of the brand it is about. Maayan's manual was 988 English words under
+  // lang="he" dir="rtl", so the whole of it was laid out right to left.
+  return shell({ title: ctx.L.t('manualTitle', { brand: p.brand }), type: p.tokens.type,
+    fonts: p.fonts, body, language: ctx.L.lang, direction: ctx.L.dir });
 }
 
 module.exports = { context, guidelines, sec, chapter, BADGE, words };

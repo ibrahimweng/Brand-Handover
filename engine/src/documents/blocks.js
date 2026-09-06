@@ -335,6 +335,21 @@ function floorTable(ctx) {
     <p class="note">A minimum size belongs to a drawing, and there are ${ctx.project.rules.lockups.length} of them in this package. Use the figure for the folder the file came out of, not the one above it${over.length ? `: ${over.length === 1 ? 'one of them does' : `${over.length} of them do`} not hold at ${esc(geo.floorText(ctx.measured.minimumSize, 'px'))} — a lockup sets the name beside the mark at a fraction of its height, so it is wider than the mark and its finest part is finer, and both put the floor up` : ''}.</p>`;
 }
 
+// The brand's own words, in the brand's own language.
+//
+// A manual is written in one language and is about a brand that may be in
+// another. The document carries the language it is written in; the brand's name,
+// its positioning, its rationale and the samples in its type scale carry the
+// brand's — which is what makes both claims true, and what stops an English
+// paragraph being laid out right to left because the brand is Hebrew.
+function own(ctx, text) {
+  if (text == null || text === '') return '';
+  const L = ctx.L;
+  if (!L || L.speaksBrand) return esc(text);
+  return `<span lang="${esc(L.brandLang)}"${L.brandDir && L.brandDir !== L.dir
+    ? ` dir="${esc(L.brandDir)}"` : ''}>${esc(text)}</span>`;
+}
+
 // Which drawing at which size.
 //
 // Every manual this engine has written printed a minimum size and stopped
@@ -876,5 +891,5 @@ function changes(ctx) {
     + `</p><div class="chgs">${breaking.map(row).join('')}${news.map(row).join('')}</div>`;
 }
 
-module.exports = { TXT, esc, changes, floorTable, partnerLockups, colourVision, ladderBlock, fabrication, familyBlock, motionBuild, inked, gradientSpec, inksOf, patternSpec, photographySpec, iconSpec, willWriteIcons, motionSpec, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, markSpecimen, lockupRow, construction, clearSpace,
+module.exports = { TXT, esc, own, changes, floorTable, partnerLockups, colourVision, ladderBlock, fabrication, familyBlock, motionBuild, inked, gradientSpec, inksOf, patternSpec, photographySpec, iconSpec, willWriteIcons, motionSpec, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, markSpecimen, lockupRow, construction, clearSpace,
   minimumSize, lockups, misuse, palette, contrastTable, typeSpecimen, typeScale, assetIndex, brandJsonBlock };

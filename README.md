@@ -842,6 +842,25 @@ documents are held to. Every package now carries `ACCESSIBILITY.txt` — what wa
 checked, what it measured, what it came to — written by measuring the pages
 beside it rather than describing them.
 
+The thirtieth found the engine declaring a language it does not write in.
+**Maayan's manual carried `lang="he" dir="rtl"` around 988 English words and
+twenty-one Hebrew ones** — so the whole English document was laid out right to
+left, headings against the wrong edge and section numbers after their titles. The
+twenty-ninth round made it worse rather than better: it checked that a language
+was *declared* and never asked whether it was *true*, and a synthesiser told a
+page is Hebrew and handed English reads gibberish with confidence.
+
+The language of a document is the language it is **written in**. The brand's
+language belongs to the brand's own words. Those are two different things and the
+engine had one field for both. `src/strings.js` holds the chrome in one place, one
+language at a time: **Verdon** is a French regional park and its manual is a
+French document. A language the engine cannot write gets an English document that
+says so, with the brand's own name and words marked as the brand's — which is the
+honest answer and the one a screen reader can act on.
+
+The check that would have caught it is now in the audit, and the seventh round's
+test is rewritten rather than deleted: it was half right and the wrong half.
+
 Still to do: a run on **your** identity job. Twenty identities the engine had
 not seen is worth a great deal more than twenty passes over one, but none of
 them came out of your exporter — and the normaliser is the part that most needs

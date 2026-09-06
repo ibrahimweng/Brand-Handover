@@ -1498,6 +1498,22 @@ will agree with itself all day; a browser rendering the actual page disagreed
 immediately. Where a real environment can be asked, ask it, even when the maths
 is not in doubt.
 
+**One field for two things is the commonest way a codebase lies.** The project
+said `language: "he"` and the engine used it for the document's language, because
+there was only one field and it had a plausible name. A brand's language and the
+language of a manual about that brand are different facts that happen to be equal
+most of the time — which is exactly the condition under which a single field
+survives for twenty-three rounds. When a value is used in two places, ask whether
+those two places are asking the same question.
+
+**Declaring a thing correctly makes a false claim worse, not better.** For
+twenty-two rounds the manual said nothing about its language and a reader's
+software guessed — usually right. The seventh round fixed that by declaring the
+brand's language, and the declaration was wrong, so software that had been
+guessing correctly was overruled by an authoritative error. Metadata is only an
+improvement on silence when it is true; the check that it is *present* is not the
+check that matters.
+
 ---
 
 Prior art checked September 2026: Logo Package Express, Standards, Brandpad,

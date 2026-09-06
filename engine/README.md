@@ -141,6 +141,16 @@ produced, and the build reports what moved between them:
       previous/
         brand.json      copied out of the package that shipped as 1.4.0
 
+An identity states its own language, and the documents are written in whichever
+language the engine has strings for:
+
+    "language": "fr"
+
+`src/strings.js` holds the chrome. Where the two match, the document is in the
+brand's language. Where they do not, the document carries the language it is
+written in and the brand's own words carry theirs — and the build says which
+language it wrote in and what it would take to add another.
+
 An identity can state the standard its documents are held to:
 
     "accessibility": { "standard": "WCAG 2.2 AA" }
@@ -2821,6 +2831,49 @@ are named in it as excluded and why, rather than quietly left out. And the canva
 is named as an application rather than a document, whose own accessibility is a
 separate question this package does not claim an answer to.
 
+## A thirtieth identity
+
+A project states its language, and the engine has read it since the seventh
+round — for `lang` and `dir` on the document, which is exactly right if the
+document is in that language. It is not.
+
+**Maayan's manual carried `lang="he" dir="rtl"` around 988 English words and
+twenty-one Hebrew ones.** The whole of it was laid out right to left: headings
+against the wrong edge, section numbers after their titles, an eyebrow reading
+from the wrong end. And the twenty-ninth round made it worse rather than better,
+because it checked that a language was *declared* and never asked whether it was
+*true*. A speech synthesiser told a page is Hebrew and handed English words reads
+gibberish with more confidence than one told nothing at all.
+
+The language of a document is the language it is **written in**. The brand's
+language belongs to the brand's own words — its name, its positioning, the
+samples in its type scale. Those are two different things and the engine had one
+field for both.
+
+    <html lang="en" dir="ltr">
+      …
+      <h1><span lang="he" dir="rtl">מעיין</span> brand manual</h1>
+
+`src/strings.js` holds the chrome, in one place, one language at a time. A
+project whose language the engine can write gets a document in it: **Verdon** is
+a French regional park and its manual is a French document, from *Charte
+graphique* on the masthead to *Zone de protection* and *Tracé par le système*. A
+project whose language it cannot write gets an English document that says so, in
+the build and on the page, with the brand's own words marked as the brand's —
+which is the honest answer and the one a screen reader can act on. Adding a
+language is a block of strings and nothing else.
+
+`src/access.js` gained the check that would have caught it: sample the prose that
+carries no language of its own, count the scripts in it, and refuse a page whose
+declared language does not match what is actually written there. Its own first
+version dropped every element carrying a `lang` — `<html>` included, which is the
+claim being tested — and was left with three characters of text on every page in
+the repository.
+
+The seventh round's test is rewritten rather than deleted. It was half right and
+the wrong half: it found four documents declaring English whatever was in them,
+and fixed it by declaring the brand's language on a document written in English.
+
 ## A front door
 
 Sixteen rounds, and the only way into the engine was to hand-write a project
@@ -2944,6 +2997,7 @@ the mechanism. The name was the cause, and renaming the payload is the fix.
     projects/harbourne/ the twenty-seventh: three museums, one mark, one difference each
     projects/farne/   the twenty-eighth: a mark that arrives, in a file that plays it
     projects/rookhope/ the twenty-ninth: the documents the engine writes, measured
+    projects/verdon/  the thirtieth: a French document, because the brand is French
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package

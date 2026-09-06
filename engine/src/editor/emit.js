@@ -157,7 +157,10 @@ h4{margin:0 0 8px;font-size:10px;letter-spacing:.13em;text-transform:uppercase;c
 function editorHtml(project, measured, files) {
   const bu = bundle(project, measured, files);
   const doc = starterDoc(bu);
-  return `<!doctype html><html lang="${esc(project.language || 'en')}" dir="${esc(project.direction || 'ltr')}"><head><meta charset="utf-8">
+  // The canvas is an application, and its chrome is the engine's own words. It
+  // carries the language it is written in, like the documents beside it.
+  const L = require('../strings').resolve(project);
+  return `<!doctype html><html lang="${esc(L.lang)}" dir="${esc(L.dir)}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(bu.brand)} · editor</title>
 ${fontLink(bu)}
