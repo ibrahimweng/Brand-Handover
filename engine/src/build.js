@@ -534,6 +534,30 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       + `${bottom.name === list[1].name ? 'a simpler drawing' : 'simpler drawings'} rather than a smaller one.`);
   }
 
+  // ---- the mark arriving ----
+  //
+  // Twenty-seven identities carried a specification for how the identity
+  // animates, naming parts no artwork had, in packages containing nothing that
+  // moves. See src/motion.js.
+  let motion = null;
+  if ((sys.motion.build || []).length) {
+    const MO = require('./motion');
+    const got = MO.check(sys.motion, masterOf(project).source);
+    for (const f of got.findings) warnings.push(`${f.what} ${f.why} ${f.how}`);
+    for (const colourway of rules.colourways) {
+      const doc = svgu.parse(masterOf(project).source);
+      svgu.applyColourway(doc, colourway.slots);
+      const a = MO.animate(svgu.serialize(doc), sys.motion,
+        { id: `${naming.slug(project.latinName)}-${naming.slug(colourway.name)}` });
+      write(`15-motion/${naming.slug(project.latinName)}-build-${naming.slug(colourway.name)}.svg`, a.svg);
+      if (!motion) motion = { totalMs: a.totalMs, parts: got.parts, ordered: got.ordered };
+    }
+    notes.push(`the mark builds in ${sys.motion.build.length} parts over ${motion.totalMs} ms, and `
+      + `15-motion holds a file that plays it in every colourway. It is one SVG with its own CSS in it: `
+      + `nothing to install, nothing to fetch, and a reader who has asked their machine for less movement `
+      + `gets the finished mark and no animation at all.`);
+  }
+
   // ---- the brands inside the brand ----
   //
   // A sub-brand is the parent's mark and a stated difference, composed here
@@ -1038,6 +1062,15 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
             endorsementCapPx: r.endorsed.read ? r.endorsed.read.capPx : null },
           plain: { file: r.plain.file, screenPx: r.plain.floor.screenPx, printMm: r.plain.floor.printMm } })),
       })) : null,
+      // How the mark arrives, and the file that plays it. It belongs to the
+      // mark rather than to system.motion, which holds the curves and durations
+      // that apply to anything. See src/motion.js.
+      motion: motion ? {
+        totalMs: motion.totalMs, parts: motion.parts,
+        build: motion.ordered.map((b) => ({ part: b.part, how: b.how, from: b.from, to: b.to, ease: b.ease })),
+        files: rules.colourways.map((c) => `15-motion/${naming.slug(project.latinName)}-build-${naming.slug(c.name)}.svg`),
+        reducedMotion: 'the finished mark, with no animation',
+      } : null,
       lockups: rules.lockups,
       colourways: rules.colourways.map((c) => c.name),
       // Half of each of these is not ours. See src/partners.js.
@@ -1197,6 +1230,13 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
         + `${b.to == null ? '' : `, ${b.printFrom}–${b.printTo} mm`}`),
       `                  Below ${ladder.bands[ladder.bands.length - 1].from} px there is nothing. 12-ladder holds the drawings`,
       '                  that are not lockups; icons are cut from the last of them.',
+    ] : []),
+    ...(motion ? [
+      `  The ident        the mark builds in ${motion.ordered.length} parts over ${motion.totalMs} ms:`,
+      ...motion.ordered.map((b) => `                    ${b.part.padEnd(10)} ${b.how.padEnd(7)} `
+        + `${b.from}–${b.to} ms on ${b.ease}`),
+      '                  15-motion holds it in every colourway, as one SVG with its',
+      '                  own CSS in it. Nothing to install and nothing to fetch.',
     ] : []),
     ...(family ? [
       '  The three in it   a sub-brand is the mark and a stated difference: a name',

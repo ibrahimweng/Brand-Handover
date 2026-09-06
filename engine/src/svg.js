@@ -250,6 +250,39 @@ function strokeWidths(doc) {
   return [...found].sort((a, b) => a - b);
 }
 
+// The parts a drawing names. data-slot says what a part is painted from;
+// data-part says what it is when the mark moves. Twenty-seven identities
+// carried a motion specification naming an "outline" and a "fill", and no
+// artwork in any of them named a part at all.
+function partsUsed(doc) {
+  const found = [];
+  eachPainted(doc, (el) => {
+    if (!el.getAttribute) return;
+    const p = el.getAttribute('data-part');
+    if (p && found.indexOf(p) < 0) found.push(p);
+  });
+  return found;
+}
+
+// Whether a named part is drawn as a stroke. A stroke can be made to draw
+// itself and a fill cannot, so this is what decides whether a motion the
+// project asks for is possible at all.
+function partIsStroked(doc, part) {
+  let stroked = null;
+  const step = (el, stroke, width) => {
+    if (el.nodeType !== 1 || !drawn(el)) return;
+    const s = el.getAttribute('stroke') || stroke;
+    const own = parseFloat(el.getAttribute('stroke-width'));
+    const w = Number.isFinite(own) && own >= 0 ? own : width;
+    if (el.getAttribute('data-part') === part && stroked === null) {
+      stroked = !!(s && s !== 'none' && w > 0);
+    }
+    for (let c = el.firstChild; c; c = c.nextSibling) step(c, s, w);
+  };
+  step(doc.documentElement, null, 1);
+  return stroked;
+}
+
 // How many separate pieces of ink a drawing is made of. A path may hold several
 // subpaths and an optimiser will merge paths freely, so the count is of
 // subpaths — every M or m in the data — plus every painted shape that is not a
@@ -296,4 +329,4 @@ function compose(parts, width, height) {
 const round = (n, dp = 3) => Number(n.toFixed(dp));
 
 module.exports = { KEEP, dropUnusedPaint, gradientSlots, gradients, paintBySlot, parse, serialize, viewBox, applyColourway, slotsUsed, thinnestStroke,
-  strokeWidths, inkParts, innerXML, compose, round, NS, eachPainted, NEVER_DRAWN };
+  strokeWidths, inkParts, partsUsed, partIsStroked, innerXML, compose, round, NS, eachPainted, NEVER_DRAWN };

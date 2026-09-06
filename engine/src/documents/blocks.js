@@ -357,6 +357,41 @@ function ladderBlock(ctx) {
     <b>${esc(bottom.name)}</b>, because that is the drawing this identity uses at the sizes an icon lives at.</p>`;
 }
 
+// The mark arriving.
+//
+// A specification for an animation, printed as prose, is the one thing in a
+// brand manual nobody can check by reading it. This is the animation, playing,
+// on the page that specifies it — and beneath it the timeline it is playing, so
+// the two cannot disagree.
+function motionBuild(ctx) {
+  const r = ctx.system.motion;
+  if (!r || !(r.build || []).length) return '';
+  const MO = require('../motion');
+  const a = MO.animate(asColourway(ctx, showOn(ctx).colourway), r, { id: 'mo-spec' });
+  const total = a.totalMs;
+  const lane = r.build.slice().sort((x, y) => x.from - y.from).map((b) => {
+    const left = svgu.round((b.from / total) * 100, 2);
+    const wide = svgu.round(((b.to - b.from) / total) * 100, 2);
+    return `<div class="mrow"><b>${esc(b.part)}</b><span class="mtrack">`
+      + `<i style="left:${left}%;width:${wide}%;background:${ctx.accent.hex}"></i></span>`
+      + `<em>${b.from}–${b.to} ms</em></div>`;
+  }).join('');
+  return `<div class="row2"><figure><div class="stage tight" style="background:${showOn(ctx).ground.hex}">`
+    + `${scaled(a.svg, 260)}</div><figcaption class="said">The ident, playing. It runs for ${total} ms and
+    holds. This is the same file the package contains, not a picture of it.</figcaption></figure>
+    <figure><div class="stage tight" style="align-items:stretch"><div style="width:100%">${lane}</div></div>
+    <figcaption class="said">Every part, when it arrives and how long it takes. The parts are the ones the
+    master names with <code>data-part</code>; a sequence may not name anything else.</figcaption></figure></div>
+    <p class="note"><b>${r.build.map((b) => `${esc(b.part)} ${esc(b.how)}`).join(', ')}.</b>
+    A stroke draws itself by being given a dash the length of the line and having the dash moved off the end;
+    a fill has no length to dash, so it rises or fades instead. Ask a fill to draw and the engine says so
+    rather than quietly playing something else.</p>
+    <p class="note"><b>A reader who has asked for less movement gets the finished mark and no animation.</b>
+    Not a shortened version of the ident and not a still of the last frame — the mark, arriving already
+    arrived. <code>15-motion</code> holds one file per colourway, each with its own CSS inside it: nothing to
+    install, nothing to fetch, and nothing that stops working when a player is not there.</p>`;
+}
+
 // The brands inside the brand.
 function familyBlock(ctx) {
   const list = ctx.family;
@@ -751,10 +786,17 @@ function motionSpec(ctx) {
   return `<div class="row3">${Object.entries(r.easing).map(([n, e]) => curve(e, n)).join('')}
     <figure><div class="stage tight"><div style="width:100%;font-size:13px">${durations}</div></div>
     <figcaption>how long each thing takes</figcaption></figure></div>
-    <p class="note">The mark builds in ${r.build.length} parts: ${r.build.map((s) =>
+    ${r.build.length ? `<p class="note">The mark builds in ${r.build.length} parts: ${r.build.map((s) =>
       `<b>${esc(s.part)}</b> ${esc(s.how)} from ${s.from} to ${s.to} ms on <i>${esc(s.ease)}</i>`).join(', ')}.
-    It ${r.loop ? 'loops' : 'plays once and holds'}. Two curves and ${Object.keys(r.durations).length} durations
-    are the whole of it; anything else on screen is one of these.</p>`;
+    It ${r.loop ? 'loops' : 'plays once and holds'}. The parts are the ones the master names, and
+    <code>15-motion</code> holds the file that plays them.</p>`
+    : `<p class="note">This identity has not said how the mark builds, so nothing here does. The curves and the
+    durations above apply to anything that moves — a panel, a menu, a page — and the sequence the mark itself
+    arrives in is a decision, which means it is one somebody has to make rather than one the engine can supply.
+    Mark the parts in the master with <code>data-part</code> and give each a step in
+    <code>system.motion.build</code>, and the package will contain a file that plays it.</p>`}
+    <p class="note">Two curves and ${Object.keys(r.durations).length} durations are the whole of it; anything
+    else on screen is one of these.</p>`;
 }
 
 function contrastTable(ctx) {
@@ -826,5 +868,5 @@ function changes(ctx) {
     + `</p><div class="chgs">${breaking.map(row).join('')}${news.map(row).join('')}</div>`;
 }
 
-module.exports = { TXT, esc, changes, floorTable, partnerLockups, colourVision, ladderBlock, fabrication, familyBlock, inked, gradientSpec, inksOf, patternSpec, photographySpec, iconSpec, willWriteIcons, motionSpec, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, markSpecimen, lockupRow, construction, clearSpace,
+module.exports = { TXT, esc, changes, floorTable, partnerLockups, colourVision, ladderBlock, fabrication, familyBlock, motionBuild, inked, gradientSpec, inksOf, patternSpec, photographySpec, iconSpec, willWriteIcons, motionSpec, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, markSpecimen, lockupRow, construction, clearSpace,
   minimumSize, lockups, misuse, palette, contrastTable, typeSpecimen, typeScale, assetIndex, brandJsonBlock };

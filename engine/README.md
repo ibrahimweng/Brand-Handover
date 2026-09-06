@@ -141,6 +141,21 @@ produced, and the build reports what moved between them:
       previous/
         brand.json      copied out of the package that shipped as 1.4.0
 
+An identity whose mark builds names the parts in the artwork and gives each of
+them a step:
+
+    <path data-part="near" .../>
+
+    "motion": { "build": [
+      { "part": "hub",  "how": "rises", "from": 0,   "to": 240, "ease": "out" },
+      { "part": "near", "how": "draws", "from": 160, "to": 520, "ease": "out" }
+    ] }
+
+`how` is draws, rises, fades or turns; drawing needs a stroke, because a fill has
+no length to dash. The sequence may only name parts the artwork has. `15-motion`
+gets one self-contained animated SVG per colourway, and a reader who has asked
+their machine for less movement gets the finished mark and no animation.
+
 A brand with brands inside it names them, and each takes one colour from the
 parent's own palette:
 
@@ -2694,6 +2709,62 @@ told to. Three sub-brands sharing one mark, one face and one lockup are separate
 by colour and by nothing else, so a pair of them that collapses for a colour
 vision deficiency is not two museums to that reader — it is one.
 
+## A twenty-eighth identity
+
+Every package this engine has built states how the identity animates: two easing
+curves, four durations, and a build sequence naming the parts and when each of
+them arrives. The manual printed it as the specification — *"the mark builds in
+2 parts: outline draws from the top, fill rises to its line"* — and two things
+were true of all twenty-seven.
+
+**No artwork named a part called outline, or fill, or anything else.** And **no
+package contained a single file that moves.** The client was handed a
+specification for an animation, in prose, about parts that do not exist, with
+nothing to play. It is the twenty-second round's shape again: a promise nothing
+collects on, kept in perfectly good order because nobody had asked it for
+anything.
+
+The contract is the one the colour system already uses. `data-slot` says what a
+part is painted from; **`data-part` says what it is when the mark builds**, and a
+sequence may only name parts the artwork has:
+
+    <path data-part="near" d="M60 120a60 60 0 0 1 60 60"/>
+    <circle data-part="hub" cx="60" cy="180" r="24"/>
+
+**Farne** broadcasts from a rock in the North Sea, and its ident is the mark
+arriving: the transmitter, then each arc in turn.
+
+    hub    rises   0–240 ms on out
+    near   draws   160–520 ms on out
+    mid    draws   300–660 ms on out
+    far    draws   440–800 ms on through
+
+`15-motion` holds that, one file per colourway, each a single SVG with its own
+CSS inside it — nothing to install, nothing to fetch, nothing that stops working
+when a player is not there. A stroke draws itself by being given a dash the
+length of the line and having the dash moved off the end; `pathLength="1"` lets
+the file state that length as one whatever shape the path is. A fill has no
+length to dash, so asking one to draw is a warning and it is written as the
+nearest thing that works rather than quietly playing something else. A part the
+artwork names that the sequence never moves is a warning too: it is on screen
+from the first frame, which reads as the animation having already started.
+
+**And the default build sequence was fiction, so it is gone.** Two curves and
+four durations are a real default because they apply to anything — a panel, a
+menu, a page. A build sequence is about particular parts of a particular drawing,
+and inventing one is describing a mark nobody drew. An identity that has not said
+how it builds now reads: *"This identity has not said how the mark builds, so
+nothing here does."*
+
+The manual plays the sequence on the page that specifies it, with the timeline
+beside it, both from the same data — because a specification for an animation,
+printed as prose, is the one thing in a brand manual nobody can check by reading
+it.
+
+Round twenty-five's grid check caught this round's own artwork twice: the arcs
+were at five and a half units of radius, and the transmitter's radius put its
+extremes between grid lines.
+
 ## A front door
 
 Sixteen rounds, and the only way into the engine was to hand-write a project
@@ -2815,6 +2886,7 @@ the mechanism. The name was the cause, and renaming the payload is the fix.
     projects/oriel/   the twenty-fifth: five drawings of one mark, one for each size
     projects/ancroft/ the twenty-sixth: thread, vinyl, stone and cast metal
     projects/harbourne/ the twenty-seventh: three museums, one mark, one difference each
+    projects/farne/   the twenty-eighth: a mark that arrives, in a file that plays it
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package

@@ -798,6 +798,28 @@ the artwork — it is what the endorsement costs — so the package contains the
 lockup without it too, each with its own floor, and says where to change over.
 The same answer the twenty-fifth round gave for size, applied to words.
 
+The twenty-eighth found the same shape as the twenty-second, in the last place
+left. Every package states how the identity animates — two curves, four
+durations, and a build sequence naming the parts and when each arrives — and the
+manual printed it as the specification. **No artwork in twenty-seven identities
+named a part called outline, or fill, or anything at all. And no package
+contained a single file that moves.** A specification for an animation, in prose,
+about parts that do not exist, with nothing to play.
+
+The contract is the one the colour system already uses: `data-slot` says what a
+part is painted from, **`data-part` says what it is when the mark builds**, and a
+sequence may only name parts the artwork has. **Farne** broadcasts from a rock in
+the North Sea and its ident is the mark arriving — the transmitter, then each arc
+in turn, over 800 ms. `15-motion` holds it, one file per colourway, each a single
+SVG with its own CSS inside it: nothing to install, nothing to fetch, and a
+reader who has asked for less movement gets the finished mark and no animation.
+A fill asked to draw itself is told so — a stroke draws by being dashed the
+length of the line, and a fill has no length to dash.
+
+**And the default build sequence is gone**, because it was the fiction. Two
+curves and four durations are a real default; a sequence is about particular
+parts of a particular drawing, and inventing one describes a mark nobody drew.
+
 Still to do: a run on **your** identity job. Twenty identities the engine had
 not seen is worth a great deal more than twenty passes over one, but none of
 them came out of your exporter — and the normaliser is the part that most needs

@@ -232,6 +232,8 @@ function guidelines(ctx) {
       // chapter silently, which is the thing being fixed.
       ['The icon grid', b.willWriteIcons(ctx) && b.iconSpec(ctx)],
       ['Motion', b.motionSpec(ctx)],
+      // The sequence, playing, on the page that specifies it.
+      ['The ident', b.motionBuild(ctx)],
     ].filter(([, body]) => body);
     if (!parts.length) return '';
     return chapter('04', 'The system',

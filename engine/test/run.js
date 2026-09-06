@@ -595,8 +595,11 @@ test('a rule block states its rule, and stops when told to', () => {
   assert.ok(on.includes('24 box') && on.includes('1.8'), 'the icon grid did not state its rule');
   assert.ok(!ER.block(EM.makeBlock('iconGrid', { props: { caption: false } }), bu).includes('24 box'));
 
-  // "400ms" is in the keyframes whatever happens, so look for the phrase
-  assert.ok(ER.block(EM.makeBlock('motion'), bu).includes('400ms out'), 'the motion block did not state its timing');
+  // "480ms" is in the keyframes whatever happens, so look for the phrase. It
+  // was 400 until the twenty-eighth round, when the default build sequence went
+  // — it named parts no artwork had — and the block started timing itself from
+  // the durations the project does state.
+  assert.ok(ER.block(EM.makeBlock('motion'), bu).includes('480ms out'), 'the motion block did not state its timing');
   assert.ok(!ER.block(EM.makeBlock('motion', { props: { caption: false } }), bu).includes('400ms out'));
 
   assert.ok(!ER.block(EM.makeBlock('pattern'), bu).includes('half drop'), 'a pattern field stated a rule it was not asked for');
@@ -604,7 +607,7 @@ test('a rule block states its rule, and stops when told to', () => {
 });
 test('a stated rule breaks between phrases, not inside one', () => {
   const html = ER.block(EM.makeBlock('motion'), bu);
-  assert.ok(html.includes('400ms out'), 'a phrase can wrap mid-way and read as nonsense');
+  assert.ok(html.includes('480ms out'), 'a phrase can wrap mid-way and read as nonsense');
 });
 test('the rules survive the round trip to a published page', () => {
   const d = EM.emptyDoc('Meridian');
@@ -5965,9 +5968,110 @@ test('a ratio set to nothing is refused rather than composed as nothing', () => 
   assert.ok(err && err.findings && /nameRatio is 0/.test(err.findings[0].what), err && err.message);
 });
 
+
+// ---------------------------------------------------------------------------
+console.log('\nthe mark arriving');
+const MO = require('../src/motion');
+const FARNE = path.join(__dirname, '..', 'projects', 'farne', 'project.json');
+const farne = projectLoader.load(FARNE);
+const farneSys = require('../src/system').resolve(farne, measure(farne));
+let farneOut, farneBrand;
+before(async () => {
+  farneOut = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-farne-'));
+  await build(farne, farneOut);
+  farneBrand = JSON.parse(fs.readFileSync(path.join(farneOut, 'brand.json'), 'utf8'));
+});
+
+test('there is no default build sequence, because there was no default drawing', () => {
+  // Twenty-seven identities carried one — an "outline" that draws from the top
+  // and a "fill" that rises to its line — printed in every manual as that
+  // identity's specification. No artwork in any of them named a part at all.
+  const sys = require('../src/system');
+  assert.deepStrictEqual(sys.motionRules(undefined).build, []);
+  assert.ok(sys.motionRules(undefined).easing.out, 'the curves are still a real default');
+  // and a manual with none says so rather than describing parts nobody drew
+  const html = fs.readFileSync(path.join(out, 'guidelines.html'), 'utf8');
+  assert.ok(html.indexOf('outline') < 0 || html.indexOf('rises to its line') < 0);
+});
+test('a sequence may only move parts the artwork names', () => {
+  const parts = svgu.partsUsed(svgu.parse(farne.assets.mark.source));
+  assert.deepStrictEqual(parts.slice().sort(), ['far', 'hub', 'mid', 'near']);
+  let err = null;
+  try { MO.check({ build: [{ part: 'outline', how: 'draws', from: 0, to: 400 }] }, farne.assets.mark.source); }
+  catch (e) { err = e; }
+  assert.ok(err && err.findings && err.findings[0].level === 'blocker', 'a crash is not a refusal');
+  assert.ok(/the artwork has no part of that name/.test(err.findings[0].what), err.findings[0].what);
+  assert.ok(/"far"/.test(err.findings[0].how), 'it does not say what the artwork does name');
+  for (const k of ['what', 'why', 'how']) assert.ok(err.findings[0][k].length > 20);
+});
+test('a step with no duration, and a movement the engine does not know, are refused', () => {
+  const bad = (b) => {
+    try { MO.check({ build: [b] }, farne.assets.mark.source); return null; } catch (e) { return e; }
+  };
+  assert.ok(/timed from 400 to 100/.test(bad({ part: 'hub', how: 'rises', from: 400, to: 100 }).findings[0].what));
+  assert.ok(/not something the engine knows how to make a shape do/
+    .test(bad({ part: 'hub', how: 'wobbles', from: 0, to: 100 }).findings[0].what));
+});
+test('a fill asked to draw itself is told, and written as the nearest thing that works', () => {
+  // hub is a circle, and a circle has no length to dash.
+  const got = MO.check({ build: [{ part: 'hub', how: 'draws', from: 0, to: 200, ease: 'out' }],
+    easing: farneSys.motion.easing }, farne.assets.mark.source);
+  const f = got.findings.find((x) => x.code === 'motionHow');
+  assert.ok(f && f.level === 'warning', JSON.stringify(got.findings));
+  assert.ok(/it is a fill rather than a stroke/.test(f.what));
+  const a = MO.animate(farne.assets.mark.source,
+    { build: [{ part: 'hub', how: 'draws', from: 0, to: 200, ease: 'out' }], easing: farneSys.motion.easing });
+  assert.ok(!/\[data-part="hub"\]\{stroke-dasharray/.test(a.svg), 'it dashed a fill anyway');
+  assert.ok(/opacity:0/.test(a.svg));
+});
+test('a named part that never moves is a warning, not a silence', () => {
+  const got = MO.check({ build: [{ part: 'hub', how: 'rises', from: 0, to: 200, ease: 'out' }] },
+    farne.assets.mark.source);
+  const f = got.findings.find((x) => x.code === 'motionStill');
+  assert.ok(f && /"near", "mid", "far"/.test(f.what), f && f.what);
+});
+test('the package contains something that moves, in every colourway', () => {
+  const files = fs.readdirSync(path.join(farneOut, '15-motion'));
+  assert.strictEqual(files.length, farne.rules.colourways.length);
+  const one = fs.readFileSync(path.join(farneOut, '15-motion', 'farne-build-night.svg'), 'utf8');
+  // self contained: its own CSS, no fetch, no library
+  assert.ok(/<style>/.test(one) && /@keyframes/.test(one));
+  assert.ok(one.indexOf('http') === one.indexOf('http://www.w3.org/2000/svg'), 'it fetches something');
+  // every part the sequence names is animated by name
+  for (const b of farneSys.motion.build) assert.ok(one.indexOf(`[data-part="${b.part}"]`) > -1, b.part);
+  // and a reader who asked for less movement gets the finished mark
+  assert.ok(/prefers-reduced-motion:reduce/.test(one));
+  assert.ok(/animation:none!important/.test(one));
+});
+test('a stroke is dashed by its own length, whatever shape it is', () => {
+  const one = fs.readFileSync(path.join(farneOut, '15-motion', 'farne-build-night.svg'), 'utf8');
+  assert.ok(/pathLength="1"/.test(one), 'the dash is in user units, so it is wrong for every path but one');
+  assert.ok(/stroke-dasharray:var\(--len\)/.test(one));
+});
+test('brand.json says how long it takes and which files play it', () => {
+  assert.strictEqual(farneBrand.logo.motion.totalMs, 800);
+  assert.strictEqual(farneBrand.logo.motion.build.length, 4);
+  assert.strictEqual(farneBrand.logo.motion.build[0].part, 'hub');
+  assert.strictEqual(farneBrand.logo.motion.files.length, farne.rules.colourways.length);
+  // an identity that has not said how it moves carries null rather than a guess
+  const plain = JSON.parse(fs.readFileSync(path.join(out, 'brand.json'), 'utf8'));
+  assert.strictEqual(plain.logo.motion, null);
+});
+test('the manual plays the sequence it specifies', () => {
+  const html = fs.readFileSync(path.join(farneOut, 'guidelines.html'), 'utf8');
+  assert.ok(html.indexOf('The ident') > -1);
+  assert.ok(/@keyframes/.test(html), 'the manual describes an animation and does not contain one');
+  for (const b of farneSys.motion.build) assert.ok(html.indexOf(`${b.from}–${b.to} ms`) > -1, `${b.part} timeline`);
+  const readme = fs.readFileSync(path.join(farneOut, 'README.txt'), 'utf8');
+  assert.ok(/the mark builds in 4 parts over 800 ms/.test(readme));
+  // and one that has not said gets no chapter and no file
+  assert.ok(fs.readFileSync(path.join(out, 'guidelines.html'), 'utf8').indexOf('The ident') < 0);
+  assert.ok(fs.readdirSync(out).indexOf('15-motion') < 0);
+});
+
 drain().then(() => {
 
-  for (const d of [out, out2, tbOut, kilnOut, orielOut, ancOut, harbOut]) if (d) fs.rmSync(d, { recursive: true, force: true });
+  for (const d of [out, out2, tbOut, kilnOut, orielOut, ancOut, harbOut, farneOut]) if (d) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);
   process.exit(failed ? 1 : 0);
 });

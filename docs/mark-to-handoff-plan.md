@@ -1464,6 +1464,23 @@ letterforms an order of magnitude finer, and it sets a floor thirty times the
 mark's. The number that governs an asset is rarely the number the asset is named
 after.
 
+**A default that describes something particular is a lie with a long life.** The
+motion block's build sequence shipped with a default naming an "outline" and a
+"fill". Defaults for curves and durations are sound — they apply to anything —
+but a build sequence is about named parts of one drawing, and no drawing had any.
+It survived twenty-seven rounds because a default is exactly what nobody
+inspects: it is there, it is plausible, and it prints. Where a default value
+would have to be *about* the particular input to be true, the honest default is
+nothing, and a sentence saying so.
+
+**The two halves of a promise fail separately.** This round found the same
+absence twice over: a specification whose subject did not exist, and a
+deliverable that was never written. Either alone would have been survivable —
+prose about the wrong parts, or a correct spec with nothing to play. Together
+they made a chapter of a manual that could not be acted on at all. Worth asking
+of anything the documents describe: does the thing it names exist, and is it in
+the package?
+
 ---
 
 Prior art checked September 2026: Logo Package Express, Standards, Brandpad,

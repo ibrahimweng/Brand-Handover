@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Farne: the transmitter and three arcs off it, on a twelve unit module: the
+     transmitter at five units across and fifteen down, the arcs at five, ten
+     and fourteen units of radius.
+     Every part that moves is named here. data-slot says what a part is painted
+     from; data-part says what it is when the mark builds. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+  <g data-slot="ink" fill="none" stroke="#14224A" stroke-width="18" stroke-linecap="round">
+    <path data-part="near" data-pattern="source" d="M60 120 A60 60 0 0 1 120 180"/>
+    <path data-part="mid" d="M60 60 A120 120 0 0 1 180 180"/>
+    <path data-part="far" d="M60 12 A168 168 0 0 1 228 180"/>
+  </g>
+  <g data-slot="ink" fill="#14224A" stroke="none">
+    <circle data-part="hub" cx="60" cy="180" r="24"/>
+  </g>
+</svg>

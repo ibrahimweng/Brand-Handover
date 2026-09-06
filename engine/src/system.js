@@ -226,10 +226,15 @@ function motionRules(override) {
     easing: { out: [0, 0.55, 0.45, 1], through: [0.85, 0, 0.15, 1] },
     durations: { quick: 160, base: 280, considered: 480, slow: 900 },
     loop: false,
-    build: [
-      { part: 'outline', from: 0, to: 400, ease: 'out', how: 'draws from the top' },
-      { part: 'fill', from: 300, to: 900, ease: 'through', how: 'rises to its line' },
-    ],
+    // No default sequence. There used to be one — an "outline" that draws from
+    // the top and a "fill" that rises to its line — and it was printed in every
+    // manual as this identity's specification for how it animates. No artwork in
+    // twenty-seven identities named a part called outline, or fill, or anything
+    // else, and no package contained a file that moves. Two curves and four
+    // durations are a real default because they apply to anything; a build
+    // sequence is about particular parts of a particular drawing, and inventing
+    // one is describing a mark nobody drew.
+    build: [],
   }, override || {});
 }
 

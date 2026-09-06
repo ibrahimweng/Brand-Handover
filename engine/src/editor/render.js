@@ -326,6 +326,11 @@
       const dur = mo.durations, e = mo.easing;
       const bez = (a) => `cubic-bezier(${a.join(',')})`;
       const id = 'm' + esc(b.id);
+      // The build sequence used to have a default — an outline and a fill that
+      // no artwork ever named — and this block read it positionally. With no
+      // default there is nothing to read, so the two halves are timed from the
+      // durations this identity does state, and the caption says which.
+      const stated = (mo.build || []).length > 0;
       const draw = mo.build[0] || { from: 0, to: dur.considered };
       const rise = mo.build[1] || { from: 0, to: dur.slow };
       const box = bu.measured.markInk;
@@ -333,7 +338,10 @@
       const caption = b.props.caption === false ? '' :
         ruleCaption(onePiece
           ? `${ms(draw)} \u00b7 out \u00b7 one piece, no outline to draw first`
-          : `${ms(draw)} out \u00b7 ${ms(rise)} through \u00b7 ${draw.part || 'outline'}, then ${rise.part || 'fill'}`,
+          : stated
+            ? `${ms(draw)} out \u00b7 ${ms(rise)} through \u00b7 ${draw.part}, then ${rise.part}`
+            : `${ms(draw)} out \u00b7 ${ms(rise)} through \u00b7 the considered and slow durations, `
+              + `because this identity has not said how the mark builds`,
           colour(bu, b.props.colourway));
       return `<div style="width:100%;height:100%;background:${colour(bu, b.props.on)};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;overflow:hidden">
         <style>

@@ -75,6 +75,11 @@ figcaption.said{font-family:var(--ui);font-size:12px;letter-spacing:0;text-trans
 .ctr em{font-family:var(--mono);font-style:normal;font-size:13px;text-align:right;font-variant-numeric:tabular-nums}
 .ctr i{font-family:var(--mono);font-style:normal;font-size:10px;letter-spacing:.06em;text-transform:uppercase;text-align:right}
 .v-ok{color:#1B7A4B}.v-warn{color:#8A6410}.v-bad{color:#C2352B}
+.mrow{display:grid;grid-template-columns:64px minmax(0,1fr) 84px;gap:10px;align-items:center;padding:7px 0}
+.mrow b{font-family:var(--mono);font-size:11px;font-weight:400;color:var(--ink-2)}
+.mtrack{position:relative;height:9px;background:var(--rule);display:block}
+.mtrack i{position:absolute;top:0;height:9px;display:block}
+.mrow em{font-family:var(--mono);font-style:normal;font-size:10.5px;color:var(--ink-3);text-align:right}
 .rungs{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:16px;align-items:stretch}
 .rungs>figure{display:flex;flex-direction:column}
 .stage.rung{height:150px;align-items:flex-end;justify-content:center;padding:0 14px 20px}

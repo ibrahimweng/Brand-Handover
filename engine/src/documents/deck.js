@@ -242,7 +242,7 @@ function deck(ctx) {
     const sys = require('../system');
     return `<span class="bdg">Set once</span><h2 style="margin-top:2cqw">Two curves, ${Object.keys(r.durations).length} durations</h2>
       <p class="lede">${Object.entries(r.durations).map(([n, ms]) => `${b.esc(n)} ${ms} ms`).join(' · ')}</p>
-      <p class="sm">${Object.entries(r.easing).map(([n, e]) => `<b>${b.esc(n)}</b> ${sys.bezier(e)}`).join(' &nbsp; ')}<br>The mark builds in ${r.build.length} parts and ${r.loop ? 'loops' : 'plays once'}.</p>`;
+      <p class="sm">${Object.entries(r.easing).map(([n, e]) => `<b>${b.esc(n)}</b> ${sys.bezier(e)}`).join(' &nbsp; ')}<br>${r.build.length ? `The mark builds in ${r.build.length} parts and ${r.loop ? 'loops' : 'plays once'}.` : 'How the mark itself builds is not set.'}</p>`;
   }]);
   if (sysSlides.length) {
     div('04', 'The system', sysSlides.map(([name]) => name));

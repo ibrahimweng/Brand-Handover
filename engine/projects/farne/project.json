@@ -1,0 +1,261 @@
+{
+  "brand": "Farne",
+  "version": "1.0.0",
+  "assets": {
+    "mark": "mark.svg",
+    "wordmark": "wordmark.svg"
+  },
+  "tokens": {
+    "colour": {
+      "night": {
+        "hex": "#14224A",
+        "role": "primary",
+        "cmyk": [
+          100,
+          88,
+          40,
+          38
+        ],
+        "pantone": "2767 C"
+      },
+      "paper": {
+        "hex": "#F2F1EE",
+        "role": "ground",
+        "cmyk": [
+          4,
+          3,
+          6,
+          0
+        ],
+        "pantone": "11-0601"
+      },
+      "signal": {
+        "hex": "#D64933",
+        "role": "accent",
+        "cmyk": [
+          10,
+          84,
+          88,
+          1
+        ],
+        "pantone": "7417 C"
+      },
+      "haar": {
+        "hex": "#7C8B99",
+        "role": "neutral",
+        "cmyk": [
+          52,
+          36,
+          28,
+          3
+        ],
+        "pantone": "5445 C"
+      },
+      "beam": {
+        "hex": "#E8B54B",
+        "role": "secondary",
+        "cmyk": [
+          8,
+          30,
+          82,
+          0
+        ],
+        "pantone": "142 C"
+      }
+    },
+    "type": {
+      "families": {
+        "display": {
+          "family": "Archivo",
+          "google": true,
+          "weights": [
+            600,
+            700
+          ],
+          "fallback": "Helvetica,Arial,sans-serif"
+        },
+        "text": {
+          "family": "Public Sans",
+          "google": true,
+          "weights": [
+            400,
+            500
+          ],
+          "fallback": "Helvetica,Arial,sans-serif"
+        }
+      },
+      "scale": [
+        {
+          "name": "Display",
+          "family": "display",
+          "size": 52,
+          "leading": 56,
+          "weight": 700,
+          "tracking": -0.02,
+          "sample": "On now"
+        },
+        {
+          "name": "H1",
+          "family": "display",
+          "size": 34,
+          "leading": 40,
+          "weight": 700,
+          "sample": "Tonight on Farne"
+        },
+        {
+          "name": "H2",
+          "family": "display",
+          "size": 24,
+          "leading": 30,
+          "weight": 600,
+          "sample": "Coming up"
+        },
+        {
+          "name": "H3",
+          "family": "text",
+          "size": 18,
+          "leading": 24,
+          "weight": 500,
+          "sample": "Nine o'clock"
+        },
+        {
+          "name": "Body",
+          "family": "text",
+          "size": 17,
+          "leading": 27,
+          "weight": 400,
+          "sample": "The ident runs for eight tenths of a second and holds."
+        },
+        {
+          "name": "Small",
+          "family": "text",
+          "size": 14,
+          "leading": 21,
+          "weight": 400,
+          "sample": "Subtitles on all programmes."
+        },
+        {
+          "name": "Caption",
+          "family": "text",
+          "size": 12,
+          "leading": 17,
+          "weight": 500,
+          "tracking": 0.08,
+          "sample": "FARNE"
+        }
+      ]
+    }
+  },
+  "rules": {
+    "lockups": [
+      "horizontal",
+      "stacked",
+      "mark",
+      "wordmark"
+    ],
+    "colourways": [
+      {
+        "name": "night",
+        "on": "paper",
+        "slots": {
+          "ink": "#14224A"
+        }
+      },
+      {
+        "name": "reverse",
+        "on": "night",
+        "slots": {
+          "ink": "#F2F1EE"
+        }
+      },
+      {
+        "name": "signal",
+        "on": "night",
+        "slots": {
+          "ink": "#D64933"
+        }
+      },
+      {
+        "name": "mono",
+        "on": "paper",
+        "slots": {
+          "ink": "#000000"
+        }
+      }
+    ],
+    "formats": [
+      "svg",
+      "png"
+    ],
+    "pngWidths": [
+      512,
+      1024
+    ],
+    "naming": "{brand}-{lockup}-{colourway}"
+  },
+  "system": {
+    "grid": {
+      "unit": 12,
+      "box": 240,
+      "note": "Twenty units square. The transmitter sits five units across and fifteen down, and the arcs are five, ten and fourteen units of radius off it."
+    },
+    "motion": {
+      "easing": {
+        "out": [
+          0.16,
+          0.84,
+          0.32,
+          1
+        ],
+        "through": [
+          0.8,
+          0,
+          0.2,
+          1
+        ]
+      },
+      "durations": {
+        "quick": 120,
+        "base": 240,
+        "considered": 440,
+        "slow": 800
+      },
+      "loop": false,
+      "build": [
+        {
+          "part": "hub",
+          "how": "rises",
+          "from": 0,
+          "to": 240,
+          "ease": "out",
+          "note": "the transmitter arrives first"
+        },
+        {
+          "part": "near",
+          "how": "draws",
+          "from": 160,
+          "to": 520,
+          "ease": "out"
+        },
+        {
+          "part": "mid",
+          "how": "draws",
+          "from": 300,
+          "to": 660,
+          "ease": "out"
+        },
+        {
+          "part": "far",
+          "how": "draws",
+          "from": 440,
+          "to": 800,
+          "ease": "through"
+        }
+      ]
+    }
+  },
+  "content": {
+    "positioning": "Farne broadcasts from a rock in the North Sea.",
+    "markRationale": "The transmitter and three arcs off it. The ident is the mark arriving: the transmitter, then each arc in turn."
+  }
+}
