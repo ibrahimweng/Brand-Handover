@@ -17,14 +17,51 @@ const { masterOf } = require('./project');
 const KEYS_READ = {
   rules: ['clearSpaceRatio', 'minStrokePx', 'minStrokeMm', 'lockupGapRatio', 'wordmarkHeightRatio',
     'naming', 'lockups', 'formats', 'pngWidths', 'stock', 'colourways', 'iconInk', 'iconBg',
-    'iconSizes', 'faviconSizes', 'social', 'partners', 'documents', 'ladder', 'fabrication'],
+    'iconSizes', 'faviconSizes', 'social', 'partners', 'documents', 'ladder', 'fabrication', 'family'],
   system: ['icons', 'icon', 'pattern', 'motion', 'photography', 'nameSetting', 'grid'],
   // tokens was outside this audit entirely, so a whole branch of a project file
   // could be written, saved and shipped without anything reading it. The
   // twenty-fourth round added tokens.sets and the engine accepted it in
   // silence — the same silence the audit exists to break.
-  tokens: ['colour', 'type', 'sets'],
+  tokens: ['colour', 'type', 'sets', 'family'],
 };
+
+// What a family says that no single brand does.
+function familyFindings(project, frule, family, measured, rules, notes) {
+  const out = [];
+  const V = require('./vision');
+  const mark = measured.minimumSize.screenPx;
+  for (const { sub, rows } of family) {
+    const r = rows[0];
+    notes.push(`the ${sub.name} lockup holds at ${r.endorsed.floor.screenPx} px endorsed and `
+      + `${r.plain.floor.screenPx} px without the line, where the mark alone holds at ${mark} px. `
+      + `"${frule.endorsement.replace('{brand}', project.brand)}" is set at `
+      + `${frule.endorsementRatio} of the mark's height, which makes it the finest thing in the drawing, `
+      + `and a floor is the box divided by the finest thing in it. Endorse it above `
+      + `${r.endorsed.floor.screenPx} px, drop the line between there and ${r.plain.floor.screenPx}, and `
+      + `below that use the mark. Both are in 14-family.`);
+    if (r.endorsed.read && !r.endorsed.read.readable) {
+      out.push(`even at its own floor of ${r.endorsed.floor.screenPx} px the endorsement line on the `
+        + `${sub.name} lockup is only ${r.endorsed.read.capPx} px tall, and ${frule.readableAtPx} px is `
+        + 'where a line of type stops being a line of type. The lockup is legible and the words in it are not, '
+        + `which is worse than leaving them out. It wants ${r.endorsed.read.needsPx} px, or `
+        + `rules.family.endorsementRatio above ${frule.endorsementRatio}.`);
+    }
+  }
+  // Siblings are read together — on a board, in a list, across a season — so
+  // they are a set in the twenty-fourth round's sense whether or not one is
+  // declared. Asked here rather than left to the designer to remember.
+  const sibs = Object.fromEntries(family.map(({ sub }) => [sub.name, { hex: sub.hex }]));
+  const floor = Number(rules.minColourSeparation) > 0 ? Number(rules.minColourSeparation) : 12;
+  for (const c of V.collapses(sibs, floor)) {
+    out.push(`${c.pair.join(' and ')} are the two sub-brands a visitor is most likely to be looking at `
+      + `together, and they are ${c.normal} apart to you and ${c.worst.distance} to `
+      + `${V.say(c.worst.kind)}, ${V.howMany(c.worst.kind)}. The only thing that separates two sub-brands `
+      + 'in this system is colour: same mark, same face, same lockup. For that reader they are one museum. '
+      + 'Move one of the colours, or give each sub-brand something else of its own and say what it is.');
+  }
+  return out;
+}
 
 // What the palette looks like to somebody who does not see it the way you do.
 //
@@ -497,6 +534,76 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       + `${bottom.name === list[1].name ? 'a simpler drawing' : 'simpler drawings'} rather than a smaller one.`);
   }
 
+  // ---- the brands inside the brand ----
+  //
+  // A sub-brand is the parent's mark and a stated difference, composed here
+  // rather than drawn, so it cannot drift. See src/family.js.
+  const FAM = require('./family');
+  let family = null;
+  if ((project.family || []).length) {
+    const frule = FAM.rules(project);
+    const SN = require('./setname');
+    const opentype = require('opentype.js');
+    // The name is set in the display face and the endorsement in the text one,
+    // which is what anybody would do and is also the only way the lockup is
+    // usable: a serif hairline at sixteen per cent of the mark's height is a
+    // three-hundredth of the composed width, and the floor that falls out of
+    // that is a thousand pixels.
+    const setLine = (text, hex, role) => {
+      const drawn = SN.wordmark({ tokens: project.tokens, fonts: project.fonts },
+        { text, family: role, weight: role === 'display' ? 700 : 400, tracking: role === 'display' ? 0.01 : 0.06 },
+        opentype, hex);
+      if (!drawn) {
+        const e = new Error(`"${text}" has nothing in it that the display face can draw.`);
+        e.findings = [{ level: 'blocker', code: 'family', what: e.message,
+          why: 'A sub-brand lockup sets its name and its endorsement from the faces this project ships, and none of these '
+            + 'characters is in it.',
+          how: 'Ship a face that covers the name, or spell it in characters the face has.' }];
+        throw e;
+      }
+      return drawn;
+    };
+    family = [];
+    for (const sub of project.family) {
+      const rows = [];
+      for (const colourway of rules.colourways) {
+        const inkHex = Object.values(colourway.slots)[0] || '#000000';
+        // the sub-brand's own colour where the colourway is the brand's own,
+        // and the colourway's ink everywhere else: a reverse lockup is white,
+        // not white-and-teal
+        const paint = colourway.name === rules.colourways[0].name ? sub.hex : inkHex;
+        const markDoc = svgu.parse(masterOf(project).source);
+        svgu.applyColourway(markDoc, colourway.slots);
+        const name = setLine(sub.name, paint, 'display');
+        const end = setLine(frule.endorsement.replace('{brand}', project.brand), inkHex, 'text');
+        // Two of them. An endorsement is a line of type, and a line of type at a
+        // fraction of a mark's height is the finest thing in the drawing by a
+        // long way — the floor that falls out of it is twenty-seven times the
+        // mark's own, and it is not a fault, it is what the words cost. So the
+        // package contains the lockup without them too, and says where to change
+        // over: the same answer the twenty-fifth round gave for size.
+        const made = {};
+        for (const kind of ['endorsed', 'plain']) {
+          const c = FAM.lockup({ markSvg: svgu.serialize(markDoc), markInk: measured.markInk,
+            nameSvg: name.svg, nameBox: geo.inkBox(name.svg),
+            endSvg: kind === 'endorsed' ? end.svg : null,
+            endBox: kind === 'endorsed' ? geo.inkBox(end.svg) : null, rule: frule, ink: inkHex });
+          const floor = geo.minimumSize(c.svg, rules);
+          const base = `${naming.slug(project.latinName)}-${naming.slug(sub.name)}-${kind}-${naming.slug(colourway.name)}`;
+          if (rules.formats.includes('svg')) write(`14-family/${base}.svg`, c.svg);
+          if (rules.formats.includes('png')) {
+            for (const w of rules.pngWidths) write(`14-family/${base}-${w}.png`, geo.renderPng(c.svg, w));
+          }
+          made[kind] = { file: `14-family/${base}.svg`, composed: c, floor,
+            read: FAM.readability(c, frule, floor.screenPx), svg: c.svg };
+        }
+        rows.push(Object.assign({ colourway: colourway.name }, made));
+      }
+      family.push({ sub, rows });
+    }
+    for (const w of familyFindings(project, frule, family, measured, rules, notes)) warnings.push(w);
+  }
+
   // ---- the things it is actually made as ----
   //
   // Twenty-five identities specified in pixels and millimetres of ink, for
@@ -922,6 +1029,15 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
         sharpCorners: m.corners == null ? null : m.corners,
         smallestEach: m.considered,
       })) : null,
+      // The brands inside the brand: composed, never drawn. See src/family.js.
+      family: family ? family.map(({ sub, rows }) => ({
+        name: sub.name, colour: sub.colour, hex: sub.hex, note: sub.note,
+        lockups: rows.map((r) => ({ colourway: r.colourway,
+          endorsed: { file: r.endorsed.file, screenPx: r.endorsed.floor.screenPx,
+            printMm: r.endorsed.floor.printMm,
+            endorsementCapPx: r.endorsed.read ? r.endorsed.read.capPx : null },
+          plain: { file: r.plain.file, screenPx: r.plain.floor.screenPx, printMm: r.plain.floor.printMm } })),
+      })) : null,
       lockups: rules.lockups,
       colourways: rules.colourways.map((c) => c.name),
       // Half of each of these is not ours. See src/partners.js.
@@ -1081,6 +1197,13 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
         + `${b.to == null ? '' : `, ${b.printFrom}–${b.printTo} mm`}`),
       `                  Below ${ladder.bands[ladder.bands.length - 1].from} px there is nothing. 12-ladder holds the drawings`,
       '                  that are not lockups; icons are cut from the last of them.',
+    ] : []),
+    ...(family ? [
+      '  The three in it   a sub-brand is the mark and a stated difference: a name',
+      '                  and a colour, composed rather than drawn.',
+      ...family.map(({ sub, rows }) => `                    ${sub.name.padEnd(12)} in ${sub.colour.padEnd(9)} `
+        + `endorsed above ${rows[0].endorsed.floor.screenPx} px, plain to ${rows[0].plain.floor.screenPx} px`),
+      '                  14-family holds both of each, in every colourway.',
     ] : []),
     ...(made ? [
       '  Made as         a process holds nothing finer than its own figure, so which',

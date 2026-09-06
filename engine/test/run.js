@@ -5879,9 +5879,95 @@ test('the package and the manual both say what it is made as', () => {
   assert.ok(fs.readFileSync(path.join(out, 'guidelines.html'), 'utf8').indexOf('What it is made as') < 0);
 });
 
+
+// ---------------------------------------------------------------------------
+console.log('\na brand with brands inside it');
+const FAM = require('../src/family');
+const HARB = path.join(__dirname, '..', 'projects', 'harbourne', 'project.json');
+const harb = projectLoader.load(HARB);
+let harbOut, harbBrand;
+before(async () => {
+  harbOut = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-harb-'));
+  await build(harb, harbOut);
+  harbBrand = JSON.parse(fs.readFileSync(path.join(harbOut, 'brand.json'), 'utf8'));
+});
+
+test('a sub-brand is the mark and a stated difference, and nothing else', () => {
+  assert.strictEqual(harb.family.length, 3);
+  for (const sub of harb.family) {
+    assert.ok(sub.name && sub.colour && sub.hex, JSON.stringify(sub));
+    // the colour is the parent's, not one the sub-brand brought
+    assert.strictEqual(harb.tokens.colour[sub.colour].hex, sub.hex);
+  }
+});
+test('each is composed in every colourway, endorsed and plain', () => {
+  const files = fs.readdirSync(path.join(harbOut, '14-family')).filter((f) => f.endsWith('.svg'));
+  assert.strictEqual(files.length, harb.family.length * harb.rules.colourways.length * 2);
+  assert.ok(files.indexOf('harbourne-maritime-endorsed-harbour.svg') > -1);
+  assert.ok(files.indexOf('harbourne-maritime-plain-harbour.svg') > -1);
+});
+test('a sub-brand keeps its own colour on the brand ground and loses it on the others', () => {
+  const own = fs.readFileSync(path.join(harbOut, '14-family', 'harbourne-maritime-endorsed-harbour.svg'), 'utf8');
+  assert.ok(own.indexOf('#2F7C86') > -1, 'the sub-brand colour is not in its own lockup');
+  const rev = fs.readFileSync(path.join(harbOut, '14-family', 'harbourne-maritime-endorsed-reverse.svg'), 'utf8');
+  assert.ok(rev.indexOf('#2F7C86') < 0, 'a reverse lockup carried the sub-brand colour onto a dark ground');
+  assert.ok(rev.indexOf('#F4F2ED') > -1);
+});
+test('the endorsement is the finest thing in the lockup, and the floor says so', () => {
+  const mark = harbBrand.logo.minSize.screenPx;
+  for (const f of harbBrand.logo.family) {
+    const r = f.lockups[0];
+    assert.ok(r.endorsed.screenPx > r.plain.screenPx,
+      `${f.name}: endorsed ${r.endorsed.screenPx} is not above plain ${r.plain.screenPx}`);
+    assert.ok(r.plain.screenPx > mark * 5,
+      `${f.name}: a lockup carrying a set name holds at ${r.plain.screenPx} against the mark's ${mark}`);
+    assert.ok(r.endorsed.endorsementCapPx > 0);
+  }
+});
+test('the package says where to change over, three ways', () => {
+  const readme = fs.readFileSync(path.join(harbOut, 'README.txt'), 'utf8');
+  assert.ok(/a sub-brand is the mark and a stated difference/.test(readme));
+  for (const sub of harb.family) assert.ok(readme.indexOf(sub.name) > -1, `${sub.name} is not in the read me`);
+  const html = fs.readFileSync(path.join(harbOut, 'guidelines.html'), 'utf8');
+  assert.ok(html.indexOf('The brands inside it') > -1);
+  assert.ok(html.indexOf('undefined') < 0, 'the family chapter prints undefined somewhere');
+  // an identity with no sub-brands gets no chapter
+  assert.ok(fs.readFileSync(path.join(out, 'guidelines.html'), 'utf8').indexOf('The brands inside it') < 0);
+});
+test('a sub-brand with a colour that is not the parent\'s is refused', () => {
+  let err = null;
+  try { FAM.load([{ name: 'Annexe', colour: 'ultramarine' }], { tokens: harb.tokens, brand: 'Harbourne' }); }
+  catch (e) { err = e; }
+  assert.ok(err && err.findings, 'a crash is not a refusal');
+  assert.ok(/is not a colour in this palette/.test(err.findings[0].what), err.message);
+  for (const k of ['what', 'why', 'how']) assert.ok(err.findings[0][k].length > 20);
+});
+test('two sub-brands of one name, and one with no name, are refused', () => {
+  const bad = (list) => {
+    try { FAM.load(list, { tokens: harb.tokens, brand: 'Harbourne' }); return null; } catch (e) { return e; }
+  };
+  assert.ok(/both called "Yard"/.test(bad([{ name: 'Yard', colour: 'tide' }, { name: 'Yard', colour: 'rope' }]).findings[0].what));
+  assert.ok(/has no name/.test(bad([{ colour: 'tide' }]).findings[0].what));
+});
+test('siblings that a reader cannot tell apart are named, because colour is the only difference', () => {
+  // Same mark, same face, same lockup: for a reader who cannot separate two of
+  // the colours there is one museum, not two.
+  const V = require('../src/vision');
+  const sibs = { A: { hex: '#557B2E' }, B: { hex: '#A8442F' } };
+  assert.ok(V.collapses(sibs, 12).length, 'the sibling check has stopped working');
+  // and the three this identity ships do not collapse
+  const real = Object.fromEntries(harb.family.map((s) => [s.name, { hex: s.hex }]));
+  assert.deepStrictEqual(V.collapses(real, 12), []);
+});
+test('a ratio set to nothing is refused rather than composed as nothing', () => {
+  let err = null;
+  try { FAM.rules({ rules: { family: { nameRatio: 0 } }, tokens: harb.tokens }); } catch (e) { err = e; }
+  assert.ok(err && err.findings && /nameRatio is 0/.test(err.findings[0].what), err && err.message);
+});
+
 drain().then(() => {
 
-  for (const d of [out, out2, tbOut, kilnOut, orielOut, ancOut]) if (d) fs.rmSync(d, { recursive: true, force: true });
+  for (const d of [out, out2, tbOut, kilnOut, orielOut, ancOut, harbOut]) if (d) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);
   process.exit(failed ? 1 : 0);
 });

@@ -122,11 +122,42 @@ function context(project, measured, files, brandJson) {
     return out;
   })();
 
+  // The brands inside the brand, composed the way the build composes them, from
+  // the same module, so the manual and the package cannot disagree.
+  const familyRule = require('../family').rules(project);
+  const family = (project.family || []).length ? (() => {
+    const FAM = require('../family');
+    const SN = require('../setname');
+    const opentype = require('opentype.js');
+    const cw = primaryColourway;
+    const inkHex = Object.values(cw.slots)[0] || '#000000';
+    const set = (text, hex, role) => SN.wordmark({ tokens: project.tokens, fonts: project.fonts },
+      { text, family: role, weight: role === 'display' ? 700 : 400, tracking: role === 'display' ? 0.01 : 0.06 },
+      opentype, hex);
+    const markDoc = require('../svg').parse(master.source);
+    require('../svg').applyColourway(markDoc, cw.slots);
+    const markSvg = require('../svg').serialize(markDoc);
+    return project.family.map((sub) => {
+      const name = set(sub.name, sub.hex, 'display');
+      const end = set(familyRule.endorsement.replace('{brand}', project.brand), inkHex, 'text');
+      const geoL = require('../geometry');
+      const rows = ['endorsed', 'plain'].reduce((acc, kind) => {
+        const c = FAM.lockup({ markSvg, markInk: measured.markInk,
+          nameSvg: name.svg, nameBox: geoL.inkBox(name.svg),
+          endSvg: kind === 'endorsed' ? end.svg : null,
+          endBox: kind === 'endorsed' ? geoL.inkBox(end.svg) : null, rule: familyRule, ink: inkHex });
+        acc[kind] = { svg: c.svg, floor: geoL.minimumSize(c.svg, project.rules) };
+        return acc;
+      }, {});
+      return { sub, rows: [rows] };
+    });
+  })() : null;
+
   const changes = project.previous && brandJson
     ? { since: project.previous.version.text,
         entries: require('../previous').compare(project.previous.data, brandJson) }
     : null;
-  return { project, sets: project.sets || null, measured, colours, roles, primary, ground, accent, primaryColourway, noun, system, pattern, hasSystem, changes, floors, pairs, ladder, fabrication,
+  return { project, sets: project.sets || null, measured, colours, roles, primary, ground, accent, primaryColourway, noun, system, pattern, hasSystem, changes, floors, pairs, ladder, fabrication, familyRule, family,
     partnerRule: typeof partnerRule === 'undefined' ? null : partnerRule,
     variants, variantFor, files, brandJson, contrast: contrast.matrix(colours),
     content: project.content || {} };
@@ -212,9 +243,11 @@ function guidelines(ctx) {
     // are counted rather than written down in four places.
     const madeAs = !!(ctx.fabrication && ctx.fabrication.length);
     let n = ctx.hasSystem ? 5 : 4;
+    const kin = ctx.family && ctx.family.length ? chapter(`0${n}`, 'The brands inside it',
+      sec(`${n++}.1`, 'Sub-brands', 'once', b.familyBlock(ctx))) : '';
     const making = madeAs ? chapter(`0${n}`, 'Making it',
       sec(`${n++}.1`, 'What it is made as', 'once', b.fabrication(ctx))) : '';
-    return `${making}
+    return `${kin}${making}
 
   ${chapter(`0${n}`, 'Assets',
       sec(`${n}.1`, 'What is in the package', 'system', b.assetIndex(ctx)) +

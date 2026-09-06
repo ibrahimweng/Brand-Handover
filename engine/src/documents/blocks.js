@@ -357,6 +357,31 @@ function ladderBlock(ctx) {
     <b>${esc(bottom.name)}</b>, because that is the drawing this identity uses at the sizes an icon lives at.</p>`;
 }
 
+// The brands inside the brand.
+function familyBlock(ctx) {
+  const list = ctx.family;
+  if (!list || !list.length) return '';
+  const cards = list.map((f) => {
+    const r = f.rows[0];
+    return `<figure><div class="stage tight" style="background:${esc(ctx.ground.hex)}">
+      ${scaled(r.endorsed.svg, 420, '100%')}</div>
+      <figcaption class="said"><b>${esc(f.sub.name)}</b>${f.sub.note ? `, ${esc(f.sub.note)}` : ''}.
+      Set in <b>${esc(f.sub.colour)}</b>. Endorsed above <b>${r.endorsed.floor.screenPx} px</b>;
+      without the line down to ${r.plain.floor.screenPx} px; the mark alone below that.</figcaption></figure>`;
+  }).join('');
+  return `<div class="row2">${cards}</div>
+    <p class="note"><b>A sub-brand is the mark and a stated difference.</b> The difference is a name and a
+    colour. Nothing here is drawn: the name is set from the face this identity ships and the lockup is
+    composed from the mark's own measured ink — the name at ${ctx.familyRule.nameRatio} of its height, the
+    endorsement at ${ctx.familyRule.endorsementRatio}, the gap at ${ctx.familyRule.gapRatio} — so a sub-brand
+    cannot drift from its parent and a new one costs a line in the project file.</p>
+    <p class="note"><b>The words are the finest thing in the drawing.</b> A floor is the box divided by
+    whatever is thinnest in it, and in an endorsed lockup that is a letter, not the mark. Each of these holds
+    at several hundred pixels where the mark alone holds at
+    ${ctx.measured.minimumSize.screenPx}. That is not a fault, it is what the endorsement costs — so the
+    package contains the lockup without it as well, and the figures above say where to change over.</p>`;
+}
+
 // What it is made as.
 //
 // Every chapter before this one is about a screen or a page. A school's arms
@@ -801,5 +826,5 @@ function changes(ctx) {
     + `</p><div class="chgs">${breaking.map(row).join('')}${news.map(row).join('')}</div>`;
 }
 
-module.exports = { TXT, esc, changes, floorTable, partnerLockups, colourVision, ladderBlock, fabrication, inked, gradientSpec, inksOf, patternSpec, photographySpec, iconSpec, willWriteIcons, motionSpec, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, markSpecimen, lockupRow, construction, clearSpace,
+module.exports = { TXT, esc, changes, floorTable, partnerLockups, colourVision, ladderBlock, fabrication, familyBlock, inked, gradientSpec, inksOf, patternSpec, photographySpec, iconSpec, willWriteIcons, motionSpec, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, markSpecimen, lockupRow, construction, clearSpace,
   minimumSize, lockups, misuse, palette, contrastTable, typeSpecimen, typeScale, assetIndex, brandJsonBlock };

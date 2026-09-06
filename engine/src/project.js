@@ -8,6 +8,7 @@ const svgu = require('./svg');
 const PREV = require('./previous');
 const PARTNERS = require('./partners');
 const LADDER = require('./ladder');
+const FAMILY = require('./family');
 
 // What an asset key means. One file each, or a list of them — and nothing else,
 // so a kind nobody has thought of yet is a question rather than a stack trace.
@@ -535,6 +536,12 @@ function load(file) {
     ? PARTNERS.load(fs, path, dir, raw.assets.partners, { brand: raw.brand, rules })
     : [];
 
+  // The brands inside the brand. Loaded after the palette, because a sub-brand's
+  // colour has to be one of its parent's.
+  const family = (raw.tokens || {}).family
+    ? FAMILY.load(raw.tokens.family, { tokens: rawTokens, brand: raw.brand })
+    : [];
+
   // The package this one follows. It is loaded last, because refusing it needs
   // the brand and the version this project resolved to, not the raw ones.
   const previous = raw.previous
@@ -545,7 +552,7 @@ function load(file) {
   // here, which meant every rule override in a project file was read as absent
   // and the defaults quietly won. Nothing complained, because a default is a
   // perfectly good answer right up until somebody wanted a different one.
-  return { brand: raw.brand, latinName, language, direction, version: raw.version || '0.0.0', dir, tokens, sets: (raw.tokens || {}).sets || null, assets, photography, fonts, documents, nameSetting, rules, master, previous, partners, tiers,
+  return { brand: raw.brand, latinName, language, direction, version: raw.version || '0.0.0', dir, tokens, sets: (raw.tokens || {}).sets || null, assets, photography, fonts, documents, nameSetting, rules, master, previous, partners, tiers, family,
     system: raw.system || {}, content: raw.content || {}, report };
 }
 

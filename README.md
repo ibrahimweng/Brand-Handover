@@ -777,6 +777,27 @@ corrected, all upward; two were checked by rendering. At the floor **Beaumont**
 has published since the day it was added, its finest stem paints **2.80 px
 against its own rule of 3**.
 
+The twenty-seventh took the engine's own rule up a level. Twenty-six identities,
+and every one of them is one thing; real institutions are not. One master and
+everything derived from it becomes: **a sub-brand is the parent's mark and a
+stated difference**, and the difference is a name and a colour.
+
+**Harbourne** is three museums round one harbour. Nothing in any of their lockups
+is drawn — the name is set from the face the identity ships, and the lockup is
+composed from the mark's own measured ink — so a sub-brand cannot drift from its
+parent and a fourth one costs a line in the project file. A colour that is not in
+the parent's palette is refused, because the palette is what holds a family
+together.
+
+**And the words are the finest thing in the drawing.** A floor is the box divided
+by whatever is thinnest in it, and in an endorsed lockup that is a letter, not the
+mark: Maritime holds at **854 px** endorsed where the mark alone holds at 29. Every
+check a group brand runs is run on the mark, and the number that governs the asset
+is set by "Part of Harbourne". It is not a fault and there is nothing to fix in
+the artwork — it is what the endorsement costs — so the package contains the
+lockup without it too, each with its own floor, and says where to change over.
+The same answer the twenty-fifth round gave for size, applied to words.
+
 Still to do: a run on **your** identity job. Twenty identities the engine had
 not seen is worth a great deal more than twenty passes over one, but none of
 them came out of your exporter — and the normaliser is the part that most needs

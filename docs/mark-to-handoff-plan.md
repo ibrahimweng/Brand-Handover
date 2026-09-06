@@ -1448,6 +1448,22 @@ looks at strokes as well as fills, for whether it renders large enough, for
 whether it reads inherited attributes. Nobody had asked whether the statistic at
 the end of it was the right statistic. Age and a good comment are not evidence.
 
+**The rule you already have, one level up.** A sub-brand system looked like a new
+subject and turned out to be the engine's founding rule restated: one master,
+everything derived. A sub-brand is the mark and a stated difference, composed
+rather than drawn, and every question that follows — can it change the colour,
+can it redraw the mark, what happens when it stands alone — has an answer that
+falls straight out of that. Before designing a new mechanism, check whether the
+one the codebase is built on already answers the question at a different scale.
+
+**The thing being checked is not always the thing that governs.** Every
+measurement, warning and check a group brand runs is run on the mark, because the
+mark is what a brand is understood to be. In an endorsed lockup the mark is not
+close to being the binding constraint: the line of type saying whose it is has
+letterforms an order of magnitude finer, and it sets a floor thirty times the
+mark's. The number that governs an asset is rarely the number the asset is named
+after.
+
 ---
 
 Prior art checked September 2026: Logo Package Express, Standards, Brandpad,

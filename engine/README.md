@@ -141,6 +141,17 @@ produced, and the build reports what moved between them:
       previous/
         brand.json      copied out of the package that shipped as 1.4.0
 
+A brand with brands inside it names them, and each takes one colour from the
+parent's own palette:
+
+    "tokens": { "family": [ { "name": "Maritime", "colour": "tide" } ] },
+    "rules":  { "family": { "nameRatio": 0.42, "endorsementRatio": 0.16 } }
+
+Every lockup is composed from the mark's measured ink and the name is set from
+the face the project ships, so nothing is drawn and nothing can drift. Both the
+endorsed and the plain lockup are written to `14-family` in every colourway, each
+with its own minimum size.
+
 An identity that is made as physical things says what they are and how big:
 
     "fabrication": [
@@ -2635,6 +2646,54 @@ checked by rendering: at the floor **Beaumont** has published since it was added
 its finest stem paints **2.80 px against its own rule of 3**. Marlow's paints
 2.47. Spire's floor was 13 px and is 23.
 
+## A twenty-seventh identity
+
+Twenty-six identities, and every one of them is one thing. Real institutions are
+not: a group has museums in it, a university has faculties, a network has lines,
+and the hardest question any of them asks is the one this engine had no way to
+answer — what is a sub-brand allowed to be, and what does it inherit?
+
+The engine's own rule generalises straight up a level. One master, everything
+derived from it: a sub-brand is the parent's mark and **a stated difference**,
+and the difference is a name and a colour.
+
+    "family": [
+      { "name": "Maritime",   "colour": "tide" },
+      { "name": "Print Room", "colour": "rope" },
+      { "name": "Yard",       "colour": "kelp" }
+    ]
+
+**Harbourne** is three museums round one harbour. Nothing in any of their lockups
+is drawn: the name is set from the face the identity ships — the twenty-first
+round's work — and the lockup is composed from the mark's own measured ink, the
+name at 0.42 of its height, the endorsement at 0.16, the gap at 0.34. A sub-brand
+therefore cannot drift from its parent, and a fourth one costs a line in the
+project file. A colour that is not in the parent's palette is refused: the palette
+is what holds a family together, and a sub-brand that brings its own colour is a
+separate identity wearing somebody else's mark.
+
+**And the words are the finest thing in the drawing.** A floor is the box divided
+by whatever is thinnest in it, and in an endorsed lockup that is a letter, not the
+mark:
+
+    Maritime     in tide   endorsed above 854 px, plain to 418 px
+    Print Room   in rope   endorsed above 980 px, plain to 507 px
+    Yard         in kelp   endorsed above 797 px, plain to 293 px
+
+The mark alone holds at 29. Every check a group brand runs is run on the mark,
+and the number that actually governs the asset is set by "Part of Harbourne" —
+around thirty times larger. It is not a fault and there is nothing to fix in the
+artwork: it is what the endorsement costs. So the package contains the lockup
+without it as well, each with its own floor, and says where to change over —
+endorse it above the first figure, drop the line down to the second, use the mark
+below that. The same answer the twenty-fifth round gave for size, applied to
+words.
+
+The siblings are also asked the twenty-fourth round's question without being
+told to. Three sub-brands sharing one mark, one face and one lockup are separated
+by colour and by nothing else, so a pair of them that collapses for a colour
+vision deficiency is not two museums to that reader — it is one.
+
 ## A front door
 
 Sixteen rounds, and the only way into the engine was to hand-write a project
@@ -2755,6 +2814,7 @@ the mechanism. The name was the cause, and renaming the payload is the fix.
     projects/deben/   the twenty-fourth: two of its colours are one colour to some readers
     projects/oriel/   the twenty-fifth: five drawings of one mark, one for each size
     projects/ancroft/ the twenty-sixth: thread, vinyl, stone and cast metal
+    projects/harbourne/ the twenty-seventh: three museums, one mark, one difference each
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package

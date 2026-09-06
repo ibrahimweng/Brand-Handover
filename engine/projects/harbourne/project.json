@@ -1,0 +1,230 @@
+{
+  "brand": "Harbourne",
+  "version": "1.0.0",
+  "assets": {
+    "mark": "mark.svg",
+    "wordmark": "wordmark.svg"
+  },
+  "tokens": {
+    "colour": {
+      "harbour": {
+        "hex": "#1D3C4A",
+        "role": "primary",
+        "cmyk": [
+          90,
+          62,
+          45,
+          32
+        ],
+        "pantone": "5405 C"
+      },
+      "chalk": {
+        "hex": "#F4F2ED",
+        "role": "ground",
+        "cmyk": [
+          4,
+          3,
+          8,
+          0
+        ],
+        "pantone": "11-0601"
+      },
+      "tide": {
+        "hex": "#2F7C86",
+        "role": "secondary",
+        "cmyk": [
+          80,
+          30,
+          40,
+          6
+        ],
+        "pantone": "5473 C"
+      },
+      "rope": {
+        "hex": "#B4762A",
+        "role": "accent",
+        "cmyk": [
+          22,
+          58,
+          96,
+          6
+        ],
+        "pantone": "7566 C"
+      },
+      "iron": {
+        "hex": "#5E6265",
+        "role": "neutral",
+        "cmyk": [
+          58,
+          46,
+          44,
+          14
+        ],
+        "pantone": "424 C"
+      },
+      "kelp": {
+        "hex": "#4A6B3A",
+        "role": "support",
+        "cmyk": [
+          70,
+          36,
+          88,
+          26
+        ],
+        "pantone": "5763 C"
+      }
+    },
+    "family": [
+      {
+        "name": "Maritime",
+        "colour": "tide",
+        "note": "the harbour museum, in the old bonded store"
+      },
+      {
+        "name": "Print Room",
+        "colour": "rope",
+        "note": "the presses and the paper collection"
+      },
+      {
+        "name": "Yard",
+        "colour": "kelp",
+        "note": "the boatbuilding shed, open in summer"
+      }
+    ],
+    "type": {
+      "families": {
+        "display": {
+          "family": "Harbourne Serif",
+          "weights": [
+            700
+          ],
+          "files": [
+            {
+              "file": "fonts/liberation-serif-bold.ttf",
+              "weight": 700,
+              "style": "normal"
+            }
+          ],
+          "fallback": "Georgia,serif",
+          "licence": "Liberation Serif, SIL Open Font Licence 1.1."
+        },
+        "text": {
+          "family": "Harbourne Sans",
+          "weights": [
+            400
+          ],
+          "files": [
+            {
+              "file": "fonts/liberation-sans-regular.ttf",
+              "weight": 400,
+              "style": "normal"
+            }
+          ],
+          "fallback": "Helvetica,Arial,sans-serif",
+          "licence": "Liberation Sans, SIL Open Font Licence 1.1."
+        }
+      },
+      "scale": [
+        {
+          "name": "Display",
+          "family": "display",
+          "size": 48,
+          "leading": 54,
+          "weight": 700,
+          "sample": "Three museums, one harbour"
+        },
+        {
+          "name": "H1",
+          "family": "display",
+          "size": 32,
+          "leading": 38,
+          "weight": 700,
+          "sample": "What is on"
+        },
+        {
+          "name": "H2",
+          "family": "text",
+          "size": 22,
+          "leading": 28,
+          "weight": 400,
+          "sample": "Opening times"
+        },
+        {
+          "name": "Body",
+          "family": "text",
+          "size": 17,
+          "leading": 27,
+          "weight": 400,
+          "sample": "Each of the three has its own colour and shares the mark."
+        },
+        {
+          "name": "Small",
+          "family": "text",
+          "size": 14,
+          "leading": 21,
+          "weight": 400,
+          "sample": "Free entry to all three."
+        },
+        {
+          "name": "Caption",
+          "family": "text",
+          "size": 12,
+          "leading": 17,
+          "weight": 400,
+          "tracking": 0.08,
+          "sample": "HARBOURNE YARD"
+        }
+      ]
+    }
+  },
+  "rules": {
+    "lockups": [
+      "horizontal",
+      "stacked",
+      "mark",
+      "wordmark"
+    ],
+    "colourways": [
+      {
+        "name": "harbour",
+        "on": "chalk",
+        "slots": {
+          "ink": "#1D3C4A"
+        }
+      },
+      {
+        "name": "reverse",
+        "on": "harbour",
+        "slots": {
+          "ink": "#F4F2ED"
+        }
+      },
+      {
+        "name": "mono",
+        "on": "chalk",
+        "slots": {
+          "ink": "#000000"
+        }
+      }
+    ],
+    "family": {
+      "nameRatio": 0.42,
+      "endorsementRatio": 0.16,
+      "gapRatio": 0.34,
+      "leadRatio": 0.2
+    },
+    "formats": [
+      "svg",
+      "png"
+    ],
+    "pngWidths": [
+      512,
+      1024
+    ],
+    "naming": "{brand}-{lockup}-{colourway}"
+  },
+  "content": {
+    "positioning": "Harbourne is three museums round one harbour.",
+    "markRationale": "The two arms of the harbour and the light on the end of one of them."
+  }
+}

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Harbourne: the two arms of the harbour, and the light on the end of one. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+  <g data-slot="ink" fill="none" stroke="#1D3C4A" stroke-width="20" stroke-linecap="round">
+    <path data-pattern="source" d="M81 207.5 A78 78 0 1 1 159 207.5"/>
+  </g>
+  <g data-slot="ink" fill="#1D3C4A" stroke="none"><circle cx="120" cy="140" r="20"/></g>
+</svg>
