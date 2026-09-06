@@ -1,0 +1,285 @@
+{
+  "brand": "Tarnbrook",
+  "version": "1.4.0",
+  "colour": {
+    "fell": {
+      "hex": "#26433B",
+      "role": "primary",
+      "cmyk": [
+        80,
+        50,
+        66,
+        45
+      ],
+      "pantone": "5535 C"
+    },
+    "paper": {
+      "hex": "#F5F3EC",
+      "role": "ground",
+      "cmyk": [
+        4,
+        3,
+        8,
+        0
+      ],
+      "pantone": "7527 C"
+    },
+    "beck": {
+      "hex": "#5C8A80",
+      "role": "secondary",
+      "cmyk": [
+        64,
+        30,
+        47,
+        5
+      ],
+      "pantone": "5493 C"
+    },
+    "gorse": {
+      "hex": "#D9A227",
+      "role": "accent",
+      "cmyk": [
+        12,
+        34,
+        92,
+        0
+      ],
+      "pantone": "130 C",
+      "textSafe": false,
+      "maxCoverage": 0.05
+    }
+  },
+  "print": {
+    "stock": "coated",
+    "totalInkLimit": 300,
+    "colour": [
+      {
+        "name": "fell",
+        "hex": "#26433B",
+        "cmyk": [
+          80,
+          50,
+          66,
+          45
+        ],
+        "coverage": 241,
+        "pantone": "5535 C",
+        "declared": true,
+        "source": "given by the designer"
+      },
+      {
+        "name": "paper",
+        "hex": "#F5F3EC",
+        "cmyk": [
+          4,
+          3,
+          8,
+          0
+        ],
+        "coverage": 15,
+        "pantone": "7527 C",
+        "declared": true,
+        "source": "given by the designer"
+      },
+      {
+        "name": "beck",
+        "hex": "#5C8A80",
+        "cmyk": [
+          64,
+          30,
+          47,
+          5
+        ],
+        "coverage": 146,
+        "pantone": "5493 C",
+        "declared": true,
+        "source": "given by the designer"
+      },
+      {
+        "name": "gorse",
+        "hex": "#D9A227",
+        "cmyk": [
+          12,
+          34,
+          92,
+          0
+        ],
+        "coverage": 138,
+        "pantone": "130 C",
+        "declared": true,
+        "source": "given by the designer"
+      }
+    ],
+    "pdfColourSpace": "DeviceCMYK",
+    "gradientFiles": []
+  },
+  "logo": {
+    "clearSpace": "0.25 * inkHeight",
+    "clearSpaceUnits": 13,
+    "minSize": {
+      "screenPx": 32,
+      "printMm": 9,
+      "screenPxHigh": 32,
+      "printMmHigh": 9,
+      "note": "screenPx and printMm are widths; the High figures are the matching heights",
+      "squarish": true,
+      "from": "stroke",
+      "width": 9,
+      "basis": "box 120 ÷ stroke 9 = 13.33 stroke widths across"
+    },
+    "lockups": [
+      "horizontal",
+      "stacked",
+      "mark"
+    ],
+    "colourways": [
+      "fell",
+      "reverse",
+      "beck",
+      "mono"
+    ],
+    "icons": {
+      "smallestSquarePx": 43,
+      "aspect": 2.1,
+      "fillsPercent": 22.1,
+      "clears": [
+        "icon-1024.png",
+        "icon-180.png"
+      ],
+      "under": [
+        {
+          "file": "favicon-16.png",
+          "paintsAtPx": 0.9
+        },
+        {
+          "file": "favicon-32.png",
+          "paintsAtPx": 1.8
+        }
+      ],
+      "rule": "the thinnest part must paint at 2.4 px or more"
+    }
+  },
+  "contrast": [
+    {
+      "pair": "fell on paper",
+      "ratio": 9.71,
+      "verdict": "Pass AAA"
+    },
+    {
+      "pair": "fell on gorse",
+      "ratio": 4.69,
+      "verdict": "Pass AA"
+    },
+    {
+      "pair": "paper on beck",
+      "ratio": 3.5,
+      "verdict": "Large text only"
+    },
+    {
+      "pair": "fell on beck",
+      "ratio": 2.77,
+      "verdict": "Never for text"
+    },
+    {
+      "pair": "paper on gorse",
+      "ratio": 2.07,
+      "verdict": "Never for text"
+    },
+    {
+      "pair": "beck on gorse",
+      "ratio": 1.69,
+      "verdict": "Never for text"
+    }
+  ],
+  "system": {
+    "nameSetting": null,
+    "icons": {
+      "box": 24,
+      "marginFraction": 0.0458,
+      "strokeRatio": 0.075,
+      "curveRatio": 1.25,
+      "cap": "round",
+      "join": "round",
+      "filled": false,
+      "live": 21.8,
+      "stroke": 1.8,
+      "curveRadius": 30,
+      "derivedFrom": {
+        "viewBox": 120,
+        "ink": 109,
+        "markStroke": 9,
+        "markMargin": 5.5
+      }
+    },
+    "pattern": {
+      "tile": 100,
+      "rowSpacing": 0.22,
+      "phase": 0.5,
+      "weight": 3,
+      "cap": "round",
+      "densities": {
+        "fine": 0.45,
+        "medium": 1,
+        "coarse": 2.1
+      },
+      "source": null
+    },
+    "motion": {
+      "easing": {
+        "out": [
+          0,
+          0.55,
+          0.45,
+          1
+        ],
+        "through": [
+          0.85,
+          0,
+          0.15,
+          1
+        ]
+      },
+      "durations": {
+        "quick": 160,
+        "base": 280,
+        "considered": 480,
+        "slow": 900
+      },
+      "loop": false,
+      "build": [
+        {
+          "part": "outline",
+          "from": 0,
+          "to": 400,
+          "ease": "out",
+          "how": "draws from the top"
+        },
+        {
+          "part": "fill",
+          "from": 300,
+          "to": 900,
+          "ease": "through",
+          "how": "rises to its line"
+        }
+      ]
+    },
+    "photography": {
+      "duotone": null,
+      "scrim": null,
+      "ratios": [
+        "3:2",
+        "16:9",
+        "1:1",
+        "4:5"
+      ],
+      "declared": false
+    }
+  },
+  "documents": [],
+  "generated": {
+    "measuredFrom": "mark.svg",
+    "iconsFrom": "mark.svg",
+    "files": 42,
+    "builtUnder": null
+  }
+}

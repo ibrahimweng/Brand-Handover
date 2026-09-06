@@ -220,18 +220,41 @@ function slotsUsed(doc) {
   return [...found];
 }
 
+// Every distinct stroke-width painted in the document, thinnest first. A mark
+// drawn in one weight has one entry, and most do; a mark with a hierarchy of
+// weights has several, and which of them a derived system inherits is then a
+// question rather than a lookup.
+function strokeWidths(doc) {
+  const found = new Set();
+  const tag = (el) => String(el.nodeName).replace(/^.*:/, '').toLowerCase();
+  // stroke and stroke-width both inherit, and a mark that puts the colour on the
+  // group and the widths on the paths — which is how anyone draws a mark in one
+  // colour and two weights — had neither attribute on the same element as the
+  // other. Both readings came back empty, so the engine said "measured off the
+  // artwork" about a file that states its widths in so many words. Three of the
+  // fixtures were drawn that way and none of them ever reported a stroke.
+  const step = (el, stroke, width) => {
+    if (el.nodeType !== 1 || !drawn(el)) return;      // a <defs> subtree paints nothing
+    const s = el.getAttribute('stroke') || stroke;
+    // an inherited stroke-width of 0 is a real answer and means "no stroke here":
+    // reading only widths above zero let a group that switched its stroke off
+    // fall back to SVG's default of 1, and every filled shape under it was then
+    // reported as a 1 unit hairline that decided the whole minimum size.
+    const own = parseFloat(el.getAttribute('stroke-width'));
+    const w = Number.isFinite(own) && own >= 0 ? own : width;
+    const container = tag(el) === 'g' || tag(el) === 'svg';
+    if (s && s !== 'none' && w > 0 && !container) found.add(w);
+    for (let c = el.firstChild; c; c = c.nextSibling) step(c, s, w);
+  };
+  step(doc.documentElement, null, 1);   // SVG's own default stroke-width is 1
+  return [...found].sort((a, b) => a - b);
+}
+
 // Smallest stroke-width painted anywhere in the document. This is what decides
 // the minimum size, because it is the first thing to disappear.
 function thinnestStroke(doc) {
-  let min = Infinity;
-  walk(doc.documentElement, (el) => {
-    if (!el.getAttribute) return;
-    const stroke = el.getAttribute('stroke');
-    if (!stroke || stroke === 'none') return;
-    const w = parseFloat(el.getAttribute('stroke-width'));
-    if (Number.isFinite(w) && w > 0 && w < min) min = w;
-  });
-  return Number.isFinite(min) ? min : null;
+  const all = strokeWidths(doc);
+  return all.length ? all[0] : null;
 }
 
 const innerXML = (doc) => {
@@ -253,4 +276,5 @@ function compose(parts, width, height) {
 
 const round = (n, dp = 3) => Number(n.toFixed(dp));
 
-module.exports = { KEEP, dropUnusedPaint, gradientSlots, gradients, paintBySlot, parse, serialize, viewBox, applyColourway, slotsUsed, thinnestStroke, innerXML, compose, round, NS, eachPainted, NEVER_DRAWN };
+module.exports = { KEEP, dropUnusedPaint, gradientSlots, gradients, paintBySlot, parse, serialize, viewBox, applyColourway, slotsUsed, thinnestStroke,
+  strokeWidths, innerXML, compose, round, NS, eachPainted, NEVER_DRAWN };

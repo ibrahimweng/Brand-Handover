@@ -64,7 +64,14 @@ function context(project, measured, files, brandJson) {
   const pattern = require('../pattern').everyTile(master.source, system.pattern, ways, null);
   const hasSystem = !!(pattern && pattern.ok && pattern.tiles.length) || !!system.photography.declared
     || !!system.icons || !!(project.system || {}).motion;
-  return { project, measured, colours, roles, primary, ground, accent, primaryColourway, noun, system, pattern, hasSystem,
+  // What moved since the last version, for the reader who has already built to
+  // it. Worked out from the same two files the package compares — the previous
+  // brand.json and this one — so the manual and CHANGES.txt cannot disagree.
+  const changes = project.previous && brandJson
+    ? { since: project.previous.version.text,
+        entries: require('../previous').compare(project.previous.data, brandJson) }
+    : null;
+  return { project, measured, colours, roles, primary, ground, accent, primaryColourway, noun, system, pattern, hasSystem, changes,
     variants, variantFor, files, brandJson, contrast: contrast.matrix(colours),
     content: project.content || {} };
 }
@@ -88,6 +95,9 @@ function guidelines(ctx) {
     <h1>${b.esc(p.brand)} brand manual</h1>
     <p class="sub">${b.esc(c.positioning || '')} ${b.esc(c.introduction || '')}</p>
   </header>
+
+  ${ctx.changes ? chapter('00', `What changed since ${ctx.changes.since}`,
+      sec('0.1', 'Read this first', 'system', b.changes(ctx))) : ''}
 
   ${chapter('01', ctx.noun === 'mark' ? 'The mark' : 'The logotype',
       sec('1.1', ctx.noun === 'mark' ? 'The primary mark' : 'The logotype', 'system', b.markSpecimen(ctx) + words(c.markRationale)) +

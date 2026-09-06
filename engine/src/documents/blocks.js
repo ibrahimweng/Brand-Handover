@@ -586,5 +586,33 @@ function assetIndex(ctx) {
 
 const brandJsonBlock = (ctx) => `<pre>${esc(JSON.stringify(ctx.brandJson, null, 2))}</pre>`;
 
-module.exports = { TXT, esc, inked, gradientSpec, inksOf, patternSpec, photographySpec, iconSpec, willWriteIcons, motionSpec, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, markSpecimen, lockupRow, construction, clearSpace,
+// A manual for a second version is read by somebody who already built to the
+// first one. What they need before anything else is not the specification —
+// they have that — but the list of places where what they built is now wrong.
+// It goes at the top, unnumbered, because it is not part of the specification:
+// next version it will say something else, and the version after that it will
+// be gone.
+function changes(ctx) {
+  const ch = ctx.changes;
+  if (!ch || !ch.entries) return '';
+  const breaking = ch.entries.filter((c) => c.kind === 'breaking');
+  const news = ch.entries.filter((c) => c.kind === 'news');
+  const row = (c) => `<div class="chg ${c.kind}"><b>${esc(c.what)}</b><span>${esc(c.why)}</span><em>${esc(c.how)}</em></div>`;
+  if (!ch.entries.length) {
+    return `<p class="note">This package is version <b>${esc(ctx.project.version)}</b> and the last one was `
+      + `<b>${esc(ch.since)}</b>, and nothing measured here is different between them: same palette, same lockups, `
+      + `same colourways, same floor, same clear space. Anyone holding the last package can keep it.</p>`;
+  }
+  const n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
+  return `<p class="note">Compared with <b>${esc(ch.since)}</b>: ${n(ch.entries.length, 'change', 'changes')}. `
+    + (breaking.length
+      ? `<b>${breaking.length} of ${ch.entries.length === breaking.length ? 'them' : 'those'} `
+        + `${breaking.length === 1 ? 'retires' : 'retire'} something that already exists.</b> `
+        + 'Nothing in the files anyone already holds changes on its own, so until somebody acts on this list both '
+        + 'versions are in use at once and both look correct.'
+      : 'None of them retires anything already made.')
+    + `</p><div class="chgs">${breaking.map(row).join('')}${news.map(row).join('')}</div>`;
+}
+
+module.exports = { TXT, esc, changes, inked, gradientSpec, inksOf, patternSpec, photographySpec, iconSpec, willWriteIcons, motionSpec, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, markSpecimen, lockupRow, construction, clearSpace,
   minimumSize, lockups, misuse, palette, contrastTable, typeSpecimen, typeScale, assetIndex, brandJsonBlock };

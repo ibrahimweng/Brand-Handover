@@ -5,6 +5,7 @@ const { normalise } = require('./normalise');
 const contrast = require('./contrast');
 const naming = require('./naming');
 const svgu = require('./svg');
+const PREV = require('./previous');
 
 // The pixel size, read from the file's own header. A photograph placed at a size
 // the engine does not know is a photograph the engine cannot say is too small
@@ -418,11 +419,17 @@ function load(file) {
     asset.slots = n.slots;
   }
 
+  // The package this one follows. It is loaded last, because refusing it needs
+  // the brand and the version this project resolved to, not the raw ones.
+  const previous = raw.previous
+    ? PREV.load(fs, path, dir, raw.previous, { brand: raw.brand, version: raw.version || '0.0.0' })
+    : null;
+
   // system and content are carried through untouched. They were being dropped
   // here, which meant every rule override in a project file was read as absent
   // and the defaults quietly won. Nothing complained, because a default is a
   // perfectly good answer right up until somebody wanted a different one.
-  return { brand: raw.brand, latinName, language, direction, version: raw.version || '0.0.0', dir, tokens, assets, photography, fonts, documents, nameSetting, rules, master,
+  return { brand: raw.brand, latinName, language, direction, version: raw.version || '0.0.0', dir, tokens, assets, photography, fonts, documents, nameSetting, rules, master, previous,
     system: raw.system || {}, content: raw.content || {}, report };
 }
 

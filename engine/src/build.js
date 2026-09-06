@@ -27,6 +27,14 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       `clear space ${measured.clearSpace}, floor ${geo.floorText(measured.minimumSize, 'px')} / ${geo.floorText(measured.minimumSize, 'mm')}`);
 
   const { rules } = project;
+  // Derived once, here, because everything it needs is already in hand. It used
+  // to be worked out three hundred lines further down, next to the first thing
+  // that happened to want it, and reaching for it any earlier threw "cannot
+  // access sys before initialization" — the fourth time in this file that a
+  // derivation living beside its first reader rather than beside its inputs has
+  // cost a build. Read the project, derive from it, then write: in that order.
+  const system = require('./system');
+  const sys = system.resolve(project, measured);
   const warnings = [];
   // Not everything worth saying is worth a warning. A gradient that reaches the
   // files it should is working as intended and still has to be described,
@@ -60,7 +68,15 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       }
     }
     fs.writeFileSync(p, data);
-    written.push({ path: rel, bytes: data.length });
+    // One path, one entry. Skerry ships one file for two roles — the same face
+    // is both the display and the text family — so 09-type/skerry-sans-regular
+    // was written twice and counted twice, and every count taken off this list
+    // said the package held one more file than it does. The list is what the
+    // asset index, brand.json and the canvas all read; a name in it twice is a
+    // package that cannot describe itself.
+    const seen = written.findIndex((w) => w.path === rel);
+    if (seen > -1) written[seen] = { path: rel, bytes: data.length };
+    else written.push({ path: rel, bytes: data.length });
   };
 
   // Print colour. Declared builds only: a hex code describes light leaving a
@@ -279,6 +295,17 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       + 'brand.json still carries the icon grid the mark derives, so anybody reading it will expect files '
       + 'that are not there. Set the sizes, or say plainly in the handover that icons are somebody else\'s job.');
   }
+  // A mark drawn in one weight hands the icon grid that weight and there is
+  // nothing to say. A mark drawn in several hands it one of them, and which one
+  // is a decision the engine has just made on the designer's behalf.
+  const mw = sys.icons.derivedFrom.markWeights;
+  if (mw && !((project.system || {}).icons || (project.system || {}).icon || {}).stroke) {
+    warnings.push(`the master is drawn in ${mw.length} weights (${mw.join(', ')}), and an icon grid has one. `
+      + `The icons are cut at ${sys.icons.stroke} on a ${sys.icons.box} box, from the ${mw[mw.length - 1]} the `
+      + `mark carries its shape in, not the ${mw[0]} of its finest detail — an icon set at the finer one comes `
+      + `out at half the weight of the mark it belongs to. If the fine weight is the one you want the icons to `
+      + `look like, set system.icons.stroke and the grid follows it.`);
+  }
   const icons = exp.iconFloor(iconMeasured, rules) || { thinIcons: [], thinFavicons: [], clears: [] };
   if (icons.thinIcons.length) {
     const list = icons.thinIcons.map((t) => `${t.name} at ${t.at} px`).join(', ');
@@ -348,9 +375,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   const pairs = contrast.matrix(project.tokens.colour || {});
 
   // ---- rule blocks: one decision each, every instance cut from it ----
-  const system = require('./system');
   const pattern = require('./pattern');
-  const sys = system.resolve(project, measured);
   const rolesOf = (pr) => {
     const out = {};
     for (const [n, c] of Object.entries(pr.tokens.colour || {})) if (c.role) out[c.role] = { name: n, ...c };
@@ -431,6 +456,32 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     warnings.push(`no pattern was written. ${gen.why} ${gen.how}`);
   }
 
+  // A page in the package that lists the package has to list all of it. The
+  // bundle was built from what had been written so far, which is everything
+  // except the documents themselves, the read me's companions and the zip —
+  // so an asset index laid out by a designer reported 45 files in a package
+  // of 57 and did not mention the folder its own page was in. Every name
+  // still to come is known here; only the sizes are not, and nothing in the
+  // index reads a size.
+  //
+  // It is worked out here rather than beside the bundle that first read it,
+  // because brand.json needs it too: `written.length + 1` counted what had been
+  // written when brand.json was written, so every package ever built has told
+  // whoever read it that it holds eight or ten fewer files than it does —
+  // Tarnbrook said 34 of 43 — and the one file whose job is to be read by
+  // software was wrong about the size of the thing it describes.
+  const pending = ['README.txt', 'brand.json'].concat(project.previous ? ['CHANGES.txt'] : [])
+    .concat(rules.documents === false ? [] : ['guidelines.html', 'deck.html', 'editor.html', 'document.json',
+      'published.html', 'usage.json', 'LICENCE.txt', `${naming.slug(project.latinName)}-brand-package.zip`]
+      .concat((project.documents || []).flatMap((d) => {
+        const slug = naming.slug(d.name) || naming.slug(path.basename(d.file, '.json')) || 'piece';
+        return [`10-documents/${slug}.html`, `10-documents/${slug}.json`];
+      })))
+    .map((f) => ({ path: f, bytes: 0 }));
+  // written so far plus what is still to come, with nothing counted twice —
+  // asked at any point in the build and giving the same answer every time.
+  const wholePackage = () => written.concat(pending.filter((f) => !written.some((w) => w.path === f.path)));
+
   const brandJson = {
     brand: project.brand,
     version: project.version,
@@ -495,10 +546,38 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     },
     documents: (project.documents || []).map((d) => ({ name: d.name, pages: d.pages,
       size: (d.doc.page && d.doc.page.size) || 'slide-16x9' })),
-    generated: { measuredFrom: path.basename(masterOf(project).path), iconsFrom: iconFrom, files: written.length + 1,
+    generated: { measuredFrom: path.basename(masterOf(project).path), iconsFrom: iconFrom,
+      files: wholePackage().length,
       builtUnder: licence && licence.ok ? { plan: licence.licence.plan, fingerprint: lic0.fingerprint(licence.licence) } : null },
   };
+  // The first time this engine reads a brand.json rather than writing one. The
+  // comparison runs here because it needs the finished article: every number in
+  // it is derived, and the derived ones are exactly the ones that move without
+  // anybody touching them.
+  let changes = null;
+  if (project.previous) {
+    const PREV = require('./previous');
+    changes = PREV.compare(project.previous.data, brandJson);
+    brandJson.changes = { since: project.previous.version.text, from: project.previous.file,
+      entries: changes.map((c) => ({ kind: c.kind, code: c.code, what: c.what })) };
+    const breaking = changes.filter((c) => c.kind === 'breaking');
+    if (breaking.length) {
+      warnings.push(`${breaking.length} change${breaking.length > 1 ? 's' : ''} since `
+        + `${project.previous.version.text} retire${breaking.length > 1 ? '' : 's'} something the client already has: `
+        + `${breaking.map((c) => c.code).join(', ')}. Nothing in the files they hold changes on its own, so both `
+        + 'versions are in use at once and both look correct. CHANGES.txt says what each one costs and what to do.');
+    }
+    if (!changes.length) {
+      warnings.push(`this package is version ${project.version} and the last one was `
+        + `${project.previous.version.text}, and nothing brand.json can measure is different between them. `
+        + 'A version that moves on its own asks everyone holding the old package to replace it for no reason. '
+        + 'Either leave the version where it was, or say in CHANGES.txt what moved that this file cannot see.');
+    }
+  }
   write('brand.json', JSON.stringify(brandJson, null, 2));
+  if (project.previous) {
+    write('CHANGES.txt', require('./previous').changesText(project.previous.data, brandJson, changes));
+  }
 
   // What each folder is for depends on what else the identity has. A wordmark
   // beside a symbol is the fallback below the mark's floor; a wordmark that is
@@ -553,7 +632,19 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     `  Smallest use    ${geo.floorText(measured.minimumSize, 'px')} on screen, ${geo.floorText(measured.minimumSize, 'mm')} in print.`,
     `                  ${measured.minimumSize.basis}.`,
     `  Colourways      ${rules.colourways.map((c) => c.name).join(', ')}.`, '',
-    'brand.json holds all of the above in a form software can read.', '',
+    'brand.json holds all of the above in a form software can read.',
+    // Twenty-one packages made that promise and nothing ever collected on it.
+    // It is worth saying who does, because it changes what the file is for:
+    // not a convenience, an input.
+    ...(project.previous ? [
+      `This package was built against the brand.json inside version ${project.previous.version.text},`,
+      'which is how the engine knows what moved. CHANGES.txt is that list. Read it',
+      'before using anything here: it says which of the files you already hold are',
+      'no longer part of the identity, and what that costs.',
+    ] : [
+      'Keep it. The next version of this identity is built against it, and it is',
+      'the only thing that can say what moved between the two.',
+    ]), '',
   ].join('\n');
   write('README.txt', readme);
 
@@ -570,24 +661,9 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     const { bundle: mkBundle, starterDoc } = require('./editor/bundle');
     const EM = require('./editor/model');
     const { publish } = require('./editor/publish');
-    // A page in the package that lists the package has to list all of it. The
-    // bundle was built from what had been written so far, which is everything
-    // except the documents themselves, the read me's companions and the zip —
-    // so an asset index laid out by a designer reported 45 files in a package
-    // of 57 and did not mention the folder its own page was in. Every name
-    // still to come is known here; only the sizes are not, and nothing in the
-    // index reads a size.
-    const pending = ['guidelines.html', 'deck.html', 'editor.html', 'document.json',
-      'published.html', 'usage.json', 'LICENCE.txt', `${naming.slug(project.latinName)}-brand-package.zip`]
-      .concat((project.documents || []).flatMap((d) => {
-        const slug = naming.slug(d.name) || naming.slug(path.basename(d.file, '.json')) || 'piece';
-        return [`10-documents/${slug}.html`, `10-documents/${slug}.json`];
-      }))
-      .filter((f) => !written.some((w) => w.path === f))
-      .map((f) => ({ path: f, bytes: 0 }));
-    const bu = mkBundle(project, measured, written.concat(pending));
+    const bu = mkBundle(project, measured, wholePackage());
     const document = starterDoc(bu);
-    write('editor.html', editorHtml(project, measured, written.concat(pending)));
+    write('editor.html', editorHtml(project, measured, wholePackage()));
     // a document carries the photographs it uses, or it opens with empty slots
     const IMG = require('./editor/images');
     const keep = IMG.used(document);

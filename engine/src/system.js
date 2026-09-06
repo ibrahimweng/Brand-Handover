@@ -33,7 +33,16 @@ function merge(base, over) {
 // the same hand. Three numbers carry across.
 function iconRules(measured, override) {
   const vb = measured.markViewBox, ink = measured.markInk;
-  const stroke = measured.minimumSize.thinnestStroke;
+  // Which weight the icons inherit was never a decision, it was a convenience:
+  // minimumSize had already worked out the thinnest stroke, so the icon grid
+  // used that. For a mark drawn in one weight the two are the same number and
+  // nothing was ever wrong. For a mark drawn in two — a heavy arch over a fine
+  // brook — the thinnest is the hairline, and the whole icon set came out at
+  // half the weight of the mark it is supposed to belong to: 0.9 on a 24 box,
+  // which is 3.75% and disappears at 16 px. Icons are the mark's voice at small
+  // size, so they take the weight that carries it, and the build says so.
+  const weights = (measured.strokeWidths || []).filter((w) => w > 0);
+  const stroke = weights.length ? weights[weights.length - 1] : measured.minimumSize.thinnestStroke;
   const margin = Math.max(0, (vb.w - ink.w) / 2);
   const proposed = {
     box: 24,
@@ -57,6 +66,8 @@ function iconRules(measured, override) {
   r.stroke = round(r.box * r.strokeRatio, 2);
   r.curveRadius = round(r.box * r.curveRatio, 2);
   r.derivedFrom = { viewBox: vb.w, ink: ink.w, markStroke: stroke, markMargin: round(margin, 2) };
+  // the build reads this to tell the designer a choice was made on their behalf
+  if (weights.length > 1) r.derivedFrom.markWeights = weights;
   return r;
 }
 
@@ -227,10 +238,13 @@ const round = (n, dp = 2) => Number(n.toFixed(dp));
 
 function resolve(project, measured) {
   const sys = project.system || {};
+  // The grid describes the icons this package contains, and where an identity
+  // ships a drawing for them those are cut from it, not from the master.
+  const forIcons = require('./variants').measureIcon(project) || measured;
   return {
     // written beside system.pattern and system.photography, the natural
     // spelling is the singular, so both are accepted
-    icons: iconRules(measured, sys.icons || sys.icon),
+    icons: iconRules(forIcons, sys.icons || sys.icon),
     pattern: patternRules(sys.pattern),
     motion: motionRules(sys.motion),
     photography: require('./photography').rules(sys.photography),

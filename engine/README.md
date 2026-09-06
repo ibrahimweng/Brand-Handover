@@ -131,6 +131,24 @@ the specimen's exactly, set `clearSpaceRatio` to 0.2294.
       mark.svg          the master
       wordmark.svg      outlined, so no font is needed at render time
 
+An identity in its second version points at the package its first version
+produced, and the build reports what moved between them:
+
+    projects/tarnbrook/
+      project.json      "version": "2.0.0", "previous": "previous/brand.json"
+      mark.svg          the new artwork
+      wordmark.svg
+      previous/
+        brand.json      copied out of the package that shipped as 1.4.0
+
+`previous` takes the brand.json from the root of the earlier package, whole and
+unedited. What comes back is `CHANGES.txt`, chapter 00 of the manual and a
+`changes` block in this version's own brand.json — the floor, clear space,
+colours, lockups, colourways, contrast verdicts and the icon grid, with the ones
+that retire something the client already holds separated from the ones that only
+add. A previous package for a different brand, or carrying a version that is not
+earlier than this one, is refused rather than compared.
+
 Artwork marks its recolourable parts with `data-slot`:
 
     <circle data-slot="ink" ... stroke="#0A2A33" stroke-width="9"/>
@@ -2209,6 +2227,85 @@ own — so the check failed on a project that was correct. Two lists of one thin
 is the defect this engine keeps finding in other people's code; it was inside
 the check. The list is exported now and the test reads it.
 
+## A twenty-second identity
+
+Every read me this engine has ever written ends the same way:
+
+    brand.json holds all of the above in a form software can read.
+
+Twenty-one identities shipped that sentence. A grep for anything that opens a
+brand.json found writers, and no readers. It was a promise with nothing on the
+other end of it — a format emitted and never consumed, which is a format nobody
+has tested, however well-formed it is.
+
+**Tarnbrook** is a building society, and the fixture is its **second version**.
+The input to the build is the brand.json its own first version wrote:
+
+    "version": "2.0.0",
+    "previous": "previous/brand.json",
+
+That makes the engine the first reader of its own contract, and what it reads is
+the part of a second version that is in neither package. Both packages are
+correct. Both describe a complete identity. The expensive facts are in the
+difference between them, and nothing had ever looked at it.
+
+    warning: 7 changes since 1.4.0 retire something the client already has
+
+The floor went from 32 px to 64 px, because the new artwork has a finer part in
+it and the floor is set by whatever disappears first — so everything already
+made between the two was inside the rule when it was made and is outside it now.
+`beck` and `gorse` moved, so stock already printed is off palette, and a colour
+that has moved a little is worse than one that has moved a lot: the two sit side
+by side and read as a printing fault rather than as two versions. The `stacked`
+lockup and the `beck` colourway were withdrawn, and the files clients already
+downloaded keep working and keep their names — nothing about them announces that
+they have left the identity. `fell on gorse` carried body text at 4.69:1 and
+carries headings only at 4.14:1: the words did not change and the layout did not
+change, so there is nothing on the page to look at.
+
+`CHANGES.txt` is that list, in the package, ordered by what it costs. The manual
+opens with it, chapter 00, before the specification the reader already has. And
+a previous package that is missing, unreadable, not a brand.json, for a
+different brand, later than this build, or **carrying the same version number as
+this one** is refused in the designer's language rather than compared — that last
+one being what a version number exists to prevent.
+
+Four defects came out of it, three older than the round.
+
+**A stroke written where SVG writes it was not read.** `thinnestStroke` wanted
+`stroke` and `stroke-width` on the same element. A mark that puts the colour on
+the group and the widths on the paths — which is how anyone draws a mark in one
+colour and two weights — reported no stroke at all, and the floor fell back to a
+measurement off the render. Three of the twenty-two fixtures are drawn that way.
+Ravelston's manual certified a size at which its finest line paints **1.94 px
+against its own 2.4 px rule**; at the corrected floor it paints 2.44. The lesson
+was already written down twenty lines away, in `checkIcon`, which carries paint
+down the tree and says why: "an icon with the wrong weight passes silently,
+which is worse than not checking at all."
+
+**The icon grid took the thinnest weight, which is the only weight until it
+isn't.** `minimumSize.thinnestStroke` was already computed, so the icon grid used
+it — never argued for, and identical to "the mark's weight" for every mark drawn
+in one. Tarnbrook's arch is 9 and its brook is 4.5, and the whole icon set came
+out at half the weight of the mark it belongs to. Icons take the weight the mark
+carries its shape in now, and a mark with more than one says so in the build.
+
+**And it took it from the wrong drawing.** An identity that ships a simplified
+drawing for its icons has the files and the floor cut from it — and the grid in
+its manual was still worked out from the full mark. Ravelston's icon drawing is
+13 units on a 120 box; the grid it handed the client said 0.6 on 24, a quarter
+of the weight of the only icon in the package. The checker worked its own rule
+out separately, so `check --icon` and the manual could disagree; both read the
+one grid now.
+
+**brand.json said 34 files in a package of 43.** It counted what had been written
+at the moment it was written, and the read me, the manual, the deck, the canvas,
+the licence and the zip all come after. Every package ever built was wrong the
+same way, in the one file whose job is to be read by software. The list of names
+still to come already existed for the asset index; it is worked out before
+brand.json now, and both read it. Under it was a second one: Skerry ships one
+face for two roles, so the same file was written twice and counted twice.
+
 ## A front door
 
 Sixteen rounds, and the only way into the engine was to hand-write a project
@@ -2324,6 +2421,7 @@ the mechanism. The name was the cause, and renaming the payload is the fix.
     projects/yamabiko/ the nineteenth: Japanese, which has no spaces in it
     projects/lammas/  the twentieth: it ships the pages somebody laid out
     projects/skerry/  the twenty-first: a symbol, and a name that is set not drawn
+    projects/tarnbrook/ the twenty-second: a second version, built against its first
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package

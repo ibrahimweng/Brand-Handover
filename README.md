@@ -604,6 +604,43 @@ defect returning the moment a second way to say one number existed; and the
 audit **kept its own copy of the list it audits**, so it failed on a project that
 was correct.
 
+The twenty-second went looking for the sentence the engine has written into
+every read me it has ever produced: *"brand.json holds all of the above in a
+form software can read."* Twenty-one identities shipped that line, and a grep
+found only writers. **Nothing had ever read one.** A promise with nothing on the
+other end of it.
+
+**Tarnbrook** is a building society in its second version, and the input to the
+build is the brand.json its own first version wrote. That makes the engine the
+first reader of its own contract — and what it reads is the half of a second
+version that is in neither package: **the difference**. The floor has doubled, so
+every application already made between 32 px and 64 px was inside the rule when
+it was made and is outside it now. A colour has moved, so stock already printed
+is off palette. A colourway has been withdrawn, and the files clients already
+downloaded keep working and keep their names, and nothing about them says they
+are no longer part of the identity. `fell on gorse` carried body text at 4.69:1
+and carries headings at 4.14:1, and the words did not change and the layout did
+not change — only the colour underneath moved. `CHANGES.txt` is that list, the
+manual opens with it, and a package whose previous version is missing, mistyped,
+for a different brand, or carrying the same version number as this one is
+refused in words rather than compared.
+
+Four defects came out of it, three of them older than the round. `thinnestStroke`
+wanted `stroke` and `stroke-width` **on the same element**, so a mark that puts the
+colour on the group and the widths on the paths reported no stroke at all —
+three of the twenty-two are drawn that way, and Ravelston certified a floor at
+which its finest line paints 1.94 px against its own 2.4 px rule. The lesson was
+already written twenty lines away, in the icon checker, which carries paint down
+the tree and says why. The icon grid took the mark's **thinnest** weight, which is
+the same number as its only weight until a mark has two — Tarnbrook's icons came
+out at half the weight of the mark they belong to — and took it from the master
+even where the identity **ships a drawing for its icons**, so Ravelston's grid
+specified a quarter of the weight of the only icon in its own package. And
+`brand.json` said Tarnbrook held **34 files in a package of 43**: it counted what
+had been written at the moment it was written, and the read me, the manual, the
+deck, the canvas and the zip all come after. Every package ever built was wrong
+the same way, in the one file whose job is to be read by software.
+
 Still to do: a run on **your** identity job. Twenty identities the engine had
 not seen is worth a great deal more than twenty passes over one, but none of
 them came out of your exporter — and the normaliser is the part that most needs

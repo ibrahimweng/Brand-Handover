@@ -52,6 +52,23 @@ function buildVariant({ markSrc, wordmarkSrc, lockup, colourway, rules, measured
   return { svg: svgu.compose(parts, width, height), missing, kept, box: { x: 0, y: 0, w: svgu.round(width), h: svgu.round(height) } };
 }
 
+// The drawing icons are cut from, and everything the icon grid derives from it.
+// An identity that ships a simplified drawing for icons had it used for the
+// files and for the floor, and the grid in its manual went on being worked out
+// from the full mark: Ravelston's own icon drawing is 13 units on a 120 box and
+// the grid it handed the client said 0.6 on 24, a quarter of the weight of the
+// only icon in the package.
+function measureIcon(project) {
+  if (!project.assets || !project.assets.icon) return null;
+  const src = project.assets.icon.source;
+  return {
+    markInk: geo.inkBox(src),
+    markViewBox: svgu.viewBox(svgu.parse(src)),
+    minimumSize: geo.minimumSize(src, project.rules),
+    strokeWidths: svgu.strokeWidths(svgu.parse(src)),
+  };
+}
+
 // Measure the master once. Every variant is derived from these numbers.
 //
 // markInk and markViewBox are the master's, whichever asset that is: an
@@ -70,6 +87,9 @@ function measure(project) {
     clearSpace: geo.clearSpace(markInk, project.rules.clearSpaceRatio),
     minimumSize: geo.minimumSize(markSrc, project.rules),
     slots: svgu.slotsUsed(svgu.parse(markSrc)),
+    // every weight the master is drawn in, thinnest first. One entry is the
+    // usual case; more than one makes the icon weight a decision.
+    strokeWidths: svgu.strokeWidths(svgu.parse(markSrc)),
   };
   if (project.assets.wordmark) {
     out.wordInk = geo.inkBox(project.assets.wordmark.source);
@@ -78,4 +98,4 @@ function measure(project) {
   return out;
 }
 
-module.exports = { buildVariant, measure };
+module.exports = { buildVariant, measure, measureIcon };

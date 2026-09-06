@@ -1284,12 +1284,45 @@ codebase of the check's own staleness. Exported now, and read rather than
 restated. Worth grepping for: any literal list in a test that also exists in
 `src/`.
 
-**The loader's declaration order has now caught three rounds running.** `sys`
-in the sixteenth, `tokens` in the seventeenth, `tokens` again here. A long
-function where later work needs earlier values, and the earlier values are
+**The loader's declaration order has now caught five rounds running.** `sys`
+in the sixteenth, `tokens` in the seventeenth, `tokens` again in the
+twenty-first, and in the twenty-second both `sys` and `pending` in `build.js`. A
+long function where later work needs earlier values, and the earlier values are
 declared halfway down. It is cheap to hit and cheap to fix each time, which is
-why it has not been fixed properly; the honest note is that this file wants
-splitting into load-then-derive rather than one pass.
+why it has not been fixed properly. Two of them are fixed properly now — moved
+up beside their inputs rather than patched at the reader — and the note stands:
+these files want splitting into load, derive, write rather than one pass.
+
+**A promise nothing collects on is not a feature.** Every read me the engine has
+written says brand.json holds the identity "in a form software can read".
+Twenty-one rounds, and a grep found writers and no readers. The file was
+well-formed, complete and correct, and it had never been tested by the only
+thing that proves a format: something reading it. Pointing the engine at its own
+last brand.json found three defects in twenty minutes, one of them in the file
+itself — it reported 34 files in a package of 43, because it counted the package
+as of the moment it was written and half the package comes after. Any format you
+emit and never consume is a format you have not tested. Consume it somewhere.
+
+**The same bug, found and fixed in one file, was never carried to the other.**
+`checkIcon` carries `stroke` and `stroke-width` down the tree, with a comment
+saying exactly why: "Reading only what is on the shape itself finds nothing, and
+an icon with the wrong weight passes silently, which is worse than not checking
+at all." `svg.thinnestStroke` — the reading that sets every minimum size in
+every package — required both attributes on the same element and was twenty
+lines away in another file. Three fixtures were drawn the way it could not read.
+When a fix's rationale generalises, grep for the other places that ask the same
+question, and do it in the same commit.
+
+**A derived number takes the wrong input the moment there are two.** The icon
+grid read `minimumSize.thinnestStroke` because it was already computed — never
+argued for, and identical to "the only stroke" for every mark drawn in one
+weight. The first mark drawn in two handed the icon set its hairline. The same
+grid was measured off the master even for an identity that ships a drawing
+specifically for icons, whose files and floor already came off that drawing.
+Both are the same shape: a derivation that was correct while its input was
+unambiguous, and never revisited when a second candidate appeared. Worth asking
+of every derived value: *which* of the things it could be measured from, and
+what happens the day there are two?
 
 ---
 

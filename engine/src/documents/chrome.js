@@ -37,6 +37,14 @@ h1,h2,h3,h4{font-family:var(--ui);margin:0;text-wrap:balance}
 .badge.once::before{background:linear-gradient(90deg,var(--ink) 0 50%,transparent 50% 100%)}
 .badge.yours::before{background:none}.badge.yours{color:var(--ink-3)}
 .note{font-size:15px;line-height:1.6;color:var(--ink-2);max-width:66ch;margin-top:14px}.note b{color:var(--ink);font-weight:600}
+.chgs{margin-top:22px;border-top:1px solid var(--rule-2)}
+.chg{padding:15px 4px 15px 20px;border-bottom:1px solid var(--rule);position:relative}
+.chg::before{content:"";position:absolute;left:0;top:19px;width:9px;height:9px;background:var(--ink-3)}
+.chg.breaking::before{background:#C2352B}
+.chg b{display:block;font-weight:600;font-size:15.5px;letter-spacing:-.008em}
+.chg span,.chg em{display:block;font-size:14px;line-height:1.55;color:var(--ink-2);max-width:64ch;margin-top:5px}
+.chg em{font-style:normal;color:var(--ink-3)}
+.chg em::before{content:"\\2192  ";color:var(--ink-3)}
 .stage{background:var(--sunk);border:1px solid var(--rule);display:flex;align-items:center;justify-content:center;padding:40px 26px}
 .stage.tight{padding:22px 16px;min-height:120px}
 .row2>figure>.stage,.row3>figure>.stage{min-height:190px}

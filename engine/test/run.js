@@ -4916,8 +4916,274 @@ test('a symbol that is the whole identity is not described as a fallback', async
   fs.rmSync(two, { recursive: true, force: true });
 });
 
+
+// ---------------------------------------------------------------------------
+console.log('\nreading a stroke that is written where SVG writes it');
+test('stroke and stroke-width on different elements are still one stroke', () => {
+  // The colour on the group and the widths on the paths is how anybody draws a
+  // mark in one colour and two weights. Both readings wanted the two attributes
+  // on the same element, so both came back empty and the engine reported
+  // "measured off the artwork" about a file that states its widths.
+  const doc = svgu.parse('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">'
+    + '<g stroke="#000" fill="none"><path stroke-width="9" d="M10 10H110"/>'
+    + '<path stroke-width="4.5" d="M10 30H110"/></g></svg>');
+  assert.deepStrictEqual(svgu.strokeWidths(doc), [4.5, 9]);
+  assert.strictEqual(svgu.thinnestStroke(doc), 4.5);
+});
+test('a declared stroke-width of 0 means no stroke, not the default of 1', () => {
+  // Ravelston switches the group's stroke off and turns it back on per path.
+  // Reading only widths above zero fell through to SVG's default of 1, and
+  // every filled shape under the group was then a 1 unit hairline: the floor
+  // came out at 576 px on a mark whose finest real stroke is 4.
+  const doc = svgu.parse('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240">'
+    + '<g fill="#000" stroke="#000" stroke-width="0"><path d="M10 10h100v100H10Z"/>'
+    + '<path fill="none" stroke-width="6" d="M10 200H230"/></g></svg>');
+  assert.deepStrictEqual(svgu.strokeWidths(doc), [6]);
+});
+test('the split-stroke fixtures now report a stroke instead of a stem', () => {
+  for (const name of ['ravelston', 'yamabiko', 'tarnbrook']) {
+    const pr = projectLoader.load(path.join(__dirname, '..', 'projects', name, 'project.json'));
+    const min = measure(pr).minimumSize;
+    assert.strictEqual(min.from, 'stroke', `${name} still measures its floor off the render`);
+  }
+});
+test('the corrected floor is the one where the finest stroke clears the rule', () => {
+  // Measured, not asserted: Ravelston's 4 unit circle at the floor it used to
+  // publish paints under the 2.4 px this project sets as the thinnest a stroke
+  // may go, and at the corrected floor it clears it.
+  const decode = require('fast-png').decode;
+  const one = (w) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 280" width="${w}" `
+    + `height="${Math.round(w * 280 / 240)}"><path fill="none" stroke="#000" stroke-width="4" `
+    + `d="M71 196a15 15 0 1 0 30 0 15 15 0 1 0-30 0Z"/></svg>`;
+  const inkAt = (w) => {
+    const png = decode(geo.renderPng(one(w), w));
+    const ch = png.channels, y = Math.round((196 / 280) * png.height);
+    const a = (x) => png.data[(y * w + x) * ch + (ch === 4 ? 3 : 0)] / 255;
+    let x = 0; while (x < w && a(x) === 0) x++;
+    let ink = 0; while (x < w && a(x) > 0) { ink += a(x); x++; }
+    return ink;
+  };
+  assert.ok(inkAt(116) < 2.4, `the old floor painted ${inkAt(116).toFixed(2)} px, which was inside the rule`);
+  assert.ok(inkAt(144) >= 2.4, `the new floor paints ${inkAt(144).toFixed(2)} px, which is under the rule`);
+});
+
+// ---------------------------------------------------------------------------
+console.log('\nthe icon grid, when the mark has more than one weight');
+test('icons take the weight the mark carries its shape in, not its finest detail', () => {
+  const sys = require('../src/system');
+  const tb = projectLoader.load(path.join(__dirname, '..', 'projects', 'tarnbrook', 'project.json'));
+  const r = sys.resolve(tb, measure(tb)).icons;
+  assert.deepStrictEqual(r.derivedFrom.markWeights, [4.5, 9]);
+  assert.strictEqual(r.derivedFrom.markStroke, 9, 'the icon grid took the hairline');
+  assert.strictEqual(r.stroke, 1.8);
+});
+test('a mark with one weight says nothing about the choice', () => {
+  const sys = require('../src/system');
+  assert.strictEqual(sys.resolve(project, m).icons.derivedFrom.markWeights, undefined);
+});
+test('the icon grid is derived from what icons are cut from', () => {
+  // Ravelston ships a simplified drawing for its icons — 13 units on a 120 box.
+  // The files and the floor came off it and the grid did not, so the manual
+  // specified 0.6 on a 24 box for a set whose only drawing is at 2.6.
+  const sys = require('../src/system');
+  const rv = projectLoader.load(path.join(__dirname, '..', 'projects', 'ravelston', 'project.json'));
+  const r = sys.resolve(rv, measure(rv)).icons;
+  assert.strictEqual(r.derivedFrom.viewBox, 120, 'the grid still comes off the 240 master');
+  assert.strictEqual(r.derivedFrom.markStroke, 13);
+  assert.strictEqual(r.stroke, 2.6);
+  // and an identity with no icon drawing still derives from its master
+  assert.strictEqual(sys.resolve(project, m).icons.derivedFrom.viewBox, 120);
+});
+test('a project that states the icon stroke keeps it', () => {
+  const sys = require('../src/system');
+  const stated = Object.assign({}, project, { system: { icons: { stroke: 2 } } });
+  assert.strictEqual(sys.resolve(stated, m).icons.stroke, 2);
+});
+
+// ---------------------------------------------------------------------------
+console.log('\nreading the last version');
+const PREV = require('../src/previous');
+const TB = path.join(__dirname, '..', 'projects', 'tarnbrook', 'project.json');
+
+test('versions sort so the engine can tell which package came first', () => {
+  const v = (x) => PREV.parseVersion(x);
+  assert.strictEqual(PREV.compareVersions(v('1.4.0'), v('2.0.0')), -1);
+  assert.strictEqual(PREV.compareVersions(v('1.10.0'), v('1.9.0')), 1);
+  assert.strictEqual(PREV.compareVersions(v('2.0.0'), v('2.0.0')), 0);
+  assert.strictEqual(PREV.compareVersions(v('2.0.0-rc1'), v('2.0.0')), -1);
+  assert.strictEqual(PREV.parseVersion('spring release'), null);
+});
+
+const refusal = (previous, over) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-prev-'));
+  const raw = JSON.parse(fs.readFileSync(TB, 'utf8'));
+  for (const f of ['mark.svg', 'wordmark.svg']) {
+    fs.copyFileSync(path.join(path.dirname(TB), f), path.join(dir, f));
+  }
+  if (previous !== null) {
+    fs.writeFileSync(path.join(dir, 'last.json'), typeof previous === 'string' ? previous : JSON.stringify(previous));
+    raw.previous = 'last.json';
+  }
+  Object.assign(raw, over || {});
+  fs.writeFileSync(path.join(dir, 'project.json'), JSON.stringify(raw));
+  try { projectLoader.load(path.join(dir, 'project.json')); return null; }
+  catch (e) { return e; }
+  finally { fs.rmSync(dir, { recursive: true, force: true }); }
+};
+const wellFormed = (e) => {
+  assert.ok(e, 'the engine accepted it');
+  assert.ok(e.findings && e.findings.length === 1, 'a crash is not a refusal');
+  for (const k of ['what', 'why', 'how']) {
+    assert.ok(e.findings[0][k] && e.findings[0][k].length > 20, `the refusal has no ${k}`);
+  }
+  return e.findings[0];
+};
+const LAST = JSON.parse(fs.readFileSync(path.join(path.dirname(TB), 'previous', 'brand.json'), 'utf8'));
+
+test('a previous that is not there is refused, not crashed through', () => {
+  const raw = JSON.parse(fs.readFileSync(TB, 'utf8'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-prev0-'));
+  for (const f of ['mark.svg', 'wordmark.svg']) fs.copyFileSync(path.join(path.dirname(TB), f), path.join(dir, f));
+  raw.previous = 'previous/gone.json';
+  fs.writeFileSync(path.join(dir, 'project.json'), JSON.stringify(raw));
+  let err = null;
+  try { projectLoader.load(path.join(dir, 'project.json')); } catch (e) { err = e; }
+  fs.rmSync(dir, { recursive: true, force: true });
+  assert.ok(err && /is not there/.test(err.message), 'a missing previous package built anyway');
+});
+test('a previous that is not JSON is refused in words', () => {
+  assert.ok(/not readable as JSON/.test(wellFormed(refusal('{ not json')).what));
+});
+test('a JSON file that is not a brand.json is refused', () => {
+  assert.ok(/not a brand\.json/.test(wellFormed(refusal({ hello: 'world' })).what));
+});
+test('the previous package for a different brand is refused', () => {
+  const other = Object.assign({}, LAST, { brand: 'Meridian' });
+  assert.ok(/is the package for Meridian/.test(wellFormed(refusal(other)).what));
+});
+test('two packages under one version number is refused', () => {
+  // What a version number is for. Anybody holding a file cannot tell which of
+  // the two builds it came out of, and both packages look correct.
+  const same = Object.assign({}, LAST, { version: '2.0.0' });
+  assert.ok(/both version 2\.0\.0/.test(wellFormed(refusal(same)).what));
+});
+test('a previous package later than this build is refused', () => {
+  const later = Object.assign({}, LAST, { version: '3.1.0' });
+  const f = wellFormed(refusal(later));
+  assert.ok(/later than this project/.test(f.what), f.what);
+  assert.ok(/reported backwards/.test(f.why));
+});
+
+console.log('\nwhat the comparison finds');
+const tbProject = projectLoader.load(TB);
+let tbOut, tbChanges, tbBrand;
+before(async () => {
+  tbOut = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-tb-'));
+  await build(tbProject, tbOut);
+  tbBrand = JSON.parse(fs.readFileSync(path.join(tbOut, 'brand.json'), 'utf8'));
+  tbChanges = PREV.compare(tbProject.previous.data, tbBrand);
+});
+const found = (code) => tbChanges.filter((c) => c.code === code);
+
+test('every change says what, why and how, like every other finding', () => {
+  assert.ok(tbChanges.length >= 9, `only ${tbChanges.length} changes found`);
+  for (const c of tbChanges) {
+    for (const k of ['what', 'why', 'how']) assert.ok(c[k] && c[k].length > 20, `${c.code} has no ${k}`);
+    assert.ok(['breaking', 'news'].indexOf(c.kind) > -1, `${c.code} has no kind`);
+  }
+});
+test('a floor that has risen is the change that retires existing artwork', () => {
+  const f = found('minSize')[0];
+  assert.ok(f && f.kind === 'breaking');
+  assert.ok(/32 px \/ 9 mm to 64 px \/ 18 mm/.test(f.what), f.what);
+  assert.ok(/between 32 px and 64 px/.test(f.why), 'the band is stated backwards');
+});
+test('a colour that has moved names the value to search for', () => {
+  const moved = found('colourMoved').map((c) => c.what).join(' ');
+  assert.ok(/beck has moved from #5C8A80 to #4E7A72/.test(moved), moved);
+  assert.ok(/gorse has moved from #D9A227 to #CE971F/.test(moved), moved);
+});
+test('a colour that is only added is not a warning', () => {
+  const f = found('colourAdded')[0];
+  assert.ok(f && f.kind === 'news' && /stone/.test(f.what));
+});
+test('a withdrawn lockup names the folder that is missing', () => {
+  const f = found('lockupsWithdrawn')[0];
+  assert.ok(f && /"stacked"/.test(f.what) && /02-stacked/.test(f.why), f && f.why);
+});
+test('a withdrawn colourway is reported even though the old files still work', () => {
+  const f = found('colourwaysWithdrawn')[0];
+  assert.ok(f && /"beck"/.test(f.what));
+  assert.ok(/keep working and keep their names/.test(f.why));
+});
+test('a contrast pair that stops passing is a change, not just a number', () => {
+  const f = found('contrast')[0];
+  assert.ok(f && f.kind === 'breaking', 'a fallen verdict was not treated as breaking');
+  assert.ok(/fell on gorse/.test(f.what) && /Pass AA/.test(f.what) && /Large text only/.test(f.what), f.what);
+});
+test('two identical packages under different versions report nothing but say so', () => {
+  const same = PREV.compare(tbBrand, Object.assign({}, tbBrand, { version: '2.0.1' }));
+  assert.strictEqual(same.length, 0);
+  const flat = PREV.changesText(tbBrand, tbBrand, same).replace(/\s+/g, ' ');
+  assert.ok(/nothing this file can measure is different/.test(flat), flat);
+});
+test('the package carries the list the client has to act on', () => {
+  const txt = fs.readFileSync(path.join(tbOut, 'CHANGES.txt'), 'utf8');
+  assert.ok(/what changed since 1\.4\.0/.test(txt), txt.slice(0, 200));
+  assert.ok(/Retires something the client already has/.test(txt));
+  assert.ok(/New in this version/.test(txt));
+  // the file is wrapped to 76 columns, so every sentence is read flat
+  const flat = txt.replace(/\s+/g, ' ');
+  for (const c of tbChanges) {
+    for (const k of ['what', 'why', 'how']) {
+      assert.ok(flat.indexOf(c[k].replace(/\s+/g, ' ')) > -1, `${c.code}'s ${k} is not in CHANGES.txt`);
+    }
+  }
+});
+test('brand.json says which package it was compared against', () => {
+  assert.strictEqual(tbBrand.changes.since, '1.4.0');
+  assert.strictEqual(tbBrand.changes.entries.length, tbChanges.length);
+});
+test('brand.json counts the package it describes, all of it', () => {
+  // It counted what had been written when it was written, which is everything
+  // except the read me, the documents, the licence and the zip: Tarnbrook said
+  // 34 files in a package of 43, and every package ever built was wrong the
+  // same way. The one file whose job is to be read by software.
+  const onDisk = (dir) => fs.readdirSync(dir, { recursive: true })
+    .filter((f) => fs.statSync(path.join(dir, f)).isFile()).length;
+  assert.strictEqual(tbBrand.generated.files, onDisk(tbOut));
+  const first = JSON.parse(fs.readFileSync(path.join(out, 'brand.json'), 'utf8'));
+  assert.strictEqual(first.generated.files, onDisk(out), 'a package with no previous miscounts too');
+});
+test('a file written twice is listed once', () => {
+  // Skerry ships one face for two roles, so the same ttf was written twice and
+  // counted twice, and every count taken off the list was one too many.
+  const sk = projectLoader.load(path.join(__dirname, '..', 'projects', 'skerry', 'project.json'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-dupe-'));
+  return build(sk, dir).then((r) => {
+    const dupes = r.written.map((w) => w.path).filter((f, i, a) => a.indexOf(f) !== i);
+    fs.rmSync(dir, { recursive: true, force: true });
+    assert.deepStrictEqual(dupes, [], 'the same path is in the written list twice');
+  });
+});
+test('the manual leads with what changed, and only where there is a previous', () => {
+  const html = fs.readFileSync(path.join(tbOut, 'guidelines.html'), 'utf8');
+  assert.ok(html.indexOf('What changed since 1.4.0') > -1, 'the manual has no changes chapter');
+  const rows = (html.match(/class="chg breaking"/g) || []).length;
+  assert.strictEqual(rows, tbChanges.filter((c) => c.kind === 'breaking').length);
+  assert.ok(html.indexOf('What changed since') < html.indexOf('Minimum size'), 'it is not read first');
+  const plain = fs.readFileSync(path.join(out, 'guidelines.html'), 'utf8');
+  assert.ok(plain.indexOf('What changed since') < 0, 'a first version has a changes chapter');
+});
+test('the read me names what reads brand.json, in both cases', () => {
+  assert.ok(/CHANGES\.txt is that list/.test(fs.readFileSync(path.join(tbOut, 'README.txt'), 'utf8')));
+  assert.ok(/The next version of this identity is built against it/
+    .test(fs.readFileSync(path.join(out, 'README.txt'), 'utf8')));
+});
+
 drain().then(() => {
-  for (const d of [out, out2]) fs.rmSync(d, { recursive: true, force: true });
+
+  for (const d of [out, out2, tbOut]) if (d) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);
   process.exit(failed ? 1 : 0);
 });

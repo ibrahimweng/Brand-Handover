@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Tarnbrook 2.0: the same arch, and the brook now runs under it. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <g data-slot="ink" fill="none" stroke="#26433B" stroke-linecap="round">
+    <path d="M18 76 C18 40, 102 40, 102 76" stroke-width="9"/>
+    <path d="M12 90 C27 82, 42 98, 57 90 C72 82, 87 98, 102 90" stroke-width="4.5"/>
+    <path d="M22 102 C34 95, 46 109, 58 102 C70 95, 82 109, 94 102" stroke-width="4.5"/>
+  </g>
+</svg>
