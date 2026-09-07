@@ -3089,6 +3089,80 @@ over), no clip paths, no non-scaling strokes, and nothing that draws nothing.
 Thirty-one of thirty-one identities ship a pattern: 300 tiles, every one seamless
 in both directions, and the seeded scatter builds the same field twice.
 
+## Four books, and six questions
+
+Every manual and deck this engine had written looked the same. One stylesheet,
+one set of proportions, one idea of how a page is arranged. Defensible for a tool
+that measures things and indefensible for one that presents them: a brand book is
+a piece of design, and choosing between a quiet editorial system and a loud one is
+a real choice about how an identity is introduced.
+
+`src/directions.js` holds four, and they are systems rather than themes. Swapping
+colours is a theme. These change the modular scale the type is built on, the
+measure, the page width, how much air a specimen stands in, how heavy the rules
+are, whether the brand's own display face sets the headings — and, the part that
+makes them four books rather than one book four ways, **how the page is
+organised**:
+
+    quiet      the section heading sits in a column of its own and the work runs
+               beside it, so a page reads as one measure with a margin
+    technical  everything numbered lives in a rail down the left, so a reader
+               looking for 1.4 runs a finger down a column
+    warm       centred, narrow, no rules anywhere, soft panels, generous rhythm
+    bold       a chapter opens as a band across the page rather than as a rule
+               above a heading
+
+The whole of a direction is tokens plus a short override block, applied by a
+`data-dir` attribute on the root. No markup branches on it. Four copies of a
+hundred and thirty lines of CSS would be four things to keep in step, and they
+would not stay in step.
+
+**The first attempt was four variations, not four systems.** Margins, rule
+weights, a number size. Built, valid, and a client would not have felt they were
+choosing between anything. It took rendering all four side by side to see it; the
+fix was to stop varying proportions and start varying structure.
+
+**The audit caught the band.** A chapter opener that reverses out on the ink was
+reported as failing at 1 to 1 — because `chromeContrast` read every rule's colour
+against the *page*, and could not see an element that paints its own ground. The
+same shape of mistake as the twenty-ninth round's `--surface`: the arithmetic was
+right and it was pointed at the wrong thing. It reads a rule's own `background`
+now, and the band measures 18.6 to 1.
+
+### Six questions
+
+A brand package has about forty decisions in it. Most are facts about the artwork
+— the thinnest stroke, the floor, the colours, the parts, which shape carries a
+repeat — and the engine measures every one already. Asking a designer to type in
+something the file can be asked is how a tool grows a fourteen step wizard nobody
+finishes.
+
+`src/intake.js` asks six, and three of them are the engine showing its own answer
+and asking whether it is right:
+
+    1  what it is called                    cannot be measured
+    2  what it does, in one line            cannot be measured
+    3  how it should be laid out            shown, four ways, with your own logo
+    4  where it mostly lives                cannot be measured, and decides a lot
+    5  the colours                          read off the file, confirm the roles
+    6  what it must never do                suggested from the drawing
+
+Question four is the one that earns its place: *where does it live* switches on
+the formats, the sizes, the stock and the making. Say screens, print and things
+people wear and the package comes out as SVG, PNG, PDF and .ai, at three sizes,
+on coated stock, checked against embroidery at 70mm and foil at 40mm — none of
+which anybody had to type.
+
+Question five is measurement wearing a question mark: every colour in the file,
+ordered by how much of the drawing it covers, with a role proposed for each. The
+darkest is what the mark is drawn in, the lightest is what it stands on, the one
+furthest from grey is the one doing the work. Question six is the ten treatments
+from `src/misuse.js` with the ones that apply to this drawing already ticked — a
+suggestion to untick is a better question than a blank list.
+
+Six answers and a drawing make a 73 file package, and the only thing it complains
+about is CMYK, which genuinely cannot be measured: it has to come from a printer.
+
 ## A front door
 
 Sixteen rounds, and the only way into the engine was to hand-write a project

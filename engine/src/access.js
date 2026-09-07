@@ -57,7 +57,14 @@ function textRules(css, bodyPx = 14) {
     if (!colour) continue;
     const size = /font-size\s*:\s*(?:clamp\([^,]+,[^,]+,\s*)?([\d.]+)px/.exec(body);
     const weight = /font-weight\s*:\s*(\d+)/.exec(body);
-    out.push({ selector: sel, token: colour[1],
+    // An element that paints its own ground is measured against that ground and
+    // not against the page. Without this, a reversed band — white on the ink,
+    // which is a normal thing for a chapter opener to be — is scored as paper
+    // on paper and reported as failing at 1 to 1. The same shape of mistake as
+    // taking the page's ground to be --surface: the arithmetic was right and it
+    // was pointed at the wrong thing.
+    const own = /(?:^|;|\s)background(?:-color)?\s*:\s*var\(--([\w-]+)\)/.exec(body);
+    out.push({ selector: sel, token: colour[1], own: own ? own[1] : null,
       px: size ? Number(size[1]) : bodyPx, stated: !!size,
       weight: weight ? Number(weight[1]) : 400 });
   }
@@ -93,7 +100,7 @@ function chromeContrast(css, { minTextRatio = null } = {}) {
   for (const [theme, vars] of Object.entries(t)) {
     for (const r of rules) {
       const fg = vars[r.token];
-      const bg = groundFor(r.selector, vars, ground);
+      const bg = (r.own && vars[r.own]) || groundFor(r.selector, vars, ground);
       if (!fg || !bg) continue;
       const ratio = contrast.ratio(fg, bg);
       if (ratio == null) continue;

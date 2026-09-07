@@ -6554,6 +6554,151 @@ test('a deck says what language it is written in, not what the brand is in', () 
 });
 
 
+// ---------------------------------------------------------------------------
+console.log('\nhow the book is laid out, and what the engine asks');
+const DIRS = require('../src/directions');
+const INTAKE = require('../src/intake');
+
+test('there are four layout systems and they are systems, not colour schemes', () => {
+  assert.ok(DIRS.NAMES.length >= 4, 'a choice of fewer than four is not a choice');
+  const seen = new Set();
+  for (const k of DIRS.NAMES) {
+    const d = DIRS.DIRECTIONS[k];
+    assert.ok(d.name && d.note.length > 60, `${k} does not say what it is for`);
+    // the things that make a layout a layout, rather than a palette
+    for (const v of ['--page-max', '--measure', '--h1', '--lead', '--chapter-gap', '--stage-pad']) {
+      assert.ok(d.vars[v], `${k} does not set ${v}`);
+    }
+    // and no two of them are the same proportions
+    const shape = [d.vars['--h1'], d.vars['--measure'], d.vars['--lead'], d.vars['--chapter-gap']].join('|');
+    assert.ok(!seen.has(shape), `${k} has the same proportions as another direction`);
+    seen.add(shape);
+    // a direction has to change the structure too: tokens alone read as one book
+    assert.ok(d.css.length > 300, `${k} changes nothing structural`);
+  }
+});
+
+test('a layout the engine does not have is refused, not quietly swapped', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-style-'));
+  for (const f of fs.readdirSync(path.join(__dirname, '..', 'projects', 'thornbury'))) {
+    fs.copyFileSync(path.join(__dirname, '..', 'projects', 'thornbury', f), path.join(dir, f));
+  }
+  const raw = JSON.parse(fs.readFileSync(path.join(dir, 'project.json'), 'utf8'));
+  raw.style = 'editorial';
+  fs.writeFileSync(path.join(dir, 'project.json'), JSON.stringify(raw));
+  let said = null;
+  try { projectLoader.load(path.join(dir, 'project.json')); } catch (e) { said = e.message; }
+  assert.ok(said, 'a layout that does not exist was accepted');
+  assert.ok(/editorial/.test(said), 'the refusal does not name what was asked for');
+  for (const k of DIRS.NAMES) assert.ok(said.indexOf(k) > -1, `the refusal does not offer ${k}`);
+  // and one it does have is carried through to the page
+  raw.style = 'bold';
+  fs.writeFileSync(path.join(dir, 'project.json'), JSON.stringify(raw));
+  const p2 = projectLoader.load(path.join(dir, 'project.json'));
+  assert.strictEqual(p2.style, 'bold');
+  const docs2 = require('../src/documents');
+  const html = docs2.guidelines(docs2.context(p2, measure(p2), [], {}));
+  assert.ok(/<html[^>]*data-dir="bold"/.test(html), 'the page is not in the layout that was asked for');
+  assert.ok(/--h1:clamp\(44px/.test(html), "the bold layout's own proportions are missing");
+  for (const k of DIRS.NAMES) assert.ok(html.indexOf(`[data-dir=${k}]`) > -1, `${k} is not carried`);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('every layout still meets the standard the document prints a table about', () => {
+  // The stylesheet was one fixed set of sizes and is now four. The audit that
+  // measures this document's own captions and headings reads that stylesheet,
+  // so all four have to be measured, not just the one that used to exist.
+  const ACC2 = require('../src/access');
+  for (const k of DIRS.NAMES) {
+    const failed = ACC2.chromeContrast(CHROME.css(k), {}).filter((m) => !m.passes);
+    assert.deepStrictEqual(failed.map((f) => `${k}:${f.selector}`), [],
+      `${k} sets its own type below the standard it prints`);
+  }
+});
+
+test('a panel that paints its own ground is measured against that ground', () => {
+  // The audit read every rule's colour against the page. A chapter opener that
+  // reverses out on the ink — a normal thing for a book to do — was therefore
+  // scored as paper on paper and reported as failing at 1 to 1. The same shape
+  // of mistake as taking the page's ground to be --surface: the arithmetic was
+  // right and it was pointed at the wrong thing.
+  const ACC2 = require('../src/access');
+  const band = ACC2.chromeContrast(CHROME.css('bold'), {})
+    .filter((m) => /\.chapter>h2/.test(m.selector));
+  assert.ok(band.length >= 2, 'the reversed band is not being measured at all');
+  for (const m of band) {
+    assert.ok(m.ratio > 10, `${m.theme}: the band measured ${m.ratio}, so it is on the wrong ground`);
+    assert.ok(m.passes);
+  }
+  // and a rule that paints nothing is still measured against the page
+  const rules = ACC2.textRules(CHROME.css('bold'));
+  assert.ok(rules.find((r) => /\.chapter>h2/.test(r.selector)).own, 'the panel ground was not read');
+  assert.ok(!rules.find((r) => r.selector === '.note').own, 'a plain rule was given a ground of its own');
+});
+
+test('the engine asks six questions and measures the rest', () => {
+  const mark = fs.readFileSync(path.join(__dirname, '..', 'projects', 'carrock', 'mark.svg'), 'utf8');
+  const wordmark = fs.readFileSync(path.join(__dirname, '..', 'projects', 'carrock', 'wordmark.svg'), 'utf8');
+  const seen = INTAKE.read({ mark, wordmark });
+  assert.strictEqual(seen.ok, true);
+
+  // everything here was read off the file rather than asked for
+  assert.ok(seen.colours.length >= 2, 'no palette was read off the artwork');
+  assert.ok(seen.colours.some((c) => c.role === 'primary') && seen.colours.some((c) => c.role === 'ground'));
+  assert.deepStrictEqual(seen.parts, ['outer', 'middle', 'inner', 'label']);
+  assert.ok(seen.slots.length, 'no colour slots were found');
+  assert.ok(seen.floor.screenPx > 0, 'no floor was measured');
+  assert.ok(seen.pattern && seen.pattern.construction, 'no pattern was worked out');
+
+  const qs = INTAKE.questions(seen);
+  assert.ok(qs.length <= 6, `${qs.length} questions is a wizard, not an intake`);
+  for (const q of qs) {
+    assert.ok(q.ask.length > 8 && q.why.length > 40, `${q.key} does not say why it is being asked`);
+  }
+  // three of the six are the engine showing its answer and asking if it is right
+  const shown = qs.filter((q) => q.suggested !== undefined);
+  assert.ok(shown.length >= 3, 'the engine asks more than it proposes');
+  // and the layout question offers every direction, by picture rather than name
+  const style = qs.find((q) => q.key === 'style');
+  assert.deepStrictEqual(style.options.map((o) => o.value), DIRS.NAMES);
+});
+
+test('six answers and a drawing make a package', () => {
+  const mark = fs.readFileSync(path.join(__dirname, '..', 'projects', 'carrock', 'mark.svg'), 'utf8');
+  const wordmark = fs.readFileSync(path.join(__dirname, '..', 'projects', 'carrock', 'wordmark.svg'), 'utf8');
+  const seen = INTAKE.read({ mark, wordmark });
+  const proj = INTAKE.toProject({
+    brand: 'Carrock', positioning: 'It keeps the sound of a place.', style: 'bold',
+    places: ['screen', 'print', 'worn'], colours: seen.colours,
+    never: ['stretch', 'recolour', 'crowd', 'redraw', 'retype'],
+  }, seen);
+
+  // one question decided the formats, the sizes and what it is made as
+  assert.deepStrictEqual(proj.rules.formats, ['svg', 'png', 'pdf', 'ai']);
+  assert.ok(proj.rules.pngWidths.length >= 3);
+  assert.deepStrictEqual(proj.rules.fabrication.map((f) => f.process), ['embroidery', 'foil']);
+  assert.strictEqual(proj.rules.stock, 'coated');
+  assert.strictEqual(proj.style, 'bold');
+  // a rule about a part carries the part, because the drawing names some
+  assert.ok(proj.content.misuse.find((m) => m.do === 'redraw').part);
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-intake-'));
+  fs.writeFileSync(path.join(dir, 'mark.svg'), mark);
+  fs.writeFileSync(path.join(dir, 'wordmark.svg'), wordmark);
+  fs.writeFileSync(path.join(dir, 'project.json'), JSON.stringify(proj, null, 2));
+  return build(projectLoader.load(path.join(dir, 'project.json')), path.join(dir, 'out')).then((r) => {
+    assert.ok(r.written.length > 50, `only ${r.written.length} files came out of six answers`);
+    assert.ok(fs.existsSync(path.join(dir, 'out', '07-pattern')), 'no pattern');
+    assert.ok(fs.existsSync(path.join(dir, 'out', '13-fabrication')), 'nothing was made as anything');
+    const html = fs.readFileSync(path.join(dir, 'out', 'guidelines.html'), 'utf8');
+    assert.ok(/data-dir="bold"/.test(html), 'the layout that was picked is not the one that was built');
+    // the only thing it complains about is the one thing nobody can measure
+    for (const w of r.warnings) assert.ok(/CMYK/.test(w), `unexpected warning: ${w.slice(0, 90)}`);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+
 drain().then(() => {
 
   for (const d of [out, out2, tbOut, kilnOut, orielOut, ancOut, harbOut, farneOut, rookOut, verdOut, maayOut, carrOut, cuspOut]) if (d) fs.rmSync(d, { recursive: true, force: true });

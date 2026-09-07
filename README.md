@@ -932,6 +932,31 @@ made the renderer **panic from Rust and abort the build**.
 Thirty-one of thirty-one identities ship a pattern now: 300 tiles, all
 reproducible byte for byte.
 
+Then the layouts, which had never been a choice. Every manual and deck looked the
+same — one stylesheet, one set of proportions, one idea of how a page is arranged
+— which is defensible for a tool that measures things and indefensible for one
+that presents them. There are four now, and they are systems rather than themes:
+they change the scale the type is built on, the measure, how much air a specimen
+stands in, and how the page is organised. **Quiet** puts the section heading in a
+column of its own with the work beside it. **Technical** runs everything numbered
+down a rail on the left. **Warm** is centred and narrow with no rules anywhere.
+**Bold** opens a chapter as a band across the page.
+
+The first attempt was four *variations* — margins and rule weights — and it took
+rendering them side by side to see that a client would not have felt they were
+choosing between anything. And the accessibility audit caught the reversed band,
+reporting it as failing at 1 to 1: it read every rule's colour against the page
+and could not see an element that paints its own ground. The same shape of
+mistake as the twenty-ninth round's, and the band measures 18.6 to 1 now.
+
+Alongside it, the intake. A brand package has about forty decisions in it and the
+engine measures most of them already, so it asks **six questions** — and three of
+those are the engine showing its own answer and asking whether it is right. The
+one that earns its place is *where does it live*: say screens, print and things
+people wear, and the formats, sizes, stock and making all follow without anybody
+typing them. Six answers and a drawing make a seventy-three file package, and the
+only thing it complains about is CMYK, which has to come from a printer.
+
 Still to do: a run on **your** identity job. Twenty identities the engine had
 not seen is worth a great deal more than twenty passes over one, but none of
 them came out of your exporter — and the normaliser is the part that most needs

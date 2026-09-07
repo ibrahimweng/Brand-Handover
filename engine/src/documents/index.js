@@ -128,6 +128,8 @@ function context(project, measured, files, brandJson) {
   // The language the document is written in, which is not the same question as
   // the language the brand is in. See src/strings.js.
   const L = require('../strings').resolve(project);
+  // Which of the four layout systems this book is built in. See src/directions.js.
+  const style = require('../directions').resolve(project);
   const family = (project.family || []).length ? (() => {
     const FAM = require('../family');
     const SN = require('../setname');
@@ -165,7 +167,7 @@ function context(project, measured, files, brandJson) {
     ? { since: project.previous.version.text,
         entries: require('../previous').compare(project.previous.data, brandJson) }
     : null;
-  return { project, sets: project.sets || null, measured, colours, roles, primary, ground, accent, primaryColourway, noun, system, pattern, hasSystem, changes, floors, pairs, ladder, fabrication, familyRule, family, L, misuse,
+  return { project, sets: project.sets || null, measured, colours, roles, primary, ground, accent, primaryColourway, noun, system, pattern, hasSystem, changes, floors, pairs, ladder, fabrication, familyRule, family, L, style, misuse,
     partnerRule: typeof partnerRule === 'undefined' ? null : partnerRule,
     variants, variantFor, files, brandJson, contrast: contrast.matrix(colours),
     content: project.content || {} };
@@ -285,7 +287,7 @@ function guidelines(ctx) {
   // of the brand it is about. Maayan's manual was 988 English words under
   // lang="he" dir="rtl", so the whole of it was laid out right to left.
   return shell({ title: ctx.L.t('manualTitle', { brand: p.brand }), type: p.tokens.type,
-    fonts: p.fonts, body, language: ctx.L.lang, direction: ctx.L.dir });
+    fonts: p.fonts, body, language: ctx.L.lang, direction: ctx.L.dir, style: ctx.style.key });
 }
 
 module.exports = { context, guidelines, sec, chapter, BADGE, words };

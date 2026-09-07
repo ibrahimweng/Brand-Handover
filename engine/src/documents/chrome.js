@@ -14,30 +14,35 @@ const TF = require('../typeface');
 const fontLink = (type, fonts) => TF.head(type, fonts);
 
 const CSS = `
-:root{--paper:#FCFCFB;--surface:#fff;--sunk:#F2F2F0;--ink:#0E1011;--ink-2:#5A5F63;--ink-3:#6E747A;--rule:#E3E5E6;--rule-2:#C7CACC;
---ui:"Schibsted Grotesk","Helvetica Neue",Helvetica,Arial,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--paper:#0C0D0F;--surface:#141618;--sunk:#101214;--ink:#ECEEF0;--ink-2:#9BA1A7;--ink-3:#7E858B;--rule:#232629;--rule-2:#34383C}}
-:root[data-theme=dark]{--paper:#0C0D0F;--surface:#141618;--sunk:#101214;--ink:#ECEEF0;--ink-2:#9BA1A7;--ink-3:#7E858B;--rule:#232629;--rule-2:#34383C}
-*{box-sizing:border-box}body{background:var(--paper);color:var(--ink);font-family:var(--ui);font-size:16px;line-height:1.6;margin:0;-webkit-font-smoothing:antialiased}
+:root{--paper:#FCFCFB;--surface:#fff;--sunk:#F2F2F0;--ink:#0E1011;--ink-2:#5A5F63;--ink-3:#6E747A;--rule:#E3E5E6;--rule-2:#C7CACC;--on-ink:#FCFCFB;--on-ink-2:#B9BCBE;
+--ui:"Schibsted Grotesk","Helvetica Neue",Helvetica,Arial,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+--display:var(--ui);--page-max:1040px;--page-pad:30px;--measure:66ch;--body:16px;--lead:1.6;--track:-.028em;
+--h1:clamp(32px,5.4vw,54px);--h2:clamp(23px,3.3vw,32px);--h3:17px;--chapter-gap:70px;--sec-gap:40px;
+--rule-heavy:2px;--rule-hair:1px;--stage-pad:40px 26px;--stage-bg:var(--sunk);--stage-border:1px solid var(--rule);
+--label-case:uppercase;--label-track:.09em}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--paper:#0C0D0F;--surface:#141618;--sunk:#101214;--ink:#ECEEF0;--ink-2:#9BA1A7;--ink-3:#7E858B;--rule:#232629;--rule-2:#34383C;--on-ink:#0C0D0F;--on-ink-2:#4A4C4E}}
+:root[data-theme=dark]{--paper:#0C0D0F;--surface:#141618;--sunk:#101214;--ink:#ECEEF0;--ink-2:#9BA1A7;--ink-3:#7E858B;--rule:#232629;--rule-2:#34383C;--on-ink:#0C0D0F;--on-ink-2:#4A4C4E}
+*{box-sizing:border-box}body{background:var(--paper);color:var(--ink);font-family:var(--ui);font-size:var(--body);line-height:var(--lead);margin:0;-webkit-font-smoothing:antialiased}
 main.page{display:block}
-.page{max-width:1040px;margin:0 auto;padding:0 30px 90px}p{margin:0}
-h1,h2,h3,h4{font-family:var(--ui);margin:0;text-wrap:balance}
-.mast{padding:44px 0 32px;border-bottom:2px solid var(--ink)}
+.page{max-width:var(--page-max);margin:0 auto;padding:0 var(--page-pad) 90px}p{margin:0}
+h1,h2,h3,h4{font-family:var(--display);margin:0;text-wrap:balance}
+.mast{padding:44px 0 32px;border-bottom:var(--rule-heavy) solid var(--ink)}
 .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-3);margin-bottom:26px}
-.mast h1{font-weight:700;font-size:clamp(32px,5.4vw,54px);line-height:1.02;letter-spacing:-.035em;max-width:16ch}
-.mast .sub{margin-top:16px;max-width:62ch;font-size:18px;line-height:1.55;color:var(--ink-2)}
-.chapter{margin-top:70px;padding-top:20px;border-top:2px solid var(--ink)}
+.mast h1{font-weight:700;font-size:var(--h1);line-height:1.02;letter-spacing:var(--track);max-width:16ch}
+.mast .sub{margin-top:16px;max-width:var(--measure);font-size:calc(var(--body) * 1.1);line-height:1.55;color:var(--ink-2)}
+.chapter{margin-top:var(--chapter-gap);padding-top:20px;border-top:var(--rule-heavy) solid var(--ink)}
+.chapter:first-of-type{border-top:none;padding-top:0}
 .chno{font-family:var(--mono);font-size:12px;color:var(--ink-3);letter-spacing:.1em}
-.chapter h2{font-weight:700;font-size:clamp(23px,3.3vw,32px);letter-spacing:-.028em;margin-top:7px}
-.sec{margin-top:40px}
-.sech{display:flex;justify-content:space-between;align-items:baseline;gap:18px;flex-wrap:wrap;padding-bottom:10px;border-bottom:1px solid var(--rule-2);margin-bottom:20px}
-.sech h3{font-weight:600;font-size:17px;letter-spacing:-.012em}
+.chapter h2{font-weight:700;font-size:var(--h2);letter-spacing:var(--track);margin-top:7px}
+.sec{margin-top:var(--sec-gap)}
+.sech{display:flex;justify-content:space-between;align-items:baseline;gap:18px;flex-wrap:wrap;padding-bottom:10px;border-bottom:var(--rule-hair) solid var(--rule-2);margin-bottom:20px}
+.sech h3{font-weight:600;font-size:var(--h3);letter-spacing:-.012em}
 .sech h3 i{font-family:var(--mono);font-style:normal;font-weight:400;color:var(--ink-3);margin-right:12px;font-size:13px}
 .badge{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)}
 .badge::before{content:"";width:9px;height:9px;border:1.5px solid var(--ink);background:var(--ink)}
 .badge.once::before{background:linear-gradient(90deg,var(--ink) 0 50%,transparent 50% 100%)}
 .badge.yours::before{background:none}.badge.yours{color:var(--ink-3)}
-.note{font-size:15px;line-height:1.6;color:var(--ink-2);max-width:66ch;margin-top:14px}.note b{color:var(--ink);font-weight:600}
+.note{font-size:calc(var(--body) * .94);line-height:1.6;color:var(--ink-2);max-width:var(--measure);margin-top:14px}.note b{color:var(--ink);font-weight:600}
 .chgs{margin-top:22px;border-top:1px solid var(--rule-2)}
 .chg{padding:15px 4px 15px 20px;border-bottom:1px solid var(--rule);position:relative}
 .chg::before{content:"";position:absolute;left:0;top:19px;width:9px;height:9px;background:var(--ink-3)}
@@ -46,7 +51,7 @@ h1,h2,h3,h4{font-family:var(--ui);margin:0;text-wrap:balance}
 .chg span,.chg em{display:block;font-size:14px;line-height:1.55;color:var(--ink-2);max-width:64ch;margin-top:5px}
 .chg em{font-style:normal;color:var(--ink-3)}
 .chg em::before{content:"\\2192  ";color:var(--ink-3)}
-.stage{background:var(--sunk);border:1px solid var(--rule);display:flex;align-items:center;justify-content:center;padding:40px 26px}
+.stage{background:var(--stage-bg);border:var(--stage-border);display:flex;align-items:center;justify-content:center;padding:var(--stage-pad)}
 .stage.tight{padding:22px 16px;min-height:120px}
 .row2>figure>.stage,.row3>figure>.stage{min-height:190px}
 .row2>figure>.stage svg,.row3>figure>.stage svg{max-width:100%;height:auto}
@@ -54,7 +59,7 @@ h1,h2,h3,h4{font-family:var(--ui);margin:0;text-wrap:balance}
 .stage.dont::after{content:"";position:absolute;top:8px;right:8px;width:15px;height:15px;background:#C2352B;clip-path:polygon(20% 0,50% 30%,80% 0,100% 20%,70% 50%,100% 80%,80% 100%,50% 70%,20% 100%,0 80%,30% 50%,0 20%)}
 .row2{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
 .row3{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px}
-figure{margin:0}figcaption{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);margin-top:9px}
+figure{margin:0}figcaption{font-family:var(--mono);font-size:10.5px;letter-spacing:var(--label-track);text-transform:var(--label-case);color:var(--ink-3);margin-top:9px}
 figcaption.said{font-family:var(--ui);font-size:12px;letter-spacing:0;text-transform:none;line-height:1.45;color:var(--ink-2);max-width:34ch}
 figcaption.said b{display:block;font-weight:600;color:var(--ink);margin-bottom:2px}
 .dia{width:100%;max-width:340px;height:auto;display:block;margin:0 auto;color:var(--ink-3)}
@@ -126,10 +131,34 @@ footer{margin-top:70px;padding-top:22px;border-top:2px solid var(--ink);font-fam
 const escText = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-const shell = ({ title, type, fonts, body, favicon, language = 'en', direction = 'ltr' }) => `<!doctype html>
-<html lang="${escText(language)}" dir="${escText(direction)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+// The stylesheet for a layout direction: the base sheet, that direction's
+// tokens, and every direction's overrides. All four are carried because the
+// picker switches between them by changing one attribute, and a kilobyte of
+// unused CSS is cheaper than four stylesheets that drift apart. See
+// src/directions.js.
+function css(style) {
+  const D = require('../directions');
+  const key = D.DIRECTIONS[style] ? style : D.DEFAULT;
+  return `${CSS}
+${D.vars(key)}
+${D.all()}`;
+}
+
+// Where a direction sets its headings in the identity's own display face, that
+// face has to be named here: the document's own type is the document's, and the
+// brand's is the brand's, and only one of the four mixes them on purpose.
+function displayVar(style, type) {
+  const D = require('../directions');
+  const d = D.DIRECTIONS[style] || D.DIRECTIONS[D.DEFAULT];
+  const fam = ((type || {}).families || {}).display;
+  if (!d.brandType || !fam || !fam.family) return '';
+  return `<style>:root{--display:${JSON.stringify(fam.family)}, ${fam.fallback || 'Helvetica, Arial, sans-serif'}}</style>`;
+}
+
+const shell = ({ title, type, fonts, body, favicon, language = 'en', direction = 'ltr', style }) => `<!doctype html>
+<html lang="${escText(language)}" dir="${escText(direction)}" data-dir="${escText(style || require('../directions').DEFAULT)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${escText(title)}</title>${favicon ? `\n<link rel="icon" href="${favicon}">` : ''}
 ${fontLink(type, fonts)}
-<style>${CSS}</style></head><body><main class="page">${body}</main></body></html>`;
+<style>${css(style)}</style>${displayVar(style, type)}</head><body><main class="page">${body}</main></body></html>`;
 
-module.exports = { shell, CSS, fontLink, escText };
+module.exports = { shell, CSS, css, displayVar, fontLink, escText };

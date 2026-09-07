@@ -78,6 +78,19 @@ function load(file) {
 
   const problems = [];
   if (!raw.brand) problems.push('the project has no "brand" name');
+  // Which layout system the documents are built in. A direction the engine does
+  // not have is said rather than silently swapped for one it does: a book laid
+  // out as something other than what was asked for is the same class of untruth
+  // as a page declaring a language it is not written in. See src/directions.js.
+  if (raw.style !== undefined && raw.style !== null) {
+    const D = require('./directions');
+    if (!D.DIRECTIONS[String(raw.style)]) {
+      problems.push(`"style" is "${raw.style}", which is not a layout the engine has. It decides the scale `
+        + 'the type is built on, the measure, how much air a specimen stands in and whether the headings are '
+        + `set in the identity's own face. The directions are ${D.NAMES.join(', ')}; leave it out for `
+        + `${D.DEFAULT}.`);
+    }
+  }
   // An identity does not have to have a symbol. Google, FedEx, Braun and most
   // of the publishing world are a logotype and nothing else, and every one of
   // the twelve projects here happened to have both — so the engine refused the
@@ -331,6 +344,7 @@ function load(file) {
   // words, and the direction they read in, belong to the project.
   const RTL = ['he', 'iw', 'ar', 'fa', 'ur', 'yi', 'ps', 'dv', 'ckb', 'sd', 'ug'];
   const language = raw.language || 'en';
+  const style = raw.style ? String(raw.style) : null;
   const direction = raw.direction
     || (RTL.indexOf(String(language).toLowerCase().split('-')[0]) > -1 ? 'rtl' : 'ltr');
 
@@ -552,7 +566,7 @@ function load(file) {
   // here, which meant every rule override in a project file was read as absent
   // and the defaults quietly won. Nothing complained, because a default is a
   // perfectly good answer right up until somebody wanted a different one.
-  return { brand: raw.brand, latinName, language, direction, version: raw.version || '0.0.0', dir, tokens, sets: (raw.tokens || {}).sets || null, assets, photography, fonts, documents, nameSetting, rules, master, previous, partners, tiers, family,
+  return { brand: raw.brand, latinName, language, direction, style, version: raw.version || '0.0.0', dir, tokens, sets: (raw.tokens || {}).sets || null, assets, photography, fonts, documents, nameSetting, rules, master, previous, partners, tiers, family,
     system: raw.system || {}, content: raw.content || {}, report };
 }
 
