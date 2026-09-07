@@ -264,17 +264,30 @@ function measureRank(markSource) {
 rank.clear = () => RANKED.clear();
 
 // Why this one, in a sentence a designer can disagree with.
-function because(m, all) {
-  if (m.key === 'source') return 'the master marks this shape with data-pattern="source", so it was not a choice the engine had to make.';
-  const others = all.length - 1;
+// Why this shape and not another, as the facts that decided it. The sentence
+// below says the same thing in English, which brand.json and the command line
+// keep reading; whyText() says it in whatever the document is written in.
+function whyFacts(m, all) {
+  if (m.key === 'source') return { marked: true };
   const bits = [];
-  if (m.compact > 0.8) bits.push('it is close to square, so it repeats as a field rather than as stripes');
-  else if (m.compact > 0.55) bits.push('it is squarish enough to repeat without reading as stripes');
-  if (m.simple > 0.6) bits.push('it is simple enough to survive being drawn a tenth of the size the mark is');
-  if (m.share > 0.12 && m.share < 0.75) bits.push('it is a substantial part of the drawing rather than a fragment of one');
+  if (m.compact > 0.8) bits.push('whySquare');
+  else if (m.compact > 0.55) bits.push('whySquarish');
+  if (m.simple > 0.6) bits.push('whySimple');
+  if (m.share > 0.12 && m.share < 0.75) bits.push('whySubstantial');
+  return { marked: false, bits, all: all.length, others: all.length - 1 };
+}
+
+function whyText(f, L) {
+  if (!f) return '';
+  if (f.marked) return L.t('whyMarked');
+  const bits = f.bits.map((k) => L.t(k));
   return `${bits.join(', ')}${bits.length ? '. ' : ''}`
-    + `Ranked first of ${all.length} shape${all.length === 1 ? '' : 's'} in the drawing`
-    + `${others > 0 ? '; the others are offered beside it' : ''}.`;
+    + L.t('whyRanked', { n: f.all, shapes: L.t(f.all === 1 ? 'patShape' : 'patShapes') })
+    + `${f.others > 0 ? L.t('whyOthers') : ''}.`;
+}
+
+function because(m, all) {
+  return whyText(whyFacts(m, all), require('./strings').resolve({}));
 }
 
 // ---------------------------------------------------------- the constructions
@@ -432,7 +445,7 @@ function spec(markSource, rules, measured) {
   return { ok: true, motif, all, construction, fill, strokeRatio,
     render: rules.render || 'auto',
     cell: Number(rules.tile) > 0 ? Number(rules.tile) : 100,
-    why: because(motif, all) };
+    why: because(motif, all), whyFacts: whyFacts(motif, all) };
 }
 
 // -------------------------------------------------------------------- the tile
@@ -586,7 +599,7 @@ function drawsText(construction, L) {
   return L && c.drawsKey ? L.t(c.drawsKey) : c.draws;
 }
 
-module.exports = { candidates, rank, because, CONSTRUCTIONS, NAMES, normalised, painted, wrapped,
+module.exports = { candidates, rank, because, whyFacts, whyText, CONSTRUCTIONS, NAMES, normalised, painted, wrapped,
   motifName, drawsText,
   spec, tile, everyTile, swatch, options, R,
   // kept so the twenty-two callers and tests written against the old shape do

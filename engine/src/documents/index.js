@@ -247,11 +247,11 @@ function guidelines(ctx) {
       // only where the artwork has one, so ten projects without a gradient get
       // no empty section and the numbering does not shift under them
       (b.gradientSpec(ctx) ? S('2.2', T('secGradient'), 'system', b.gradientSpec(ctx)) : '') +
-      sec(b.gradientSpec(ctx) ? '2.3' : '2.2', T('secContrast'), 'system', b.contrastTable(ctx)) +
+      S(b.gradientSpec(ctx) ? '2.3' : '2.2', T('secContrast'), 'system', b.contrastTable(ctx)) +
       // A ratio of luminance answers whether text can be read on a ground, and
       // nothing in twenty-three packages asked whether two of these colours can
       // be told from each other.
-      sec(b.gradientSpec(ctx) ? '2.4' : '2.3', T('secColourVision'), 'system', b.colourVision(ctx)))}
+      S(b.gradientSpec(ctx) ? '2.4' : '2.3', T('secColourVision'), 'system', b.colourVision(ctx)))}
 
   ${chapter('03', T('chType'),
       S('3.1', T('secTypefaces'), 'system', b.typeSpecimen(ctx) + words(c.typeRationale, ctx, 'content/typeRationale')) +

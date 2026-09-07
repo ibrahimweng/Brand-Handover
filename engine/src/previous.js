@@ -107,10 +107,35 @@ const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o || {}, k);
 const listOf = (v) => (Array.isArray(v) ? v.slice() : []);
 const and = (xs) => (xs.length < 2 ? (xs[0] || '') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
 const plural = (xs, one, many) => (xs.length === 1 ? one : many);
+const LABEL_KEY = { lockup: 'cgLockup', colourway: 'cgColourway' };
+const ALLOW_KEY = { 'Pass AAA': 'cgAllowsAAA', 'Pass AA': 'cgAllowsAA',
+  'Large text only': 'cgAllowsLarge', 'Never for text': 'cgAllowsNever' };
 
 // Every entry: kind, level, and the three sentences the rest of the engine
 // speaks in. `level` is the report's, `kind` is the client's.
-const change = (kind, level, code, what, why, how) => ({ kind, level, code, what, why, how });
+// A change carries three sentences and, beside them, the keys that say the same
+// three in another language. CHANGES.txt and the command line read the English;
+// chapter 00 of a manual reads the keys, so a French manual is French all the
+// way down instead of stopping at the chapter heading. See src/strings.js.
+const change = (kind, level, code, what, why, how, keys) =>
+  ({ kind, level, code, what, why, how, keys: keys || null });
+
+// One of those three sentences, in the language the document is written in.
+function say(entry, field, L) {
+  const k = entry && entry.keys && entry.keys[field];
+  if (!k || !L) return entry ? entry[field] : '';
+  const vars = Object.assign({}, entry.keys.vars);
+  // a list is joined with the language's own conjunction, not with " and "
+  for (const [name, v] of Object.entries(vars)) {
+    if (v && typeof v === 'object' && Array.isArray(v.list)) {
+      vars[name] = v.list.length < 2 ? (v.list[0] || '')
+        : L.t('cgAnd', { a: v.list.slice(0, -1).join(', '), b: v.list[v.list.length - 1] });
+    } else if (v && typeof v === 'object' && v.key) {
+      vars[name] = L.t(v.key, v.vars || {});
+    }
+  }
+  return L.t(k, vars);
+}
 
 function compare(prev, next) {
   const out = [];
@@ -130,7 +155,9 @@ function compare(prev, next) {
         : 'The new artwork has no part finer than the old one, so it survives further down. Nothing already made is affected.',
       up ? `List where the mark appears below ${fb} px or ${mb} mm and either enlarge it or use a lockup that holds at that size. `
         + '05-icons shows which sizes the new artwork clears.'
-        : 'Nothing to do. The old floor still holds, so existing applications stay inside the rule.'));
+        : 'Nothing to do. The old floor still holds, so existing applications stay inside the rule.',
+      { what: 'cgMinWhat', why: up ? 'cgMinWhyUp' : 'cgMinWhyDown', how: up ? 'cgMinHowUp' : 'cgMinHowDown',
+        vars: { dir: { key: up ? 'cgUp' : 'cgDown' }, fa, ma, fb, mb } }));
   }
 
   // ------ and the same question of every lockup, because the twenty-third round
@@ -147,7 +174,10 @@ function compare(prev, next) {
         + 'The mark\'s own floor says nothing about this: a lockup is a different drawing.'
         : 'It survives further down than it did, so nothing already made in it is affected.',
       up ? `Check where ${l} is placed and raise it, or use a lockup that holds at the size you need.`
-        : 'Nothing to do.'));
+        : 'Nothing to do.',
+      { what: 'cgLockWhat', why: up ? 'cgLockWhyUp' : 'cgLockWhyDown',
+        how: up ? 'cgLockHowUp' : 'cgNothingToDo',
+        vars: { l, yp: y.screenPx, ym: y.printMm, xp: x.screenPx, xm: x.printMm } }));
   }
 
   // ------ partners: artwork that is not ours, and a pair that stops existing
@@ -158,7 +188,9 @@ function compare(prev, next) {
     if (!before) {
       out.push(change('news', 'fixed', 'partnerAdded', `${name} is a new partner.`,
         'Nothing already made carries the pair, so it adds to the set without disturbing anything.',
-        'The pairs they have supplied artwork for are in 11-partners.'));
+        'The pairs they have supplied artwork for are in 11-partners.',
+        { what: 'cgPartnerAddedWhat', why: 'cgPartnerAddedWhy', how: 'cgPartnerAddedHow',
+          vars: { name } }));
       continue;
     }
     const gone = (before.colourways || []).filter((c) => (after.colourways || []).indexOf(c) < 0);
@@ -167,7 +199,9 @@ function compare(prev, next) {
         `the ${name} pair is no longer made in ${gone.join(' or ')}.`,
         `${after.owner || name} has withdrawn the version of their mark that stood on that ground, or it was `
         + 'taken out of this project. Files already handed out still carry it and still look correct.',
-        `Ask ${after.owner || name} whether the version is withdrawn or only missing, and say which pair replaces it.`));
+        `Ask ${after.owner || name} whether the version is withdrawn or only missing, and say which pair replaces it.`,
+        { what: 'cgPartnerVersionWhat', why: 'cgPartnerVersionWhy', how: 'cgPartnerVersionHow',
+          vars: { name, owner: after.owner || name, gone: { list: gone } } }));
     }
   }
   for (const [name, before] of qa) {
@@ -176,7 +210,8 @@ function compare(prev, next) {
       `${name} is no longer a partner in this package.`,
       'Every pair made with them has gone with them, and nothing on the files anyone already holds says so. '
       + 'A partner lockup outlives the partnership unless somebody withdraws it.',
-      `Say when the ${name} pair stops being used, and tell whoever is holding artwork of it.`));
+      `Say when the ${name} pair stops being used, and tell whoever is holding artwork of it.`,
+      { what: 'cgPartnerGoneWhat', why: 'cgPartnerGoneWhy', how: 'cgPartnerGoneHow', vars: { name } }));
   }
 
   // ------ clear space
@@ -189,7 +224,9 @@ function compare(prev, next) {
         + 'than the rule allows. The number is a fraction of the mark, and the mark changed shape.'
         : 'Layouts built to the old figure reserve more than the rule now asks for, which is safe.',
       up ? 'Templates, ad slots and signage artwork that hard coded the old figure need it raised.'
-        : 'Nothing to do.'));
+        : 'Nothing to do.',
+      { what: 'cgClearWhat', why: up ? 'cgClearWhyUp' : 'cgClearWhyDown',
+        how: up ? 'cgClearHowUp' : 'cgNothingToDo', vars: { ca, cb } }));
   }
 
   // ------ the palette
@@ -199,7 +236,9 @@ function compare(prev, next) {
       out.push(change('news', 'fixed', 'colourAdded',
         `${name} is a new colour, ${pb[name].hex}.`,
         `Nothing already made uses it, so it adds to the palette without disturbing it.`,
-        'It is in 07-colour and in the contrast table with every pair it makes.'));
+        'It is in 07-colour and in the contrast table with every pair it makes.',
+        { what: 'cgColourAddedWhat', why: 'cgColourAddedWhy', how: 'cgColourAddedHow',
+          vars: { name, hex: pb[name].hex } }));
       continue;
     }
     const before = pa[name], after = pb[name];
@@ -210,12 +249,17 @@ function compare(prev, next) {
         + 'A colour that has moved a little is worse than one that has moved a lot, because the two sit side by side '
         + 'and read as a printing fault rather than as two versions.',
         `Search for ${before.hex} in code and templates and replace it. `
-        + `For anything already printed, decide whether it is reprinted or allowed to run out.`));
+        + `For anything already printed, decide whether it is reprinted or allowed to run out.`,
+        { what: 'cgColourMovedWhat', why: 'cgColourMovedWhy', how: 'cgColourMovedHow',
+          vars: { name, a: before.hex, b: after.hex } }));
     } else if (String(before.pantone || '') !== String(after.pantone || '')) {
       out.push(change('breaking', 'warning', 'pantoneMoved',
         `${name} keeps its screen value and changes Pantone, ${before.pantone || 'none'} to ${after.pantone || 'none'}.`,
         'Print buyers work from the Pantone, so a job already at a press is being matched to the old chip.',
-        'Tell whoever holds the print specification. Nothing on screen changes.'));
+        'Tell whoever holds the print specification. Nothing on screen changes.',
+        { what: 'cgPantoneWhat', why: 'cgPantoneWhy', how: 'cgPantoneHow',
+          vars: { name, a: before.pantone || { key: 'cgPantoneNone' },
+            b: after.pantone || { key: 'cgPantoneNone' } } }));
     }
   }
   for (const name of Object.keys(pa)) {
@@ -224,7 +268,9 @@ function compare(prev, next) {
       `${name} (${pa[name].hex}) has been withdrawn from the palette.`,
       'Anything already made in it is now off palette, and nothing on those files says so. '
       + 'The colour does not stop existing because it left the token list.',
-      `Decide what replaces ${pa[name].hex} where it is already in use, and say so to whoever holds those files.`));
+      `Decide what replaces ${pa[name].hex} where it is already in use, and say so to whoever holds those files.`,
+      { what: 'cgColourGoneWhat', why: 'cgColourGoneWhy', how: 'cgColourGoneHow',
+        vars: { name, hex: pa[name].hex } }));
   }
 
   // ------ lockups and colourways: named files that clients already hold
@@ -246,14 +292,27 @@ function compare(prev, next) {
         + `downloaded keep working and keep their names, and nothing about them announces that they are no longer `
         + `part of the identity.`,
         `Say which ${label} replaces ${plural(gone, 'it', 'them')} and where. Anyone comparing the old package to this one `
-        + `will otherwise read ${plural(gone, 'it', 'them')} as a file that failed to build.`));
+        + `will otherwise read ${plural(gone, 'it', 'them')} as a file that failed to build.`,
+        { what: plural(gone, 'cgSetGoneWhatOne', 'cgSetGoneWhatMany'), why: 'cgSetGoneWhy',
+          how: plural(gone, 'cgSetGoneHowOne', 'cgSetGoneHowMany'),
+          vars: { list: { list: gone.map((g) => `"${g}"`) }, label: { key: LABEL_KEY[label] },
+            where: key === 'lockups'
+              ? { key: plural(gone, 'cgWhereLockupsOne', 'cgWhereLockupsMany'),
+                vars: { folders: and(gone.map(naming.folderFor)) } }
+              : { key: 'cgWhereColourways', vars: { suffixes: and(gone.map((x) => `-${x}`)) } } } }));
     }
     if (added.length) {
       out.push(change('news', 'fixed', `${key}Added`,
         `${and(added.map((g) => `"${g}"`))} ${plural(added, `is a new ${label}`, `are new ${label}s`)}.`,
         `Nothing already made refers to ${plural(added, 'it', 'them')}, so ${plural(added, 'it adds', 'they add')} to the set without disturbing it.`,
         key === 'lockups' ? `${plural(added, 'It is', 'They are')} in ${and(added.map(naming.folderFor))}.`
-          : `Every lockup is written in ${plural(added, 'it', 'them')} alongside the others.`));
+          : `Every lockup is written in ${plural(added, 'it', 'them')} alongside the others.`,
+        { what: plural(added, 'cgSetAddedWhatOne', 'cgSetAddedWhatMany'),
+          why: plural(added, 'cgSetAddedWhyOne', 'cgSetAddedWhyMany'),
+          how: key === 'lockups' ? plural(added, 'cgSetAddedHowLockupsOne', 'cgSetAddedHowLockupsMany')
+            : plural(added, 'cgSetAddedHowWaysOne', 'cgSetAddedHowWaysMany'),
+          vars: { list: { list: added.map((g) => `"${g}"`) }, label: { key: LABEL_KEY[label] },
+            folders: and(added.map(naming.folderFor)) } }));
     }
   }
 
@@ -278,7 +337,12 @@ function compare(prev, next) {
         ? `This pair is now good for ${ALLOWS[after.verdict]}. Find where it carries anything smaller and change `
           + 'the size or one of the two colours.'
         : 'Take text out of this pair wherever it appears, or change one of the two colours.')
-        : `The pair is now good for ${ALLOWS[after.verdict]}, where the last version allowed ${ALLOWS[before.verdict]}.`));
+        : `The pair is now good for ${ALLOWS[after.verdict]}, where the last version allowed ${ALLOWS[before.verdict]}.`,
+      { what: 'cgContrastWhat', why: fell ? 'cgContrastWhyFell' : 'cgContrastWhyRose',
+        how: fell ? ((RANK[after.verdict] > 0) ? 'cgContrastHowSome' : 'cgContrastHowNone') : 'cgContrastHowRose',
+        vars: { pair, verb: { key: fell ? 'cgNoLonger' : 'cgNowReaches' },
+          ra: before.ratio, va: before.verdict, rb: after.ratio, vb: after.verdict,
+          allows: { key: ALLOW_KEY[after.verdict] }, was: { key: ALLOW_KEY[before.verdict] } } }));
   }
 
   // ------ a pair that used to be distinguishable and is not any more. A moved
@@ -297,7 +361,10 @@ function compare(prev, next) {
       + 'key, a chart, a status, a map — stopped working for those readers at this version and nothing on '
       + 'the page says so.',
       'Move one of them back or further, or give whatever uses them a second channel — a shape, a fill, a '
-      + 'word — and name it in tokens.sets so the engine holds the next version to it.'));
+      + 'word — and name it in tokens.sets so the engine holds the next version to it.',
+      { what: 'cgVisionWhat', why: 'cgVisionWhy', how: 'cgVisionHow',
+        vars: { pair: { list: c.pair }, normal: c.normal, worst: c.worst.distance,
+          kind: c.worst.kind.replace(/pia$/, 'pe') } }));
   }
 
   // ------ the icon grid, which is derived and therefore moves without being touched
@@ -307,7 +374,9 @@ function compare(prev, next) {
       `icons are drawn at ${ib.stroke} on a ${ib.box} box, where the last version drew them at ${ia.stroke}.`,
       'The icon weight is taken off the master, so redrawing the master redraws the whole icon set without anyone '
       + 'asking for it. Icons already in a product were built to the old weight and now sit beside the new ones.',
-      `Either redraw the existing icons at ${ib.stroke}, or set system.icons.stroke to ${ia.stroke} to hold the set where it was.`));
+      `Either redraw the existing icons at ${ib.stroke}, or set system.icons.stroke to ${ia.stroke} to hold the set where it was.`,
+      { what: 'cgIconWhat', why: 'cgIconWhy', how: 'cgIconHow',
+        vars: { a: ia.stroke, b: ib.stroke, box: ib.box } }));
   }
 
   return out;
@@ -365,4 +434,4 @@ function changesText(prev, next, changes, { width = 76 } = {}) {
   return L.join('\n') + '\n';
 }
 
-module.exports = { load, compare, changesText, parseVersion, compareVersions, CLASSES };
+module.exports = { load, compare, say, changesText, parseVersion, compareVersions, CLASSES };

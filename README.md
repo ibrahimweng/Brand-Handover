@@ -1025,9 +1025,40 @@ claim has teeth — declare a document you cannot write and the test fails with 
 number in it: *fr says it writes the manual and 84 per cent of it is the English
 build.*
 
+The thirty-third took the number that round left behind. The manual's body was
+**1,453 words of prose no dictionary had ever seen**, so a French project got a
+French deck and an English manual, and the build said which file to open. This
+is that file.
+
+Most of it was where you would expect: one template literal per block in
+`documents/blocks.js`, each sentence becoming a key with the numbers left as
+placeholders. Three things were not. A sentence can be written *below* every
+dictionary — what a making process can hold was a string inside `fabrication.js`,
+why the engine picked the shape it built the pattern from was one inside
+`pattern.js`, and the whole of chapter 00, fifteen kinds of change with three
+sentences each, was inside `previous.js`. A key that belongs to the engine does
+not belong in the client's machine-readable file — one of them put
+`"labelKey": "ptOurHalf"` into `brand.json` twelve times before it was caught.
+And two sections were built with the wrong helper, so their badge read *Drawn by
+the system* in the middle of a French page while every other badge on it read
+*Tracé par le système*. Nothing found that but reading the finished page.
+
+    Verdon's manual   before   2,255 prose words, 2,034 of them English   90%
+                      after    1,361 prose words,   136 of them English   10%
+
+The check runs over thirteen identities chosen so every block is exercised at
+least once — the ladder is only in oriel, the pairs only in kilnsey, the making
+only in ancroft, the changes chapter only in tarnbrook — and the worst is 18 per
+cent: `px`, `mm`, folder names, and the words French and English spell the same.
+Delete one block's French and it fails with the number in it.
+
+Both documents are written in the language the brand asked for now, or the engine
+says plainly that it cannot. The English manual of all thirty other identities
+comes out with the same words in the same order.
+
 Still to do: a run on **your** identity job. Twenty identities the engine had
 not seen is worth a great deal more than twenty passes over one, but none of
 them came out of your exporter — and the normaliser is the part that most needs
-to meet one. And the manual's body, which is 1,453 words of English prose in
-`documents/blocks.js` that never went through a dictionary: the deck proves the
-mechanism works, and the manual is the same job, done once more.
+to meet one. And a third language: `en` and `fr` are two, and two is enough to
+prove the mechanism is a mechanism, but the first non-Latin one will find things
+neither of these could.

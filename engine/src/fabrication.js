@@ -25,30 +25,36 @@ const system = require('./system');
 
 const PROCESSES = {
   embroidery: {
+    nameKey: 'procEmbroidery', whatKey: 'whatEmbroidery',
     feature: 1.3,
     what: 'a satin stitch narrower than this will not lie down, and reads as a crease rather than a line',
     also: 'letterforms need about 4 mm of height before their counters close up',
   },
   vinyl: {
+    nameKey: 'procVinyl', whatKey: 'whatVinyl',
     feature: 2.0, outline: true,
     what: 'anything narrower than this tears when the waste is weeded off the backing',
     also: 'a cutter follows outlines, so every stroke has to be converted to one before the file is sent',
   },
   screenprint: {
+    nameKey: 'procScreenprint', whatKey: 'whatScreenprint',
     feature: 0.4, registration: 0.5,
     what: 'a line finer than this fills in or breaks up depending on the mesh',
     also: 'two colours that meet exactly will show a gap on one side; they need an overlap',
   },
   foil: {
+    nameKey: 'procFoil', whatKey: 'whatFoil',
     feature: 0.35,
     what: 'below this the foil bridges the gap and the detail fills in solid',
   },
   engraving: {
+    nameKey: 'procEngraving', whatKey: 'whatEngraving',
     feature: 0.8, tool: 1.5,
     what: 'a groove narrower than the tool cannot be cut at all',
     also: 'the tool is round, so every internal corner comes out with the tool\'s radius on it.',
   },
   cast: {
+    nameKey: 'procCast', whatKey: 'whatCast',
     feature: 1.5,
     what: 'metal thinner than this does not fill the mould, and what does fill it will not survive being handled',
   },
@@ -171,6 +177,8 @@ function plan(project, drawings, list) {
     const chosen = able.length ? able[0] : null;
     const out = {
       process: spec.process, at: spec.at, note: spec.note || null,
+      // the English, and the key that says the same thing in another language
+      nameKey: spec.nameKey || null, whatKey: spec.whatKey || null,
       feature: spec.feature, what: spec.what, also: spec.also || null,
       drawing: chosen ? chosen.name : null,
       thinnestMm: chosen ? atSize(chosen, spec.at).thinnest : null,

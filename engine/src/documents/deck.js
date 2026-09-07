@@ -236,7 +236,7 @@ function deck(ctx) {
   const fams = Object.entries((p.tokens.type || {}).families || {});
   add(say('secTypefaces'), `<span class="bdg">${b.esc(say('bdgSystem'))}</span><h2 style="margin-top:2cqw">${b.esc(say('deckFaces', { n: fams.length }))}</h2>
     ${fams.map(([role, f]) => `<div style="margin-top:2.6cqw"><p class="cap" style="margin:0">${b.esc(f.family)} · ${b.esc(role)}</p>
-      <p class="alpha" style="font-family:'${b.esc(f.family)}',${b.esc(f.fallback || 'sans-serif')};font-weight:${(f.weights || [400])[0]}">${b.esc(say('deckAlphabet'))}</p></div>`).join('')}
+      <p class="alpha" style="font-family:'${b.esc(f.family)}',${b.esc(f.fallback || 'sans-serif')};font-weight:${(f.weights || [400])[0]}">${b.esc(say('alphabet'))}</p></div>`).join('')}
     <p class="sm">${own(c.typeRationale)}</p>`, 'light');
   add(say('secScale'), `<span class="bdg">${b.esc(say('bdgSystem'))}</span><h2 style="margin-top:2cqw">${b.esc(say('deckSteps', { n: ((p.tokens.type || {}).scale || []).length }))}</h2>
     <div style="margin-top:2.4cqw">${((p.tokens.type || {}).scale || []).slice(0, 4).map((s) => {

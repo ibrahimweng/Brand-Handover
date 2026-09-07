@@ -176,16 +176,16 @@ function floor(composed, host, partner, way, project) {
   const r = project.rules;
   const v = partner.versions[way];
   const parts = [];
-  const add = (label, thin) => { if (thin > 0) parts.push({ label, thin }); };
-  add('our half', geo.minimumSize(host, { minStrokePx: 1, minStrokeMm: 1 }).thinnestStroke);
-  add('their mark', (v.minimumSize.thinnestStroke || 0) * composed.scale);
-  if (composed.ruleWidth) add('the rule between them', composed.ruleWidth);
+  const add = (label, key, thin) => { if (thin > 0) parts.push({ label, labelKey: key, thin }); };
+  add('our half', 'ptOurHalf', geo.minimumSize(host, { minStrokePx: 1, minStrokeMm: 1 }).thinnestStroke);
+  add('their mark', 'ptTheirMark', (v.minimumSize.thinnestStroke || 0) * composed.scale);
+  if (composed.ruleWidth) add('the rule between them', 'ptTheRule', composed.ruleWidth);
   const worst = parts.slice().sort((a, b) => a.thin - b.thin)[0];
   const px = Math.ceil((composed.width / worst.thin) * r.minStrokePx);
   return {
     screenPx: px,
     printMm: svgu.round((composed.width / worst.thin) * r.minStrokeMm, 1),
-    setBy: worst.label,
+    setBy: worst.label, setByKey: worst.labelKey,
     thinnest: svgu.round(worst.thin, 3),
     parts: parts.map((p) => ({ label: p.label, thinnest: svgu.round(p.thin, 3),
       screenPx: Math.ceil((composed.width / p.thin) * r.minStrokePx) })),

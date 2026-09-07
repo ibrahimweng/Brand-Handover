@@ -3355,6 +3355,74 @@ them, and a 412 KB response arrived as 562 bytes: no error, no exception, a
 `200`, and a field of the right type holding the wrong thing. Argument order was
 the mechanism. The name was the cause, and renaming the payload is the fix.
 
+## The manual's body, and where its words actually lived
+
+The round before this one moved the deck into the dictionary and measured what
+was left. What was left was the manual: **1,453 words of prose that no dictionary
+had ever seen**, so `français` wrote the deck and did not write the manual, and
+the build said so with the file named.
+
+This is that file. Most of it was where you would expect — `documents/blocks.js`,
+one template literal per block — and the conversion is mechanical: every
+sentence becomes a key, every number stays a `{placeholder}`, and the English
+value reproduces the literal it replaced. The check that this is true is not a
+promise: the English manual of all thirty other identities comes out with **the
+same words in the same order** after every chunk, and the harness says so.
+
+Three things were not where you would expect.
+
+**A sentence can be written below every dictionary.** The manual's `<pre>` is
+`brand.json` and is English on purpose, and so is `CHANGES.txt` — but the
+sentences *inside* them were also the sentences on the page. What a making
+process can hold was written in `fabrication.js`:
+
+    what: 'a satin stitch narrower than this will not lie down, and reads as a
+           crease rather than a line'
+
+Why the engine picked the shape it built the pattern from was written in
+`pattern.js`. Which half of a partner pair sets the floor was written in
+`partners.js`. And the whole of chapter 00 — fifteen kinds of change, three
+sentences each — was written in `previous.js`, which is also the body of
+`CHANGES.txt`. Each of those now carries the facts and a key beside the English,
+the way `geometry.js` already did:
+
+    whatKey: 'whatEmbroidery'      what: 'a satin stitch narrower than this…'
+    whyFacts: { bits: […], all: 14 }   why: 'it is close to square, so it repeats…'
+    keys: { what: 'cgMinWhat', … }     what: 'the smallest usable size has gone up…'
+
+**A key that belongs to the engine does not belong in the client's file.**
+Adding `labelKey` to the partner floor put `"labelKey": "ptOurHalf"` into
+`brand.json` twelve times. `brand.json` carries facts about the brand, not the
+engine's string table; the key went back to the document layer.
+
+**Two sections were built with the wrong helper.** `sec()` takes the document's
+language and `S()` passes it; chapter 2's contrast and colour-vision sections
+called `sec()` directly, so their badge read *Drawn by the system* in the middle
+of a French page while every other badge on it read *Tracé par le système*.
+Nothing found that but reading the finished page.
+
+Verdon's manual, before and after:
+
+    before   2,255 prose words, 2,034 of them the English build      90%
+    after    1,361 prose words,   136 of them the English build      10%
+
+and across thirteen identities chosen so that every block is exercised at least
+once — the ladder is only in oriel, the pairs only in kilnsey, the making only
+in ancroft, the sub-brands only in harbourne, the ident only in farne, the
+changes chapter only in tarnbrook — the worst is 18 per cent, which is `px`,
+`mm`, the folder names, the `brand.json` listing and the words the two languages
+spell the same way.
+
+The battery asks it of all thirteen, so a sentence still nailed to the source is
+caught by the one identity that prints it:
+
+    tarnbrook's French manual is 30 per cent the English one:
+    verdon 18%, ancroft 11%, kilnsey 9%, oriel 14%, farne 12%,
+    harbourne 11%, tarnbrook 30%
+
+That is the message with the French half of chapter 00 deleted, which is how the
+check was proved to have teeth.
+
 ## What a language actually writes
 
 The round before this one caught the deck claiming a language it was not written
@@ -3423,15 +3491,18 @@ language the dictionary offers, twice, and compares:
 
     fr says it writes the manual and 84 per cent of it is the English build
 
-The manual's body is still 1,453 words of prose that never went through a
-dictionary at all, in `documents/blocks.js`, so
-`français` writes the deck and not the manual, and the build says so with the
-file named:
+The manual's body was still 1,453 words of prose that had never gone through a
+dictionary at all, so `français` wrote the deck and not the manual, and the build
+said so with the file named:
 
     warning: this identity is in français and the manual is written in English.
     The deck is in français. … What is missing is words rather than machinery:
     the manual still takes its prose from literals in src/documents/blocks.js
     rather than from the dictionary.
+
+The round after this one moved those words too, and the warning goes quiet for
+`français` — see *The manual's body* above. It still fires for a language the
+engine has no dictionary for at all, which is what it is for.
 
 ## What it does not do yet
 
@@ -3465,6 +3536,7 @@ file named:
     src/pattern.js    seamless tiles cut from the shape you marked
     src/misuse.js     what not to do, drawn from the artwork rather than described
     src/strings.js    every word both documents set, and what a language can write
+    src/previous.js   what moved since the last version, in both languages
     src/documents/    blocks.js, chrome.js, index.js (manual), deck.js
     projects/meridian/  the first identity: one stroked mark, one ink
     projects/halyard/   the second: filled artwork, two inks, four faults left in
