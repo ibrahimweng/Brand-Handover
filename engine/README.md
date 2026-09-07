@@ -146,10 +146,12 @@ language the engine has strings for:
 
     "language": "fr"
 
-`src/strings.js` holds the chrome. Where the two match, the document is in the
-brand's language. Where they do not, the document carries the language it is
-written in and the brand's own words carry theirs — and the build says which
-language it wrote in and what it would take to add another.
+`src/strings.js` holds the words, and what a language can write is asked **per
+document**, because the manual and the deck are not written from the same ones.
+Where a document can be written in the brand's language it is. Where it cannot,
+it carries the language it is written in and the brand's own words carry theirs —
+and the build says which document came out in which, and where the words it is
+still missing live.
 
 An identity can state the standard its documents are held to:
 
@@ -2854,12 +2856,12 @@ field for both.
       …
       <h1><span lang="he" dir="rtl">מעיין</span> brand manual</h1>
 
-`src/strings.js` holds the chrome, in one place, one language at a time. A
-project whose language the engine can write gets a document in it: **Verdon** is
-a French regional park and its manual is a French document, from *Charte
-graphique* on the masthead to *Zone de protection* and *Tracé par le système*. A
-project whose language it cannot write gets an English document that says so, in
-the build and on the page, with the brand's own words marked as the brand's —
+`src/strings.js` holds the words, in one place, one language at a time. A project
+whose language the engine can write a document in gets that document in it:
+**Verdon** is a French regional park and its deck is a French document, from
+*Taille minimale* on the slide to *boîte 240 ÷ trait 16 = 15 largeurs de trait en
+travers* under it. A document it cannot write gets an English one that says so,
+in the build and on the page, with the brand's own words marked as the brand's —
 which is the honest answer and the one a screen reader can act on. Adding a
 language is a block of strings and nothing else.
 
@@ -2996,17 +2998,17 @@ forbids, and a project with no rules gets no slide and no line about one on the
 divider.
 
 And the deck turned out to be carrying the thirtieth round's own fault. Every
-slide in `documents/deck.js` is an English literal, so **Verdon shipped a French
+slide in `documents/deck.js` was an English literal, so **Verdon shipped a French
 manual and an English deck, both under `lang="fr"`** — a page claiming a language
 it is not written in, which is exactly what the round before had finished fixing.
-A dictionary now says which documents it can write:
+A dictionary was made to say which documents it can write:
 
     const FR = { lang: 'fr', … writes: ['manual'] };
     resolve(project, 'manual') → fr        resolve(project, 'deck') → en
 
-Each document says which language it is in, and the build says why they differ.
-Moving the deck's words into `src/strings.js` closes it; until then the claim on
-the page is true, which is the part that could not wait.
+Each document said which language it was in, and the build said why they differ,
+which was the part that could not wait. The next round found that the list was a
+hand-typed claim and measured it: see *What a language actually writes* below.
 
 ## The pattern the engine would not draw
 
@@ -3353,6 +3355,84 @@ them, and a 412 KB response arrived as 562 bytes: no error, no exception, a
 `200`, and a field of the right type holding the wrong thing. Argument order was
 the mechanism. The name was the cause, and renaming the payload is the fix.
 
+## What a language actually writes
+
+The round before this one caught the deck claiming a language it was not written
+in, and answered it with a list:
+
+    const FR = { lang: 'fr', … writes: ['manual'] };
+
+A list is a claim. Nothing was checking it, and the way to check it is not to
+look at the dictionary — it is to look at the page. Render the same project
+twice, once in the language it asks for and once in English, and count the prose
+words the two share. `src/strings.js` does that now, in `residue()`, over the
+words that could have been translated at all: a number, a hex code, a folder name
+and the brand's own vocabulary are the same in every language and are evidence of
+nothing.
+
+Verdon, before this round:
+
+    guidelines.html   2,255 prose words, 2,034 of them the English build   90%
+    deck.html           638 prose words,   596 of them the English build   93%
+
+Both under `lang="fr"`. The chrome came from the dictionary and the body did not,
+and every check the engine had looked at the chrome and passed. `writes:
+['manual']` had been true about the chrome and false about the document.
+
+Three things came out of it.
+
+**The deck's words moved into the dictionary — all of them.** Not the headings:
+the badges, the slide titles, the captions under the size ladder, *Prev* and
+*Next*, the aria-label on every slide, the word for the drawing itself, so a
+sentence can decline around *symbole* where English says *mark*.
+
+**The sentences below the dictionary moved too.** Some of the prose in these
+documents was never written in `documents/` at all. `geometry.js` returned the
+reasoning behind the floor as an English sentence:
+
+    basis: `box ${vb.w} ÷ stroke ${measured} = ${ratio} stroke widths across`
+
+so a French manual printed *box 240 ÷ stroke 16 = 15 stroke widths across* in the
+middle of a French paragraph. `contrast.js` returned *Pass AA* and *Never for
+text*. `pattern.js` named the motif it had picked — *the second circle in the
+drawing* — and described how it repeats. A measurement is a number; how it is
+said belongs to a language. Each now carries the facts and a key, and keeps the
+English string beside it because `brand.json` and the command line are read as
+English whatever the brand is:
+
+    basisFacts: { how: 'stroke', box: 240, width: 16, ratio: 15 }
+    basis:      'box 240 ÷ stroke 16 = 15 stroke widths across'
+    G.basisText(facts, fr) → 'boîte 240 ÷ trait 16 = 15 largeurs de trait en travers'
+
+**And one document was quietly speaking the other's language.** The misuse cells
+are drawn from one list so the deck and the manual cannot disagree about what a
+rule forbids — and the list read `ctx.L`, which is the *manual's* language. Five
+of Verdon's deck captions were French inside a document declared English.
+`misuseCells(ctx, W, L)` takes the language of the page it is drawing into.
+
+Verdon now:
+
+    deck.html       fr    321 prose words, 41 shared with the English build   13%
+    guidelines.html en    an English document, and says so
+
+The 13 per cent is `px`, `mm`, `Aa`, the folder names, and the words the two
+languages spell the same — *palette*, *construction*, *accent*, *document*.
+
+The claim has teeth. The language battery renders every document in every
+language the dictionary offers, twice, and compares:
+
+    fr says it writes the manual and 84 per cent of it is the English build
+
+The manual's body is still 1,453 words of prose that never went through a
+dictionary at all, in `documents/blocks.js`, so
+`français` writes the deck and not the manual, and the build says so with the
+file named:
+
+    warning: this identity is in français and the manual is written in English.
+    The deck is in français. … What is missing is words rather than machinery:
+    the manual still takes its prose from literals in src/documents/blocks.js
+    rather than from the dictionary.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.
@@ -3384,6 +3464,7 @@ the mechanism. The name was the cause, and renaming the payload is the fix.
     src/licence.js    plans, signed licences, and what the client owns
     src/pattern.js    seamless tiles cut from the shape you marked
     src/misuse.js     what not to do, drawn from the artwork rather than described
+    src/strings.js    every word both documents set, and what a language can write
     src/documents/    blocks.js, chrome.js, index.js (manual), deck.js
     projects/meridian/  the first identity: one stroked mark, one ink
     projects/halyard/   the second: filled artwork, two inks, four faults left in

@@ -2801,10 +2801,17 @@ test('a document says what language it is in and which way it reads', () => {
   // and the brand's own name is marked as its own, which is what makes both true
   assert.ok(/lang="he"[^>]*dir="rtl"|dir="rtl"[^>]*lang="he"/.test(docs.guidelines(ctx)),
     "the brand's own words are not marked as Hebrew");
-  // an identity in a language the engine writes gets a document in it
+  // an identity in a language the engine writes gets a document in it — and
+  // that is asked per document, because the two are not written from the same
+  // words. The deck comes out of the dictionary end to end, so français writes
+  // one; the manual's body is still literals in documents/blocks.js, so it does
+  // not, and the manual says English rather than claiming otherwise.
   const VD = projectLoader.load(path.join(__dirname, '..', 'projects', 'verdon', 'project.json'));
-  const vtag = (/<html[^>]*>/.exec(docs.guidelines(docs.context(VD, measure(VD), [], {}))) || [])[0];
-  assert.ok(/lang="fr"/.test(vtag), `Verdon says ${vtag}`);
+  const vctx = docs.context(VD, measure(VD), [], {});
+  const vtag = (/<html[^>]*>/.exec(deck(vctx)) || [])[0];
+  assert.ok(/lang="fr"/.test(vtag), `Verdon's deck says ${vtag}`);
+  const vman = (/<html[^>]*>/.exec(docs.guidelines(vctx)) || [])[0];
+  assert.ok(/lang="en"/.test(vman), `Verdon's manual says ${vman}`);
   // and the six that were already right are still right
   for (const p of [project, HAL, KV, HW, NL, PG]) {
     assert.strictEqual(p.language, 'en');
@@ -6321,9 +6328,11 @@ before(async () => {
 
 test('a document is in the language it is written in, not the one it is about', () => {
   const en = STR.resolve({ language: 'en' });
-  const fr = STR.resolve({ language: 'fr' });
+  const fr = STR.resolve({ language: 'fr' }, 'deck');
   const he = STR.resolve({ language: 'he', direction: 'rtl' });
   assert.strictEqual(fr.lang, 'fr');
+  // asked for a document it cannot write, the same dictionary answers English
+  assert.strictEqual(STR.resolve({ language: 'fr' }, 'manual').lang, 'en');
   assert.strictEqual(he.lang, 'en', 'a Hebrew brand got a document claiming to be in Hebrew');
   assert.strictEqual(he.dir, 'ltr', 'an English document was laid out right to left');
   assert.strictEqual(he.brandLang, 'he');
@@ -6337,14 +6346,15 @@ test('every string the English set has, the French set has too', () => {
   for (const k of Object.keys(STR.EN)) assert.notStrictEqual(STR.FR[k], k);
 });
 test('a French identity gets a French document', () => {
-  const html = fs.readFileSync(path.join(verdOut, 'guidelines.html'), 'utf8');
+  const html = fs.readFileSync(path.join(verdOut, 'deck.html'), 'utf8');
   assert.ok(/<html[^>]*lang="fr"/.test(html));
-  for (const phrase of ['Charte graphique', 'Zone de protection', 'Taille minimale',
-    'Tracé par le système', 'Ce que contient le dossier', 'Contraste et accessibilité']) {
+  for (const phrase of ['Le symbole', 'Zone de protection', 'Taille minimale',
+    'Mesuré, non décidé', 'Le dossier', 'Vérifié, non supposé', 'Touches fléchées']) {
     assert.ok(html.indexOf(phrase) > -1, `missing: ${phrase}`);
   }
-  // and no English chapter title survived
-  for (const stale of ['>Clear space<', '>Minimum size<', '>Colour<', '>Typography<', '>Assets<']) {
+  // and no English slide title survived
+  for (const stale of ['>Clear space<', '>Minimum size<', 'Measured, not decided',
+    'The lockups', 'Arrow keys', 'ways it breaks']) {
     assert.ok(html.indexOf(stale) < 0, `English left in a French document: ${stale}`);
   }
 });
@@ -6566,13 +6576,105 @@ test('the deck and the manual forbid the same things, in the same order', () => 
 
 test('a deck says what language it is written in, not what the brand is in', () => {
   // The thirtieth round gave the deck the manual's language and left every
-  // slide in English: Verdon shipped lang="fr" over an English deck.
+  // slide in English: Verdon shipped lang="fr" over an English deck. The words
+  // are in the dictionary now, so the deck is written in français and says so —
+  // and the manual, whose body is still literals, says English.
   const manual = fs.readFileSync(path.join(verdOut, 'guidelines.html'), 'utf8');
   const deckHtml = fs.readFileSync(path.join(verdOut, 'deck.html'), 'utf8');
-  assert.ok(/<html[^>]*lang="fr"/.test(manual));
-  assert.ok(/<html[^>]*lang="en"/.test(deckHtml), 'the deck still claims a language it is not in');
-  assert.deepStrictEqual(STR.resolve({ language: 'fr' }, 'deck').lang, 'en');
-  assert.deepStrictEqual(STR.resolve({ language: 'fr' }, 'manual').lang, 'fr');
+  assert.ok(/<html[^>]*lang="fr"/.test(deckHtml), 'the deck is not written in the language it can be');
+  assert.ok(/<html[^>]*lang="en"/.test(manual), 'the manual still claims a language it is not in');
+  assert.deepStrictEqual(STR.resolve({ language: 'fr' }, 'deck').lang, 'fr');
+  assert.deepStrictEqual(STR.resolve({ language: 'fr' }, 'manual').lang, 'en');
+});
+
+test('what a language says it writes is measured off the finished page', () => {
+  // `writes` was a hand-typed list, and a hand-typed list is a claim: the deck
+  // was 93 per cent word for word the English build under lang="fr" and every
+  // check the engine had looked at the chrome and passed. Render both, compare
+  // the prose, and the claim has to hold up.
+  const docs2 = require('../src/documents');
+  const { deck: deck2 } = require('../src/documents/deck');
+  const vm = measure(verdon);
+  for (const code of Object.keys(STR.HAVE)) {
+    if (code === 'en') continue;
+    const inWanted = docs2.context(Object.assign({}, verdon, { language: code }), vm, [], {});
+    const inEnglish = docs2.context(Object.assign({}, verdon, { language: 'en' }), vm, [], {});
+    for (const [which, render] of [['manual', docs2.guidelines], ['deck', deck2]]) {
+      const a = render(inWanted), b = render(inEnglish);
+      const claims = STR.HAVE[code].writes.indexOf(which) > -1;
+      const r = STR.residue(a, b, verdon);
+      if (claims) {
+        // units, folder names and the cognates two languages spell the same
+        assert.ok(r.share < 0.35,
+          `${code} says it writes the ${which} and ${(100 * r.share).toFixed(0)} per cent of it is the English build`);
+      } else {
+        // not byte for byte: an English document about a French brand marks the
+        // brand's own words as French, and the one about an English brand has
+        // nothing to mark — so the prose is the same and the markup is not
+        assert.ok(r.share > 0.95,
+          `${code} does not write the ${which}, so its prose should be the English one`);
+        assert.ok(/<html[^>]*lang="en"/.test(a), `${code}'s ${which} claims a language it is not written in`);
+      }
+    }
+    // and nothing fell through mid-sentence in the one it does write
+    assert.deepStrictEqual(inWanted.deckL ? inWanted.deckL.missed() : [], [],
+      `${code} fell back to English inside its own deck`);
+  }
+});
+
+test('the misuse cells are captioned in the language of the page they are on', () => {
+  // Both documents draw these from one list, and the list took the manual's
+  // language: Verdon's deck carried five French captions inside a document
+  // declared English, which is the round before this one, one level down.
+  const deckHtml = fs.readFileSync(path.join(verdOut, 'deck.html'), 'utf8');
+  const caps = [...deckHtml.matchAll(/<p class="cap said">([\s\S]*?)<\/p>/g)].map((m) => m[1].trim());
+  assert.ok(caps.length >= 3, 'no misuse captions on the deck');
+  for (const c of caps) assert.ok(/^Ne pas /.test(c), `a French deck says: ${c}`);
+  // and the manual beside it, which is written in English, says it in English
+  const manual = fs.readFileSync(path.join(verdOut, 'guidelines.html'), 'utf8');
+  assert.ok(manual.indexOf('Do not stretch or squash it.') > -1,
+    'the English manual took the deck\'s language');
+  assert.ok(manual.indexOf('Ne pas l\u2019\u00e9tirer') < 0, 'French left in an English manual');
+});
+
+test('a measurement is a number, and how it is said belongs to a language', () => {
+  // These sentences were written inside geometry.js and contrast.js, one level
+  // below any dictionary, so a French manual set "box 240 ÷ stroke 16 = 15
+  // stroke widths across" in the middle of a French paragraph. The numbers stay
+  // where they were measured; the words moved.
+  const G2 = require('../src/geometry');
+  const en = STR.resolve({}, 'deck'), fr = STR.resolve({ language: 'fr' }, 'deck');
+  for (const p2 of [verdon, project, HAL, KV]) {
+    const ms = measure(p2).minimumSize;
+    assert.ok(ms.basisFacts, `${p2.brand} does not carry what decided its floor`);
+    assert.strictEqual(G2.basisText(ms.basisFacts, en), ms.basis,
+      `${p2.brand}: the English sentence changed`);
+    const said = G2.basisText(ms.basisFacts, fr);
+    assert.ok(/^bo\u00eete /.test(said), `${p2.brand} says it in English to a French reader: ${said}`);
+    assert.ok(said.indexOf(String(ms.basisFacts.box)) > -1, 'the number did not survive the translation');
+    for (const st of ms.steps) assert.ok(STR.EN[st.labelKey], `a step is labelled ${st.label} and nothing else`);
+  }
+  assert.strictEqual(G2.floorText({ screenPx: null }, 'px', fr), 'non mesur\u00e9');
+  // every contrast verdict can be said in either
+  const C2 = require('../src/contrast');
+  for (const r of [null, 8, 5, 3.4, 1.2]) {
+    const v = C2.verdict(r);
+    assert.ok(v.useKey && STR.EN[v.useKey] === v.use, `${v.use} has no key`);
+    assert.ok(STR.FR[v.useKey], `${v.useKey} is not in the French set`);
+  }
+  // and the name the engine gave the motif, which it wrote off the artwork
+  const PAT2 = require('../src/pattern');
+  for (const p2 of [verdon, HAL]) {
+    const master = p2.assets[p2.assets.mark ? 'mark' : 'wordmark'];
+    for (const c of PAT2.candidates(master.source).list) {
+      assert.strictEqual(PAT2.motifName(c, en), c.name, `${c.key}: the English name changed`);
+      assert.notStrictEqual(PAT2.motifName(c, fr), c.name, `${c.key} is English in a French deck`);
+    }
+  }
+  for (const k of Object.keys(PAT2.CONSTRUCTIONS)) {
+    assert.strictEqual(PAT2.drawsText(k, en), PAT2.CONSTRUCTIONS[k].draws, `${k}: the English changed`);
+    assert.notStrictEqual(PAT2.drawsText(k, fr), PAT2.CONSTRUCTIONS[k].draws, `${k} is English in a French deck`);
+  }
 });
 
 

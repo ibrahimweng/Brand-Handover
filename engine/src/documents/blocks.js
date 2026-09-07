@@ -590,10 +590,14 @@ function lockups(ctx) {
 // performs it on this identity's own artwork and writes the sentence from the
 // treatment it performed. The designer's reason follows in their own words,
 // which is the half a machine cannot supply. See src/misuse.js.
-function misuseCells(ctx, W) {
+function misuseCells(ctx, W, use) {
   const list = ctx.misuse || [];
   if (!list.length) return [];
-  const L = ctx.L;
+  // The language of the document these cells are being drawn into, which is not
+  // always the manual's. Reading ctx.L put five French captions on Verdon's
+  // deck under lang="en": both documents share this list, and only one of them
+  // had ever been asked what language it was in. See src/strings.js.
+  const L = use || ctx.L;
 
   // These cells were painted in the colour in the primary role, on a stage
   // whose colour is the page's rather than the brand's — and the page's flips
@@ -663,7 +667,7 @@ function misuseCells(ctx, W) {
       case 'undersize':
         // the floor is a width, and for a mark far from square the height that
         // goes with it is the half somebody sets by mistake
-        return { says: L.t('sayUndersize', { px: geo.floorText(ctx.measured.minimumSize, 'px') }),
+        return { says: L.t('sayUndersize', { px: geo.floorText(ctx.measured.minimumSize, 'px', L) }),
           body: stage(undersized(ctx, best)) };
       case 'redraw':
         return { says: L.t('sayRedraw', { part: r.part }),

@@ -91,11 +91,14 @@ function ratio(a, b) {
 function verdict(r) {
   // a colour nobody could read is not the same as a pair that fails, and
   // saying "Never for text" about a number we never worked out is a lie
-  if (r == null) return { level: 'unknown', use: 'Not measured', note: 'this colour is not written in a form the checker can read' };
-  if (r >= 7)   return { level: 'AAA', use: 'Pass AAA',        note: 'any size, any weight' };
-  if (r >= 4.5) return { level: 'AA',  use: 'Pass AA',         note: 'body text and above' };
-  if (r >= 3)   return { level: 'AA-large', use: 'Large text only', note: 'headings at 24px and above, and shapes' };
-  return { level: 'fail', use: 'Never for text', note: 'a shape colour only, never words' };
+  // `use` is English and stays English, because ACCESSIBILITY.txt and brand.json
+  // are read by machines and by whoever ran the build. `useKey` is the same
+  // verdict for a document that is written in something else. See strings.js.
+  if (r == null) return { level: 'unknown', use: 'Not measured', useKey: 'useUnknown', note: 'this colour is not written in a form the checker can read' };
+  if (r >= 7)   return { level: 'AAA', use: 'Pass AAA',        useKey: 'useAAA', note: 'any size, any weight' };
+  if (r >= 4.5) return { level: 'AA',  use: 'Pass AA',         useKey: 'useAA', note: 'body text and above' };
+  if (r >= 3)   return { level: 'AA-large', use: 'Large text only', useKey: 'useAALarge', note: 'headings at 24px and above, and shapes' };
+  return { level: 'fail', use: 'Never for text', useKey: 'useFail', note: 'a shape colour only, never words' };
 }
 
 // Every pair in a palette, worst first, so the problems are at the top.

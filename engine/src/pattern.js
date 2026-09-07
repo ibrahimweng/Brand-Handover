@@ -82,7 +82,7 @@ function candidates(markSource) {
   const vb = svgu.viewBox(doc);
   const out = [];
   const seen = new Set();
-  const add = (key, name, node, why) => {
+  const add = (key, name, node, why, say) => {
     // The whole mark is the <svg> element itself, and an <svg> nested inside a
     // transformed <g> establishes its own viewport: the transform stops
     // meaning what it says, and resvg does not render it, it panics from Rust
@@ -96,7 +96,7 @@ function candidates(markSource) {
     if (!/<(path|circle|rect|ellipse|polygon|polyline|line)\b/.test(markup)) return;
     if (seen.has(markup)) return;
     seen.add(markup);
-    out.push({ key, name, markup, why });
+    out.push(Object.assign({ key, name, markup, why }, say || null));
   };
 
   // An explicit decision still beats a measurement. Where the master says which
@@ -105,17 +105,23 @@ function candidates(markSource) {
   (function walkMarked(n) {
     if (n.nodeType !== 1) return;
     if (n.getAttribute && n.getAttribute('data-pattern') === 'source') {
-      add('source', 'the shape marked in the master', n, 'the master marks it with data-pattern="source"');
+      add('source', 'the shape marked in the master', n, 'the master marks it with data-pattern="source"',
+        { nameKey: 'motifSource' });
     }
     for (let c = n.firstChild; c; c = c.nextSibling) walkMarked(c);
   }(doc.documentElement));
 
-  add('mark', 'the whole mark', doc.documentElement, 'the whole drawing, repeated');
+  add('mark', 'the whole mark', doc.documentElement, 'the whole drawing, repeated',
+    { nameKey: 'motifMark' });
 
   (function walkParts(n) {
     if (n.nodeType !== 1) return;
     const part = n.getAttribute && n.getAttribute('data-part');
-    if (part) { add(`part:${part}`, `the ${part}`, n, `the drawing names it: data-part="${part}"`); return; }
+    if (part) {
+      add(`part:${part}`, `the ${part}`, n, `the drawing names it: data-part="${part}"`,
+        { nameKey: 'motifPart', nameVars: { part } });
+      return;
+    }
     for (let c = n.firstChild; c; c = c.nextSibling) walkParts(c);
   }(doc.documentElement));
 
@@ -123,6 +129,10 @@ function candidates(markSource) {
   // were called, which tells a reader choosing between them nothing at all.
   const FRIENDLY = { path: 'shape', circle: 'circle', rect: 'rectangle', ellipse: 'ellipse',
     polygon: 'polygon', polyline: 'line', line: 'line' };
+  // the same six words as keys, because "the second circle in the drawing" is a
+  // sentence the engine wrote and a French deck has to be able to say it too
+  const SHAPE_KEY = { path: 'shapePath', circle: 'shapeCircle', rect: 'shapeRect',
+    ellipse: 'shapeEllipse', polygon: 'shapePolygon', polyline: 'shapeLine', line: 'shapeLine' };
   const shapes = [];
   svgu.eachPainted(doc, (el) => {
     if (!el.getAttribute) return;
@@ -139,9 +149,13 @@ function candidates(markSource) {
   shapes.forEach((sh, i) => {
     const word = FRIENDLY[sh.tag];
     seenTag[sh.tag] = (seenTag[sh.tag] || 0) + 1;
-    const name = tally[sh.tag] === 1 ? `the ${word} in the drawing`
+    const one = tally[sh.tag] === 1;
+    const name = one ? `the ${word} in the drawing`
       : `the ${ORD[seenTag[sh.tag] - 1] || `${seenTag[sh.tag]}th`} ${word} in the drawing`;
-    add(`shape:${i + 1}`, name, sh.el, `a single ${word} out of the drawing`);
+    add(`shape:${i + 1}`, name, sh.el, `a single ${word} out of the drawing`,
+      { nameKey: one ? 'motifShape' : 'motifShapeNth',
+        nameVars: Object.assign({ shapeKey: SHAPE_KEY[sh.tag] },
+          one ? null : { ordKey: `ord${seenTag[sh.tag]}` }) });
   });
 
   return { doc, viewBox: vb, list: out };
@@ -270,31 +284,31 @@ function because(m, all) {
 // clipped afterwards, so every one of them is seamless by construction rather
 // than by being drawn carefully.
 const CONSTRUCTIONS = {
-  grid: { draws: 'a straight repeat, every instance the same way up',
+  grid: { draws: 'a straight repeat, every instance the same way up', drawsKey: 'drawsGrid',
     build: (C) => ({ W: C, H: C, at: [{ x: C / 2, y: C / 2 }] }) },
 
-  halfDrop: { draws: 'rows offset by half a cell, the way a textile repeats',
+  halfDrop: { draws: 'rows offset by half a cell, the way a textile repeats', drawsKey: 'drawsHalfDrop',
     build: (C) => ({ W: C, H: C * 2, at: [{ x: C / 2, y: C / 2 }, { x: 0, y: C * 1.5 }] }) },
 
-  brick: { draws: 'columns offset by half a cell, the way brickwork courses',
+  brick: { draws: 'columns offset by half a cell, the way brickwork courses', drawsKey: 'drawsBrick',
     build: (C) => ({ W: C * 2, H: C, at: [{ x: C / 2, y: C / 2 }, { x: C * 1.5, y: 0 }] }) },
 
-  rotary: { draws: 'a block of four, each one turned a quarter more than the last',
+  rotary: { draws: 'a block of four, each one turned a quarter more than the last', drawsKey: 'drawsRotary',
     build: (C) => ({ W: C * 2, H: C * 2, at: [
       { x: C * 0.5, y: C * 0.5, rot: 0 }, { x: C * 1.5, y: C * 0.5, rot: 90 },
       { x: C * 1.5, y: C * 1.5, rot: 180 }, { x: C * 0.5, y: C * 1.5, rot: 270 }] }) },
 
-  mirror: { draws: 'a block of four, reflected across both axes',
+  mirror: { draws: 'a block of four, reflected across both axes', drawsKey: 'drawsMirror',
     build: (C) => ({ W: C * 2, H: C * 2, at: [
       { x: C * 0.5, y: C * 0.5 }, { x: C * 1.5, y: C * 0.5, fx: true },
       { x: C * 0.5, y: C * 1.5, fy: true }, { x: C * 1.5, y: C * 1.5, fx: true, fy: true }] }) },
 
-  scale: { draws: 'the same shape at four sizes, the way the size ladder steps down',
+  scale: { draws: 'the same shape at four sizes, the way the size ladder steps down', drawsKey: 'drawsScale',
     build: (C) => ({ W: C * 2, H: C * 2, at: [
       { x: C * 0.52, y: C * 0.52, s: 1 }, { x: C * 1.56, y: C * 0.46, s: 0.5 },
       { x: C * 1.48, y: C * 1.52, s: 0.78 }, { x: C * 0.44, y: C * 1.58, s: 0.34 }] }) },
 
-  scatter: { draws: 'placed at intervals that do not line up, and never twice in the same place',
+  scatter: { draws: 'placed at intervals that do not line up, and never twice in the same place', drawsKey: 'drawsScatter',
     build: (C) => {
       // deterministic: the same identity gets the same field every time it builds
       let seed = 20260906;
@@ -314,10 +328,10 @@ const CONSTRUCTIONS = {
   // shape is drawn with. Most identities that use a pattern well use one of
   // these, because a mark repeated small enough to be a texture stops being
   // the mark and a line system never claims to be.
-  lines: { draws: 'rules at the weight the mark is drawn in, at the pitch of its own module',
+  lines: { draws: 'rules at the weight the mark is drawn in, at the pitch of its own module', drawsKey: 'drawsLines',
     build: (C) => ({ W: C, H: C, at: [], rules: true }) },
 
-  arcs: { draws: 'quarter turns at the mark’s own weight, meeting across every edge',
+  arcs: { draws: 'quarter turns at the mark’s own weight, meeting across every edge', drawsKey: 'drawsArcs',
     build: (C) => ({ W: C, H: C, at: [], arcs: true }) },
 };
 
@@ -554,7 +568,26 @@ function options(markSource, rules, ink, on, size, measured) {
   return out;
 }
 
+// The motif's name and the construction's description are prose the engine
+// wrote off the artwork, not labels it was handed, so a document written in
+// another language has to be able to say them. Each carries the English — which
+// brand.json and the command line keep reading — and the keys that rebuild it.
+function motifName(motif, L) {
+  if (!L || !motif || !motif.nameKey) return (motif && motif.name) || '';
+  const v = Object.assign({}, motif.nameVars);
+  if (v.shapeKey) { v.shape = L.t(v.shapeKey); delete v.shapeKey; }
+  if (v.ordKey) { v.ord = L.t(v.ordKey); delete v.ordKey; }
+  return L.t(motif.nameKey, v);
+}
+
+function drawsText(construction, L) {
+  const c = CONSTRUCTIONS[construction];
+  if (!c) return '';
+  return L && c.drawsKey ? L.t(c.drawsKey) : c.draws;
+}
+
 module.exports = { candidates, rank, because, CONSTRUCTIONS, NAMES, normalised, painted, wrapped,
+  motifName, drawsText,
   spec, tile, everyTile, swatch, options, R,
   // kept so the twenty-two callers and tests written against the old shape do
   // not have to know the engine stopped refusing

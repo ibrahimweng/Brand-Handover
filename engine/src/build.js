@@ -1491,26 +1491,32 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     // that says so, rather than an English document pretending to be in theirs.
     const L = require('./strings').resolve(project, 'manual');
     const LD = require('./strings').resolve(project, 'deck');
-    if (!L.speaksBrand) {
-      warnings.push(`this identity is in ${L.brandLang} and its documents are written in ${L.name}. `
-        + `They say so: the page carries lang="${L.lang}" and ${project.brand}'s own words carry `
-        + `lang="${L.brandLang}"${L.brandDir !== L.dir ? ` dir="${L.brandDir}"` : ''}, which is what stops a `
-        + 'reader being told the whole document is in a language it is not — and, before the thirtieth round, '
+    // Which documents the project's language actually writes, per document,
+    // because the two are not written from the same words. Until the
+    // thirty-first round the deck was English prose under whatever lang the
+    // project asked for; it is written from the dictionary now, so français
+    // writes one. The manual's body is still literals in documents/blocks.js,
+    // so français does not write that — and saying which is which is the whole
+    // difference between a declaration and a page that lies about itself.
+    const WHERE = { manual: 'src/documents/blocks.js', deck: 'src/documents/deck.js' };
+    const both = [['manual', L], ['deck', LD]];
+    const wrote = both.filter(([, x]) => x.speaksBrand).map(([k]) => k);
+    const didnt = both.filter(([, x]) => !x.speaksBrand).map(([k]) => k);
+    const list = (a) => a.map((k) => `the ${k}`).join(' and ');
+    if (didnt.length) {
+      warnings.push(`this identity is in ${L.wantedName} and ${list(didnt)} `
+        + `${didnt.length === 1 ? 'is' : 'are'} written in English. `
+        + (wrote.length ? `${list(wrote).replace(/^t/, 'T')} ${wrote.length === 1 ? 'is' : 'are'} in ${L.wantedName}. ` : '')
+        + `Each document carries the language it is written in, and ${project.brand}'s own words carry `
+        + `lang="${L.brandLang}"${L.brandDir !== L.dir ? ` dir="${L.brandDir}"` : ''} inside it, which is what stops a `
+        + `reader being told a whole document is in a language it is not — and, before the thirtieth round, `
         + `stopped ${L.brandDir === 'rtl' ? 'an English manual being laid out right to left' : 'a page claiming a language it does not write'}. `
-        + `The engine writes ${L.available.join(' and ')} manuals; adding ${L.brandLang} is a block of strings in `
-        + 'src/strings.js and nothing else.');
-    }
-    // The two documents are not written from the same words, and until the
-    // thirty-first round only the manual's were in the dictionary: Verdon's
-    // deck was English prose under lang="fr", which is the fault the round
-    // before it had just finished fixing, one level down.
-    if (LD.lang !== L.lang) {
-      warnings.push(`the manual is in ${L.name} and the deck is in ${LD.name}, and each says which it is. `
-        + `Every slide in the deck is a literal in src/documents/deck.js rather than a string in the `
-        + `dictionary, so ${L.wantedName} can write a manual and cannot yet write a deck. A deck carrying `
-        + `lang="${L.lang}" over English prose would be the thirtieth round's fault again: a reader's software `
-        + 'was guessing right until the document overruled it. Move the deck\'s words into src/strings.js and '
-        + 'this goes away.');
+        + (L.writes.length
+          ? `What is missing is words rather than machinery: ${list(didnt)} still take${didnt.length === 1 ? 's' : ''} `
+            + `${didnt.length === 1 ? 'its' : 'their'} prose from literals in ${didnt.map((k) => WHERE[k]).join(' and ')} `
+            + `rather than from the dictionary. Move them into src/strings.js and this goes away.`
+          : `The engine has ${L.available.join(' and ')} and no ${L.brandLang} at all; adding one is a block of `
+            + `strings in src/strings.js and nothing else.`));
     }
     if (overrides.length) write('overrides.json', OVR.file(overrides, project));
     write('ACCESSIBILITY.txt', ACC.statement(acc, { brand: project.brand,

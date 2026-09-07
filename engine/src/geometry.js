@@ -194,8 +194,8 @@ function thinnestFeature(svgString, viewBox) {
 
 // How to say a floor out loud. It is a width; for a mark that is not roughly
 // square, saying only the width invites somebody to set the height to it.
-function floorText(ms, unit) {
-  if (!ms || ms.screenPx == null) return 'not measured';
+function floorText(ms, unit, L) {
+  if (!ms || ms.screenPx == null) return L ? L.t('floorUnknown') : 'not measured';
   const w = unit === 'mm' ? ms.printMm : ms.screenPx;
   const h = unit === 'mm' ? ms.printMmHigh : ms.screenPxHigh;
   return ms.squarish ? `${w} ${unit}` : `${w} × ${h} ${unit}`;
@@ -236,8 +236,14 @@ function minimumSize(svgString, rules) {
   // ceil, the same way screenPxHigh rounds, or the floor reads 110 x 40 in the
   // prose and 110 x 39 under the picture beside it
   const say = (w) => (squarish ? `${w} px` : `${w} \u00d7 ${Math.ceil(w * tall)} px`);
-  const steps = [[wide * 2, 'comfortable'], [wide, 'the floor'], [Math.round(wide * 0.6), 'below the floor']]
-    .map(([w, label]) => ({ px: w, high: Math.ceil(w * tall), label, caption: say(w) }));
+  // The label is a word in a language and the step is a number. Carry both:
+  // the key so a document can say it in its own, the English so brand.json and
+  // the command line — which are read by machines and by whoever ran the build
+  // — keep reading the same as they did.
+  const steps = [[wide * 2, 'comfortable', 'stepComfortable'],
+    [wide, 'the floor', 'stepFloor'],
+    [Math.round(wide * 0.6), 'below the floor', 'stepBelow']]
+    .map(([w, label, labelKey]) => ({ px: w, high: Math.ceil(w * tall), label, labelKey, caption: say(w) }));
   return {
     thinnestStroke: measured,
     from: how,
@@ -247,6 +253,12 @@ function minimumSize(svgString, rules) {
     printMmHigh: svgu.round(ratio * rules.minStrokeMm * tall, 1),
     squarish,
     steps,
+    // What decided the floor, as numbers, so a document can say it in whatever
+    // language it is written in. The sentence below is the same thing in
+    // English, kept because brand.json and the command line are read as English
+    // whatever the brand's language is. See strings.js: basisStroke, basisStem.
+    basisFacts: { how, box: vb.w, width: measured, ratio: svgu.round(ratio, 2),
+      alsoStroke: how === 'stroke' ? null : stroke },
     basis: how === 'stroke'
       ? `box ${vb.w} ÷ stroke ${measured} = ${svgu.round(ratio, 2)} stroke widths across`
       : `box ${vb.w} ÷ narrowest stem ${measured} = ${svgu.round(ratio, 2)} stems across, measured off the artwork`
@@ -261,4 +273,14 @@ function renderPng(svgString, widthPx) {
   }).render().asPng();
 }
 
-module.exports = { inkBox, clearSpace, minimumSize, thinnestFeature, renderPng, floorText };
+// The same sentence as `basis`, in the language the document is written in.
+function basisText(facts, L) {
+  if (!facts) return '';
+  if (!L) return '';
+  return facts.how === 'stroke'
+    ? L.t('basisStroke', { box: facts.box, w: facts.width, ratio: facts.ratio })
+    : L.t('basisStem', { box: facts.box, w: facts.width, ratio: facts.ratio })
+      + (facts.alsoStroke != null ? L.t('basisThinner', { w: facts.alsoStroke }) : '');
+}
+
+module.exports = { inkBox, clearSpace, minimumSize, thinnestFeature, renderPng, floorText, basisText };

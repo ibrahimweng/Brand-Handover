@@ -82,11 +82,30 @@ p{margin:0}
 
 function deck(ctx) {
   const p = ctx.project, c = ctx.content, m = ctx.measured;
-  const S = [], T = [];
+  // The deck is in the language it is written in, like the manual beside it —
+  // and that is asked of the deck rather than of the project, because the two
+  // documents are not written from the same words. Every slide below used to be
+  // an English literal, so a French project got a French manual and an English
+  // deck; and the misuse cells, which both documents share, took the manual's
+  // language, so five of Verdon's captions were French inside a document
+  // declared English. Both come from the dictionary now. The brand's own words
+  // carry the brand's language against whichever the document is written in.
+  // See src/strings.js.
+  const L = ctx.deckL = require('../strings').resolve(p, 'deck');
+  const own = (t) => b.own(ctx, t, L);
+  const say = (k, v) => L.t(k, v);
+  const noun = say(ctx.noun === 'mark' ? 'nounMark' : 'nounLogotype');
+  const ROLE_KEY = { primary: 'rolePrimary', secondary: 'roleSecondary', accent: 'roleAccent',
+    ground: 'roleGround', neutral: 'roleNeutral', support: 'roleSupport', alert: 'roleAlert' };
+  const SCRIM_KEY = { top: 'scrimTop', bottom: 'scrimBottom', left: 'scrimLeft',
+    right: 'scrimRight', flat: 'scrimFlat' };
+
+  const S = [], T = [], A = [];
   const add = (title, body, cls = '') => {
     const n = S.length + 1;
-    S.push(`<section class="slide ${cls}" aria-label="Slide ${n}, ${b.esc(title)}">${body}<span class="num">${String(n).padStart(2, '0')}</span></section>`);
-    T.push(title);
+    const label = say('deckSlideOf', { n, title });
+    S.push(`<section class="slide ${cls}" aria-label="${b.esc(label)}">${body}<span class="num">${String(n).padStart(2, '0')}</span></section>`);
+    T.push(title); A.push(label);
   };
   const div = (no, name, subs) => add(`${no} · ${name}`,
     `<p class="chno">${no}</p><h2 class="chname">${b.esc(name)}</h2><ul class="sub">${subs.map((s) => `<li>${b.esc(s)}</li>`).join('')}</ul>`, 'div');
@@ -118,11 +137,9 @@ function deck(ctx) {
   // handed it a sentence: 330 characters ran 657px past the bottom of the
   // slide, and the slide opened in the middle of the word "Street".
   //
-  // A statement longer than the headline holds is not a headline. Set the name
+  // A statement longer than the headline holds is not a headline: set the name
   // as the headline and the statement underneath, at reading size, where it is
   // meant to be read anyway.
-  // A statement longer than the headline holds is not a headline: set the name
-  // as the headline and the statement underneath, at reading size.
   //
   // Then the name itself has to fit. h1 measures 15ch and the lede 44ch, both
   // set in `ch`, so how many lines each takes does not change with the type
@@ -130,15 +147,6 @@ function deck(ctx) {
   // caption and the margins take about 26 of that, so the two together have
   // about 30 to live in. Step both down until they do. "Beaumont & Whitcombe
   // Rare Books" is three lines of headline where "Meridian" is one.
-  // The deck is in the language it is written in, like the manual beside it —
-  // and that is asked of the deck rather than of the project, because the two
-  // documents are not written from the same words. Every slide below is an
-  // English literal, so a French project gets a French manual and an English
-  // deck, and each says which it is. The brand's own words carry the brand's
-  // language against whichever of the two they are printed in. See src/strings.js.
-  const L = require('../strings').resolve(p, 'deck');
-  const own = (t) => b.own(ctx, t, L);
-
   const HEAD_CH = 15, LEDE_CH = 44, BUDGET = 44, GAP = 2.2;
   const linesIn = (t, ch) => M.textLines(t, { size: 1, leading: 1 }, ch * M.CHAR_EM);
   const stated = c.positioning || '';
@@ -153,84 +161,89 @@ function deck(ctx) {
     }
     if (L1 * h1Size * 1.02 + (L2 ? GAP + L2 * ledeSize * 1.5 : 0) <= BUDGET) break;
   }
-  add('Title', `<div class="hero" style="justify-content:flex-start;margin-bottom:3.4cqw">${plate(b.scaled(ctx.variantFor('horizontal', markWay.name), 360))}</div>
+  add(say('sldTitle'), `<div class="hero" style="justify-content:flex-start;margin-bottom:3.4cqw">${plate(b.scaled(ctx.variantFor('horizontal', markWay.name), 360))}</div>
     <h1${h1Size === 7 ? '' : ` style="font-size:${h1Size}cqw"`}>${own(headline)}</h1>${lede ? `\n    <p class="lede"${ledeSize === 2.2 ? '' : ` style="font-size:${ledeSize}cqw"`}>${own(lede)}</p>` : ''}
-    <p class="cap" style="margin-top:3.4cqw">${own(p.brand)} ${b.esc(p.version)} · built from one master file</p>`);
+    <p class="cap" style="margin-top:3.4cqw">${own(p.brand)} ${b.esc(p.version)} · ${b.esc(say('deckBuilt'))}</p>`);
 
   // Worked out before the divider that lists the slides, because a project with
   // no misuse rules has no misuse slide and a divider promising one is a
   // contents page for a deck that does not exist.
-  const dont = b.misuseCells(ctx, 54);
-  div('01', 'The mark', ['Construction', 'Clear space', 'Minimum size', 'The lockups']
-    .concat(dont.length ? ['Misuse'] : []));
-  add('The mark', `<div class="hero">${plate(b.scaled(b.asColourway(ctx, markWay), 260))}</div>
-    <p class="cap" style="text-align:center;margin-top:4cqw">${own(p.brand)} · primary mark</p>`);
-  add('Construction', `<div class="two wide"><div><span class="bdg">The system</span>
-    <h2 style="margin-top:2cqw">Measured, not decided</h2>
-    <p class="lede">The box is ${m.markViewBox.w} units and the artwork fills ${m.markInk.w} of them. The ${m.minimumSize.from === 'stem' ? 'narrowest stem' : 'thinnest stroke'} is ${m.minimumSize.thinnestStroke}.</p>
-    <p class="sm">${c.constructionNotes ? own(c.constructionNotes) : 'Every number here was read off the artwork when this deck was built.'}</p></div>
+  const dont = b.misuseCells(ctx, 54, L);
+  div('01', say('chMark'), [say('secConstruction'), say('secClearSpace'), say('secMinimumSize'), say('sldLockups')]
+    .concat(dont.length ? [say('secMisuse')] : []));
+  add(say('chMark'), `<div class="hero">${plate(b.scaled(b.asColourway(ctx, markWay), 260))}</div>
+    <p class="cap" style="text-align:center;margin-top:4cqw">${own(p.brand)} · ${b.esc(say('deckPrimary'))}</p>`);
+  add(say('secConstruction'), `<div class="two wide"><div><span class="bdg">${b.esc(say('bdgSystem'))}</span>
+    <h2 style="margin-top:2cqw">${b.esc(say('deckMeasured'))}</h2>
+    <p class="lede">${b.esc(say('deckBox', { box: m.markViewBox.w, ink: m.markInk.w,
+      feature: say(m.minimumSize.from === 'stem' ? 'deckStem' : 'deckStroke'),
+      thin: m.minimumSize.thinnestStroke }))}</p>
+    <p class="sm">${c.constructionNotes ? own(c.constructionNotes) : b.esc(say('deckNumbers'))}</p></div>
     <div>${b.construction(ctx, { ink: ctx.ground.hex, line: ctx.ground.hex })}</div></div>`);
-  add('Clear space', `<div class="two"><div><span class="bdg">The system</span>
-    <h2 style="margin-top:2cqw">Keep x clear</h2>
-    <p class="lede">x is ${m.clearSpace} units, which is ${p.rules.clearSpaceRatio} of the mark's own height. Nothing enters that space, including type and the trim of the page.</p></div>
+  add(say('secClearSpace'), `<div class="two"><div><span class="bdg">${b.esc(say('bdgSystem'))}</span>
+    <h2 style="margin-top:2cqw">${b.esc(say('deckKeepClear'))}</h2>
+    <p class="lede">${b.esc(say('deckClear', { x: m.clearSpace, ratio: p.rules.clearSpaceRatio }))}</p></div>
     <div>${b.clearSpace(ctx, { ink: ctx.ground.hex, line: ctx.ground.hex })}</div></div>`);
-  add('Minimum size', `<span class="bdg">The system</span><h2 style="margin-top:2cqw">${require('../geometry').floorText(m.minimumSize, 'px')}, and ${require('../geometry').floorText(m.minimumSize, 'mm')}</h2>
-    <p class="lede">The stroke is what fails first. ${b.esc(m.minimumSize.basis)}, so holding it at ${p.rules.minStrokePx} px puts the floor there.</p>
+  const G = require('../geometry');
+  add(say('secMinimumSize'), `<span class="bdg">${b.esc(say('bdgSystem'))}</span><h2 style="margin-top:2cqw">${b.esc(say('deckFloorPair', {
+      px: G.floorText(m.minimumSize, 'px', L), mm: G.floorText(m.minimumSize, 'mm', L) }))}</h2>
+    <p class="lede">${b.esc(say('deckFails', { basis: G.basisText(m.minimumSize.basisFacts, L), px: p.rules.minStrokePx }))}</p>
     <div class="four" style="margin-top:3.4cqw">${[2, 1.4, 1, 0.6].map((f) => {
       const px = Math.round(m.minimumSize.screenPx * f);
-      return `<div class="cell">${plate(b.scaled(b.asColourway(ctx, markWay), px))}<p class="cap">${px} px${f === 1 ? ' · floor' : f < 1 ? ' · too small' : ''}</p></div>`;
+      return `<div class="cell">${plate(b.scaled(b.asColourway(ctx, markWay), px))}<p class="cap">${px} px${f === 1 ? ` · ${b.esc(say('deckAtFloor'))}` : f < 1 ? ` · ${b.esc(say('deckTooSmall'))}` : ''}</p></div>`;
     }).join('')}</div>
-    <p class="sm">That is the ${ctx.noun} alone. A lockup is a different drawing and disappears at a different size — the next slide has each of them, and the manual has the table.</p>`);
-  const G = require('../geometry');
-  add('The lockups', `<span class="bdg">The system</span><h2 style="margin-top:2cqw">${p.rules.lockups.length} arrangements, ${p.rules.colourways.length} colourways</h2>
+    <p class="sm">${b.esc(say('deckAlone', { noun }))}</p>`);
+  add(say('sldLockups'), `<span class="bdg">${b.esc(say('bdgSystem'))}</span><h2 style="margin-top:2cqw">${b.esc(say('deckArrangements', {
+      n: p.rules.lockups.length, c: p.rules.colourways.length }))}</h2>
     <div class="four" style="margin-top:3.4cqw">${p.rules.lockups.map((l) =>
       `<div class="cell">${plate(b.scaled(ctx.variantFor(l, markWay.name), 190))}<p class="cap">${b.esc(l)}`
-      + `${ctx.floors[l] ? ` · ${b.esc(G.floorText(ctx.floors[l], 'px'))}` : ''}</p></div>`).join('')}</div>
-    <p class="sm">All ${p.rules.lockups.length * p.rules.colourways.length} cut from one master, so none of them can fall out of step with the others. The figure under each is the smallest it may be used at, which is its own and not the ${ctx.noun}'s.</p>`);
+      + `${ctx.floors[l] ? ` · ${b.esc(G.floorText(ctx.floors[l], 'px', L))}` : ''}</p></div>`).join('')}</div>
+    <p class="sm">${b.esc(say('deckLockupsNote', { n: p.rules.lockups.length * p.rules.colourways.length, noun }))}</p>`);
   if (ctx.pairs.length) {
     // The one slide in this deck whose artwork is half somebody else's.
-    add('Partner lockups', `<span class="bdg">Set once by you</span><h2 style="margin-top:2cqw">${ctx.project.partners.length} partners, ${ctx.pairs.length} pairs</h2>
+    add(say('secPartners'), `<span class="bdg">${b.esc(say('badgeOnce'))}</span><h2 style="margin-top:2cqw">${b.esc(say('deckPairs', {
+        n: ctx.project.partners.length, p: ctx.pairs.length }))}</h2>
       <div class="four" style="margin-top:3.4cqw">${ctx.pairs.slice(0, 4).map((pr) =>
         `<div class="cell" style="background:${(ctx.colours[pr.colourway.on] || {}).hex || '#FFF'}">`
         + `${b.scaled(pr.composed.svg, 300, '100%')}<p class="cap">${b.esc(pr.partner.name)} · ${pr.floor.screenPx} px</p></div>`).join('')}</div>
-      <p class="sm">Half of each is not ours: not recoloured, not redrawn, and not made at all where they have not supplied a version. A pair is a third drawing, so its smallest use is neither brand's own figure.</p>`);
+      <p class="sm">${b.esc(say('deckPairsNote'))}</p>`);
   }
-  // The same six treatments in a fixed order, captioned with the project's
-  // sentences in whatever order they were written, and every mark painted in
-  // the ground colour whatever the cell was standing on. Both documents draw
-  // this from one list now, so the deck and the manual cannot disagree about
-  // what a rule forbids. See src/misuse.js.
+  // The same treatments in a fixed order, captioned by the engine from what it
+  // drew. Both documents draw this from one list, so the deck and the manual
+  // cannot disagree about what a rule forbids — and the list is asked for this
+  // document's language rather than the manual's. See src/misuse.js.
   if (dont.length) {
-    add('Misuse', `<span class="bdg">Set once by you</span><h2 style="margin-top:2cqw">${dont.length} ${dont.length === 1 ? 'way' : 'ways'} it breaks</h2>
+    add(say('secMisuse'), `<span class="bdg">${b.esc(say('badgeOnce'))}</span><h2 style="margin-top:2cqw">${b.esc(
+      say(dont.length === 1 ? 'deckBreaksOne' : 'deckBreaksMany', { n: dont.length }))}</h2>
       <div class="six" style="margin-top:2.6cqw">${dont.map((d) =>
         `<div class="cell"><div class="dont" style="${d.ground}">${d.inner}</div>`
         + `<p class="cap said">${b.esc(d.says)}</p></div>`).join('')}</div>`);
   }
 
-  div('02', 'Colour', ['The palette', 'Contrast']);
-  add('The palette', `<span class="bdg">The system</span><h2 style="margin-top:2cqw">${Object.keys(ctx.colours).length} colours</h2>
+  div('02', say('chColour'), [say('secPalette'), say('sldContrast')]);
+  add(say('secPalette'), `<span class="bdg">${b.esc(say('bdgSystem'))}</span><h2 style="margin-top:2cqw">${b.esc(say('deckColours', { n: Object.keys(ctx.colours).length }))}</h2>
     <div class="chips">${Object.entries(ctx.colours).map(([n, t]) =>
-      `<div class="chip"><div class="sw" style="background:${t.hex}"></div><b>${b.esc(n)}</b><span>${t.hex}</span><span>${b.esc(t.role || '')}</span></div>`).join('')}</div>
+      `<div class="chip"><div class="sw" style="background:${t.hex}"></div><b>${b.esc(n)}</b><span>${t.hex}</span><span>${b.esc(t.role && ROLE_KEY[t.role] ? say(ROLE_KEY[t.role]) : (t.role || ''))}</span></div>`).join('')}</div>
     <p class="sm">${own(c.colourRationale)}</p>`, 'light');
   const cls = { AAA: 'ok', AA: 'ok', 'AA-large': 'warn', fail: 'bad' };
-  add('Contrast', `<span class="bdg">The system</span><h2 style="margin-top:2cqw">Checked, not assumed</h2>
+  add(say('sldContrast'), `<span class="bdg">${b.esc(say('bdgSystem'))}</span><h2 style="margin-top:2cqw">${b.esc(say('deckChecked'))}</h2>
     <div class="ct">${ctx.contrast.slice(0, 6).map((x) =>
       `<div class="ctr"><div class="cp" style="background:${x.bgHex};color:${x.fgHex}">Aa</div>
-       <span>${b.esc(x.fg)} on ${b.esc(x.bg)}</span><em>${x.ratio}:1</em><i class="v-${cls[x.level]}">${b.esc(x.use)}</i></div>`).join('')}</div>
-    <p class="sm">Nothing is softened, so the pairs that do not work are listed rather than left for somebody to discover.</p>`, 'light');
+       <span>${b.esc(say('deckOn', { fg: x.fg, bg: x.bg }))}</span><em>${x.ratio}:1</em><i class="v-${cls[x.level]}">${b.esc(x.useKey ? say(x.useKey) : x.use)}</i></div>`).join('')}</div>
+    <p class="sm">${b.esc(say('deckContrastNote'))}</p>`, 'light');
 
-  div('03', 'Typography', ['The typefaces', 'The scale']);
+  div('03', say('chType'), [say('secTypefaces'), say('secScale')]);
   const fams = Object.entries((p.tokens.type || {}).families || {});
-  add('The typefaces', `<span class="bdg">The system</span><h2 style="margin-top:2cqw">${fams.length} faces, ${fams.length} jobs</h2>
+  add(say('secTypefaces'), `<span class="bdg">${b.esc(say('bdgSystem'))}</span><h2 style="margin-top:2cqw">${b.esc(say('deckFaces', { n: fams.length }))}</h2>
     ${fams.map(([role, f]) => `<div style="margin-top:2.6cqw"><p class="cap" style="margin:0">${b.esc(f.family)} · ${b.esc(role)}</p>
-      <p class="alpha" style="font-family:'${b.esc(f.family)}',${b.esc(f.fallback || 'sans-serif')};font-weight:${(f.weights || [400])[0]}">ABCDEFGHIJKLM abcdefghijklm 0123456789</p></div>`).join('')}
+      <p class="alpha" style="font-family:'${b.esc(f.family)}',${b.esc(f.fallback || 'sans-serif')};font-weight:${(f.weights || [400])[0]}">${b.esc(say('deckAlphabet'))}</p></div>`).join('')}
     <p class="sm">${own(c.typeRationale)}</p>`, 'light');
-  add('The scale', `<span class="bdg">The system</span><h2 style="margin-top:2cqw">${((p.tokens.type || {}).scale || []).length} steps</h2>
+  add(say('secScale'), `<span class="bdg">${b.esc(say('bdgSystem'))}</span><h2 style="margin-top:2cqw">${b.esc(say('deckSteps', { n: ((p.tokens.type || {}).scale || []).length }))}</h2>
     <div style="margin-top:2.4cqw">${((p.tokens.type || {}).scale || []).slice(0, 4).map((s) => {
       const f = ((p.tokens.type || {}).families || {})[s.family] || {};
       return `<p style="font-family:'${b.esc(f.family)}',${b.esc(f.fallback || 'sans-serif')};font-weight:${s.weight};font-size:${Math.min(s.size / 12, 4.4)}cqw;line-height:1.15;margin-top:1.4cqw">${own(s.sample)}</p>`;
     }).join('')}</div>
-    <p class="sm">Every size, weight and line height is read from the token file, so this deck and the running website cannot drift apart.</p>`, 'light');
+    <p class="sm">${b.esc(say('deckScaleNote'))}</p>`, 'light');
 
   // The rule blocks — the pattern, the treatment, the icon grid, the motion —
   // were in brand.json and on the canvas and in neither document. A deck that
@@ -239,7 +252,7 @@ function deck(ctx) {
   const svgu = require('../svg');
   const master = p.assets[m.master || (p.assets.mark ? 'mark' : 'wordmark')];
   const sysSlides = [];
-  if (ctx.pattern && ctx.pattern.ok && ctx.pattern.tiles.length) sysSlides.push(['The pattern', () => {
+  if (ctx.pattern && ctx.pattern.ok && ctx.pattern.tiles.length) sysSlides.push([say('secPattern'), () => {
     const r = ctx.system.pattern;
     const on = b.showOn(ctx);
     const ink = Object.values(on.colourway.slots)[0];
@@ -249,11 +262,15 @@ function deck(ctx) {
       const scaled = Object.assign({}, r, { tile: svgu.round(sp.cell * f) });
       return `<div style="flex:1;aspect-ratio:1;overflow:hidden">${pat.swatch(master.source, scaled, ink, on.ground.hex, 300, 300, `k-${d}`, ctx.measured) || ''}</div>`;
     }).join('');
-    return `<span class="bdg">Set once</span><h2 style="margin-top:2cqw">${ctx.pattern.tiles.length} tiles, one decision</h2>
+    return `<span class="bdg">${b.esc(say('bdgOnce'))}</span><h2 style="margin-top:2cqw">${b.esc(say('deckTiles', { n: ctx.pattern.tiles.length }))}</h2>
       <div style="display:flex;gap:1.6cqw;margin-top:2.4cqw">${cells}</div>
-      <p class="sm">Built from <b>${b.esc(sp.motif.name)}</b> — ${b.esc(pat.CONSTRUCTIONS[sp.construction].draws)} — at ${Object.keys(r.densities).length} densities in ${[...new Set(ctx.pattern.tiles.map((t) => t.colourway))].length} colourways. Redraw the ${b.esc(ctx.noun)} and all ${ctx.pattern.tiles.length} are cut again.</p>`;
+      <p class="sm">${say('deckPatternNote', {
+        motif: b.esc(pat.motifName(sp.motif, L)), draws: b.esc(pat.drawsText(sp.construction, L)),
+        d: Object.keys(r.densities).length,
+        c: [...new Set(ctx.pattern.tiles.map((t) => t.colourway))].length,
+        noun: b.esc(noun), n: ctx.pattern.tiles.length })}</p>`;
   }]);
-  if (ctx.system.photography.declared) sysSlides.push(['Photography', () => {
+  if (ctx.system.photography.declared) sysSlides.push([say('secPhotography'), () => {
     const r = ctx.system.photography;
     const PH = require('../photography');
     const ramp = [];
@@ -262,33 +279,44 @@ function deck(ctx) {
       const t = PH.treatPixel(r, { colours: ctx.colours, roles: ctx.roles }, { r: v, g: v, b: v });
       ramp.push(`<i style="flex:1;background:rgb(${Math.round(t.r * 255)},${Math.round(t.g * 255)},${Math.round(t.b * 255)})"></i>`);
     }
-    return `<span class="bdg">Set once</span><h2 style="margin-top:2cqw">${r.duotone ? 'One duotone' : 'One treatment'}, every photograph</h2>
+    // One sentence per thing that is set, in the order they are set, so a
+    // language that puts them together differently can.
+    const said = [];
+    if (r.duotone) said.push(say('deckPhotoFrom', { a: b.esc(r.duotone.shadow), b: b.esc(r.duotone.highlight) }));
+    if (r.scrim) {
+      said.push(say('deckPhotoScrim', { dir: b.esc(say(SCRIM_KEY[r.scrim.direction] || 'scrimBottom')),
+        pc: Math.round(r.scrim.opacity * 100) }));
+    }
+    said.push(b.esc(say('deckPhotoNote')));
+    return `<span class="bdg">${b.esc(say('bdgOnce'))}</span><h2 style="margin-top:2cqw">${b.esc(say(r.duotone ? 'deckDuotone' : 'deckTreatment'))}</h2>
       <div style="display:flex;height:12cqw;margin-top:2.4cqw">${ramp.join('')}</div>
-      <p class="sm">${r.duotone ? `From <b>${b.esc(r.duotone.shadow)}</b> to <b>${b.esc(r.duotone.highlight)}</b>. ` : ''}${r.scrim ? `A scrim from the ${b.esc(r.scrim.direction)} at ${Math.round(r.scrim.opacity * 100)} per cent. ` : ''}The editor measures the mark against the pixels under it, so this is checked rather than remembered.</p>`;
+      <p class="sm">${said.join(' ')}</p>`;
   }]);
-  if ((p.system || {}).motion) sysSlides.push(['Motion', () => {
+  if ((p.system || {}).motion) sysSlides.push([say('secMotion'), () => {
     const r = ctx.system.motion;
     const sys = require('../system');
-    return `<span class="bdg">Set once</span><h2 style="margin-top:2cqw">Two curves, ${Object.keys(r.durations).length} durations</h2>
+    return `<span class="bdg">${b.esc(say('bdgOnce'))}</span><h2 style="margin-top:2cqw">${b.esc(say('deckCurves', { n: Object.keys(r.durations).length }))}</h2>
       <p class="lede">${Object.entries(r.durations).map(([n, ms]) => `${b.esc(n)} ${ms} ms`).join(' · ')}</p>
-      <p class="sm">${Object.entries(r.easing).map(([n, e]) => `<b>${b.esc(n)}</b> ${sys.bezier(e)}`).join(' &nbsp; ')}<br>${r.build.length ? `The mark builds in ${r.build.length} parts and ${r.loop ? 'loops' : 'plays once'}.` : 'How the mark itself builds is not set.'}</p>`;
+      <p class="sm">${Object.entries(r.easing).map(([n, e]) => `<b>${b.esc(n)}</b> ${sys.bezier(e)}`).join(' &nbsp; ')}<br>${r.build.length
+        ? b.esc(say('deckBuilds', { n: r.build.length, how: say(r.loop ? 'deckLoops' : 'deckPlaysOnce') }))
+        : b.esc(say('deckNoBuild'))}</p>`;
   }]);
   if (sysSlides.length) {
-    div('04', 'The system', sysSlides.map(([name]) => name));
+    div('04', say('chSystem'), sysSlides.map(([name]) => name));
     for (const [name, body] of sysSlides) add(name, body(), 'light');
   }
 
-  div(sysSlides.length ? '05' : '04', 'Assets', ['The package', 'The machine readable file']);
-  add('The package', `<div class="two wide"><div><span class="bdg">The system</span>
-    <h2 style="margin-top:2cqw">${ctx.files.length} files</h2>
-    <p class="lede">Every one cut from the master at the moment the package was built, so no old variant can survive in a corner of the folder.</p>
-    <p class="sm"><b>The client keeps this whether or not anyone is still paying for the tool that made it.</b></p></div>
-    <div>${(() => { const g = new Map(); for (const f of ctx.files) { const d = f.path.includes('/') ? f.path.split('/')[0] : '(root)'; g.set(d, (g.get(d) || 0) + 1); }
+  div(sysSlides.length ? '05' : '04', say('chAssets'), [say('sldPackage'), say('secMachineFile')]);
+  add(say('sldPackage'), `<div class="two wide"><div><span class="bdg">${b.esc(say('bdgSystem'))}</span>
+    <h2 style="margin-top:2cqw">${b.esc(say('deckFiles', { n: ctx.files.length }))}</h2>
+    <p class="lede">${b.esc(say('deckPackageLede'))}</p>
+    <p class="sm"><b>${b.esc(say('deckPackageNote'))}</b></p></div>
+    <div>${(() => { const g = new Map(); for (const f of ctx.files) { const d = f.path.includes('/') ? f.path.split('/')[0] : say('deckRoot'); g.set(d, (g.get(d) || 0) + 1); }
       return [...g.entries()].sort().map(([d, n]) => `<div class="ctr" style="grid-template-columns:1fr auto"><span style="font-family:var(--fm);font-size:1.4cqw">${b.esc(d)}</span><em>${n}</em></div>`).join(''); })()}</div></div>`);
 
-  add('Close', `<h2 style="font-size:4.4cqw;max-width:25ch">Change the mark and every one of these is right again.</h2>
-    <h2 style="font-size:4.4cqw;max-width:25ch;color:var(--accent);margin-top:1.4cqw">Nothing here holds a copy of it.</h2>
-    <p class="sm" style="margin-top:3.4cqw">This deck and the manual read the same project. They are different documents, not one document in two shapes.</p>`);
+  add(say('sldClose'), `<h2 style="font-size:4.4cqw;max-width:25ch">${b.esc(say('deckCloseA'))}</h2>
+    <h2 style="font-size:4.4cqw;max-width:25ch;color:var(--accent);margin-top:1.4cqw">${b.esc(say('deckCloseB'))}</h2>
+    <p class="sm" style="margin-top:3.4cqw">${b.esc(say('deckCloseNote'))}</p>`);
 
   const t = {
     primary: ctx.primary.hex, secondary: (Object.values(ctx.colours).find((x) => x.role === 'secondary') || ctx.primary).hex,
@@ -297,22 +325,26 @@ function deck(ctx) {
     text: `'${((p.tokens.type || {}).families || {}).text?.family || 'Georgia'}',Georgia,serif`,
   };
   const { fontLink } = require('./chrome');
+  // The brand's name is the brand's own word and carries its own language where
+  // that is not the deck's, so it goes into the strip around the dictionary's
+  // sentence rather than through it.
+  const strip = say('deckTitle', { brand: '\u0000' }).split('\u0000').map(b.esc).join(own(p.brand));
   return `<!doctype html><html lang="${b.esc(L.lang)}" dir="${b.esc(L.dir)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${b.esc(p.brand)} Brand Deck</title>
+<title>${b.esc(say('deckDocTitle', { brand: p.brand }))}</title>
 ${fontLink(p.tokens.type, p.fonts, S.join(''))}
 <style>${CSS(t)}</style></head><body>
 <div class="wrap">
-  <div class="topbar"><span>${own(p.brand)} · brand deck</span><span><b id="ttl"></b></span></div>
-  <main class="stage" id="stage" role="region" aria-roledescription="carousel" aria-label="${b.esc(p.brand)} brand deck">${S.join('')}</main>
-  <div class="ctrl"><button class="btn" id="prev" type="button">← Prev</button>
-  <div class="dots" id="dots" role="tablist" aria-label="Slides"></div>
-  <button class="btn" id="next" type="button">Next →</button><span class="hint">Arrow keys</span></div>
+  <div class="topbar"><span>${strip}</span><span><b id="ttl"></b></span></div>
+  <main class="stage" id="stage" role="region" aria-roledescription="${b.esc(say('deckCarousel'))}" aria-label="${b.esc(say('deckDocTitle', { brand: p.brand }))}">${S.join('')}</main>
+  <div class="ctrl"><button class="btn" id="prev" type="button">← ${b.esc(say('deckPrev'))}</button>
+  <div class="dots" id="dots" role="tablist" aria-label="${b.esc(say('deckSlides'))}"></div>
+  <button class="btn" id="next" type="button">${b.esc(say('deckNext'))} →</button><span class="hint">${b.esc(say('deckKeys'))}</span></div>
 </div>
 <script>
-(function(){var s=[].slice.call(document.querySelectorAll('.slide')),t=${JSON.stringify(T)},i=0,
+(function(){var s=[].slice.call(document.querySelectorAll('.slide')),t=${JSON.stringify(T)},a=${JSON.stringify(A)},i=0,
 d=document.getElementById('dots'),p=document.getElementById('prev'),n=document.getElementById('next'),h=document.getElementById('ttl');
 s.forEach(function(_,k){var x=document.createElement('button');x.className='dot'+(k?'':' on');x.type='button';x.setAttribute('role','tab');
-x.setAttribute('aria-label','Slide '+(k+1)+', '+t[k]);x.addEventListener('click',function(){go(k)});d.appendChild(x)});
+x.setAttribute('aria-label',a[k]);x.addEventListener('click',function(){go(k)});d.appendChild(x)});
 var e=[].slice.call(d.children);
 function go(k){i=Math.max(0,Math.min(s.length-1,k));s.forEach(function(a,j){a.classList.toggle('on',j===i)});
 e.forEach(function(a,j){a.classList.toggle('on',j===i);a.setAttribute('aria-selected',j===i)});

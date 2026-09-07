@@ -854,11 +854,12 @@ page is Hebrew and handed English reads gibberish with confidence.
 
 The language of a document is the language it is **written in**. The brand's
 language belongs to the brand's own words. Those are two different things and the
-engine had one field for both. `src/strings.js` holds the chrome in one place, one
-language at a time: **Verdon** is a French regional park and its manual is a
-French document. A language the engine cannot write gets an English document that
-says so, with the brand's own name and words marked as the brand's — which is the
-honest answer and the one a screen reader can act on.
+engine had one field for both. `src/strings.js` holds the words in one place, one
+language at a time, and what a language can write is asked **per document**:
+**Verdon** is a French regional park and its deck is a French document. A
+document the engine cannot write in the brand's language gets written in English
+and says so, with the brand's own name and words marked as the brand's — which is
+the honest answer and the one a screen reader can act on.
 
 The check that would have caught it is now in the audit, and the seventh round's
 test is rewritten rather than deleted: it was half right and the wrong half.
@@ -991,7 +992,42 @@ quietly keeping a sentence about an identity that has changed.
 the thing that comes back is the thing that went out. And the front door gained
 a screen where the manual is edited in place — click a paragraph and type.
 
+The thirty-second found the same fault a third time, in the place the two rounds
+before it had each just left. The thirty-first had caught the deck claiming a
+language it was not written in and answered it with a hand-typed list —
+`writes: ['manual']` — saying which documents a language could write. A list is a
+claim, and nothing was checking it. The way to check it is not to look at the
+dictionary but at the page: render the same project twice, once in the language
+it asks for and once in English, and count the prose the two share.
+
+Verdon, measured: **the deck was 93 per cent word for word the English build, and
+the manual 90 per cent** — both under `lang="fr"`. The chrome came from the
+dictionary and the body did not, and every check the engine had looked at the
+chrome and passed.
+
+The deck's words are all in the dictionary now, and so are the sentences that had
+been written one level below any dictionary at all: the reasoning behind the
+minimum size in `geometry.js` — *box 240 ÷ stroke 16 = 15 stroke widths across*,
+set in the middle of a French paragraph — the contrast verdicts, and the name the
+engine gives the shape it built the pattern from. A measurement is a number; how
+it is said belongs to a language. Each keeps its English beside the facts, because
+`brand.json` and the command line are read as English whatever the brand is.
+
+One more thing had been speaking the wrong language outright. The misuse cells
+are drawn from one list so the two documents cannot disagree about what a rule
+forbids — and the list read the *manual's* language, so five French captions sat
+inside a deck declared English.
+
+Verdon's deck now shares 13 per cent with the English build: `px`, `mm`, the
+folder names, and the words French and English spell the same way. Its manual is
+an English document and says so, because its body is still literals. And the
+claim has teeth — declare a document you cannot write and the test fails with the
+number in it: *fr says it writes the manual and 84 per cent of it is the English
+build.*
+
 Still to do: a run on **your** identity job. Twenty identities the engine had
 not seen is worth a great deal more than twenty passes over one, but none of
 them came out of your exporter — and the normaliser is the part that most needs
-to meet one.
+to meet one. And the manual's body, which is 1,453 words of English prose in
+`documents/blocks.js` that never went through a dictionary: the deck proves the
+mechanism works, and the manual is the same job, done once more.
