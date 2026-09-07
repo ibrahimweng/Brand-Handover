@@ -38,9 +38,14 @@ button,input,select,textarea{font:inherit;color:inherit}
 .bar button:disabled{opacity:.35;cursor:default}
 .bar select{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:5px 6px}
 .rail,.side{background:var(--pane);overflow-y:auto;padding:12px}
-.rail{border-right:1px solid var(--line)}.side{border-left:1px solid var(--line)}
+/* An application that runs the other way is not the same application
+   mirrored: a block's x and y are the design and stay where they are put,
+   and the furniture around them is reading order and turns over. So the
+   panes, the notes and the page buttons take logical properties and the
+   sheet keeps physical ones. */
+.rail{border-inline-end:1px solid var(--line)}.side{border-inline-start:1px solid var(--line)}
 .app h2{margin:0 0 8px;font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim);font-weight:500}
-.pg{display:flex;align-items:center;gap:8px;width:100%;background:none;border:1px solid transparent;border-radius:5px;padding:7px 8px;cursor:pointer;text-align:left;margin-bottom:2px}
+.pg{display:flex;align-items:center;gap:8px;width:100%;background:none;border:1px solid transparent;border-radius:5px;padding:7px 8px;cursor:pointer;text-align:start;margin-bottom:2px}
 .pg:hover{background:#24282B}.pg.on{background:#24282B;border-color:var(--line)}
 .pg i{font-family:var(--mono);font-size:10px;color:var(--dim);font-style:normal}
 .pg span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -91,7 +96,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .ord button:hover{background:#24282B;color:var(--ink)}
 .danger{width:100%;background:none;border:1px solid #4A2A28;color:var(--danger);border-radius:4px;padding:7px;cursor:pointer}
 .danger:hover{background:#2A1D1C}
-#zoom{font-family:var(--mono);font-size:11px;color:var(--dim);min-width:42px;text-align:right}
+#zoom{font-family:var(--mono);font-size:11px;color:var(--dim);min-width:42px;text-align:end;direction:ltr}
 .bar select{background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:4px;padding:3px 5px;font:inherit;font-size:11px}
 .pgsize{margin:10px 0 18px}
 .pgsize select{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:4px;padding:5px 6px;font-size:12px}
@@ -101,12 +106,12 @@ button,input,select,textarea{font:inherit;color:inherit}
 .keys{margin-top:18px;padding-top:14px;border-top:1px solid var(--line);font-family:var(--mono);font-size:10px;line-height:1.9;color:var(--dim)}
 .keys b{color:var(--ink);font-weight:400}
 #notes{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;z-index:20;pointer-events:none;max-width:640px}
-.note{pointer-events:auto;background:var(--pane);border:1px solid var(--line);border-left:2px solid var(--sel);border-radius:5px;
-  padding:9px 30px 9px 12px;font-size:12px;line-height:1.5;position:relative;box-shadow:0 6px 22px rgba(0,0,0,.4)}
-.note.warn{border-left-color:#E2C86A}
-.nx{position:absolute;top:5px;right:6px;background:none;border:none;color:var(--dim);cursor:pointer;font-size:15px;line-height:1;padding:2px 4px}
+.note{pointer-events:auto;background:var(--pane);border:1px solid var(--line);border-inline-start:2px solid var(--sel);border-radius:5px;
+  padding:9px 12px;padding-inline-end:30px;font-size:12px;line-height:1.5;position:relative;box-shadow:0 6px 22px rgba(0,0,0,.4)}
+.note.warn{border-inline-start-color:#E2C86A}
+.nx{position:absolute;top:5px;inset-inline-end:6px;background:none;border:none;color:var(--dim);cursor:pointer;font-size:15px;line-height:1;padding:2px 4px}
 .imeta{font-family:var(--mono);font-size:10.5px}
-.hint.bad{color:#E2C86A;border-left:2px solid #E2C86A;padding-left:9px}
+.hint.bad{color:#E2C86A;border-inline-start:2px solid #E2C86A;padding-inline-start:9px}
 .trimwarn{position:absolute;transform:translate(4px,4px);background:#E2C86A;color:#231F09;font-family:var(--mono);
   font-size:9px;letter-spacing:.05em;padding:1px 5px;border-radius:3px;pointer-events:auto;cursor:help}
 .quad{position:absolute;inset:0;pointer-events:none}
@@ -145,14 +150,20 @@ button,input,select,textarea{font:inherit;color:inherit}
 .hb-chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;width:100%;height:100%}
 .hb-chips .sw{height:56%;border:1px solid rgba(0,0,0,.08)}
 .hb-chips b{display:block;font-size:13px;margin-top:7px}
-.hb-chips span{display:block;font-family:var(--mono);font-size:9.5px;opacity:.6}
+.hb-chips span{display:block;font-family:var(--mono);font-size:9.5px;opacity:.6;direction:ltr}
+/* A measured value is a left-to-right run wherever the page reads. The same
+   rule the two documents got when Hebrew arrived: a browser laying out #C8873A
+   inside right-to-left prose draws C8873A#, and 18 59 58 draws 58 59 18, which
+   is a different colour. These blocks are drawn by src/editor/render.js and are
+   the same on the canvas and on the page it publishes. */
+.hb-atab .r code,.hb-atab .r em{direction:ltr}
 .hb-chips .pms{font-style:italic}
 .hb-chips .guess{color:#8A6410;font-style:italic}
 .hb-ctab{width:100%;height:100%;font-size:12px}
 .hb-ctab .r{display:grid;grid-template-columns:40px 1fr 54px 96px;gap:10px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(128,128,128,.22)}
 .hb-ctab .cp{display:flex;align-items:center;justify-content:center;height:26px;font-weight:600;font-size:11px}
-.hb-ctab em{font-family:var(--mono);font-style:normal;font-size:11px;text-align:right}
-.hb-ctab i{font-family:var(--mono);font-style:normal;font-size:9px;letter-spacing:.05em;text-transform:uppercase;text-align:right}
+.hb-ctab em{font-family:var(--mono);font-style:normal;font-size:11px;text-align:end;direction:ltr}
+.hb-ctab i{font-family:var(--mono);font-style:normal;font-size:9px;letter-spacing:.05em;text-transform:uppercase;text-align:end}
 .hb-ctab .ok{color:#1B7A4B}.hb-ctab .warn{color:#8A6410}.hb-ctab .bad{color:#C2352B}
 .hb-faces{display:grid;gap:14px;width:100%;height:100%}
 .hb-faces .fl{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;opacity:.55;margin:0}
@@ -174,6 +185,7 @@ function editorHtml(project, measured, files) {
   // removing, in the one page nobody had audited. See src/strings.js.
   const L = require('../strings').resolve(project, 'canvas');
   // and the brand's own name carries the brand's, which is what makes both true
+  const say = (k, v) => L.t(k, v);
   const own = (text) => (L.speaksBrand ? esc(text)
     : `<span lang="${esc(L.brandLang)}"${L.brandDir && L.brandDir !== L.dir
       ? ` dir="${esc(L.brandDir)}"` : ''}>${esc(text)}</span>`);
@@ -185,38 +197,38 @@ ${fontLink(bu)}
 <div class="app">
   <header class="bar">
     <h1 class="brand">${own(bu.brand)}</h1><span class="ver">${esc(bu.version)}</span>
-    <button id="undo" title="Undo (Cmd Z)">Undo</button>
-    <button id="redo" title="Redo (Cmd Shift Z)">Redo</button>
+    <button id="undo" title="${esc(say('cvUndoTitle'))}">${esc(say('cvUndo'))}</button>
+    <button id="redo" title="${esc(say('cvRedoTitle'))}">${esc(say('cvRedo'))}</button>
     <span class="sp"></span>
-    <label class="ver">size <select id="sheet-size"></select></label>
-    <label class="ver">bleed <select id="bleed"><option value="0">none</option><option value="3">3 mm</option><option value="5">5 mm</option></select></label>
-    <label class="ver">grid <select id="grid"><option>4</option><option selected>8</option><option>16</option><option value="0">off</option></select></label>
-    <span id="zoom"><span class="sr">zoom </span>100%</span>
-    <button id="open">Open</button>
-    <button id="save">Save JSON</button>
-    <button id="publish">Publish</button>
-    <button id="reset">Reset</button>
+    <label class="ver">${esc(say('cvSize'))} <select id="sheet-size"></select></label>
+    <label class="ver">${esc(say('cvBleed'))} <select id="bleed"><option value="0">${esc(say('cvNone'))}</option><option value="3">3 mm</option><option value="5">5 mm</option></select></label>
+    <label class="ver">${esc(say('cvGrid'))} <select id="grid"><option>4</option><option selected>8</option><option>16</option><option value="0">${esc(say('cvOff'))}</option></select></label>
+    <span id="zoom"><span class="sr">${esc(say('cvZoom'))} </span>100%</span>
+    <button id="open">${esc(say('cvOpen'))}</button>
+    <button id="save">${esc(say('cvSaveJson'))}</button>
+    <button id="publish">${esc(say('cvPublish'))}</button>
+    <button id="reset">${esc(say('cvReset'))}</button>
   </header>
-  <aside class="rail" aria-label="Pages, and the blocks you can add">
-    <h2 id="pages-h">Pages</h2><div id="pages" role="list" aria-labelledby="pages-h"></div>
-    <div class="pgbtns"><button id="addpage">Add page</button><button id="delpage">Delete</button></div>
-    <label class="f pgsize"><span>This page</span><select id="page-size"></select></label>
-    <h2 id="insert-h">Add a block</h2><div id="insert" aria-labelledby="insert-h"></div>
+  <aside class="rail" aria-label="${esc(say('cvRail'))}">
+    <h2 id="pages-h">${esc(say('cvPages'))}</h2><div id="pages" role="list" aria-labelledby="pages-h"></div>
+    <div class="pgbtns"><button id="addpage">${esc(say('cvAddPage'))}</button><button id="delpage">${esc(say('cvDeletePage'))}</button></div>
+    <label class="f pgsize"><span>${esc(say('cvThisPage'))}</span><select id="page-size"></select></label>
+    <h2 id="insert-h">${esc(say('cvAddBlock'))}</h2><div id="insert" aria-labelledby="insert-h"></div>
     <div class="keys">
-      <b>tab</b> next block · <b>shift tab</b> back<br>
-      <b>enter</b> add to selection<br>
-      <b>drag</b> move · <b>alt</b> ignore grid<br>
-      <b>shift click</b> multi select<br>
-      <b>double click</b> or <b>F2</b> edit text<br>
-      <b>arrows</b> nudge · <b>shift</b> ×4<br>
-      <b>cmd arrows</b> resize<br>
-      <b>cmd Z</b> undo · <b>cmd D</b> duplicate<br>
-      <b>delete</b> remove block · <b>esc</b> deselect<br>
-      <b>drop a file</b> on an image slot
+      <b>tab</b> ${esc(say('cvKeyNext'))} · <b>shift tab</b> ${esc(say('cvKeyBack'))}<br>
+      <b>enter</b> ${esc(say('cvKeyAdd'))}<br>
+      <b>drag</b> ${esc(say('cvKeyMove'))} · <b>alt</b> ${esc(say('cvKeyFree'))}<br>
+      <b>shift click</b> ${esc(say('cvKeyMulti'))}<br>
+      <b>double click</b> ${esc(say('cvKeyOr'))} <b>F2</b> ${esc(say('cvKeyEdit'))}<br>
+      <b>arrows</b> ${esc(say('cvKeyNudge'))} · <b>shift</b> ×4<br>
+      <b>cmd arrows</b> ${esc(say('cvKeyResize'))}<br>
+      <b>cmd Z</b> ${esc(say('cvKeyUndo'))} · <b>cmd D</b> ${esc(say('cvKeyDuplicate'))}<br>
+      <b>delete</b> ${esc(say('cvKeyRemove'))} · <b>esc</b> ${esc(say('cvKeyDeselect'))}<br>
+      <b>drop a file</b> ${esc(say('cvKeySlot'))}
     </div>
   </aside>
-  <main id="canvas" aria-label="The page you are editing"><div id="stage"><div id="sheet" role="group"></div><div id="trimline"></div><div id="overlay"></div></div><div id="notes" role="status" aria-live="polite"></div><span id="sheetname"></span></main>
-  <aside class="side" aria-label="Properties"><h2 id="props-h">Properties</h2><div id="panel" aria-labelledby="props-h"></div></aside>
+  <main id="canvas" aria-label="${esc(say('cvSheet'))}"><div id="stage"><div id="sheet" role="group"></div><div id="trimline"></div><div id="overlay"></div></div><div id="notes" role="status" aria-live="polite"></div><span id="sheetname"></span></main>
+  <aside class="side" aria-label="${esc(say('cvProperties'))}"><h2 id="props-h">${esc(say('cvProperties'))}</h2><div id="panel" aria-labelledby="props-h"></div></aside>
 </div>
 <input type="file" id="file" accept="application/json" hidden>
 <input type="file" id="imgfile" accept="image/*" hidden>

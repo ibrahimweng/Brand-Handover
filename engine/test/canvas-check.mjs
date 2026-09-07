@@ -149,7 +149,18 @@ check('it can be deleted', (await boxes()).length === n0, `${n1} → ${(await bo
 
 await focusBlock(0);
 const lab = (await boxes())[0].label;
-check('a block says what it is', /^[A-Z].*\d.*selected$/.test(lab || ''), lab || '(nothing)');
+// What a block answers to, asked without assuming the language it answers in.
+// The first version was /^[A-Z].*\d.*selected$/, which is a sentence in English
+// and fails on a canvas written in anything else — Hebrew has no capitals and
+// its word for selected is not "selected". The page carries its own words, so
+// ask it: a name, the four numbers, and the marker it puts on a selected block.
+const words = await page.evaluate(() => (window.HANDOVER_BUNDLE || {}).words || {});
+const plain = (x) => String(x || '').replace(/[\u2066-\u2069]/g, '');
+const said = plain(lab);
+const marker = plain(words.cvBlockSelected || ', selected');
+check('a block says what it is',
+  /\p{L}/u.test(said) && (said.match(/\d+/g) || []).length >= 4 && said.endsWith(marker),
+  lab || '(nothing)');
 
 // -------------------------------------------------------------- the contrast
 console.log('\nwhat the type is set on');

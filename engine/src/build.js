@@ -1497,15 +1497,14 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     // that says so, rather than an English document pretending to be in theirs.
     const L = require('./strings').resolve(project, 'manual');
     const LD = require('./strings').resolve(project, 'deck');
-    // Which documents the project's language actually writes, per document,
-    // because the two are not written from the same words. Until the
-    // thirty-first round the deck was English prose under whatever lang the
-    // project asked for; it is written from the dictionary now, so français
-    // writes one. The manual's body is still literals in documents/blocks.js,
-    // so français does not write that — and saying which is which is the whole
-    // difference between a declaration and a page that lies about itself.
-    const WHERE = { manual: 'src/documents/blocks.js', deck: 'src/documents/deck.js',
-      canvas: 'src/editor/emit.js and src/editor/app.js' };
+    // Which documents the project's language actually writes, asked per
+    // document, because the three are not written from the same words. Each
+    // round moved one of them out of literals and into the dictionary — the
+    // deck in the thirty-second, the manual's body in the thirty-third, the
+    // canvas in the thirty-seventh — and until a round had, the honest answer
+    // was that the language did not write that one. Saying which is which is
+    // the whole difference between a declaration and a page that lies about
+    // itself. All three languages write all three now; ja writes none.
     const LC = require('./strings').resolve(project, 'canvas');
     const both = [['manual', L], ['deck', LD], ['canvas', LC]];
     const wrote = both.filter(([, x]) => x.speaksBrand).map(([k]) => k);
@@ -1520,11 +1519,13 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
         + `reader being told a whole document is in a language it is not — and, before the thirtieth round, `
         + `stopped ${L.brandDir === 'rtl' ? 'an English manual being laid out right to left' : 'a page claiming a language it does not write'}. `
         + (L.writes.length
-          ? `What is missing is words rather than machinery: ${list(didnt)} still take${didnt.length === 1 ? 's' : ''} `
-            + `${didnt.length === 1 ? 'its' : 'their'} prose from literals in ${didnt.map((k) => WHERE[k]).join(' and ')} `
-            + `rather than from the dictionary. Move them into src/strings.js and this goes away.`
-          : `The engine has ${L.available.join(' and ')} and no ${L.brandLang} at all; adding one is a block of `
-            + `strings in src/strings.js and nothing else.`));
+          ? `The ${L.wantedName} dictionary in src/strings.js does not name ${list(didnt)} in its \`writes\`. `
+            + `Add ${didnt.length === 1 ? 'it' : 'them'} and fill in whatever keys are still missing; the build `
+            + `measures the finished page against the English one and will say if the claim does not hold.`
+          : `The engine has ${L.available.join(' and ')} and no ${L.brandLang} at all. Most of adding one is a `
+            + `block of strings in src/strings.js — but not all of it: the first language here that was not `
+            + `written the way the engine is needed an agreement rule for its ordinals, an isolate round every `
+            + `measurement so a browser would not reorder it, and a type specimen of its own script.`));
     }
     if (overrides.length) write('overrides.json', OVR.file(overrides, project));
     write('ACCESSIBILITY.txt', ACC.statement(acc, { brand: project.brand,

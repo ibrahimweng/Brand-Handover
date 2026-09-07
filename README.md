@@ -1199,7 +1199,51 @@ français gets and the whole point of the mechanism. 山彦 is still in `ja` and
 taken over the job מעיין used to do: the identity that proves a language the
 engine cannot write is said so rather than quietly swapped.
 
-Still to do: that run on **your** identity job. The canvas's own chrome, which
-would let a language write all three documents rather than two. And a screen
+The thirty-seventh moved the last of the words. Three rounds had carried the
+same sentence — that the canvas was an application whose chrome was literals —
+and it is what made `writes` naming the canvas worth so little: English literals
+are English whatever a dictionary claims, and the script check cannot see
+through it, because français and English are the same alphabet.
+
+The canvas is not a document. Half of it runs in a browser, where
+`src/strings.js` does not exist, so the resolved words travel in the bundle and
+`HandoverRender.t` is the same lookup on the other side. Two implementations of
+one thing, held to each other key by key in all three languages by a test. The
+second one is four lines long, because the engine hands over each string already
+looked up **and already isolated**: a `{slot}` is a run of Latin characters like
+any other, so the isolate a right-to-left document puts round a value lands on
+the slot, and the value drops into a run that is already marked. One
+implementation of the bidi rule, not two.
+
+**It cost the English canvas nothing, measured.** Every word it puts on the
+screen — 285 strings, collected from the screen after adding a block of each of
+the eighteen kinds — is the same before and after. Three nearly were not: the
+canvas's type specimen is shorter than the manual's because the block is a
+preview, and the three options in "Put on it" are lower case because they sit
+beside colour names, which are the project's own words.
+
+**Key names are not translated.** `tab`, `esc`, `cmd Z` are what is printed on
+the key. It is why the French canvas's page still measures 47 per cent word for
+word the English one while its vocabulary measures 20 — and why the check for
+this is not the one the documents get. The canvas has seventy words in its
+markup and builds the rest in the browser, so the bundle is what has to be in
+the language. There: français 20 per cent, עברית 9, and 山彦 — still a language
+the engine has no dictionary for — 100, which is what gives the number teeth.
+
+**An application that reads the other way is not itself mirrored.** A block's x
+and y are the design and stay where they are put; the furniture around them is
+reading order and turns over. And the moment a Hebrew project could write the
+canvas, `published.html` arrived with twenty measurements in the wrong order —
+the same catalogue the thirty-sixth round found in the manual, in the one file
+that round had not reached because it was still English. `test/rtl-check.mjs`
+found all twenty without being changed.
+
+**And one check had been written in a language too.** `canvas-check.mjs` asked
+whether a block says what it is with `/^[A-Z].*\d.*selected$/`, which is a
+sentence in English; Hebrew has no capitals and its word for selected is not
+"selected". It reads the page's own words now. All three canvases pass.
+
+Still to do: that run on **your** identity job. `ja`, which 山彦 has declared
+since the ninth round and which the engine still cannot write. And a screen
 reader has still never been pointed at any of it: what these pages say is
 measured, how they sound is not.

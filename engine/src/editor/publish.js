@@ -70,7 +70,10 @@ html,body{margin:0;background:var(--shell);color:var(--ink);font-family:ui-sans-
 .hb-chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;width:100%;height:100%}
 .hb-chips .sw{height:56%;border:1px solid rgba(0,0,0,.08)}
 .hb-chips b{display:block;font-size:13px;margin-top:7px}
-.hb-chips span{display:block;font-family:ui-monospace,Menlo,monospace;font-size:9.5px;opacity:.6}
+.hb-chips span{display:block;font-family:ui-monospace,Menlo,monospace;font-size:9.5px;opacity:.6;direction:ltr}
+/* the same rule the canvas gets, for the same reason: a value is a
+   left-to-right run wherever the page reads. See src/editor/emit.js. */
+.hb-atab .r code,.hb-atab .r em{direction:ltr}
 .hb-chips .pms{font-style:italic}
 .hb-chips .guess{color:#8A6410;font-style:italic}
 .hb-ctab{width:100%;height:100%;font-size:12px}
@@ -190,9 +193,9 @@ ${fontLink(bundle)}
 <h1 class="hp-sr">${esc(o.title || bundle.brand)}</h1>
 <div class="hp-bar">
   <b>${esc(bundle.brand)}</b><span>${esc(bundle.version)}</span>
-  <span>${doc.pages.length} page${doc.pages.length === 1 ? '' : 's'}</span>
+  <span>${esc(L.t(doc.pages.length === 1 ? 'cvOnePage' : 'cvPages_n', { n: doc.pages.length }))}</span>
   <span class="sp"></span>
-  <span>built ${esc(o.builtAt || (typeof process !== 'undefined' && process.env && process.env.SOURCE_DATE_EPOCH
+  <span>${esc(L.t('cvBuilt'))} ${esc(o.builtAt || (typeof process !== 'undefined' && process.env && process.env.SOURCE_DATE_EPOCH
     ? new Date(Number(process.env.SOURCE_DATE_EPOCH) * 1000) : new Date()).toISOString().slice(0, 10))}</span>
   <button onclick="print()">Print or save as PDF</button>
 </div>

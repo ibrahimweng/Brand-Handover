@@ -3908,6 +3908,114 @@ rather than assumed. The build says exactly that, and names the two files.
 job מעיין used to do: it is the identity that proves a language the engine
 cannot write is said so rather than quietly swapped.
 
+## The canvas says it too
+
+Three rounds carried the same sentence. The thirty-fourth made the canvas answer
+for its own accessibility and noted that its words were still literals; the
+thirty-fifth repeated it; the thirty-sixth wrote a whole third language and had
+to repeat it again, and set `writes: ['manual', 'deck']` for עברית because the
+third document was not one this table could write.
+
+That is what made `writes` naming the canvas worth so little. English literals
+are English whatever a dictionary claims, so `EN.writes` could say `canvas` and
+the claim cost nothing to make. The script check cannot see through it either —
+français and English are the same alphabet — and by the time a language arrived
+whose script *is* different, the honest answer was to stop claiming it.
+
+### It is not a document, and that is the whole of the problem
+
+A document is a string the engine builds and writes to disk. The canvas is an
+application, and half of it runs in a browser: `app.js` and `render.js` are
+shipped as text and executed there, where `src/strings.js` does not exist and
+cannot be made to.
+
+So the words travel. `resolve(project, 'canvas').words()` flattens the resolved
+dictionary — every key the canvas sets, plus the ones it shares with the two
+documents so that a badge on a block and a badge in the manual cannot drift —
+and the bundle carries it, which is the thing the editor and the published page
+already share. `HandoverRender.t` is the same lookup on the other side.
+
+Two implementations of one thing, which this repository already knows how to
+keep honest: a test holds them to each other, key by key, in all three
+languages.
+
+The second implementation is four lines long, and the reason it is four lines
+rather than forty is worth writing down. The engine hands over each string
+**already looked up and already isolated**, with its `{slots}` still in it. A
+slot is a run of Latin characters like any other, so the isolate the engine puts
+round a value in a right-to-left document lands on the slot — and the value
+drops into a run that is already marked. The browser only has to substitute.
+One implementation of the bidi rule, not two.
+
+### What it cost the canvas that already worked
+
+Nothing, measured. Every word the English canvas puts on the screen, collected
+from the screen — 285 strings, including the ones that only appear once a block
+of each of the eighteen kinds has been added — is the same before and after.
+
+Three of them nearly were not, and each is the kind of thing that only shows up
+when you compare rather than assume. The type specimen in a canvas block is
+`ABCDEFGHIJ abcdefghij 0123`, shorter than the manual's, because the block is a
+preview a few centimetres wide — so it is its own key rather than the manual's.
+And the three options in the mockup block's "Put on it" are lower case, because
+they sit in a list beside colour names and lockup names, which are the project's
+own words and are lower case. Reusing the block names would have capitalised
+them.
+
+### Key names are not translated
+
+`tab`, `esc`, `cmd Z`, `F2`. A reader in any language is looking at the same
+keyboard. The sentences beside them are translated; the keys are what is printed
+on the key. It is why the French canvas's *page* still measures 47 per cent word
+for word the English one while its vocabulary measures 20 — most of what is left
+in the markup is the keyboard legend, and that is correct.
+
+Which is also why the check for this is not the one the two documents get. The
+canvas has seventy words in its markup and the rest is built in the browser, so
+the thing that has to be in the language is the bundle. Measured there: the
+French canvas is 20 per cent word for word the English one, the Hebrew 9, and
+山彦's — a language the engine still has no dictionary for — is 100, which is
+what gives the number its teeth.
+
+### An application that reads the other way
+
+A block's `x` and `y` are the design. They do not mirror, and they must not: a
+canvas that flipped its artwork when the interface changed direction would be
+useless. The furniture around them is reading order and does turn over. So the
+panes take `border-inline-start`, the notes take `padding-inline-end`, the page
+buttons take `text-align: start`, and the sheet keeps its physical positions.
+
+And the values inside the blocks needed what the manual's needed. `published.html`
+is drawn by the same renderer, so the moment a Hebrew project could write the
+canvas, the published page arrived with twenty measurements in the wrong order —
+`#C8873A` drawn `C8873A#`, `18 59 58` drawn `58 59 18`, the same catalogue as the
+thirty-sixth round found in the manual, in the one file that round had not
+reached because it was still English. `test/rtl-check.mjs` found all twenty
+without being changed.
+
+### The check that was written in one language
+
+`test/canvas-check.mjs` asks whether a block says what it is, and it asked with
+
+    /^[A-Z].*\d.*selected$/
+
+which is a sentence in English. Hebrew has no capitals and its word for selected
+is not `selected`, so a canvas that answered perfectly failed. The page carries
+its own words, so the check reads them: a name, four numbers, and the marker the
+page itself puts on a selected block. All three canvases pass it now, and it is
+the assertion rather than the canvas that had to learn a second language.
+
+### What is left
+
+`ja`. 山彦 has declared it since the ninth round and the engine still has no
+Japanese, so it goes on being the identity that proves a language the engine
+cannot write is said so rather than quietly swapped. The build's own note about
+that used to end "adding one is a block of strings in src/strings.js and nothing
+else". Two rounds have now shown that to be untrue, and it says so: most of it is
+a block of strings, but the first language that was not written the way the
+engine is needed an agreement rule for its ordinals, an isolate round every
+measurement, and a specimen of its own script.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.

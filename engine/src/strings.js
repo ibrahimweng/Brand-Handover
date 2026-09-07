@@ -37,11 +37,14 @@ const EN = {
   // English beside the facts, because brand.json, CHANGES.txt and the command
   // line are read as English whatever the brand's language is.
   //
-  // The canvas is the third. Its chrome — Undo, Pages, Add a block, Properties —
-  // is still literals in editor/emit.js and editor/app.js, so English is the
-  // only language that writes one, and a French project's canvas says English
-  // rather than carrying lang="fr" over English words. The script check cannot
-  // catch that: French and English are the same alphabet.
+  // The canvas is the third, and the thirty-seventh round moved its words here
+  // too. It is not a document: half of it runs in a browser, so the words it
+  // sets are handed over in the bundle rather than read from this file at draw
+  // time, and HandoverRender.t is the same lookup on the other side. Three
+  // rounds carried a sentence saying its chrome was literals, which is what
+  // made `writes` naming it mean almost nothing — English literals are English
+  // whatever a dictionary claims, and the script check cannot see it, because
+  // French and English are the same alphabet.
   lang: 'en', dir: 'ltr', name: 'English', writes: ['manual', 'deck', 'canvas'],
   eyebrow: 'Brand manual · generated from one master file',
   manualTitle: '{brand} brand manual',
@@ -87,7 +90,7 @@ const EN = {
 // nobody has ever hung anything on. Verdon is a French regional park and its
 // manual is a French document.
 const FR = {
-  lang: 'fr', dir: 'ltr', name: 'français', writes: ['deck', 'manual'],
+  lang: 'fr', dir: 'ltr', name: 'français', writes: ['deck', 'manual', 'canvas'],
   eyebrow: 'Charte graphique · générée à partir d’un seul fichier maître',
   manualTitle: 'Charte graphique {brand}',
   deckTitle: '{brand} · présentation de la marque',
@@ -833,6 +836,152 @@ Object.assign(EN, {
   sldCover: 'Cover',
   cnvSetOnce: 'Set once, generated after that',
   cnvFourBlocks: 'These four come from one decision each. Change the rule in the project and every instance follows. Nothing here is redrawn by hand.',
+  // ------------------------------------------------------------------ the canvas
+  //
+  // The thirty-fourth round made the canvas answer for its own accessibility and
+  // left a sentence saying its words were still literals. The thirty-fifth and
+  // thirty-sixth both had to repeat it: `writes` could name the canvas and mean
+  // almost nothing, because English literals are English whatever a dictionary
+  // says. This is the round that moved them.
+  //
+  // The canvas is not a document. It is an application, and half of it runs in
+  // the browser — so a dictionary cannot be read here and then read again there.
+  // The resolved words go into the bundle, which is the thing the editor and the
+  // published page already share, and `HandoverRender.t` is the same lookup on
+  // the other side. The check that the two agree is in the test file, because two
+  // implementations of one thing is a thing this engine already does and already
+  // knows how to keep honest.
+  //
+  // Key names are not translated. `tab`, `esc` and `cmd Z` are what is printed on
+  // the key, and a reader in any language is looking at the same keyboard.
+  cvUndo: 'Undo', cvRedo: 'Redo',
+  cvUndoTitle: 'Undo (Cmd Z)', cvRedoTitle: 'Redo (Cmd Shift Z)',
+  cvSize: 'size', cvBleed: 'bleed', cvGrid: 'grid', cvZoom: 'zoom',
+  cvNone: 'none', cvOff: 'off',
+  cvOpen: 'Open', cvSaveJson: 'Save JSON', cvPublish: 'Publish', cvReset: 'Reset',
+  cvRail: 'Pages, and the blocks you can add',
+  cvPages: 'Pages', cvAddPage: 'Add page', cvDeletePage: 'Delete',
+  cvThisPage: 'This page', cvAddBlock: 'Add a block',
+  cvSheet: 'The page you are editing', cvProperties: 'Properties',
+  // the keyboard legend: the key is the key, the rest is a sentence
+  cvKeyNext: 'next block', cvKeyBack: 'back', cvKeyAdd: 'add to selection',
+  cvKeyMove: 'move', cvKeyFree: 'ignore grid', cvKeyMulti: 'multi select',
+  cvKeyEdit: 'edit text', cvKeyOr: 'or', cvKeyNudge: 'nudge',
+  cvKeyResize: 'resize', cvKeyUndo: 'undo', cvKeyDuplicate: 'duplicate',
+  cvKeyRemove: 'remove block', cvKeyDeselect: 'deselect', cvKeySlot: 'on an image slot',
+  // The blocks, named as a designer names them. The type name is the code's.
+  cvBlockText: 'Text', cvBlockRule: 'Line', cvBlockFill: 'Colour field',
+  cvBlockSlot: 'Image', cvBlockSurface: 'Mockup', cvBlockMark: 'Mark',
+  cvBlockLockup: 'Lockup', cvBlockConstruction: 'Construction',
+  cvBlockClearSpace: 'Clear space', cvBlockMinimumSize: 'Minimum size',
+  cvBlockPalette: 'Palette', cvBlockContrast: 'Contrast table',
+  cvBlockTypeSpecimen: 'Type specimen', cvBlockAssetIndex: 'Asset index',
+  cvBlockPattern: 'Pattern', cvBlockIconGrid: 'Icon grid',
+  cvBlockMotion: 'Motion', cvBlockPhotography: 'Photography',
+  cvPlain: 'Plain',
+// The canvas's own specimen. Shorter than the manual's, because the block it
+// sits in is a preview a few centimetres wide rather than a page.
+cvAlphabet: 'ABCDEFGHIJ abcdefghij 0123',
+// Three block names again, lower case, because in the properties panel they are
+// options in a list beside colour names and lockup names and those are the
+// project's own words, which are lower case.
+cvArtLockup: 'lockup', cvArtMarkOpt: 'mark', cvArtPatternOpt: 'pattern',
+  // what a block answers to, for a reader who is not looking at it
+  cvBlockName: '{name}, {w} by {h}, ', cvBlockAt: 'at {x} {y}', cvBlockSelected: ', selected',
+  cvOneBlockOn: '{n} block on {page}', cvBlocksOn: '{n} blocks on {page}',
+  // the fields
+  cvText: 'Text', cvStyle: 'Style', cvAlign: 'Align', cvColour: 'Colour',
+  cvWeight: 'Weight', cvFit: 'Fit', cvFocusX: 'Focus across', cvFocusY: 'Focus down',
+  cvCaption: 'Caption', cvLabel: 'Label', cvPutOnIt: 'Put on it', cvLockup: 'Lockup',
+  cvColourway: 'Colourway', cvBlend: 'Blend', cvStrength: 'Strength',
+  cvSurfaceMm: 'Surface is (mm across)', cvInk: 'Ink', cvOn: 'On', cvLines: 'Lines',
+  cvRows: 'Rows', cvDensity: 'Density', cvStateRule: 'State the rule',
+  cvTreatment: 'Brand treatment', cvScrimOne: 'Scrim on this one',
+  cvScrimRule: 'Scrim on this one (the rule)',
+  // what a select offers, where the choice is the engine's and not the project's
+  cvLeft: 'left', cvCentre: 'center', cvRight: 'right',
+  cvFitCover: 'cover', cvFitContain: 'contain',
+  cvBlendMultiply: 'multiply', cvBlendScreen: 'screen', cvBlendNormal: 'normal',
+  // the buttons
+  cvChooseImage: 'Choose image', cvReplaceImage: 'Replace image',
+  cvChoosePhoto: 'Choose photograph', cvReplacePhoto: 'Replace photograph',
+  cvRemove: 'Remove', cvResetQuad: 'Put the corners back',
+  cvBack: 'Back', cvFront: 'Front', cvDeleteBlock: 'Delete block',
+  cvNamePage: 'Name this page', cvSameAsDoc: 'Same as the document',
+  cvPublishTitle: 'Guidelines',
+  // what the panel says when there is nothing to say
+  cvNothingSelected: 'Nothing selected. Click a block, or add one from the left.',
+  cvManySelected: '{n} blocks selected. Move them together, or press Delete.',
+  cvNoteDerived: 'This block reads the project and draws itself. Change the master and it redraws. You set where it sits and what it is painted in, and nothing else.',
+  cvNoteRule: 'One decision, made once in the project, generating every instance after it. You choose which instance to show. To change the rule itself, edit the project rather than this block.',
+  // what a block that cannot draw says instead
+  cvDropImage: 'Drop a file on the block, or choose one.',
+  cvDropPhoto: 'Drop a photograph on the block, or choose one. Then drag the four corners onto the surface the mark goes on.',
+  cvDropImageHere: 'drop an image here', cvDropPhotoHere: 'drop a photograph here',
+  cvAnImage: 'image', cvAPhotograph: 'photograph', cvVector: 'vector',
+  cvNoFloor: 'Nothing in the master is painted, so no smallest size was measured.',
+  cvNoPattern: 'No pattern yet. {how}',
+  cvNoPatternHow: 'Mark a shape in the master with data-pattern="source".',
+  cvPatternRefused: 'That density and colourway was refused, because it fails contrast on its ground.',
+  cvNoIcons: 'no icon rules', cvNoMotion: 'no motion rules',
+  cvNoPhotography: 'No photography treatment yet. Set system.photography in the project: a duotone, a scrim, or both.',
+  cvNoRenderer: 'no renderer for "{type}"',
+  cvDrawFailed: '{type} could not draw: {message}',
+  // what the drawing says it is, to a reader who cannot see it
+  cvArtMark: 'The mark',
+  cvArtConstruction: 'The mark on its grid. The box is {box} units and the artwork fills {w} by {h} of them.',
+  cvArtClearSpace: 'Clear space of {x} units on every side.',
+  cvArtClearSpaceMark: 'The mark, shown with its clear space marked out around it.',
+  cvArtLockupIn: 'The {lockup} lockup in {colourway} colourway.',
+  cvArtAtSize: 'The mark at {px} pixels, which is {label}.',
+  cvArtPattern: 'The brand pattern at {density} density in {colourway}.',
+  cvArtIconGrid: 'The icon grid. A {box} unit box with a {live} unit live area and a stroke of {stroke}.',
+  cvArtMotion: "The mark, built to the brand's own motion rules. The outline settles, then the fill rises to its line.",
+  // the rules a rule block states under itself
+  cvPatternRule: '{w} tile · {h} row · {density} · half drop',
+  cvIconRule: '{box} box · {live} live · {stroke} stroke · curve r {curve}',
+  cvPhotoRamp: 'black → white through the treatment',
+  cvMotionOnePiece: '{out} · out · one piece, no outline to draw first',
+  cvMotionStated: '{out} out · {through} through · {a}, then {b}',
+  cvMotionUnstated: '{out} out · {through} through · the considered and slow durations, because this identity has not said how the mark builds',
+  cvDuotone: 'Duotone', cvScrim: 'Scrim', cvCropsTo: 'Crops to',
+  cvScrimAt: '{pc}% {colour}, {dir}',
+  cvTotal: 'total',
+  // what the mark on a photograph is measured against, and what to do about it
+  cvOnThePicture: 'on the picture',
+  cvWayScrim: 'turn the scrim on this image up to {pc}, which takes it to {ratio}:1',
+  cvWayFlat: 'use a flat {pc} {colour} scrim here, since the gradient {dir} does not reach this far up ({ratio}:1)',
+  cvWayColourway: 'use the {name} colourway, which measures {ratio}:1',
+  cvEither: 'Either {ways}.', cvOrJoin: ', or ',
+  cvMoveMark: 'Move the mark to a quieter part of the picture. {why}',
+  // and what it says when something has gone wrong or is about to
+  cvNeedPage: 'A document needs at least one page.',
+  cvOpenFailed: 'That document could not be opened. {message}',
+  cvResetAsk: 'Throw away your edits and start from the document this project generated?',
+  cvNotAnImage: '{name} is not an image. Drop a JPEG, a PNG, a WebP or an SVG.',
+  cvUnreadable: '{name} could not be read.',
+  cvUnopenable: '{name} is not an image this browser can open.',
+  cvDropNowhere: 'Drop an image on an image slot or a mockup. Add one from the left if there is none on this page.',
+  cvNoRoomOne: 'There is no room left in this browser to hold {n} image. It is still in this document, but save it now: it will not come back if you close the tab.',
+  cvNoRoomMany: 'There is no room left in this browser to hold {n} images. They are still in this document, but save it now: they will not come back if you close the tab.',
+  // the page, its size and its bleed
+  cvBleedMm: '{mm} mm bleed',
+  cvBleedOn: '{mm} mm bleed. Anything against an edge is now painted out past the trim for you, and the marks come out when you print.',
+  cvBleedOff: 'No bleed. The page prints at trim.',
+  cvOneToLook: '{n} thing to look at on this page.',
+  cvManyToLook: '{n} things to look at on this page.',
+  cvScaleAsk: '{what}\n\nOK scales what is on it to the new size, keeping anything that was against an edge against it.\nCancel leaves every block exactly where it is.',
+  cvSetAllAsk: 'Set every page in this document to {name}?',
+  cvSetAllDone: 'Every page is now {name}. Undo puts it back.',
+  cvBackToDocAsk: 'Put this page back to the document size, {name}?',
+  cvSetPageAsk: 'Set this page to {name}?',
+  cvOneGrew: '{n} text block grew to fit, because type comes from the scale and does not shrink with the page.',
+  cvManyGrew: '{n} text blocks grew to fit, because type comes from the scale and does not shrink with the page.',
+  cvOneStuck: '{n} still runs past the bottom of the page.',
+  cvManyStuck: '{n} still run past the bottom of the page.',
+  cvOneStuckPage: "{n} text block runs past the bottom of this page. Type comes from the brand's scale, so it does not shrink with the page.",
+  cvManyStuckPage: "{n} text blocks run past the bottom of this page. Type comes from the brand's scale, so it does not shrink with the page.",
+  cvOnePage: '{n} page', cvPages_n: '{n} pages', cvBuilt: 'built',
 });
 
 Object.assign(FR, {
@@ -914,6 +1063,119 @@ Object.assign(FR, {
   sldCover: 'Couverture',
   cnvSetOnce: 'Défini une fois, généré ensuite',
   cnvFourBlocks: "Ces quatre-là découlent chacun d'une seule décision. Changez la règle dans le projet et chaque instance suit. Rien ici n'est redessiné à la main.",
+  // ------------------------------------------------------------------ the canvas
+  // Key names stay as they are: cmd Z is what is printed on the key.
+  cvUndo: 'Annuler', cvRedo: 'Rétablir',
+  cvUndoTitle: 'Annuler (Cmd Z)', cvRedoTitle: 'Rétablir (Cmd Maj Z)',
+  cvSize: 'format', cvBleed: 'fond perdu', cvGrid: 'grille', cvZoom: 'zoom',
+  cvNone: 'aucun', cvOff: 'aucune',
+  cvOpen: 'Ouvrir', cvSaveJson: 'Enregistrer le JSON', cvPublish: 'Publier', cvReset: 'Réinitialiser',
+  cvRail: 'Les pages, et les blocs à ajouter',
+  cvPages: 'Pages', cvAddPage: 'Ajouter une page', cvDeletePage: 'Supprimer',
+  cvThisPage: 'Cette page', cvAddBlock: 'Ajouter un bloc',
+  cvSheet: 'La page en cours de composition', cvProperties: 'Propriétés',
+  cvKeyNext: 'bloc suivant', cvKeyBack: 'retour', cvKeyAdd: 'ajouter à la sélection',
+  cvKeyMove: 'déplacer', cvKeyFree: 'ignorer la grille', cvKeyMulti: 'sélection multiple',
+  cvKeyEdit: 'modifier le texte', cvKeyOr: 'ou', cvKeyNudge: 'décaler',
+  cvKeyResize: 'redimensionner', cvKeyUndo: 'annuler', cvKeyDuplicate: 'dupliquer',
+  cvKeyRemove: 'supprimer le bloc', cvKeyDeselect: 'désélectionner',
+  cvKeySlot: "sur un emplacement d'image",
+  cvBlockText: 'Texte', cvBlockRule: 'Filet', cvBlockFill: 'Aplat',
+  cvBlockSlot: 'Image', cvBlockSurface: 'Mise en situation', cvBlockMark: 'Symbole',
+  cvBlockLockup: 'Verrouillage', cvBlockConstruction: 'Construction',
+  cvBlockClearSpace: 'Zone de protection', cvBlockMinimumSize: 'Taille minimale',
+  cvBlockPalette: 'Palette', cvBlockContrast: 'Table des contrastes',
+  cvBlockTypeSpecimen: 'Spécimen', cvBlockAssetIndex: 'Index des fichiers',
+  cvBlockPattern: 'Motif', cvBlockIconGrid: 'Grille des icônes',
+  cvBlockMotion: 'Mouvement', cvBlockPhotography: 'Photographie',
+  cvPlain: 'Libre',
+  cvAlphabet: 'ABCDÉFGHIJ abcdéfghij 0123',
+  cvArtLockup: 'verrouillage', cvArtMarkOpt: 'symbole', cvArtPatternOpt: 'motif',
+  cvBlockName: '{name}, {w} sur {h}, ', cvBlockAt: 'en {x} {y}', cvBlockSelected: ', sélectionné',
+  cvOneBlockOn: '{n} bloc sur {page}', cvBlocksOn: '{n} blocs sur {page}',
+  cvText: 'Texte', cvStyle: 'Style', cvAlign: 'Alignement', cvColour: 'Couleur',
+  cvWeight: 'Épaisseur', cvFit: 'Cadrage', cvFocusX: 'Point horizontal', cvFocusY: 'Point vertical',
+  cvCaption: 'Légende', cvLabel: 'Étiquette', cvPutOnIt: 'Poser dessus', cvLockup: 'Verrouillage',
+  cvColourway: 'Déclinaison', cvBlend: 'Fusion', cvStrength: 'Intensité',
+  cvSurfaceMm: 'Surface (mm de large)', cvInk: 'Encre', cvOn: 'Sur', cvLines: 'Traits',
+  cvRows: 'Lignes', cvDensity: 'Densité', cvStateRule: 'Énoncer la règle',
+  cvTreatment: 'Traitement de la marque', cvScrimOne: 'Voile sur celle-ci',
+  cvScrimRule: 'Voile sur celle-ci (la règle)',
+  cvLeft: 'gauche', cvCentre: 'centre', cvRight: 'droite',
+  cvFitCover: 'remplir', cvFitContain: 'contenir',
+  cvBlendMultiply: 'produit', cvBlendScreen: 'superposition', cvBlendNormal: 'normal',
+  cvChooseImage: 'Choisir une image', cvReplaceImage: "Remplacer l'image",
+  cvChoosePhoto: 'Choisir une photographie', cvReplacePhoto: 'Remplacer la photographie',
+  cvRemove: 'Retirer', cvResetQuad: 'Remettre les coins en place',
+  cvBack: 'Arrière', cvFront: 'Avant', cvDeleteBlock: 'Supprimer le bloc',
+  cvNamePage: 'Nommer cette page', cvSameAsDoc: 'Comme le document',
+  cvPublishTitle: 'Charte graphique',
+  cvNothingSelected: 'Rien de sélectionné. Cliquez sur un bloc, ou ajoutez-en un depuis la gauche.',
+  cvManySelected: '{n} blocs sélectionnés. Déplacez-les ensemble, ou appuyez sur Suppr.',
+  cvNoteDerived: "Ce bloc lit le projet et se dessine lui-même. Modifiez le fichier maître et il se redessine. Vous décidez où il se place et de quoi il est peint, rien d'autre.",
+  cvNoteRule: "Une décision, prise une fois dans le projet, qui engendre toutes les instances ensuite. Vous choisissez laquelle montrer. Pour changer la règle elle-même, modifiez le projet plutôt que ce bloc.",
+  cvDropImage: 'Déposez un fichier sur le bloc, ou choisissez-en un.',
+  cvDropPhoto: 'Déposez une photographie sur le bloc, ou choisissez-en une. Puis faites glisser les quatre coins sur la surface où va le symbole.',
+  cvDropImageHere: 'déposez une image ici', cvDropPhotoHere: 'déposez une photographie ici',
+  cvAnImage: 'image', cvAPhotograph: 'photographie', cvVector: 'vectoriel',
+  cvNoFloor: "Rien n'est peint dans le fichier maître, donc aucune taille minimale n'a été mesurée.",
+  cvNoPattern: 'Pas encore de motif. {how}',
+  cvNoPatternHow: 'Marquez une forme dans le fichier maître avec data-pattern="source".',
+  cvPatternRefused: "Cette densité et cette déclinaison ont été refusées, parce qu'elles échouent au contraste sur leur fond.",
+  cvNoIcons: "pas de règles d'icônes", cvNoMotion: 'pas de règles de mouvement',
+  cvNoPhotography: 'Pas encore de traitement photographique. Définissez system.photography dans le projet : un duoton, un voile, ou les deux.',
+  cvNoRenderer: 'aucun rendu pour « {type} »',
+  cvDrawFailed: "{type} n'a pas pu être dessiné : {message}",
+  cvArtMark: 'Le symbole',
+  cvArtConstruction: 'Le symbole sur sa grille. La boîte fait {box} unités et le dessin en remplit {w} sur {h}.',
+  cvArtClearSpace: 'Zone de protection de {x} unités sur chaque côté.',
+  cvArtClearSpaceMark: 'Le symbole, avec sa zone de protection tracée autour.',
+  cvArtLockupIn: 'Le verrouillage {lockup} en déclinaison {colourway}.',
+  cvArtAtSize: 'Le symbole à {px} pixels, ce qui est {label}.',
+  cvArtPattern: 'Le motif de la marque en densité {density}, en {colourway}.',
+  cvArtIconGrid: "La grille des icônes. Une boîte de {box} unités avec une zone utile de {live} unités et un trait de {stroke}.",
+  cvArtMotion: 'Le symbole, construit selon les règles de mouvement de la marque. Le contour se pose, puis le remplissage monte à sa ligne.',
+  cvPatternRule: 'carreau {w} · rang {h} · {density} · demi-décalage',
+  cvIconRule: 'boîte {box} · utile {live} · trait {stroke} · rayon r {curve}',
+  cvPhotoRamp: 'noir → blanc à travers le traitement',
+  cvMotionOnePiece: "{out} · sortie · une seule pièce, pas de contour à tracer d'abord",
+  cvMotionStated: '{out} en sortie · {through} en traversée · {a}, puis {b}',
+  cvMotionUnstated: "{out} en sortie · {through} en traversée · les durées posée et lente, parce que cette identité n'a pas dit comment le symbole se construit",
+  cvDuotone: 'Duoton', cvScrim: 'Voile', cvCropsTo: 'Cadrages',
+  cvScrimAt: '{pc} % {colour}, {dir}',
+  cvTotal: 'total',
+  cvOnThePicture: "sur l'image",
+  cvWayScrim: "montez le voile de cette image à {pc}, ce qui la porte à {ratio}:1",
+  cvWayFlat: "posez ici un voile plat {colour} à {pc}, puisque le dégradé {dir} ne monte pas jusque-là ({ratio}:1)",
+  cvWayColourway: 'utilisez la déclinaison {name}, qui mesure {ratio}:1',
+  cvEither: 'Soit {ways}.', cvOrJoin: ', soit ',
+  cvMoveMark: "Déplacez le symbole vers une partie plus calme de l'image. {why}",
+  cvNeedPage: "Un document a besoin d'au moins une page.",
+  cvOpenFailed: "Ce document n'a pas pu être ouvert. {message}",
+  cvResetAsk: 'Jeter vos modifications et repartir du document engendré par ce projet ?',
+  cvNotAnImage: "{name} n'est pas une image. Déposez un JPEG, un PNG, un WebP ou un SVG.",
+  cvUnreadable: "{name} n'a pas pu être lu.",
+  cvUnopenable: "{name} n'est pas une image que ce navigateur sait ouvrir.",
+  cvDropNowhere: "Déposez une image sur un emplacement d'image ou une mise en situation. Ajoutez-en un depuis la gauche s'il n'y en a pas sur cette page.",
+  cvNoRoomOne: "Ce navigateur n'a plus de place pour garder {n} image. Elle est toujours dans ce document, mais enregistrez-le maintenant : elle ne reviendra pas si vous fermez l'onglet.",
+  cvNoRoomMany: "Ce navigateur n'a plus de place pour garder {n} images. Elles sont toujours dans ce document, mais enregistrez-le maintenant : elles ne reviendront pas si vous fermez l'onglet.",
+  cvBleedMm: '{mm} mm de fond perdu',
+  cvBleedOn: "{mm} mm de fond perdu. Tout ce qui touche un bord déborde maintenant au-delà de la coupe, et les repères sortent à l'impression.",
+  cvBleedOff: 'Aucun fond perdu. La page sort au format coupé.',
+  cvOneToLook: '{n} chose à regarder sur cette page.',
+  cvManyToLook: '{n} choses à regarder sur cette page.',
+  cvScaleAsk: '{what}\n\nOK met à l\'échelle ce qui s\'y trouve, en gardant contre le bord ce qui y était.\nAnnuler laisse chaque bloc exactement où il est.',
+  cvSetAllAsk: 'Passer toutes les pages de ce document en {name} ?',
+  cvSetAllDone: 'Toutes les pages sont maintenant en {name}. Annuler les remet comme avant.',
+  cvBackToDocAsk: 'Remettre cette page au format du document, {name} ?',
+  cvSetPageAsk: 'Passer cette page en {name} ?',
+  cvOneGrew: "{n} bloc de texte a grandi pour tenir, parce que le corps vient de l'échelle et ne rétrécit pas avec la page.",
+  cvManyGrew: "{n} blocs de texte ont grandi pour tenir, parce que le corps vient de l'échelle et ne rétrécit pas avec la page.",
+  cvOneStuck: '{n} dépasse encore le bas de la page.',
+  cvManyStuck: '{n} dépassent encore le bas de la page.',
+  cvOneStuckPage: "{n} bloc de texte dépasse le bas de cette page. Le corps vient de l'échelle de la marque, il ne rétrécit donc pas avec la page.",
+  cvManyStuckPage: "{n} blocs de texte dépassent le bas de cette page. Le corps vient de l'échelle de la marque, il ne rétrécit donc pas avec la page.",
+  cvOnePage: '{n} page', cvPages_n: '{n} pages', cvBuilt: 'compilé le',
 });
 
 // A third language, and the first that is not written the way the engine is.
@@ -941,14 +1203,11 @@ Object.assign(FR, {
 // is neither of those; it is the Hebrew alphabet, and it is here rather than
 // in the layout because only a language knows what its own letters are.
 const HE = {
-  // The manual and the deck, which is what français writes too. The canvas is
-  // not a document made of this table: its chrome is literals in
-  // editor/emit.js and, mostly, in editor/app.js, which is client side and
-  // would have to be handed a dictionary rather than read one. So a Hebrew
-  // project gets a Hebrew manual, a Hebrew deck, and an English canvas that
-  // says it is English — which is the same answer français gets, and the point
-  // of the mechanism is that the answer is said rather than assumed.
-  lang: 'he', dir: 'rtl', name: 'עברית', writes: ['manual', 'deck'],
+  // All three. The thirty-seventh round moved the canvas's own words in here
+  // and handed them to the browser in the bundle, so the sentence that had
+  // stood since the thirty-fourth — that the canvas was an application whose
+  // chrome was literals — is no longer true of any of the three.
+  lang: 'he', dir: 'rtl', name: 'עברית', writes: ['manual', 'deck', 'canvas'],
   eyebrow: "מדריך מותג · נוצר מקובץ מקור אחד",
   manualTitle: "מדריך המותג של {brand}",
   deckTitle: "{brand} · מצגת מותג",
@@ -1447,6 +1706,122 @@ const HE = {
   ord11f: "אחת־עשרה",
   ord12f: "שתים־עשרה",
   ord13f: "שלוש־עשרה",
+  // ------------------------------------------------------------------ the canvas
+  // Key names stay as they are: cmd Z is what is printed on the key, and a reader
+  // in any language is looking at the same keyboard.
+  cvUndo: 'בטלו', cvRedo: 'בצעו שוב',
+  cvUndoTitle: 'ביטול (Cmd Z)', cvRedoTitle: 'ביצוע חוזר (Cmd Shift Z)',
+  cvSize: 'גודל', cvBleed: 'בלידים', cvGrid: 'רשת', cvZoom: 'זום',
+  cvNone: 'ללא', cvOff: 'כבויה',
+  cvOpen: 'פתחו', cvSaveJson: 'שמרו JSON', cvPublish: 'פרסמו', cvReset: 'אפסו',
+  cvRail: 'העמודים, והבלוקים שאפשר להוסיף',
+  cvPages: 'עמודים', cvAddPage: 'הוסיפו עמוד', cvDeletePage: 'מחקו',
+  cvThisPage: 'העמוד הזה', cvAddBlock: 'הוסיפו בלוק',
+  cvSheet: 'העמוד שאתם עורכים', cvProperties: 'מאפיינים',
+  cvKeyNext: 'הבלוק הבא', cvKeyBack: 'חזרה', cvKeyAdd: 'הוספה לבחירה',
+  cvKeyMove: 'הזזה', cvKeyFree: 'התעלמות מהרשת', cvKeyMulti: 'בחירה מרובה',
+  cvKeyEdit: 'עריכת טקסט', cvKeyOr: 'או', cvKeyNudge: 'הזזה עדינה',
+  cvKeyResize: 'שינוי גודל', cvKeyUndo: 'ביטול', cvKeyDuplicate: 'שכפול',
+  cvKeyRemove: 'הסרת הבלוק', cvKeyDeselect: 'ביטול הבחירה',
+  cvKeySlot: 'על משבצת תמונה',
+  cvBlockText: 'טקסט', cvBlockRule: 'קו', cvBlockFill: 'שדה צבע',
+  cvBlockSlot: 'תמונה', cvBlockSurface: 'הדמיה', cvBlockMark: 'סמל',
+  cvBlockLockup: 'הרכב', cvBlockConstruction: 'מבנה',
+  cvBlockClearSpace: 'מרחב נשימה', cvBlockMinimumSize: 'גודל מזערי',
+  cvBlockPalette: 'פלטה', cvBlockContrast: 'טבלת ניגודיות',
+  cvBlockTypeSpecimen: 'דוגמת גופן', cvBlockAssetIndex: 'מפתח הקבצים',
+  cvBlockPattern: 'דוגמה', cvBlockIconGrid: 'רשת אייקונים',
+  cvBlockMotion: 'תנועה', cvBlockPhotography: 'צילום',
+  cvPlain: 'חופשי',
+  // The specimen again, shorter, because the block is a preview. Hebrew has no
+  // capitals, so it is one row of letters rather than two.
+  cvAlphabet: 'אבגדהוזחטי 0123',
+  cvArtLockup: 'הרכב', cvArtMarkOpt: 'סמל', cvArtPatternOpt: 'דוגמה',
+  cvBlockName: '{name}, {w} על {h}, ', cvBlockAt: 'ב־{x} {y}', cvBlockSelected: ', נבחר',
+  cvOneBlockOn: 'בלוק אחד ב{page}', cvBlocksOn: '{n} בלוקים ב{page}',
+  cvText: 'טקסט', cvStyle: 'סגנון', cvAlign: 'יישור', cvColour: 'צבע',
+  cvWeight: 'עובי', cvFit: 'התאמה', cvFocusX: 'מוקד לרוחב', cvFocusY: 'מוקד לגובה',
+  cvCaption: 'כיתוב', cvLabel: 'תווית', cvPutOnIt: 'הניחו עליה', cvLockup: 'הרכב',
+  cvColourway: 'מערך צבע', cvBlend: 'מיזוג', cvStrength: 'עוצמה',
+  cvSurfaceMm: 'רוחב המשטח (מ״מ)', cvInk: 'דיו', cvOn: 'על', cvLines: 'קווים',
+  cvRows: 'שורות', cvDensity: 'צפיפות', cvStateRule: 'הצהירו על הכלל',
+  cvTreatment: 'עיבוד המותג', cvScrimOne: 'שכבת הסתרה לתמונה הזו',
+  cvScrimRule: 'שכבת הסתרה לתמונה הזו (לפי הכלל)',
+  cvLeft: 'שמאל', cvCentre: 'מרכז', cvRight: 'ימין',
+  cvFitCover: 'כיסוי', cvFitContain: 'הכלה',
+  cvBlendMultiply: 'הכפלה', cvBlendScreen: 'מסך', cvBlendNormal: 'רגיל',
+  cvChooseImage: 'בחרו תמונה', cvReplaceImage: 'החליפו תמונה',
+  cvChoosePhoto: 'בחרו תצלום', cvReplacePhoto: 'החליפו תצלום',
+  cvRemove: 'הסירו', cvResetQuad: 'החזירו את הפינות',
+  cvBack: 'לאחור', cvFront: 'לפנים', cvDeleteBlock: 'מחקו את הבלוק',
+  cvNamePage: 'תנו שם לעמוד הזה', cvSameAsDoc: 'כמו המסמך',
+  cvPublishTitle: 'מדריך המותג',
+  cvNothingSelected: 'לא נבחר דבר. לחצו על בלוק, או הוסיפו אחד מהצד.',
+  cvManySelected: 'נבחרו {n} בלוקים. הזיזו אותם יחד, או הקישו Delete.',
+  cvNoteDerived: 'הבלוק הזה קורא את הפרויקט ומשרטט את עצמו. שנו את קובץ המקור והוא ישורטט מחדש. אתם קובעים היכן הוא יושב ובמה הוא צבוע, ולא יותר מזה.',
+  cvNoteRule: 'החלטה אחת, שנקבעה פעם אחת בפרויקט ומייצרת כל מופע אחריה. אתם בוחרים איזה מופע להראות. כדי לשנות את הכלל עצמו, ערכו את הפרויקט ולא את הבלוק הזה.',
+  cvDropImage: 'גררו קובץ אל הבלוק, או בחרו אחד.',
+  cvDropPhoto: 'גררו תצלום אל הבלוק, או בחרו אחד. אחר כך גררו את ארבע הפינות אל המשטח שהסמל יושב עליו.',
+  cvDropImageHere: 'גררו לכאן תמונה', cvDropPhotoHere: 'גררו לכאן תצלום',
+  cvAnImage: 'תמונה', cvAPhotograph: 'תצלום', cvVector: 'וקטורי',
+  cvNoFloor: 'שום דבר בקובץ המקור אינו צבוע, ולכן לא נמדד גודל מזערי.',
+  cvNoPattern: 'עדיין אין דוגמה. {how}',
+  cvNoPatternHow: 'סמנו צורה בקובץ המקור באמצעות data-pattern="source".',
+  cvPatternRefused: 'הצפיפות ומערך הצבע האלה נדחו, משום שהם נכשלים בניגודיות מול הרקע שלהם.',
+  cvNoIcons: 'אין כללי אייקונים', cvNoMotion: 'אין כללי תנועה',
+  cvNoPhotography: 'עדיין אין עיבוד צילום. קבעו את system.photography בפרויקט: דואוטון, שכבת הסתרה, או שניהם.',
+  cvNoRenderer: 'אין מנוע שרטוט ל״{type}״',
+  cvDrawFailed: '{type} לא הצליח להשתרטט: {message}',
+  cvArtMark: 'הסמל',
+  cvArtConstruction: 'הסמל על הרשת שלו. התיבה היא {box} יחידות והשרטוט ממלא {w} על {h} מהן.',
+  cvArtClearSpace: 'מרחב נשימה של {x} יחידות מכל צד.',
+  cvArtClearSpaceMark: 'הסמל, עם מרחב הנשימה שלו מסומן סביבו.',
+  cvArtLockupIn: 'הרכב {lockup} במערך הצבע {colourway}.',
+  cvArtAtSize: 'הסמל ב־{px} פיקסלים, שהוא {label}.',
+  cvArtPattern: 'דוגמת המותג בצפיפות {density}, ב{colourway}.',
+  cvArtIconGrid: 'רשת האייקונים. תיבה של {box} יחידות עם שטח חי של {live} יחידות וקו של {stroke}.',
+  cvArtMotion: 'הסמל, בנוי לפי כללי התנועה של המותג עצמו. קו המתאר מתייצב, ואז המילוי עולה אל הקו שלו.',
+  cvPatternRule: 'אריח {w} · שורה {h} · {density} · חצי הסטה',
+  cvIconRule: 'תיבה {box} · חי {live} · קו {stroke} · רדיוס r {curve}',
+  cvPhotoRamp: 'שחור ← לבן דרך העיבוד',
+  cvMotionOnePiece: '{out} · יציאה · חלק אחד, אין קו מתאר לשרטט קודם',
+  cvMotionStated: '{out} ביציאה · {through} במעבר · {a}, ואז {b}',
+  cvMotionUnstated: '{out} ביציאה · {through} במעבר · המשכים המתונים והאיטיים, משום שהזהות הזו לא אמרה כיצד הסמל נבנה',
+  cvDuotone: 'דואוטון', cvScrim: 'שכבת הסתרה', cvCropsTo: 'חיתוכים',
+  cvScrimAt: '{pc}% {colour}, {dir}',
+  cvTotal: 'סך הכול',
+  cvOnThePicture: 'על התמונה',
+  cvWayScrim: 'העלו את שכבת ההסתרה של התמונה הזו ל־{pc}, מה שמביא אותה ל־{ratio}:1',
+  cvWayFlat: 'השתמשו כאן בשכבת הסתרה אחידה של {colour} ב־{pc}, משום שהמעבר {dir} אינו מגיע עד לכאן ({ratio}:1)',
+  cvWayColourway: 'השתמשו במערך הצבע {name}, שמודד {ratio}:1',
+  cvEither: 'או {ways}.', cvOrJoin: ', או ',
+  cvMoveMark: 'הזיזו את הסמל לחלק שקט יותר של התמונה. {why}',
+  cvNeedPage: 'מסמך זקוק לעמוד אחד לפחות.',
+  cvOpenFailed: 'לא הצלחנו לפתוח את המסמך הזה. {message}',
+  cvResetAsk: 'לזרוק את העריכות שלכם ולהתחיל מהמסמך שהפרויקט הזה ייצר?',
+  cvNotAnImage: '{name} אינו תמונה. גררו JPEG, PNG, WebP או SVG.',
+  cvUnreadable: 'לא הצלחנו לקרוא את {name}.',
+  cvUnopenable: '{name} אינו תמונה שהדפדפן הזה יודע לפתוח.',
+  cvDropNowhere: 'גררו תמונה אל משבצת תמונה או אל הדמיה. הוסיפו אחת מהצד אם אין כזו בעמוד הזה.',
+  cvNoRoomOne: 'לא נשאר בדפדפן הזה מקום להחזיק תמונה אחת. היא עדיין במסמך, אבל שמרו אותו עכשיו: היא לא תחזור אם תסגרו את הלשונית.',
+  cvNoRoomMany: 'לא נשאר בדפדפן הזה מקום להחזיק {n} תמונות. הן עדיין במסמך, אבל שמרו אותו עכשיו: הן לא יחזרו אם תסגרו את הלשונית.',
+  cvBleedMm: '{mm} מ״מ בלידים',
+  cvBleedOn: '{mm} מ״מ בלידים. כל מה שנוגע בקצה נצבע עכשיו אל מעבר לקו החיתוך עבורכם, וסימני החיתוך יוצאים בהדפסה.',
+  cvBleedOff: 'בלי בלידים. העמוד מודפס בקו החיתוך.',
+  cvOneToLook: 'דבר אחד לבדוק בעמוד הזה.',
+  cvManyToLook: '{n} דברים לבדוק בעמוד הזה.',
+  cvScaleAsk: '{what}\n\nאישור ישנה את קנה המידה של מה שנמצא עליו לגודל החדש, וישמור צמוד לקצה את מה שהיה צמוד אליו.\nביטול ישאיר כל בלוק בדיוק במקומו.',
+  cvSetAllAsk: 'להעביר כל עמוד במסמך הזה ל{name}?',
+  cvSetAllDone: 'כל העמודים הם עכשיו {name}. ביטול מחזיר את זה.',
+  cvBackToDocAsk: 'להחזיר את העמוד הזה לגודל המסמך, {name}?',
+  cvSetPageAsk: 'להעביר את העמוד הזה ל{name}?',
+  cvOneGrew: 'בלוק טקסט אחד גדל כדי להיכנס, משום שהגופן מגיע מהסולם ואינו מתכווץ עם העמוד.',
+  cvManyGrew: '{n} בלוקי טקסט גדלו כדי להיכנס, משום שהגופן מגיע מהסולם ואינו מתכווץ עם העמוד.',
+  cvOneStuck: 'אחד עדיין חורג מתחתית העמוד.',
+  cvManyStuck: '{n} עדיין חורגים מתחתית העמוד.',
+  cvOneStuckPage: 'בלוק טקסט אחד חורג מתחתית העמוד הזה. הגופן מגיע מסולם המותג, ולכן הוא אינו מתכווץ עם העמוד.',
+  cvManyStuckPage: '{n} בלוקי טקסט חורגים מתחתית העמוד הזה. הגופן מגיע מסולם המותג, ולכן הוא אינו מתכווץ עם העמוד.',
+  cvOnePage: 'עמוד אחד', cvPages_n: '{n} עמודים', cvBuilt: 'נבנה ב־',
   sldCover: 'שער',
   cnvSetOnce: 'נקבע פעם אחת, נוצר מכאן ואילך',
   cnvFourBlocks: 'ארבעת אלה נובעים מהחלטה אחת כל אחד. שנו את הכלל בפרויקט וכל מופע עוקב אחריו. שום דבר כאן אינו משורטט מחדש ביד.',
@@ -1455,6 +1830,16 @@ const HE = {
   // agree with need an entry.
   gender: { shapePath: 'f', shapeEllipse: 'f' },
 };
+
+// Keys the canvas sets that are not its own — the same words the two documents
+// use, so a badge on a block and a badge in the manual cannot drift apart.
+const CANVAS_SHARED = ['badgeSystem', 'badgeOnce', 'badgeYours',
+  'useAAA', 'useAA', 'useAALarge', 'useFail', 'chMark', 'chColour', 'chSystem',
+  'secClearSpace', 'secMinimumSize', 'secPalette', 'secPattern', 'secIconGrid',
+  'secMotion', 'secPhotography', 'secConstruction', 'secTypefaces',
+  'nounMark', 'nounLogotype', 'deckRoot', 'sldCover',
+  'scrimTop', 'scrimBottom', 'scrimLeft', 'scrimRight', 'scrimFlat',
+  'stepComfortable', 'stepFloor', 'stepBelow'];
 
 const HAVE = { en: EN, fr: FR, he: HE };
 
@@ -1531,6 +1916,17 @@ function resolve(project, which = 'manual') {
     return t(g && set[key + g] !== undefined ? key + g : key, vars);
   };
   return { lang: set.lang, dir: set.dir, name: set.name, t, agree, document: which,
+    // The canvas runs half in the browser, so its words have to travel there.
+    // Handed over as they are written, with their {slots} still in them: a
+    // value is substituted the moment it is known and that is on the other
+    // side. HandoverRender.t is the same lookup, and a test holds the two to
+    // each other.
+    words: () => {
+      const out = { lang: set.lang, dir: set.dir };
+      for (const k of Object.keys(set)) if (/^cv/.test(k)) out[k] = t(k);
+      for (const k of CANVAS_SHARED) if (set[k] !== undefined || EN[k] !== undefined) out[k] = t(k);
+      return out;
+    },
     // For a value a document sets straight into markup rather than through a
     // key. `t` isolates what it substitutes; a caption built as
     // `${caption} · ${t(label)}` never passes the caption through it, and

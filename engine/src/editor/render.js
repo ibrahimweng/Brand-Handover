@@ -11,6 +11,37 @@
   const esc = (s) => String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const r3 = (n) => Math.round(n * 1000) / 1000;
+  // the same four words the manual uses for the same four edges
+  const EDGE = { top: 'scrimTop', bottom: 'scrimBottom', left: 'scrimLeft',
+    right: 'scrimRight', flat: 'scrimFlat' };
+
+  // What this side says.
+  //
+  // The canvas is an application and half of it runs here, so the words cannot
+  // be read out of src/strings.js at draw time. They come over in the bundle,
+  // already looked up and already isolated — and that is why this side only has
+  // to substitute. A {slot} is a run of Latin characters like any other, so the
+  // isolate the engine puts round it lands on the slot rather than on the value,
+  // and the value drops into a run that is already marked. One implementation of
+  // the bidi rule, not two.
+  //
+  // A key with no word behind it comes back as the key, which is loud in the
+  // interface and impossible to miss in a test.
+  // A value set straight into a string rather than through a key. `t` hands
+  // over templates the engine already isolated, so the only thing left on this
+  // side is a value the renderer measures itself — the caption under a size
+  // step, which is "120 px" and has to stay that way in a document that reads
+  // the other way.
+  const iso = (bundle, v) => (((bundle && bundle.words) || {}).dir === 'rtl'
+    ? '\u2068' + String(v) + '\u2069' : String(v));
+
+  function t(bundle, key, vars) {
+    const w = (bundle && bundle.words) || {};
+    let out = w[key];
+    if (out === undefined) return key;
+    if (vars) for (const k of Object.keys(vars)) out = out.split('{' + k + '}').join(String(vars[k]));
+    return out;
+  }
 
   // a colour name, a role name, or a literal hex all resolve here.
   // "none" is the case that matters over a photograph: a mark laid on a picture
@@ -57,7 +88,7 @@
   const fitSvg = (svg, pad, label) =>
     svg.replace(/<svg([^>]*)>/, (m, a) =>
       `<svg${a.replace(/\s(width|height|style|role|aria-label|aria-hidden)="[^"]*"/g, '')} `
-      + `preserveAspectRatio="xMidYMid meet" role="img" aria-label="${esc(label || 'The mark')}" `
+      + `preserveAspectRatio="xMidYMid meet" role="img" aria-label="${esc(label || t(bundle, 'cvArtMark'))}" `
       + `style="width:100%;height:100%;display:block;padding:${pad || 0}px;box-sizing:border-box">`);
 
   // A rule block states its own rule. That is the whole point of the kind: you
@@ -90,7 +121,7 @@
       grid += `<path d="M${X(vb.x + vb.w / 6 * i)} ${Y(vb.y)}V${Y(vb.y + vb.h)}"/>`
            +  `<path d="M${X(vb.x)} ${Y(vb.y + vb.h / 6 * i)}H${X(vb.x + vb.w)}"/>`;
     }
-    return `<svg viewBox="0 0 ${S} ${S + 26}" style="width:100%;height:100%" role="img" aria-label="The mark on its grid. The box is ${vb.w} units and the artwork fills ${ink2.w} by ${ink2.h} of them.">
+    return `<svg viewBox="0 0 ${S} ${S + 26}" style="width:100%;height:100%" role="img" aria-label="${esc(t(bundle, 'cvArtConstruction', { box: vb.w, w: ink2.w, h: ink2.h }))}">
       <defs><clipPath id="${clip}"><rect x="${X(vb.x)}" y="${Y(vb.y)}" width="${r3(vb.w * k)}" height="${r3(vb.h * k)}"/></clipPath></defs>
       <g stroke="${line}" stroke-width=".5" opacity=".22">${grid}</g>
       <rect x="${X(vb.x)}" y="${Y(vb.y)}" width="${r3(vb.w * k)}" height="${r3(vb.h * k)}" fill="none" stroke="${line}" stroke-width=".9" opacity=".55"/>
@@ -110,7 +141,7 @@
     const S = 260, k = S / (Math.max(tw, th) * 1.12);
     const ox = (S - tw * k) / 2, oy = (S - th * k) / 2;
     const PX = (v) => r3(ox + v * k), PY = (v) => r3(oy + v * k);
-    return `<svg viewBox="0 0 ${S} ${S + 22}" style="width:100%;height:100%" role="img" aria-label="Clear space of ${x} units on every side.">
+    return `<svg viewBox="0 0 ${S} ${S + 22}" style="width:100%;height:100%" role="img" aria-label="${esc(t(bundle, 'cvArtClearSpace', { x }))}">
       <rect x="${PX(0)}" y="${PY(0)}" width="${r3(tw * k)}" height="${r3(th * k)}" fill="none" stroke="${line}" stroke-width="1" stroke-dasharray="4 3" opacity=".5"/>
       <g transform="translate(${PX(x)} ${PY(x)}) scale(${r3(k)}) translate(${-b.x} ${-b.y})">${bundle.markInner[ink] || ''}</g>
       <g stroke="${bundle.roles.accent.hex}" stroke-width="1.1">
@@ -148,7 +179,7 @@
       const im = (bu.images || {})[b.props.image];
       if (!im) {
         // an empty slot on a published page is a hole, not an instruction
-        return PUBLISHED ? '' : `<div class="hb-slot"><b>${esc(b.props.label)}</b><span>drop an image here</span></div>`;
+        return PUBLISHED ? '' : `<div class="hb-slot"><b>${esc(b.props.label)}</b><span>${esc(t(bu, 'cvDropImageHere'))}</span></div>`;
       }
       const fit = b.props.fit === 'contain' ? 'contain' : 'cover';
       const pos = `${Number(b.props.focusX) || 0}% ${Number(b.props.focusY) || 0}%`;
@@ -189,13 +220,13 @@
           + `mix-blend-mode:${b.props.blend === 'normal' ? 'normal' : esc(b.props.blend || 'multiply')};`
           + `opacity:${b.props.opacity === undefined ? 1 : b.props.opacity}">`
           + `<div style="position:absolute;inset:12%;display:flex;align-items:center;justify-content:center">`
-          + fitSvg(art, 0, 'The mark, shown with its clear space marked out around it.') + `</div></div>`
+          + fitSvg(art, 0, t(bu, 'cvArtClearSpaceMark')) + `</div></div>`
         : '';
       if (!im) {
         // published, the art alone on the ground, and nothing said to the reader
         // about a photograph they were never going to add
         if (PUBLISHED) return inner ? `<div style="position:absolute;inset:0;overflow:hidden">${inner}</div>` : '';
-        return `<div class="hb-slot"><b>Mockup</b><span>drop a photograph here</span></div>`
+        return `<div class="hb-slot"><b>${esc(t(bu, 'cvBlockSurface'))}</b><span>${esc(t(bu, 'cvDropPhotoHere'))}</span></div>`
           + (inner ? `<div style="position:absolute;inset:0;overflow:hidden">${inner}</div>` : '');
       }
       return `<div class="hb-surface" style="position:absolute;inset:0;overflow:hidden;isolation:isolate">`
@@ -212,7 +243,7 @@
       const key = `${b.props.lockup}:${cwName(bu, b.props.colourway, b.props.on)}`;
       return `<div style="width:100%;height:100%;background:${colour(bu, b.props.on)};display:flex;align-items:center;justify-content:center">
         ${fitSvg(bu.variants[key] || bu.variants[Object.keys(bu.variants)[0]], 16,
-          `The ${esc(String(key).replace(':', ' lockup in ')) } colourway.`)}</div>`;
+          t(bu, 'cvArtLockupIn', { lockup: String(key).split(':')[0], colourway: String(key).split(':')[1] }))}</div>`;
     },
 
     construction: (b, bu) => `<div style="width:100%;height:100%;background:${colour(bu, b.props.on || 'ground')}">${construction(bu, cwName(bu, b.props.colourway || 'primary'), colour(bu, b.props.line || 'neutral'))}</div>`,
@@ -228,13 +259,13 @@
     minimumSize: (b, bu) => {
       const m = bu.measured.minimumSize;
       const steps = (m && m.steps) || [];
-      if (!steps.length) return `<div class="hb-missing">Nothing in the master is painted, so no smallest size was measured.</div>`;
+      if (!steps.length) return `<div class="hb-missing">${esc(t(bu, 'cvNoFloor'))}</div>`;
       const big = steps[0].px;
       const svg = bu.marks[cwName(bu, b.props.colourway || 'primary')] || Object.values(bu.marks)[0];
       return `<div class="hb-sizes">${steps.map((s) =>
         `<figure><div class="cell">
-         <span style="display:block;width:min(${s.px}px,${r3((s.px / big) * 100)}%)">${fitSvg(svg, 0, `The mark at ${s.px} pixels, which is ${esc(s.label)}.`)}</span></div>
-         <figcaption>${esc(s.caption)} · ${esc(s.label)}</figcaption></figure>`).join('')}</div>`;
+         <span style="display:block;width:min(${s.px}px,${r3((s.px / big) * 100)}%)">${fitSvg(svg, 0, t(bu, 'cvArtAtSize', { px: s.px, label: s.label }))}</span></div>
+         <figcaption>${esc(iso(bu, s.caption))} · ${esc(s.label)}</figcaption></figure>`).join('')}</div>`;
     },
 
     // a guessed CMYK is marked, because a chip that shows given and guessed the
@@ -255,34 +286,34 @@
 
     typeSpecimen: (b, bu) => `<div class="hb-faces">${Object.entries((bu.type || {}).families || {}).map(([role, f]) =>
       `<div><p class="fl">${esc(f.family)} · ${esc(role)}</p>
-       <p style="font-family:'${esc(f.family)}',${esc(f.fallback || 'serif')};font-weight:${(f.weights || [400])[0]};font-size:30px;line-height:1.2;margin:6px 0 0">ABCDEFGHIJ abcdefghij 0123</p></div>`).join('')}</div>`,
+       <p style="font-family:'${esc(f.family)}',${esc(f.fallback || 'serif')};font-weight:${(f.weights || [400])[0]};font-size:30px;line-height:1.2;margin:6px 0 0">${esc(t(bu, 'cvAlphabet'))}</p></div>`).join('')}</div>`,
 
     // ---- rule blocks: one decision, every instance generated from it ----
     pattern: (b, bu) => {
       const sys = (bu.system || {}).pattern || {};
       if (!sys.available) {
-        return `<div class="hb-missing">No pattern yet. ${esc(sys.how || 'Mark a shape in the master with data-pattern="source".')}</div>`;
+        return `<div class="hb-missing">${esc(t(bu, 'cvNoPattern', { how: sys.how || t(bu, 'cvNoPatternHow') }))}</div>`;
       }
       // tiles are already keyed by role, so this must not go through cwName,
       // which would turn "primary" into the colourway name and miss every time
       const key = `${b.props.density || 'medium'}:${b.props.colourway || 'ground'}`;
-      const t = bu.patternTiles[key] || bu.patternTiles[Object.keys(bu.patternTiles)[0]];
-      if (!t) return `<div class="hb-missing">That density and colourway was refused, because it fails contrast on its ground.</div>`;
+      const tile = bu.patternTiles[key] || bu.patternTiles[Object.keys(bu.patternTiles)[0]];
+      if (!tile) return `<div class="hb-missing">${esc(t(bu, 'cvPatternRefused'))}</div>`;
       const pid = 'p' + esc(b.id);
-      const field = `<svg viewBox="0 0 ${b.w} ${b.h}" preserveAspectRatio="none" style="width:100%;height:100%;display:block" role="img" aria-label="The brand pattern at ${esc(t.density)} density in ${esc(t.colourway)}.">
-        <defs><pattern id="${pid}" width="${t.width}" height="${t.height}" patternUnits="userSpaceOnUse">${t.body}</pattern></defs>
+      const field = `<svg viewBox="0 0 ${b.w} ${b.h}" preserveAspectRatio="none" style="width:100%;height:100%;display:block" role="img" aria-label="${esc(t(bu, 'cvArtPattern', { density: tile.density, colourway: tile.colourway }))}">
+        <defs><pattern id="${pid}" width="${tile.width}" height="${tile.height}" patternUnits="userSpaceOnUse">${tile.body}</pattern></defs>
         <rect width="${b.w}" height="${b.h}" fill="${colour(bu, b.props.on)}"/>
         <rect width="${b.w}" height="${b.h}" fill="url(#${pid})"/></svg>`;
       if (!b.props.caption) return field;
       // The tile is square-ish and repeats on a half-drop, so those two numbers
       // and the weight are the whole rule. Stated in the units the tile is cut in.
-      const rule = `${t.width} tile · ${t.height} row · ${esc(t.density)} · half drop`;
+      const rule = t(bu, 'cvPatternRule', { w: tile.width, h: tile.height, density: tile.density });
       return `<div style="width:100%;height:100%;display:flex;flex-direction:column;gap:6px">
         <div style="flex:1;min-height:0">${field}</div>${ruleCaption(rule, colour(bu, b.props.colourway))}</div>`;
     },
 
     iconGrid: (b, bu) => {
-      const r = (bu.system || {}).icons; if (!r) return `<div class="hb-missing">no icon rules</div>`;
+      const r = (bu.system || {}).icons; if (!r) return `<div class="hb-missing">${esc(t(bu, 'cvNoIcons'))}</div>`;
       const line = colour(bu, b.props.line || 'neutral'), ink = colour(bu, b.props.colourway || 'primary');
       const S = 240, pad = 26, k = (S - pad * 2) / r.box;
       const X = (v) => r3(pad + v * k);
@@ -293,7 +324,7 @@
       }
       const m = r.box * r.marginFraction;
       return `<div style="width:100%;height:100%;background:${colour(bu, b.props.on)};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px">
-        <svg viewBox="0 0 ${S} ${S}" style="width:100%;height:auto;max-height:78%" role="img" aria-label="The icon grid. A ${r.box} unit box with a ${r.live} unit live area and a stroke of ${r.stroke}.">
+        <svg viewBox="0 0 ${S} ${S}" style="width:100%;height:auto;max-height:78%" role="img" aria-label="${esc(t(bu, 'cvArtIconGrid', { box: r.box, live: r.live, stroke: r.stroke }))}">
           <g stroke="${line}" stroke-width=".4" opacity=".25">${grid}</g>
           <rect x="${X(0)}" y="${X(0)}" width="${r3(r.box * k)}" height="${r3(r.box * k)}" fill="none" stroke="${line}" stroke-width=".9" opacity=".6"/>
           <rect x="${X(m)}" y="${X(m)}" width="${r3(r.live * k)}" height="${r3(r.live * k)}" fill="none" stroke="${bu.roles.accent.hex}" stroke-width="1" stroke-dasharray="4 3"/>
@@ -303,11 +334,11 @@
             <path d="M${X(m)} ${X(r.box * 0.66)} A${r3(r.curveRadius * k)} ${r3(r.curveRadius * k)} 0 0 1 ${X(r.box - m)} ${X(r.box * 0.66)}"/>
           </g>
         </svg>
-        ${b.props.caption === false ? '' : ruleCaption(`${r.box} box \u00b7 ${r.live} live \u00b7 ${r.stroke} stroke \u00b7 curve r ${r.curveRadius}`, line)}</div>`;
+        ${b.props.caption === false ? '' : ruleCaption(t(bu, 'cvIconRule', { box: r.box, live: r.live, stroke: r.stroke, curve: r.curveRadius }), line)}</div>`;
     },
 
     motion: (b, bu) => {
-      const mo = (bu.system || {}).motion; if (!mo) return `<div class="hb-missing">no motion rules</div>`;
+      const mo = (bu.system || {}).motion; if (!mo) return `<div class="hb-missing">${esc(t(bu, 'cvNoMotion'))}</div>`;
       const svg = bu.marks[cwName(bu, b.props.colourway, b.props.on)] || Object.values(bu.marks)[0];
       const inner = (svg.match(/<svg[^>]*>([\s\S]*)<\/svg>/) || [])[1] || '';
       const vb = (svg.match(/viewBox="([^"]+)"/) || [])[1] || '0 0 120 120';
@@ -343,11 +374,10 @@
       const ms = (a) => `${a.to - a.from}ms`;
       const caption = b.props.caption === false ? '' :
         ruleCaption(onePiece
-          ? `${ms(draw)} \u00b7 out \u00b7 one piece, no outline to draw first`
+          ? t(bu, 'cvMotionOnePiece', { out: ms(draw) })
           : stated
-            ? `${ms(draw)} out \u00b7 ${ms(rise)} through \u00b7 ${draw.part}, then ${rise.part}`
-            : `${ms(draw)} out \u00b7 ${ms(rise)} through \u00b7 the considered and slow durations, `
-              + `because this identity has not said how the mark builds`,
+            ? t(bu, 'cvMotionStated', { out: ms(draw), through: ms(rise), a: draw.part, b: rise.part })
+            : t(bu, 'cvMotionUnstated', { out: ms(draw), through: ms(rise) }),
           colour(bu, b.props.colourway));
       return `<div style="width:100%;height:100%;background:${colour(bu, b.props.on)};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;overflow:hidden">
         <style>
@@ -357,7 +387,7 @@
           #${id} .hb-out{animation:${id}-in ${draw.to - draw.from}ms ${bez(e.out)} ${draw.from}ms both;transform-origin:50% 50%}
           @media (prefers-reduced-motion:reduce){#${id} .hb-fill,#${id} .hb-out{animation:none}}
         </style>
-        <svg id="${id}" viewBox="${vb}" style="width:64%;height:auto" role="img" aria-label="The mark, built to the brand's own motion rules. The outline settles, then the fill rises to its line.">
+        <svg id="${id}" viewBox="${vb}" style="width:64%;height:auto" role="img" aria-label="${esc(t(bu, 'cvArtMotion'))}">
           <defs><clipPath id="${id}-c"><rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}"/></clipPath></defs>
           ${onePiece
             ? `<g class="hb-out">${filled.join('')}</g>`
@@ -371,7 +401,7 @@
     photography: (b, bu) => {
       const r = (bu.system || {}).photography;
       if (!r || !r.declared) {
-        return `<div class="hb-missing">No photography treatment yet. Set system.photography in the project: a duotone, a scrim, or both.</div>`;
+        return `<div class="hb-missing">${esc(t(bu, 'cvNoPhotography'))}</div>`;
       }
       const ink = colour(bu, 'primary'), on = colour(bu, b.props.on);
       const steps = 9;
@@ -386,12 +416,12 @@
       return `<div class="hb-photo" style="background:${on};color:${ink}">
         <div class="ramp">${swatches.join('')}${scrim ? `<div class="hb-scrim" style="background:${scrim.background}"></div>` : ''}</div>
         <div class="rows">
-          ${r.duotone ? line('Duotone', `${r.duotone.shadow} → ${r.duotone.highlight}`
+          ${r.duotone ? line(t(bu, 'cvDuotone'), `${r.duotone.shadow} → ${r.duotone.highlight}`
             + (r.duotone.amount < 1 ? ` at ${Math.round(r.duotone.amount * 100)}%` : '')) : ''}
-          ${r.scrim ? line('Scrim', `${Math.round(r.scrim.opacity * 100)}% ${r.scrim.colour}, from the ${r.scrim.direction}`) : ''}
-          ${(r.ratios || []).length ? line('Crops to', r.ratios.join('  ')) : ''}
+          ${r.scrim ? line(t(bu, 'cvScrim'), t(bu, 'cvScrimAt', { pc: Math.round(r.scrim.opacity * 100), colour: r.scrim.colour, dir: t(bu, EDGE[r.scrim.direction] || 'scrimBottom') })) : ''}
+          ${(r.ratios || []).length ? line(t(bu, 'cvCropsTo'), r.ratios.join('  ')) : ''}
         </div>
-        ${b.props.caption === false ? '' : ruleCaption('black → white through the treatment', ink)}</div>`;
+        ${b.props.caption === false ? '' : ruleCaption(t(bu, 'cvPhotoRamp'), ink)}</div>`;
     },
 
     assetIndex: (b, bu) => {
@@ -399,7 +429,7 @@
       for (const f of bu.files || []) { const d = f.path.includes('/') ? f.path.split('/')[0] : '(root)'; g.set(d, (g.get(d) || 0) + 1); }
       return `<div class="hb-atab">${[...g.entries()].sort().map(([d, n]) =>
         `<div class="r"><code>${esc(d)}</code><em>${n}</em></div>`).join('')}
-        <div class="r total"><code>total</code><em>${(bu.files || []).length}</em></div></div>`;
+        <div class="r total"><code>${esc(t(bu, 'cvTotal'))}</code><em>${(bu.files || []).length}</em></div></div>`;
     },
   };
 
@@ -412,9 +442,9 @@
 
   function block(b, bundle) {
     const fn = BLOCK[b.type];
-    if (!fn) return `<div class="hb-missing">no renderer for "${esc(b.type)}"</div>`;
+    if (!fn) return `<div class="hb-missing">${esc(t(bundle, 'cvNoRenderer', { type: b.type }))}</div>`;
     try { return fn(b, bundle); }
-    catch (e) { return `<div class="hb-missing">${esc(b.type)} could not draw: ${esc(e.message)}</div>`; }
+    catch (e) { return `<div class="hb-missing">${esc(t(bundle, 'cvDrawFailed', { type: b.type, message: e.message }))}</div>`; }
   }
 
   // A block sits where it was put, unless it is against an edge on a page with
@@ -432,5 +462,5 @@
     `<div class="hb-page" data-page="${p.id}" style="position:relative;width:${size.w}px;height:${size.h}px;background:${bundle.roles.ground.hex};overflow:hidden">`
     + p.blocks.map((b) => positioned(b, bundle)).join('') + `</div>`;
 
-  return { block, positioned, page, colour, cwName, typeStyle, esc, construction, clearSpace, publishing, BLOCK };
+  return { block, positioned, page, colour, cwName, typeStyle, esc, construction, clearSpace, publishing, BLOCK, t };
 }));

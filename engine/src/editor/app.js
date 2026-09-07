@@ -23,6 +23,9 @@
   // Images live beside the document, never in it, so undo clones a small object
   // and a nudge does not rewrite a photograph. See editor/images.js.
   const IM = window.HandoverImages;
+  // Every word this file puts on the screen. The same lookup the renderer
+  // uses, against the words the engine put in the bundle: see src/strings.js.
+  const T = (k, v) => R.t(BUNDLE, k, v);
   let startImages = {};
   try { startImages = JSON.parse(localStorage.getItem(IMGKEY) || '{}'); } catch (_) {}
   const images = IM.store(Object.assign({}, window.HANDOVER_IMAGES || {}, startImages));
@@ -52,8 +55,7 @@
     syncImages();
     try { localStorage.setItem(IMGKEY, JSON.stringify(images.all())); }
     catch (_) {
-      note(`There is no room left in this browser to hold ${images.count()} image${images.count() === 1 ? '' : 's'}. `
-        + 'They are still in this document, but save it now: they will not come back if you close the tab.', 'warn');
+      note(T(images.count() === 1 ? 'cvNoRoomOne' : 'cvNoRoomMany', { n: images.count() }), 'warn');
     }
   }
 
@@ -83,10 +85,10 @@
   function readImage(file) {
     return new Promise((resolve, reject) => {
       if (!/^image\//.test(file.type)) {
-        return reject(new Error(`${file.name} is not an image. Drop a JPEG, a PNG, a WebP or an SVG.`));
+        return reject(new Error(T('cvNotAnImage', { name: file.name })));
       }
       const r = new FileReader();
-      r.onerror = () => reject(new Error(`${file.name} could not be read.`));
+      r.onerror = () => reject(new Error(T('cvUnreadable', { name: file.name })));
       r.onload = () => {
         const raw = String(r.result);
         // vector art is resolution independent, so it is kept exactly as given
@@ -94,7 +96,7 @@
           return resolve({ src: raw, w: 0, h: 0, vector: true, name: file.name });
         }
         const img = new Image();
-        img.onerror = () => reject(new Error(`${file.name} is not an image this browser can open.`));
+        img.onerror = () => reject(new Error(T('cvUnopenable', { name: file.name })));
         img.onload = () => {
           const long = Math.max(img.naturalWidth, img.naturalHeight);
           const k = long > MAXEDGE ? MAXEDGE / long : 1;
@@ -280,20 +282,20 @@
         const pct = (n) => `${Math.round(n * 100)}%`;
         const ways2 = [];
         if (need.needed) {
-          ways2.push(`turn the scrim on this image up to ${pct(need.needed)}, which takes it to ${need.ratio}:1`);
+          ways2.push(T('cvWayScrim', { pc: pct(need.needed), ratio: need.ratio }));
         } else if (dir !== 'flat') {
           // a gradient can be strong at one end and absent where the mark is,
           // and that is a different problem from the scrim being too weak
           const flat = PH.scrimNeeded(ink,
             raw.map((px) => Object.assign(treated ? PH.treatPixel(rules, BUNDLE, px) : px, { at: place(px) })),
             scrimHex, 'flat');
-          if (flat.needed) ways2.push(`use a flat ${pct(flat.needed)} ${scrimName} scrim here, since the gradient from the ${dir} does not reach this far up (${flat.ratio}:1)`);
+          if (flat.needed) ways2.push(T('cvWayFlat', { pc: pct(flat.needed), colour: scrimName, dir, ratio: flat.ratio }));
         }
-        if (better) ways2.push(`use the ${better.name} colourway, which measures ${better.ratio}:1`);
+        if (better) ways2.push(T('cvWayColourway', { name: better.name, ratio: better.ratio }));
         const sentence = ways2.length === 0 ? null
           : ways2.length === 1 ? ways2[0][0].toUpperCase() + ways2[0].slice(1) + '.'
-          : `Either ${ways2.join(', or ')}.`;
-        v.finding.how = sentence || `Move the mark to a quieter part of the picture. ${need.why || ''}`.trim();
+          : T('cvEither', { ways: ways2.join(T('cvOrJoin')) });
+        v.finding.how = sentence || T('cvMoveMark', { why: need.why || '' }).trim();
         v.instead = better; v.scrim = need;
         overlays.push({ id: over.id, x: over.x, y: over.y, w: over.w, h: over.h, slot: under.id, verdict: v });
       }
@@ -305,7 +307,7 @@
     for (const n of overlay.querySelectorAll('.ovwarn')) n.remove();
     for (const o of overlays) {
       const n = el('div', 'ovwarn', o.verdict.ratio === '\u2014'
-        ? 'the corners cross' : `${o.verdict.ratio}:1 ${o.where || 'on the picture'}`);
+        ? 'the corners cross' : `${o.verdict.ratio}:1 ${o.where || T('cvOnThePicture')}`);
       n.style.cssText = `left:${o.x}px;top:${o.y + o.h}px`;
       n.title = o.verdict.finding.what + ' ' + o.verdict.finding.how;
       overlay.appendChild(n);
@@ -349,7 +351,7 @@
       guide.style.cssText += `;left:${b.offset}px;top:${b.offsetY}px;width:${p.w}px;height:${p.h}px`;
     }
     $('#zoom').textContent = Math.round(scale * 100) + '%';
-    $('#sheetname').textContent = p.name + (b.bleed ? ` · ${b.bleedMm} mm bleed` : '');
+    $('#sheetname').textContent = p.name + (b.bleed ? ` · ${T('cvBleedMm', { mm: b.bleedMm })}` : '');
     drawOverlay();
   }
 
@@ -361,13 +363,13 @@
   // says which block, how big it is, where it sits and whether it is selected.
   function labelFor(b) {
     const on = selection.includes(b.id);
-    return `${nameOf(b.type)}, ${Math.round(b.w)} by ${Math.round(b.h)}, `
-      + `at ${Math.round(b.x)} ${Math.round(b.y)}${on ? ', selected' : ''}`;
+    return T('cvBlockName', { name: nameOf(b.type), w: Math.round(b.w), h: Math.round(b.h) })
+      + T('cvBlockAt', { x: Math.round(b.x), y: Math.round(b.y) }) + (on ? T('cvBlockSelected') : '');
   }
 
   function wireBlocks() {
     const p = page();
-    sheet.setAttribute('aria-label', `${p.blocks.length} block${p.blocks.length === 1 ? '' : 's'} on ${p.name}`);
+    sheet.setAttribute('aria-label', T(p.blocks.length === 1 ? 'cvOneBlockOn' : 'cvBlocksOn', { n: p.blocks.length, page: p.name }));
     for (const node of sheet.querySelectorAll('.hb-block')) {
       const b = blockById(node.dataset.id);
       if (!b) continue;
@@ -442,7 +444,7 @@
         + (own ? `<u>${esc(own)}</u>` : '') + `</span><em>${p.blocks.length}</em>`;
       row.onclick = () => { pageId = p.id; selection = []; draw(); };
       row.ondblclick = () => {
-        const n = prompt('Name this page', p.name);
+        const n = prompt(T('cvNamePage'), p.name);
         if (n) change((d) => M.ops.renamePage(d, p.id, n));
       };
       list.appendChild(row);
@@ -465,24 +467,32 @@
   const field = (label, input) => `<label class="f"><span>${esc(label)}</span>${input}</label>`;
   const NUM_NAME = { x: 'left', y: 'top', w: 'width', h: 'height' };
   const num = (k, v) => `<input type="number" data-num="${k}" value="${v}" aria-label="${esc(NUM_NAME[k] || k)}">`;
-  const opts = (list, cur) => list.map((o) => `<option value="${esc(o)}"${o === cur ? ' selected' : ''}>${esc(o)}</option>`).join('');
+  // An option's value is code and its label is a word, and until this round
+  // they were the same string. A colour or a lockup is named by the project and
+  // stays as it is; left, center and cover are the engine's words and are not.
+  const opts = (list, cur) => list.map((o) => {
+    const v = Array.isArray(o) ? o[0] : o, label = Array.isArray(o) ? T(o[1]) : o;
+    return `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(label)}</option>`;
+  }).join('');
   const sel = (k, list, cur) => `<select data-prop="${k}">${opts(list, cur)}</select>`;
   const chk = (k, on) => `<input type="checkbox" data-prop="${k}"${on ? ' checked' : ''}>`;
   const rng = (k, v) => `<input type="range" min="0" max="100" step="1" data-prop="${k}" data-num-prop="1" value="${Number(v) || 0}">`;
 
   // What a block is called to a designer. The type name is the code's business.
   const NAME = {
-    text: 'Text', rule: 'Line', fill: 'Colour field', slot: 'Image', surface: 'Mockup',
-    mark: 'Mark', lockup: 'Lockup', construction: 'Construction',
-    clearSpace: 'Clear space', minimumSize: 'Minimum size', palette: 'Palette',
-    contrast: 'Contrast table', typeSpecimen: 'Type specimen', assetIndex: 'Asset index',
-    pattern: 'Pattern', iconGrid: 'Icon grid', motion: 'Motion', photography: 'Photography',
+    text: 'cvBlockText', rule: 'cvBlockRule', fill: 'cvBlockFill', slot: 'cvBlockSlot',
+    surface: 'cvBlockSurface', mark: 'cvBlockMark', lockup: 'cvBlockLockup',
+    construction: 'cvBlockConstruction', clearSpace: 'cvBlockClearSpace',
+    minimumSize: 'cvBlockMinimumSize', palette: 'cvBlockPalette',
+    contrast: 'cvBlockContrast', typeSpecimen: 'cvBlockTypeSpecimen',
+    assetIndex: 'cvBlockAssetIndex', pattern: 'cvBlockPattern', iconGrid: 'cvBlockIconGrid',
+    motion: 'cvBlockMotion', photography: 'cvBlockPhotography',
   };
-  const nameOf = (t) => NAME[t] || t;
+  const nameOf = (t) => (NAME[t] ? T(NAME[t]) : t);
 
   const COLOURS = () => [...Object.keys(BUNDLE.roles), ...Object.keys(BUNDLE.colours)];
   // a block laid over a photograph needs no ground of its own
-  const GROUNDS = () => ['none', ...COLOURS()];
+  const GROUNDS = () => [['none', 'cvNone'], ...COLOURS()];
   const STYLES = () => ((BUNDLE.type || {}).scale || []).map((s) => s.name);
 
   // A photograph follows the brand's treatment unless this one has a reason not
@@ -494,65 +504,65 @@
     if (!r || !r.declared) return '';
     const on = b.props.treatment !== false;
     const over = b.props.scrim;
-    return field('Brand treatment', chk('treatment', on))
+    return field(T('cvTreatment'), chk('treatment', on))
       + (on ? `<p class="hint imeta">${esc(PH.describe(r, BUNDLE))}</p>` : '')
-      + (on && r.scrim ? field(`Scrim on this one${over == null ? ' (the rule)' : ''}`,
+      + (on && r.scrim ? field(over == null ? T('cvScrimRule') : T('cvScrimOne'),
         `<input type="range" min="0" max="100" step="5" data-prop="scrim" data-num-prop="1" data-pct="1" value="${Math.round((over == null ? r.scrim.opacity : over) * 100)}">`) : '');
   }
 
   const PROPS = {
-    text: (b) => field('Text', `<textarea data-prop="text" rows="4">${esc(b.props.text)}</textarea>`)
-      + field('Style', sel('style', STYLES(), b.props.style))
-      + field('Align', sel('align', ['left', 'center', 'right'], b.props.align))
-      + field('Colour', sel('colour', COLOURS(), b.props.colour)),
-    rule: (b) => field('Colour', sel('colour', COLOURS(), b.props.colour)) + field('Weight', `<input type="number" data-prop="weight" value="${b.props.weight}" min="1">`),
-    fill: (b) => field('Colour', sel('colour', COLOURS(), b.props.colour)),
+    text: (b) => field(T('cvText'), `<textarea data-prop="text" rows="4">${esc(b.props.text)}</textarea>`)
+      + field(T('cvStyle'), sel('style', STYLES(), b.props.style))
+      + field(T('cvAlign'), sel('align', [['left', 'cvLeft'], ['center', 'cvCentre'], ['right', 'cvRight']], b.props.align))
+      + field(T('cvColour'), sel('colour', COLOURS(), b.props.colour)),
+    rule: (b) => field(T('cvColour'), sel('colour', COLOURS(), b.props.colour)) + field(T('cvWeight'), `<input type="number" data-prop="weight" value="${b.props.weight}" min="1">`),
+    fill: (b) => field(T('cvColour'), sel('colour', COLOURS(), b.props.colour)),
     slot: (b) => {
       const im = b.props.image && images.get(b.props.image);
       const head = im
-        ? `<p class="hint imeta">${esc(im.name || 'image')} · ${im.vector ? 'vector' : im.w + ' \u00d7 ' + im.h}</p>`
-        : `<p class="hint">Drop a file on the block, or choose one.</p>`;
+        ? `<p class="hint imeta">${esc(im.name || T('cvAnImage'))} · ${im.vector ? T('cvVector') : im.w + ' \u00d7 ' + im.h}</p>`
+        : `<p class="hint">${esc(T('cvDropImage'))}</p>`;
       return head
-        + `<div class="ord"><button id="pick">${im ? 'Replace image' : 'Choose image'}</button>`
-        + (im ? `<button id="clearimg">Remove</button>` : '') + `</div>`
-        + (im ? field('Fit', sel('fit', ['cover', 'contain'], b.props.fit))
-            + (b.props.fit !== 'contain' ? field('Focus across', rng('focusX', b.props.focusX))
-              + field('Focus down', rng('focusY', b.props.focusY)) : '')
+        + `<div class="ord"><button id="pick">${esc(T(im ? 'cvReplaceImage' : 'cvChooseImage'))}</button>`
+        + (im ? `<button id="clearimg">${esc(T('cvRemove'))}</button>` : '') + `</div>`
+        + (im ? field(T('cvFit'), sel('fit', [['cover', 'cvFitCover'], ['contain', 'cvFitContain']], b.props.fit))
+            + (b.props.fit !== 'contain' ? field(T('cvFocusX'), rng('focusX', b.props.focusX))
+              + field(T('cvFocusY'), rng('focusY', b.props.focusY)) : '')
             + treatmentFields(b) : '')
-        + field('Caption', `<input data-prop="caption" value="${esc(b.props.caption || '')}">`)
-        + field('Label', `<input data-prop="label" value="${esc(b.props.label)}">`);
+        + field(T('cvCaption'), `<input data-prop="caption" value="${esc(b.props.caption || '')}">`)
+        + field(T('cvLabel'), `<input data-prop="label" value="${esc(b.props.label)}">`);
     },
     surface: (b) => {
       const im = b.props.image && images.get(b.props.image);
-      return (im ? `<p class="hint imeta">${esc(im.name || 'photograph')} · ${im.w} \u00d7 ${im.h}</p>`
-        : `<p class="hint">Drop a photograph on the block, or choose one. Then drag the four corners onto the surface the mark goes on.</p>`)
-        + `<div class="ord"><button id="pick">${im ? 'Replace photograph' : 'Choose photograph'}</button>`
-        + (im ? `<button id="clearimg">Remove</button>` : '') + `</div>`
-        + field('Put on it', sel('art', ['lockup', 'mark', 'pattern'], b.props.art))
-        + (b.props.art === 'lockup' ? field('Lockup', sel('lockup', BUNDLE.lockups, b.props.lockup)) : '')
-        + field('Colourway', sel('colourway', COLOURS(), b.props.colourway))
-        + field('Blend', sel('blend', ['multiply', 'screen', 'normal'], b.props.blend))
-        + field('Strength', `<input type="range" min="10" max="100" step="5" data-prop="opacity" data-num-prop="1" data-pct="1" value="${Math.round((b.props.opacity === undefined ? 1 : b.props.opacity) * 100)}">`)
-        + field('Surface is (mm across)', `<input type="number" min="0" step="1" data-prop="surfaceWidthMm" value="${b.props.surfaceWidthMm || 0}">`)
-        + `<button class="ghost" id="resetquad">Put the corners back</button>`;
+      return (im ? `<p class="hint imeta">${esc(im.name || T('cvAPhotograph'))} · ${im.w} \u00d7 ${im.h}</p>`
+        : `<p class="hint">${esc(T('cvDropPhoto'))}</p>`)
+        + `<div class="ord"><button id="pick">${esc(T(im ? 'cvReplacePhoto' : 'cvChoosePhoto'))}</button>`
+        + (im ? `<button id="clearimg">${esc(T('cvRemove'))}</button>` : '') + `</div>`
+        + field(T('cvPutOnIt'), sel('art', [['lockup', 'cvArtLockup'], ['mark', 'cvArtMarkOpt'], ['pattern', 'cvArtPatternOpt']], b.props.art))
+        + (b.props.art === 'lockup' ? field(T('cvLockup'), sel('lockup', BUNDLE.lockups, b.props.lockup)) : '')
+        + field(T('cvColourway'), sel('colourway', COLOURS(), b.props.colourway))
+        + field(T('cvBlend'), sel('blend', [['multiply', 'cvBlendMultiply'], ['screen', 'cvBlendScreen'], ['normal', 'cvBlendNormal']], b.props.blend))
+        + field(T('cvStrength'), `<input type="range" min="10" max="100" step="5" data-prop="opacity" data-num-prop="1" data-pct="1" value="${Math.round((b.props.opacity === undefined ? 1 : b.props.opacity) * 100)}">`)
+        + field(T('cvSurfaceMm'), `<input type="number" min="0" step="1" data-prop="surfaceWidthMm" value="${b.props.surfaceWidthMm || 0}">`)
+        + `<button class="ghost" id="resetquad">${esc(T('cvResetQuad'))}</button>`;
     },
-    mark: (b) => field('Colourway', sel('colourway', COLOURS(), b.props.colourway)) + field('On', sel('on', GROUNDS(), b.props.on)),
-    lockup: (b) => field('Lockup', sel('lockup', BUNDLE.lockups, b.props.lockup))
-      + field('Colourway', sel('colourway', COLOURS(), b.props.colourway)) + field('On', sel('on', GROUNDS(), b.props.on)),
-    construction: (b) => field('Ink', sel('colourway', COLOURS(), b.props.colourway || 'primary'))
-      + field('On', sel('on', COLOURS(), b.props.on || 'ground')) + field('Lines', sel('line', COLOURS(), b.props.line || 'neutral')),
-    minimumSize: (b) => field('Ink', sel('colourway', COLOURS(), b.props.colourway || 'primary')),
-    contrast: (b) => field('Rows', `<input type="number" data-prop="limit" value="${b.props.limit || 6}" min="1" max="${BUNDLE.contrast.length}">`),
-    pattern: (b) => field('Density', sel('density', Object.keys((BUNDLE.system.pattern || {}).densities || { medium: 1 }), b.props.density))
-      + field('Ink', sel('colourway', COLOURS(), b.props.colourway)) + field('On', sel('on', COLOURS(), b.props.on))
-      + field('State the rule', chk('caption', b.props.caption)),
-    iconGrid: (b) => field('Ink', sel('colourway', COLOURS(), b.props.colourway))
-      + field('On', sel('on', COLOURS(), b.props.on)) + field('Lines', sel('line', COLOURS(), b.props.line))
-      + field('State the rule', chk('caption', b.props.caption !== false)),
-    motion: (b) => field('Ink', sel('colourway', COLOURS(), b.props.colourway)) + field('On', sel('on', COLOURS(), b.props.on))
-      + field('State the rule', chk('caption', b.props.caption !== false)),
-    photography: (b) => field('On', sel('on', COLOURS(), b.props.on))
-      + field('State the rule', chk('caption', b.props.caption !== false)),
+    mark: (b) => field(T('cvColourway'), sel('colourway', COLOURS(), b.props.colourway)) + field(T('cvOn'), sel('on', GROUNDS(), b.props.on)),
+    lockup: (b) => field(T('cvLockup'), sel('lockup', BUNDLE.lockups, b.props.lockup))
+      + field(T('cvColourway'), sel('colourway', COLOURS(), b.props.colourway)) + field(T('cvOn'), sel('on', GROUNDS(), b.props.on)),
+    construction: (b) => field(T('cvInk'), sel('colourway', COLOURS(), b.props.colourway || 'primary'))
+      + field(T('cvOn'), sel('on', COLOURS(), b.props.on || 'ground')) + field(T('cvLines'), sel('line', COLOURS(), b.props.line || 'neutral')),
+    minimumSize: (b) => field(T('cvInk'), sel('colourway', COLOURS(), b.props.colourway || 'primary')),
+    contrast: (b) => field(T('cvRows'), `<input type="number" data-prop="limit" value="${b.props.limit || 6}" min="1" max="${BUNDLE.contrast.length}">`),
+    pattern: (b) => field(T('cvDensity'), sel('density', Object.keys((BUNDLE.system.pattern || {}).densities || { medium: 1 }), b.props.density))
+      + field(T('cvInk'), sel('colourway', COLOURS(), b.props.colourway)) + field(T('cvOn'), sel('on', COLOURS(), b.props.on))
+      + field(T('cvStateRule'), chk('caption', b.props.caption)),
+    iconGrid: (b) => field(T('cvInk'), sel('colourway', COLOURS(), b.props.colourway))
+      + field(T('cvOn'), sel('on', COLOURS(), b.props.on)) + field(T('cvLines'), sel('line', COLOURS(), b.props.line))
+      + field(T('cvStateRule'), chk('caption', b.props.caption !== false)),
+    motion: (b) => field(T('cvInk'), sel('colourway', COLOURS(), b.props.colourway)) + field(T('cvOn'), sel('on', COLOURS(), b.props.on))
+      + field(T('cvStateRule'), chk('caption', b.props.caption !== false)),
+    photography: (b) => field(T('cvOn'), sel('on', COLOURS(), b.props.on))
+      + field(T('cvStateRule'), chk('caption', b.props.caption !== false)),
   };
   PROPS.clearSpace = PROPS.construction;
 
@@ -560,29 +570,26 @@
     const box = $('#panel');
     if (selection.length !== 1) {
       box.innerHTML = selection.length
-        ? `<p class="hint">${selection.length} blocks selected. Move them together, or press Delete.</p>`
-        : `<p class="hint">Nothing selected. Click a block, or add one from the left.</p>`;
+        ? `<p class="hint">${esc(T('cvManySelected', { n: selection.length }))}</p>`
+        : `<p class="hint">${esc(T('cvNothingSelected'))}</p>`;
       return;
     }
     const b = blockById(selection[0]); if (!b) { box.innerHTML = ''; return; }
     const kind = M.kindOf(b.type);
-    const LABEL = { derived: 'Drawn by the system', rule: 'Set once by you', plain: 'Yours' };
-    const NOTE = {
-      derived: 'This block reads the project and draws itself. Change the master and it redraws. You set where it sits and what it is painted in, and nothing else.',
-      rule: 'One decision, made once in the project, generating every instance after it. You choose which instance to show. To change the rule itself, edit the project rather than this block.',
-      plain: '',
-    };
+    // the same three words the manual sets on the same three kinds of block
+    const LABEL = { derived: T('badgeSystem'), rule: T('badgeOnce'), plain: T('badgeYours') };
+    const NOTE = { derived: T('cvNoteDerived'), rule: T('cvNoteRule'), plain: '' };
     const ov = overlayFor(b.id), tw = bleedFor(b.id);
     box.innerHTML =
       `<div class="ph"><h3>${esc(nameOf(b.type))}</h3><span class="kind ${kind[0]}">${LABEL[kind]}</span></div>`
       + (ov ? `<p class="hint bad">${esc(ov.verdict.finding.what)} ${esc(ov.verdict.finding.how)}</p>` : '')
       + (tw ? `<p class="hint bad">${esc(tw.what)} ${esc(tw.how)}</p>` : '')
-      + (NOTE[kind] ? `<p class="hint">${NOTE[kind]}</p>` : '')
+      + (NOTE[kind] ? `<p class="hint">${esc(NOTE[kind])}</p>` : '')
       + `<div class="grid4">${num('x', b.x)}${num('y', b.y)}${num('w', b.w)}${num('h', b.h)}</div>`
       + `<div class="labels" aria-hidden="true"><span>X</span><span>Y</span><span>W</span><span>H</span></div>`
       + ((PROPS[b.type] && PROPS[b.type](b)) || '')
-      + `<div class="ord"><button data-ord="back">Back</button><button data-ord="-1">−</button><button data-ord="1">+</button><button data-ord="front">Front</button></div>`
-      + `<button class="danger" id="del">Delete block</button>`;
+      + `<div class="ord"><button data-ord="back">${esc(T('cvBack'))}</button><button data-ord="-1">−</button><button data-ord="1">+</button><button data-ord="front">${esc(T('cvFront'))}</button></div>`
+      + `<button class="danger" id="del">${esc(T('cvDeleteBlock'))}</button>`;
 
     box.querySelectorAll('[data-num]').forEach((i) => {
       i.onchange = () => change((d) => {
@@ -830,9 +837,9 @@
 
   // ------------------------------------------------------------- chrome
   const INSERT = [
-    ['Plain', ['text', 'rule', 'fill', 'slot', 'surface']],
-    ['Drawn by the system', ['mark', 'lockup', 'construction', 'clearSpace', 'minimumSize', 'palette', 'contrast', 'typeSpecimen', 'assetIndex']],
-    ['Set once by you', ['pattern', 'iconGrid', 'motion', 'photography']],
+    [T('cvPlain'), ['text', 'rule', 'fill', 'slot', 'surface']],
+    [T('badgeSystem'), ['mark', 'lockup', 'construction', 'clearSpace', 'minimumSize', 'palette', 'contrast', 'typeSpecimen', 'assetIndex']],
+    [T('badgeOnce'), ['pattern', 'iconGrid', 'motion', 'photography']],
   ];
   function drawInsert() {
     const box = $('#insert'); box.innerHTML = '';
@@ -852,7 +859,7 @@
   $('#redo').onclick = () => { H.redo(); persist(); draw(); };
   $('#addpage').onclick = () => change((d) => { pageId = M.ops.addPage(d); });
   $('#delpage').onclick = () => {
-    if (D().pages.length < 2) return alert('A document needs at least one page.');
+    if (D().pages.length < 2) return alert(T('cvNeedPage'));
     const gone = pageId;
     change((d) => { M.ops.removePage(d, gone); });
     pageId = D().pages[0].id; selection = []; draw();
@@ -873,7 +880,7 @@
   };
   $('#publish').onclick = () => {
     const html = window.HandoverPublish.publish(D(),
-      Object.assign({}, BUNDLE, { images: IM.forDoc(D(), images.all()) }), { title: 'Guidelines' });
+      Object.assign({}, BUNDLE, { images: IM.forDoc(D(), images.all()) }), { title: T('cvPublishTitle') });
     download(`${BUNDLE.brand.toLowerCase()}-guidelines.html`, html, 'text/html');
   };
   // Dropping a file on a slot is the gesture people try first, so it is the one
@@ -899,7 +906,7 @@
     if (!files.length) return;
     e.preventDefault();
     const id = slotUnder(e); mark(null);
-    if (!id) return note('Drop an image on an image slot or a mockup. Add one from the left if there is none on this page.', 'warn');
+    if (!id) return note(T('cvDropNowhere'), 'warn');
     placeImage(files[0], id);
   });
   $('#imgfile').onchange = (e) => {
@@ -921,14 +928,14 @@
         images.reset(withImages); images.prune(next);
         H.reset(next); pageId = D().pages[0].id; selection = [];
         persist(); persistImages(); draw(); fit();
-      } catch (err) { alert('That document could not be opened. ' + err.message); }
+      } catch (err) { alert(T('cvOpenFailed', { message: err.message })); }
     };
     r.readAsText(f);
     e.target.value = '';
   };
 
   $('#reset').onclick = () => {
-    if (!confirm('Throw away your edits and start from the document this project generated?')) return;
+    if (!confirm(T('cvResetAsk'))) return;
     H.reset(window.HANDOVER_DOC); pageId = D().pages[0].id; selection = []; persist(); draw();
   };
   $('#grid').onchange = (e) => change((d) => { d.grid = Number(e.target.value); });
@@ -947,7 +954,7 @@
     const d = D();
     $('#sheet-size').innerHTML = sizeOptions((d.page || {}).size);
     const p = page();
-    $('#page-size').innerHTML = sizeOptions(p.page ? p.page.size : '', [['', 'Same as the document']]);
+    $('#page-size').innerHTML = sizeOptions(p.page ? p.page.size : '', [['', T('cvSameAsDoc')]]);
     $('#bleed').value = String(M.printSpec(d).bleed || 0);
   }
 
@@ -996,7 +1003,7 @@
   }
 
   function askScale(what) {
-    return confirm(`${what}\n\nOK scales what is on it to the new size, keeping anything that was against an edge against it.\nCancel leaves every block exactly where it is.`)
+    return confirm(T('cvScaleAsk', { what }))
       ? 'scale' : 'keep';
   }
 
@@ -1006,20 +1013,20 @@
     draw(); fit();
     const n = bleedFindings.length;
     note(mm
-      ? `${mm} mm bleed. Anything against an edge is now painted out past the trim for you, and the marks come out when you print.`
-        + (n ? ` ${n} thing${n === 1 ? '' : 's'} to look at on this page.` : '')
-      : 'No bleed. The page prints at trim.', n ? 'warn' : '');
+      ? T('cvBleedOn', { mm })
+        + (n ? ' ' + T(n === 1 ? 'cvOneToLook' : 'cvManyToLook', { n }) : '')
+      : T('cvBleedOff'), n ? 'warn' : '');
   };
 
   $('#sheet-size').onchange = (e) => {
     const key = e.target.value, next = M.sheet(key);
-    const mode = askScale(`Set every page in this document to ${next.name}?`);
+    const mode = askScale(T('cvSetAllAsk', { name: next.name }));
     change((d) => M.ops.setPageSize(d, null, key, null, mode));
     selection = []; draw(); fit(); drawSizes();
     const f = mode === 'scale' ? fitText() : { grown: 0, stuck: 0 };
-    note(`Every page is now ${next.name}. Undo puts it back.`
-      + (f.grown ? ` ${f.grown} text block${f.grown === 1 ? '' : 's'} grew to fit, because type comes from the scale and does not shrink with the page.` : '')
-      + (f.stuck ? ` ${f.stuck} still ${f.stuck === 1 ? 'runs' : 'run'} past the bottom of the page.` : ''), f.stuck ? 'warn' : '');
+    note(T('cvSetAllDone', { name: next.name })
+      + (f.grown ? ' ' + T(f.grown === 1 ? 'cvOneGrew' : 'cvManyGrew', { n: f.grown }) : '')
+      + (f.stuck ? ' ' + T(f.stuck === 1 ? 'cvOneStuck' : 'cvManyStuck', { n: f.stuck }) : ''), f.stuck ? 'warn' : '');
   };
   $('#page-size').onchange = (e) => {
     const key = e.target.value;
@@ -1027,7 +1034,7 @@
     let mode;
     if (!key) {                       // back to whatever the document says
       const back = M.pageSize(D(), null);
-      mode = askScale(`Put this page back to the document size, ${back.name}?`);
+      mode = askScale(T('cvBackToDocAsk', { name: back.name }));
       change((d) => {
         const pg = M.findPage(d, target);
         const from = M.pageSize(d, pg);
@@ -1036,12 +1043,12 @@
       });
     } else {
       const next = M.sheet(key);
-      mode = askScale(`Set this page to ${next.name}?`);
+      mode = askScale(T('cvSetPageAsk', { name: next.name }));
       change((d) => M.ops.setPageSize(d, target, key, null, mode));
     }
     selection = []; draw(); fit(); drawSizes();
     const f = mode === 'scale' ? fitText() : { grown: 0, stuck: 0 };
-    if (f.stuck) note(`${f.stuck} text block${f.stuck === 1 ? '' : 's'} ${f.stuck === 1 ? 'runs' : 'run'} past the bottom of this page. Type comes from the brand's scale, so it does not shrink with the page.`, 'warn');
+    if (f.stuck) note(T(f.stuck === 1 ? 'cvOneStuckPage' : 'cvManyStuckPage', { n: f.stuck }), 'warn');
   };
 
   window.addEventListener('resize', fit);

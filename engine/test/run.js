@@ -2934,12 +2934,15 @@ test('a document says what language it is in and which way it reads', () => {
     const tag = (/<html[^>]*>/.exec(html) || [])[0];
     assert.ok(/lang="he"/.test(tag) && /dir="rtl"/.test(tag), `a document says ${tag}`);
   }
+  // and the canvas too, since the thirty-seventh round moved its words in
   const cnv = (/<html[^>]*>/.exec(emit.editorHtml(MY, myM, [])) || [])[0];
-  assert.ok(/lang="en"/.test(cnv) && /dir="ltr"/.test(cnv), `the canvas says ${cnv}`);
-  // and the brand's own name is marked as its own wherever the document is not
-  // in it, which is what makes both claims true
-  assert.ok(/lang="he"[^>]*dir="rtl"|dir="rtl"[^>]*lang="he"/.test(emit.editorHtml(MY, myM, [])),
-    "the brand's own words are not marked as Hebrew on the canvas");
+  assert.ok(/lang="he"/.test(cnv) && /dir="rtl"/.test(cnv), `the canvas says ${cnv}`);
+  // an identity whose language the engine cannot write still gets English, and
+  // has its own name marked as its own inside it
+  const YB = projectLoader.load(path.join(__dirname, '..', 'projects', 'yamabiko', 'project.json'));
+  const ycnv = emit.editorHtml(YB, measure(YB), []);
+  assert.ok(/<html[^>]*lang="en"/.test(ycnv), 'a canvas the engine cannot write says otherwise');
+  assert.ok(/lang="ja"/.test(ycnv), "the brand's own words are not marked as Japanese");
   // an identity in a language the engine writes gets a document in it — and
   // that is asked per document, because the two are not written from the same
   // words. Both come out of the dictionary end to end now, so français writes
@@ -6445,17 +6448,25 @@ test('the checker reads what a browser lays out, not the page\'s own source', ()
 });
 
 test('the canvas says which language it is written in, like the pages beside it', () => {
-  // Both documents are written in français for Verdon and the canvas is not:
-  // its chrome is literals in editor/emit.js and editor/app.js. It said fr
-  // anyway, over Undo, Pages and Add a block — and the script check cannot
-  // catch that, because French and English are the same alphabet.
+  // The thirtieth round gave the canvas the manual's language over English
+  // chrome. The thirty-fourth made it say English instead, which was true and
+  // was the honest answer while the words were literals. The thirty-seventh
+  // moved the words, so it is français now and says so — and the brand's own
+  // name needs no marking, because the document is already in its language.
   const EMIT = require('../src/editor/emit');
   const vm = measure(verdon);
   const fr = EMIT.editorHtml(verdon, vm, []);
-  assert.ok(/<html[^>]*lang="en"/.test(fr), 'the canvas claims a language its chrome is not in');
-  assert.ok(/<h1 class="brand"><span lang="fr"/.test(fr), "the brand's own name is not marked as its own");
-  assert.strictEqual(STR.resolve({ language: 'fr' }, 'canvas').lang, 'en');
+  assert.ok(/<html[^>]*lang="fr"/.test(fr), 'the canvas is not written in the language it can be');
+  assert.ok(fr.includes('Ajouter un bloc') && fr.includes('Propriétés'),
+    'the canvas chrome is still English under a French declaration');
+  assert.strictEqual(STR.resolve({ language: 'fr' }, 'canvas').lang, 'fr');
   assert.strictEqual(STR.resolve({ language: 'en' }, 'canvas').lang, 'en');
+  // a language the engine has no dictionary for still gets English, and marks
+  // the brand's own name inside it
+  const YB = projectLoader.load(path.join(__dirname, '..', 'projects', 'yamabiko', 'project.json'));
+  const ja = EMIT.editorHtml(YB, measure(YB), []);
+  assert.ok(/<html[^>]*lang="en"/.test(ja), 'a canvas the engine cannot write says otherwise');
+  assert.ok(/<h1 class="brand"><span lang="ja"/.test(ja), "the brand's own name is not marked as its own");
   // and an English identity's canvas has nothing to mark
   const en = EMIT.editorHtml(project, measure(project), []);
   assert.ok(/<html[^>]*lang="en"/.test(en));
@@ -6544,9 +6555,10 @@ test('a document is in the language it is written in, not the one it is about', 
   assert.strictEqual(he.lang, 'he');
   assert.strictEqual(he.dir, 'rtl', 'a Hebrew document was laid out left to right');
   assert.strictEqual(he.brandLang, 'he');
-  // neither writes the canvas, whose words are still literals in editor/
-  assert.strictEqual(STR.resolve({ language: 'he' }, 'canvas').lang, 'en');
-  assert.strictEqual(STR.resolve({ language: 'fr' }, 'canvas').lang, 'en');
+  // and the canvas, since its words moved into this table too
+  assert.strictEqual(STR.resolve({ language: 'he' }, 'canvas').lang, 'he');
+  assert.strictEqual(STR.resolve({ language: 'fr' }, 'canvas').lang, 'fr');
+  assert.strictEqual(STR.resolve({ language: 'ja' }, 'canvas').lang, 'en');
   // and a language the engine has no dictionary for gets English, and says so
   assert.strictEqual(ja.lang, 'en', 'a Japanese brand got a document claiming to be in Japanese');
   assert.strictEqual(ja.dir, 'ltr', 'an English document was laid out the other way');
@@ -6576,6 +6588,79 @@ test('a deck that reads the other way is driven the other way', () => {
   // of one
   assert.ok(he.includes('"\u2068"+(i+1)'), 'the Hebrew slide counter is not isolated');
   assert.ok(en.includes('""+(i+1)'), 'the English deck carries isolate characters');
+});
+
+test('every word the canvas asks for travels with it', () => {
+  // The canvas runs half in a browser, so its words are handed over in the
+  // bundle rather than read from src/strings.js at draw time. A key with no
+  // word behind it comes back as the key — `cvAddBlock` on a button — which is
+  // loud, and this is what stops it ever getting that far. Read the three files
+  // that set words, take every key they name, and check the bundle carries it.
+  const files = ['app', 'render', 'emit'].map((f) =>
+    fs.readFileSync(path.join(__dirname, '..', 'src', 'editor', `${f}.js`), 'utf8')).join('\n');
+  const asked = new Set();
+  for (const m of files.matchAll(/(?:T|t)\((?:bu|bundle),\s*'([a-zA-Z_]+)'|\bT\('([a-zA-Z_]+)'|say\('([a-zA-Z_]+)'/g)) {
+    asked.add(m[1] || m[2] || m[3]);
+  }
+  for (const m of files.matchAll(/'(cv[A-Z][a-zA-Z_]*)'/g)) asked.add(m[1]);
+  assert.ok(asked.size > 150, `only ${asked.size} keys found; the scan has stopped matching`);
+  for (const lang of ['en', 'fr', 'he']) {
+    const w = STR.resolve({ language: lang }, 'canvas').words();
+    const short = [...asked].filter((k) => w[k] === undefined).sort();
+    assert.deepStrictEqual(short, [], `${lang}: the canvas would print these as keys`);
+  }
+});
+
+test('the two lookups agree, because there are two of them', () => {
+  // src/strings.js does the lookup on the engine's side and
+  // HandoverRender.t does it in the browser, against the words the engine put
+  // in the bundle. Two implementations of one thing, which this repository
+  // already knows how to keep honest: hold them to each other.
+  const R = require('../src/editor/render');
+  for (const lang of ['en', 'fr', 'he']) {
+    const L = STR.resolve({ language: lang }, 'canvas');
+    const bundle = { words: L.words() };
+    for (const key of Object.keys(bundle.words)) {
+      if (key === 'lang' || key === 'dir') continue;
+      assert.strictEqual(R.t(bundle, key), L.t(key), `${lang}: ${key}`);
+    }
+    // and with a value in it, where the engine isolated the slot and the
+    // browser drops the value into the run the isolate already marks
+    const vars = { px: '60 px', label: 'x' };
+    assert.strictEqual(R.t(bundle, 'cvArtAtSize', vars), L.t('cvArtAtSize', vars), `${lang}: substituted`);
+    // a key with nothing behind it comes back as the key
+    assert.strictEqual(R.t(bundle, 'cvNotAKeyAtAll'), 'cvNotAKeyAtAll');
+  }
+});
+
+test('the canvas is written in the language it says it is', () => {
+  // Three rounds carried a sentence saying the canvas was an application whose
+  // words were literals, so `writes` could name it and mean almost nothing.
+  // Measured the way the two documents are measured: render both, and count how
+  // much of the wanted-language canvas is word for word the English one.
+  //
+  // Measured on the words rather than on the page, because the page is where a
+  // canvas differs from a document: seventy words of it are set in the markup
+  // and the rest is built in the browser out of what the bundle carries. So the
+  // bundle is what has to be in the language, and it is what this counts.
+  const EMIT = require('../src/editor/emit');
+  const said = (lang) => Object.entries(STR.resolve({ language: lang }, 'canvas').words())
+    .filter(([k]) => k !== 'lang' && k !== 'dir').map(([, v]) => v).join(' \n ');
+  const en = said('en');
+  const YB = projectLoader.load(path.join(__dirname, '..', 'projects', 'yamabiko', 'project.json'));
+  for (const [lang, proj, meas] of [['fr', verdon, measure(verdon)], ['he', MY, myM]]) {
+    const got = EMIT.editorHtml(proj, meas, []);
+    assert.ok(new RegExp(`<html[^>]*lang="${lang}"`).test(got), `the canvas does not say ${lang}`);
+    const r = STR.residue(said(lang), en, proj);
+    assert.ok(r.words > 700, `only ${r.words} words in the ${lang} canvas's own vocabulary`);
+    assert.ok(r.share < 0.3,
+      `${Math.round(r.share * 100)} per cent of the ${lang} canvas is the English one, word for word`);
+  }
+  // and the measurement has teeth: a language the engine cannot write scores
+  // the whole way, because every word of it is the English one
+  const ja = STR.residue(said('ja'), en, YB);
+  assert.ok(ja.share > 0.95, `a canvas that is the English one measured ${Math.round(ja.share * 100)} per cent`);
+  assert.ok(/<html[^>]*lang="en"/.test(EMIT.editorHtml(YB, measure(YB), [])));
 });
 
 test('every string the English set has, the Hebrew set has too', () => {
@@ -6707,9 +6792,12 @@ test('a Hebrew identity gets a Hebrew manual and a Hebrew deck', () => {
     assert.ok(seen.ok && seen.top === 'hebrew',
       `${f} says he and is ${Math.round((1 - seen.ownShare) * 100)} per cent not`);
   }
-  // the canvas is not a document this dictionary writes, and does not pretend to
+  // and the canvas, which is an application rather than a document and is
+  // asked the same question anyway
   const ed = fs.readFileSync(path.join(maayOut, 'editor.html'), 'utf8');
-  assert.ok(/<html[^>]*lang="en"/.test(ed), 'the canvas claims a language its chrome is not in');
+  assert.ok(/<html[^>]*lang="he"[^>]*dir="rtl"/.test(ed), 'the canvas is not written in Hebrew');
+  assert.ok(ed.includes('הוסיפו בלוק') && ed.includes('מאפיינים'),
+    'the canvas chrome is still English under a Hebrew declaration');
   // brand.json is English whatever the brand is, and the page it is printed on
   // says so — without that the Hebrew manual measured 55 per cent latin
   const g = fs.readFileSync(path.join(maayOut, 'guidelines.html'), 'utf8');

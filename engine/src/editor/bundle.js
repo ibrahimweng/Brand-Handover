@@ -118,6 +118,9 @@ function bundle(project, measured, files = []) {
     // were Hebrew and whose first document was not, and `published.html` came
     // out 97 per cent Latin under lang="he".
     language: project.language || 'en', direction: project.direction || null,
+    // and the words themselves, because the half of the canvas that runs in a
+    // browser cannot read a dictionary that lives in the engine
+    words: require('../strings').resolve(project, 'canvas').words(),
   };
 }
 
@@ -129,7 +132,7 @@ function starterDoc(bu) {
   // ids start again for each document, so building the same project twice in
   // one run gives the same document rather than a second range of numbers
   M.resetIds();
-  const doc = M.emptyDoc(bu.brand);
+  const doc = M.emptyDoc(bu.brand, L.t('sldCover'));
   const P = doc.page;
   const cover = doc.pages[0];
   const add = (type, at) => { const b = M.makeBlock(type, at); cover.blocks.push(b); return b; };

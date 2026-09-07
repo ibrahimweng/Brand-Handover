@@ -179,10 +179,13 @@ function makeBlock(type, at = {}, on) {
 
 const makePage = (name = 'Page') => ({ id: id('p'), name, blocks: [] });
 
-const emptyDoc = (brand = 'Brand') => ({
+// The one page every document starts with. Its name is a word like any other,
+// and it was the last literal left after the canvas's words moved into the
+// dictionary: a Hebrew canvas listed הסמל, צבע and המערכת under "Cover".
+const emptyDoc = (brand = 'Brand', cover = 'Cover') => ({
   version: 1, brand,
   page: { size: 'slide-16x9', w: PAGE.w, h: PAGE.h }, grid: GRID,
-  pages: [makePage('Cover')],
+  pages: [makePage(cover)],
 });
 
 // ---------------------------------------------------------------- operations
