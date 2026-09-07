@@ -94,7 +94,25 @@ function stage(opts) {
   if (opts.mark) fs.writeFileSync(path.join(dir, 'mark.svg'), opts.mark);
   if (opts.wordmark) fs.writeFileSync(path.join(dir, 'wordmark.svg'), opts.wordmark);
   const file = path.join(dir, 'project.json');
-  fs.writeFileSync(file, JSON.stringify(projectJson(opts), null, 2));
+  // Where the six answers came through, they decide the project: the layout,
+  // the formats, the sizes, the stock, what it is made as and what must never
+  // be done to it are all worked out in one place rather than in two that would
+  // disagree. See src/intake.js.
+  let json;
+  if (opts.answers) {
+    const intake = require('../intake');
+    const seen = intake.read({ mark: opts.mark, wordmark: opts.wordmark });
+    json = intake.toProject(Object.assign({}, opts.answers, {
+      brand: opts.brand,
+      colours: (opts.colours && opts.colours.length ? opts.colours : opts.answers.colours),
+    }), seen);
+    if (opts.latinName) json.latinName = opts.latinName;
+    if (opts.language) json.language = opts.language;
+    if (opts.type) json.tokens.type = opts.type;
+  } else {
+    json = projectJson(opts);
+  }
+  fs.writeFileSync(file, JSON.stringify(json, null, 2));
   return { dir, file };
 }
 
@@ -232,6 +250,11 @@ async function make(input, outDir) {
     slots: input.slots && input.slots.length ? input.slots : undefined,
     type: input.type,
     content: input.content,
+    // the six answers, where the intake screen is what asked. Everything they
+    // decide — the layout, the formats, the sizes, the stock, what it is made
+    // as, what must never be done to it — is worked out in src/intake.js, so
+    // this hands them over rather than having a second opinion about them.
+    answers: input.answers || null,
   };
   const { dir, file } = stage(opts);
   try {
@@ -260,4 +283,48 @@ async function make(input, outDir) {
   }
 }
 
-module.exports = { inspect, make, paletteFrom, projectJson, MAX_SVG };
+// ----------------------------------------------------------------- the intake
+//
+// What the engine can tell from the artwork, and the few things it cannot. The
+// screen that asks the questions gets both in one answer, so it never has to
+// guess what the engine already knows. See src/intake.js.
+function ask(input) {
+  const mark = input.mark ? asSvg(input.mark, 'the mark') : null;
+  const wordmark = input.wordmark ? asSvg(input.wordmark, 'the wordmark') : null;
+  if (!mark && !wordmark) {
+    throw bad('No artwork was given.',
+      'Drop an SVG on the mark, the wordmark, or both. Either one on its own is a whole identity.');
+  }
+  const intake = require('../intake');
+  const seen = intake.read({ mark, wordmark });
+  if (!seen.ok) throw bad('That artwork could not be read.', seen.why);
+  return { ok: true, seen, questions: intake.questions(seen) };
+}
+
+// The four layout systems, each drawn with this identity, so the choice is made
+// by looking rather than by reading four descriptions. See documents/preview.js.
+function preview(input) {
+  const mark = input.mark ? asSvg(input.mark, 'the mark') : null;
+  const wordmark = input.wordmark ? asSvg(input.wordmark, 'the wordmark') : null;
+  const art = mark || wordmark;
+  if (!art) throw bad('No artwork was given.', 'Drop an SVG first.');
+  const svgu = require('../svg');
+  const colours = (input.colours && input.colours.length ? input.colours
+    : require('../intake').read({ mark, wordmark }).colours) || [];
+  const ink = (colours.find((c) => c.role === 'primary') || colours[0] || {}).hex || '#111111';
+  // painted in the identity's own ink, because a preview in black is a preview
+  // of something else
+  const doc = svgu.parse(art);
+  const slots = svgu.slotsUsed(doc);
+  svgu.applyColourway(doc, Object.fromEntries((slots.length ? slots : []).map((k) => [k, ink])));
+  const painted = svgu.serialize(doc).replace(/<\?xml[^>]*\?>/g, '')
+    .replace(/\s(?:width|height)="[^"]*"/g, '')
+    + '';
+  return { ok: true, previews: require('../documents/preview').previews({
+    brand: input.brand || 'Untitled', positioning: input.positioning || '',
+    markSvg: painted.replace(/<svg /, '<svg style="width:100%;max-width:210px;height:auto;display:block" '),
+    colours,
+  }) };
+}
+
+module.exports = { inspect, ask, preview, make, paletteFrom, projectJson, MAX_SVG };

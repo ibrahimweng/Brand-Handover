@@ -15,6 +15,13 @@ const { build } = require('../src/build');
 let passed = 0, failed = 0;
 const queue = [];
 function test(name, fn) { queue.push({ name, fn }); }
+
+// The documents carry their typefaces inline so they work with no network, so
+// a document is now a few hundred kilobytes of base64 with some HTML in it.
+// Any test that looks for a short string in a document has to look at the
+// document rather than at the font data: "NaN" and "undefined" both occur by
+// chance in a 300 KB base64 blob, and did.
+const prose = (html) => String(html).replace(/url\(data:[^)]*\)/g, 'url()');
 function before(fn) { queue.push({ setup: fn }); }
 async function drain() {
   for (const item of queue) {
@@ -133,6 +140,7 @@ test('the file count is exactly what the rules ask for', () => {
     + patternTiles()                                        // the pattern, at every density, in every colourway
     + 5                                                     // brand.json, README.txt, LICENCE.txt, usage.json
                                                             // and ACCESSIBILITY.txt
+    + require('../src/typefaces').embed(project.tokens.type, null).used.length + 1  // 09-type and its OFL
     + (r.documents === false ? 0 : 5)                       // manual, deck, editor, document.json, published.html
     + (r.zip === false ? 0 : 1);                            // the package itself
   assert.strictEqual(result.written.length, expected, `expected ${expected} files, got ${result.written.length}`);
@@ -2684,7 +2692,7 @@ test('a palette written in any notation reaches the documents as hex', () => {
   const pairs = require('../src/contrast').matrix(PG.tokens.colour);
   assert.ok(pairs.length > 0 && pairs.every((p) => typeof p.ratio === 'number'),
     `${pairs.filter((p) => p.ratio == null).length} pairs could not be measured`);
-  assert.ok(!/NaN/.test(docs.guidelines(ctx)), 'NaN reached the manual');
+  assert.ok(!/NaN/.test(prose(docs.guidelines(ctx))), 'NaN reached the manual');
   // and a colour the reader genuinely cannot parse is refused at load, by name,
   // rather than travelling silently into every measurement downstream
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-colour-'));
@@ -3067,7 +3075,7 @@ test('a project with no content section still makes both documents', () => {
   const manual = docs.guidelines(ctx);
   assert.ok(manual.length > 4000 && !/hb-missing/.test(manual), 'the manual came out short or holed');
   assert.ok(deck(ctx).length > 4000);
-  assert.ok(/undefined|NaN|\[object/.test(manual) === false, 'something leaked into the manual');
+  assert.ok(/undefined|NaN|\[object/.test(prose(manual)) === false, 'something leaked into the manual');
 });
 
 console.log('\na tenth identity');
@@ -3773,7 +3781,7 @@ test('the read me lists the folders the package has, not four fixed ones', async
   // 07-pattern is in every package now: a logotype has a pattern like anything
   // else, and before this it had one only if somebody hand-edited the master
   assert.deepStrictEqual(listed, ['04-wordmark']);
-  assert.deepStrictEqual(onDisk.slice().sort(), ['04-wordmark', '07-pattern']);
+  assert.deepStrictEqual(onDisk.slice().sort(), ['04-wordmark', '07-pattern', '09-type']);
   // and it says what a logotype is, rather than calling it a fallback for a
   // symbol the identity has not got
   assert.ok(/the logotype, which is the whole identity/.test(txt), txt.split('\n').slice(6, 12).join('\n'));
@@ -4680,11 +4688,25 @@ test('a document does not fetch a typeface the identity never chose', async () =
   }
   fs.rmSync(dir, { recursive: true, force: true });
 
-  // a project that does use google fonts still gets its link
+  // and no document fetches anything at all, from anywhere. The faces the
+  // engine holds are vendored and inlined: a manual opened with no network is
+  // still set in the identity's own type, which it was not before.
   const g = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-goog-'));
-  await build(project, g);
-  assert.ok(/fonts\.googleapis\.com/.test(fs.readFileSync(path.join(g, 'guidelines.html'), 'utf8')),
-    'a google face stopped being fetched');
+  const gr = await build(project, g);
+  for (const f of ['guidelines.html', 'deck.html', 'published.html', 'editor.html']) {
+    const html = fs.readFileSync(path.join(g, f), 'utf8');
+    const out = (html.match(/(?:src|href)\s*=\s*["']https?:[^"']*/g) || []);
+    assert.deepStrictEqual(out, [], `${f} reaches outside the package for ${out.join(', ')}`);
+    assert.ok(/@font-face/.test(html), `${f} sets no face at all`);
+    assert.ok(/src:url\(data:font\/woff2/.test(html), `${f} does not carry its own type`);
+  }
+  // and the files are in the package for everything else the client will set
+  const shipped = fs.readdirSync(path.join(g, '09-type'));
+  assert.ok(shipped.filter((f) => /\.woff2$/.test(f)).length >= 2, 'the type was not shipped');
+  assert.ok(shipped.includes('OFL.txt'), 'the type was shipped without its licence');
+  const ofl = fs.readFileSync(path.join(g, '09-type', 'OFL.txt'), 'utf8');
+  assert.ok(/Copyright/.test(ofl) && /Open Font License/.test(ofl), 'the licence names no copyright holder');
+  assert.ok(gr.notes.some((n) => /KB inlined/.test(n)), 'the cost of the type is not stated');
   fs.rmSync(g, { recursive: true, force: true });
 });
 
@@ -6696,6 +6718,92 @@ test('six answers and a drawing make a package', () => {
     for (const w of r.warnings) assert.ok(/CMYK/.test(w), `unexpected warning: ${w.slice(0, 90)}`);
     fs.rmSync(dir, { recursive: true, force: true });
   });
+});
+
+
+// ---------------------------------------------------------------------------
+console.log('\nthe front door, and the type it sets');
+
+// A URL in an xmlns is a name, not a request — nothing is fetched from
+// www.w3.org/2000/svg — so it is not what "reaches outside the product" means.
+const fetched = (html) => (String(html).match(/https?:\/\/[^"'\s)]+/g) || [])
+  .filter((u) => !/^https?:\/\/www\.w3\.org\//.test(u));
+
+test('the page asks for nothing from outside the product', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'client.html'), 'utf8');
+  const out = fetched(html);
+  assert.deepStrictEqual(out, [], `the front door still reaches out for ${out.join(', ')}`);
+  assert.ok(html.indexOf('/*FONTS*/') > -1, 'the page has nowhere to put its own type');
+  // and the server fills it with real faces rather than leaving the marker in
+  const SRV = require('../src/app/server');
+  return new Promise((res, rej) => {
+    const req = { method: 'GET', url: '/' };
+    const chunks = [];
+    const fake = { setHeader() {}, writeHead() {}, end(b) { chunks.push(b); res(String(b)); },
+      write(b) { chunks.push(b); } };
+    try { SRV.handler(req, fake); } catch (e) { rej(e); }
+  }).then((page) => {
+    assert.ok(page.indexOf('/*FONTS*/') < 0, 'the type placeholder was served as-is');
+    assert.ok(/@font-face/.test(page), 'the front door sets no type of its own');
+    assert.ok(/src:url\(data:font\/woff2/.test(page), 'the front door does not carry its own type');
+    assert.deepStrictEqual(fetched(page), []);
+  });
+});
+
+test('the artwork is measured before anything is asked', () => {
+  const got = APP.ask({ mark: markSrc(), wordmark: wordSrc() });
+  assert.strictEqual(got.ok, true);
+  assert.ok(got.seen.colours.length >= 2, 'no palette came back');
+  assert.ok(got.seen.floor.screenPx > 0, 'no floor came back');
+  assert.ok(got.seen.pattern, 'no pattern was worked out');
+  assert.ok(got.questions.length <= 6, `${got.questions.length} questions`);
+  // and the three the engine can answer come back answered
+  const shown = got.questions.filter((q) => q.suggested !== undefined).map((q) => q.key);
+  for (const k of ['style', 'colours', 'never']) assert.ok(shown.indexOf(k) > -1, `${k} was not proposed`);
+  // artwork it cannot read is refused in words rather than throwing a stack
+  let said = null;
+  try { APP.ask({}); } catch (e) { said = e; }
+  assert.ok(said && said.expected, 'no artwork was not refused');
+  assert.ok(said.finding && said.finding.how.length > 30, 'the refusal does not say what to do instead');
+});
+
+test('the four layouts come back drawn with the identity, not described', () => {
+  const got = APP.preview({ mark: markSrc(), brand: 'Front Door',
+    positioning: 'A door at the front.',
+    colours: [{ name: 'ink', hex: '#0A2A33', role: 'primary' }, { name: 'paper', hex: '#F7F6F3', role: 'ground' }] });
+  assert.strictEqual(got.previews.length, DIRS.NAMES.length);
+  for (const p of got.previews) {
+    assert.ok(DIRS.DIRECTIONS[p.key], `${p.key} is not a layout`);
+    assert.ok(/data-dir="/.test(p.html) && p.html.indexOf(`data-dir="${p.key}"`) > -1,
+      `${p.key} is not drawn in its own layout`);
+    assert.ok(p.html.indexOf('Front Door') > -1, `${p.key} does not carry the identity's name`);
+    assert.ok(/<svg/.test(p.html), `${p.key} does not carry the artwork`);
+    // painted in the identity's ink: a preview in black is a preview of
+    // something else
+    assert.ok(p.html.indexOf('#0A2A33') > -1, `${p.key} is not in the identity's colour`);
+    assert.deepStrictEqual(fetched(p.html), [], `${p.key} reaches outside`);
+  }
+  // and the four are actually different pages
+  assert.strictEqual(new Set(got.previews.map((p) => p.html)).size, got.previews.length);
+});
+
+test('the six answers reach the package through the front door', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-front-'));
+  const seen = APP.ask({ mark: markSrc(), wordmark: wordSrc() }).seen;
+  const r = await APP.make({
+    brand: 'Front Door', mark: markSrc(), wordmark: wordSrc(),
+    colours: seen.colours, lockups: ['horizontal', 'stacked', 'mark', 'wordmark'], slots: seen.slots,
+    answers: { brand: 'Front Door', positioning: 'A door at the front.', style: 'technical',
+      places: ['screen', 'signage'], colours: seen.colours, never: ['stretch', 'crowd', 'recolour'] },
+  }, dir);
+  assert.ok(r.ok && r.files > 40, `only ${r.files} files`);
+  const html = fs.readFileSync(path.join(dir, 'guidelines.html'), 'utf8');
+  assert.ok(/data-dir="technical"/.test(html), 'the layout that was chosen is not the one that was built');
+  assert.ok(fs.existsSync(path.join(dir, '13-fabrication')), 'signage did not reach the package');
+  assert.ok(fs.existsSync(path.join(dir, '07-pattern')), 'no pattern');
+  const cells = (html.match(/class="stage tight dont"/g) || []).length;
+  assert.strictEqual(cells, 3, `${cells} misuse cells for 3 rules`);
+  fs.rmSync(dir, { recursive: true, force: true });
 });
 
 

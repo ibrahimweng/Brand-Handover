@@ -957,6 +957,21 @@ people wear, and the formats, sizes, stock and making all follow without anybody
 typing them. Six answers and a drawing make a seventy-three file package, and the
 only thing it complains about is CMYK, which has to come from a printer.
 
+Then the type, which was the last thing in the product reaching outside it. A
+family marked `google: true` became a link to fonts.googleapis.com, and three
+things were wrong with that: a manual opened without a network was set in
+Georgia, the package was not self contained — which is the one promise the whole
+engine is built on — and the build was not reproducible, because the bytes came
+from somebody else's server. Eleven families are vendored now, inlined into every
+document and written into the package with their licences. Which character
+subsets go in is measured from the document's own words: an English manual
+carries four faces, a French one eight.
+
+And the front door. Four screens — drop the artwork, answer what the file cannot
+be asked, choose a layout by looking at four of them drawn with your own logo,
+take the package. Driven end to end in a browser: two SVGs in, seventy-three
+files out, **no request leaving the application**.
+
 Still to do: a run on **your** identity job. Twenty identities the engine had
 not seen is worth a great deal more than twenty passes over one, but none of
 them came out of your exporter — and the normaliser is the part that most needs

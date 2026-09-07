@@ -1,865 +1,487 @@
 <!doctype html>
-<html lang="en"><head>
+<html lang="en">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Handover — your logo, and everything that comes after it</title>
+<title>Handover</title>
 <link rel="icon" href="/favicon.svg">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Literata:wght@400;500&display=swap">
 <style>
+/*FONTS*/
 :root{
-  --ink:#14171a; --dim:#5c666e; --faint:#8d979e; --line:#e4e8eb; --line2:#eff2f4;
-  --bg:#fbfbf9; --card:#fff; --sunk:#f4f5f3; --link:#1a5f8f; --focus:#1a5f8f;
-  --ok:#1c7a4a; --warn:#8a6100; --stop:#9b2c2c;
-  --okbg:#eaf5ef; --warnbg:#fdf5e3; --stopbg:#fbeceb;
-  --r:9px; --pad:22px;
-  --shadow:0 1px 2px rgba(16,24,32,.05),0 6px 20px rgba(16,24,32,.06);
+  --paper:#FBFBFA; --raised:#FFFFFF; --sunk:#F3F3F1; --line:#E6E6E3; --line-2:#D2D2CE;
+  --ink:#111213; --ink-2:#5C6063; --ink-3:#8A8E91; --accent:#1B4D3E; --bad:#B23A2F;
+  --ui:'Archivo','Helvetica Neue',Helvetica,Arial,sans-serif;
+  --serif:'Literata',Georgia,serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --step:cubic-bezier(.2,.7,.3,1);
 }
 @media (prefers-color-scheme:dark){:root{
-  --ink:#e9ebed; --dim:#99a3ab; --faint:#78828a; --line:#2a3137; --line2:#222930;
-  --bg:#0f1214; --card:#171b1f; --sunk:#13171a; --link:#7cc2ee; --focus:#7cc2ee;
-  --ok:#6ecf96; --warn:#e6c17a; --stop:#f09c9c;
-  --okbg:#16281f; --warnbg:#2a2317; --stopbg:#2b1a1a;
-  --shadow:0 1px 2px rgba(0,0,0,.35),0 6px 20px rgba(0,0,0,.28);
+  --paper:#0D0E0F; --raised:#151719; --sunk:#111315; --line:#24272A; --line-2:#33373B;
+  --ink:#F0F1F2; --ink-2:#A0A5A9; --ink-3:#767B7F; --accent:#7FBFA6;
 }}
 *{box-sizing:border-box}
-[hidden]{display:none!important}
 html,body{height:100%}
-body{margin:0;background:var(--bg);color:var(--ink);overflow:hidden;
-  font:400 15px/1.6 Literata,Georgia,serif;-webkit-font-smoothing:antialiased}
-h1,h2,h3,h4,button,label,select,.ui,.lbl{font-family:Archivo,system-ui,-apple-system,"Segoe UI",sans-serif}
-:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:4px}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--ui);
+  font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.025em;text-wrap:balance}
+p{margin:0}
 button{font:inherit;color:inherit}
 
-/* ── frame ───────────────────────────────────────────────── */
-.top{height:52px;display:flex;align-items:center;gap:12px;padding:0 20px;
-  border-bottom:1px solid var(--line);background:var(--card)}
-.top b{font:700 15px/1 Archivo,system-ui,sans-serif;letter-spacing:-.01em}
-.top .sub{font:400 13px/1 Archivo,system-ui,sans-serif;color:var(--faint)}
-.top .sp{flex:1}
-.top a{font:500 13px/1 Archivo,system-ui,sans-serif;color:var(--link);text-decoration:none}
-.top a:hover{text-decoration:underline}
+/* ---------------------------------------------------------------- furniture */
+.top{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:20px;
+  padding:0 clamp(18px,4vw,46px);height:62px;background:color-mix(in srgb,var(--paper) 88%,transparent);
+  backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.logo{display:flex;align-items:center;gap:9px;font-weight:600;letter-spacing:-.03em;font-size:16.5px}
+.logo i{width:15px;height:15px;border:2.5px solid var(--ink);border-radius:50%;
+  border-right-color:transparent;display:block;font-style:normal}
+.steps{display:flex;gap:2px;margin-left:auto;font-family:var(--mono);font-size:11px;letter-spacing:.08em}
+.steps b{font-weight:400;color:var(--ink-3);padding:5px 11px;border-radius:100px;white-space:nowrap}
+.steps b.on{color:var(--ink);background:var(--sunk)}
+.steps b.done{color:var(--ink-2)}
+@media (max-width:700px){.steps b:not(.on){display:none}}
 
-.work{display:grid;grid-template-columns:1fr 380px;height:calc(100% - 52px)}
-.stage{position:relative;display:flex;flex-direction:column;min-width:0;background:var(--bg)}
-.panel{border-left:1px solid var(--line);background:var(--card);overflow-y:auto;overscroll-behavior:contain}
-@media (max-width:900px){
-  body{overflow:auto}
-  .work{grid-template-columns:1fr;height:auto}
-  .stage{min-height:52vh}
-  .panel{border-left:0;border-top:1px solid var(--line)}
-}
+.wrap{max-width:1180px;margin:0 auto;padding:clamp(28px,5vw,68px) clamp(18px,4vw,46px) 120px}
+.panel{display:none;animation:in .38s var(--step) both}
+.panel.on{display:block}
+@keyframes in{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.panel{animation:none}}
 
-/* ── stage ───────────────────────────────────────────────── */
-.sbar{display:flex;align-items:center;gap:4px;padding:10px 16px;min-height:48px;
-  border-bottom:1px solid var(--line);flex-wrap:wrap}
-.tab{background:none;border:0;padding:7px 11px;border-radius:6px;cursor:pointer;
-  font:500 13px/1 Archivo,system-ui,sans-serif;color:var(--dim)}
-.tab:hover:not([disabled]){background:var(--sunk);color:var(--ink)}
-.tab[aria-selected=true]{background:var(--ink);color:var(--bg)}
-.tab[disabled]{opacity:.35;cursor:not-allowed}
-.sbar .sp{flex:1}
-.tog{display:flex;gap:2px;background:var(--sunk);border-radius:7px;padding:3px}
-.tog button{background:none;border:0;padding:6px 10px;border-radius:5px;cursor:pointer;
-  font:500 12px/1 Archivo,system-ui,sans-serif;color:var(--dim)}
-.tog button[aria-pressed=true]{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
-.view{flex:1;overflow:auto;padding:28px;display:none}
-.view.on{display:block}
-.mid{height:100%;display:grid;place-items:center}
+.lede{max-width:34ch;font-size:clamp(30px,4.6vw,46px);line-height:1.08;letter-spacing:-.035em;font-weight:600}
+.sub{margin-top:14px;max-width:56ch;color:var(--ink-2);font-size:17px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--ink-3);margin-bottom:20px}
 
-/* ── drop ────────────────────────────────────────────────── */
-.dropwrap{width:min(560px,100%);text-align:center}
-.dropwrap h2{font:700 26px/1.2 Archivo,system-ui,sans-serif;letter-spacing:-.015em;margin:0 0 8px}
-.dropwrap p{color:var(--dim);margin:0 0 24px}
-.drops{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-@media (max-width:520px){.drops{grid-template-columns:1fr}}
-.drop{position:relative;background:var(--card);border:1.5px dashed var(--line);border-radius:var(--r);
-  padding:20px 16px;cursor:pointer;transition:border-color .12s,background .12s;text-align:center}
-.drop:hover,.drop:focus-within{border-color:var(--link)}
-.drop.over{border-color:var(--link);border-style:solid;background:var(--sunk)}
-.drop.has{border-style:solid;cursor:default}
-.drop input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
-.drop.has input[type=file]{display:none}
-.drop .pv{height:86px;display:grid;place-items:center;margin-bottom:10px}
-.drop .pv img{max-width:100%;max-height:86px}
-.drop .pv .ph{width:34px;height:34px;border-radius:8px;border:1.5px dashed var(--line)}
-.drop h3{margin:0 0 2px;font:600 14px/1.3 Archivo,system-ui,sans-serif}
-.drop p{margin:0;font:400 12px/1.5 Archivo,system-ui,sans-serif;color:var(--dim)}
-.drop .opt{color:var(--faint);font-weight:400}
+/* ------------------------------------------------------------------- drop */
+.drop{margin-top:38px;border:1.5px dashed var(--line-2);border-radius:16px;background:var(--raised);
+  padding:clamp(34px,7vw,76px) 28px;text-align:center;cursor:pointer;
+  transition:border-color .18s,background .18s,padding .25s var(--step)}
+/* once the artwork is in, the thing to look at is what was measured, not the
+   place to put it */
+.drop.small{padding:16px 20px;margin-top:26px}
+.drop.small h3{font-size:15px;font-weight:500;color:var(--ink-2)}
+.drop.small p,.drop.small .mono{display:none}
+.drop:hover,.drop.hot{border-color:var(--accent);background:var(--sunk)}
+.drop h3{font-size:19px}
+.drop p{margin-top:8px;color:var(--ink-2);font-size:15px}
+.drop .mono{font-family:var(--mono);font-size:12px;color:var(--ink-3);margin-top:18px}
+.seen{display:grid;grid-template-columns:220px minmax(0,1fr);gap:34px;margin-top:34px;align-items:start}
+@media (max-width:760px){.seen{grid-template-columns:1fr}}
+.art{background:var(--sunk);border:1px solid var(--line);border-radius:14px;padding:30px;
+  display:flex;align-items:center;justify-content:center;min-height:190px}
+.art svg{max-width:100%;max-height:150px;height:auto;display:block}
+.facts{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.fact{display:flex;justify-content:space-between;gap:18px;padding:12px 16px;background:var(--raised);font-size:14.5px}
+.fact b{font-weight:500;color:var(--ink-2)}
+.fact span{font-family:var(--mono);font-size:13px;color:var(--ink);text-align:right}
 
-/* ── the mark, measured ──────────────────────────────────── */
-.specimen{display:grid;place-items:center;gap:26px}
-.artbox{position:relative;width:min(430px,72vw);aspect-ratio:1;display:grid;place-items:center;
-  background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
-.artbox svg{width:100%;height:100%;display:block}
-.legend{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;
-  font:400 12px/1.4 Archivo,system-ui,sans-serif;color:var(--dim)}
-.legend i{display:inline-block;width:14px;height:0;border-top:1.5px dashed currentColor;
-  margin-right:6px;vertical-align:middle}
-.legend .ink{color:#3b82f6}.legend .clear{color:#12a26b}.legend .floor{color:#c2410c}
-.scale{display:flex;align-items:flex-end;gap:12px;color:var(--dim);
-  font:400 12px Archivo,system-ui,sans-serif}
-.scale .chip{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:8px 10px;
-  display:flex;align-items:center;gap:9px}
-.scale .chip svg{display:block}
+/* ------------------------------------------------------------- questions */
+.q{padding:34px 0;border-top:1px solid var(--line)}
+.q:first-of-type{border-top:none;padding-top:8px}
+.q h3{font-size:21px;letter-spacing:-.02em}
+.q .why{margin-top:9px;max-width:62ch;color:var(--ink-2);font-size:14.8px;line-height:1.6}
+.q .body{margin-top:20px}
+input[type=text]{width:100%;max-width:620px;padding:13px 15px;border:1px solid var(--line-2);
+  border-radius:10px;background:var(--raised);color:var(--ink);font:inherit;font-size:16px}
+input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:transparent}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.opt{display:flex;gap:12px;padding:15px 16px;border:1px solid var(--line-2);border-radius:12px;
+  background:var(--raised);cursor:pointer;transition:border-color .16s,background .16s}
+.opt:hover{border-color:var(--ink-3)}
+.opt.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--raised))}
+.opt input{margin:3px 0 0}
+.opt b{display:block;font-weight:600;font-size:15px}
+.opt span{display:block;margin-top:4px;color:var(--ink-2);font-size:13.5px;line-height:1.5}
+.opt.off{opacity:.42;cursor:not-allowed}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+.col{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--raised)}
+.col .sw{height:74px}
+.col .m{padding:11px 13px;display:grid;gap:8px}
+.col input[type=text]{padding:7px 9px;font-size:14px;border-radius:7px}
+.col select{width:100%;padding:7px 9px;font:inherit;font-size:14px;border-radius:7px;
+  border:1px solid var(--line-2);background:var(--raised);color:var(--ink)}
+.col .hex{font-family:var(--mono);font-size:12px;color:var(--ink-3)}
 
-/* ── lockups, live ───────────────────────────────────────── */
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
-.cell{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--card)}
-.cell .art{height:132px;display:grid;place-items:center;padding:22px}
-.cell .art svg{max-width:100%;max-height:100%;width:auto;height:auto}
-.cell .cap{border-top:1px solid var(--line2);padding:9px 12px;
-  font:500 12px/1.45 Archivo,system-ui,sans-serif}
-.cell .cap .l{color:var(--ink)}
-.cell .cap .r{display:block;color:var(--faint);font-weight:400;margin-top:2px}
+/* --------------------------------------------------------------- picking */
+.picks{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:30px}
+@media (max-width:1080px){.picks{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:600px){.picks{grid-template-columns:1fr}}
+.pick{border:1.5px solid var(--line);border-radius:14px;overflow:hidden;background:var(--raised);
+  cursor:pointer;transition:border-color .16s,transform .16s var(--step)}
+.pick:hover{border-color:var(--ink-3)}
+.pick.on{border-color:var(--accent)}
+/* the frame has to reach the specimen in all four, and the four do not put it
+   at the same height: quiet and bold open with more air, so a crop that showed
+   the mark in technical and warm cut it off in the other two */
+.pick .frame{height:340px;overflow:hidden;border-bottom:1px solid var(--line);background:#fff;position:relative}
+.pick iframe{width:295%;height:1000px;border:0;transform:scale(.339);transform-origin:0 0;pointer-events:none}
+.pick .m{padding:15px 17px}
+.pick .m b{font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px}
+.pick .m b i{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--line-2);font-style:normal;flex:none}
+.pick.on .m b i{background:var(--accent);border-color:var(--accent)}
+.pick .m span{display:block;margin-top:7px;color:var(--ink-2);font-size:13.5px;line-height:1.55;
+  display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
 
-/* ── package ─────────────────────────────────────────────── */
-.docs{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
-.doc{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--card);
-  text-decoration:none;color:inherit;display:block;box-shadow:var(--shadow)}
-.doc:hover{border-color:var(--link)}
-.doc .shot{display:block;height:168px;overflow:hidden;position:relative;background:var(--sunk);
-  border-bottom:1px solid var(--line2)}
-.doc .shot iframe{position:absolute;top:0;left:0;width:1200px;height:900px;border:0;
-  transform:scale(.28);transform-origin:0 0;pointer-events:none;background:#fff}
-.doc .t{display:block;padding:13px 15px}
-.doc .t b{display:block;font:600 15px/1.2 Archivo,system-ui,sans-serif;margin-bottom:3px}
-.doc .t span{display:block;font:400 12px/1.45 Archivo,system-ui,sans-serif;color:var(--dim)}
-.tally{display:flex;flex-wrap:wrap;gap:24px;margin:0 0 20px;padding:0 0 18px;
-  border-bottom:1px solid var(--line);font:400 12px Archivo,system-ui,sans-serif;color:var(--dim)}
-.tally b{display:block;color:var(--ink);font:600 19px/1.25 Archivo,system-ui,sans-serif;
-  font-variant-numeric:tabular-nums}
+/* ------------------------------------------------------------------ done */
+.out{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px;margin-top:30px}
+.card{display:block;padding:20px;border:1px solid var(--line);border-radius:13px;background:var(--raised);
+  text-decoration:none;color:inherit;transition:border-color .16s,transform .16s var(--step)}
+.card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.card b{display:block;font-size:16px;font-weight:600}
+.card span{display:block;margin-top:6px;color:var(--ink-2);font-size:13.5px;line-height:1.5}
+.notes{margin-top:34px;display:grid;gap:10px}
+.n{padding:14px 16px;border-radius:11px;font-size:14.5px;line-height:1.6;background:var(--sunk);color:var(--ink-2)}
+.n.warn{background:color-mix(in srgb,var(--bad) 9%,var(--paper));color:var(--ink)}
+.n b{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+  display:block;margin-bottom:5px;color:var(--ink-3);font-weight:400}
 
-/* ── control panel ───────────────────────────────────────── */
-.sec{border-bottom:1px solid var(--line)}
-.sec > h3{margin:0;font:600 12px/1 Archivo,system-ui,sans-serif;letter-spacing:.05em;
-  text-transform:uppercase;color:var(--faint);padding:18px var(--pad) 0}
-.sec .in{padding:14px var(--pad) 20px}
-.sec[hidden]{display:none}
-.fld{margin:0 0 16px}
-.fld:last-child{margin-bottom:0}
-.fld > label{display:block;font:500 13px/1.5 Archivo,system-ui,sans-serif;margin-bottom:6px}
-.fld .hint{color:var(--dim);font-weight:400}
-input[type=text]{width:100%;font:400 15px Literata,Georgia,serif;color:var(--ink);background:var(--bg);
-  border:1px solid var(--line);border-radius:7px;padding:10px 12px}
-input[type=text]:focus{border-color:var(--focus);background:var(--card)}
-input[type=text]::placeholder{color:var(--faint)}
-
-/* swatches, not rows */
-.sw{display:grid;gap:8px}
-.swatch{display:grid;grid-template-columns:38px 1fr auto;gap:11px;align-items:center;
-  border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--bg)}
-.swatch .chip{width:38px;height:38px;border-radius:6px;border:1px solid rgba(0,0,0,.12);
-  padding:0;cursor:pointer;position:relative;overflow:hidden}
-.swatch .chip input{position:absolute;inset:-6px;opacity:0;cursor:pointer;border:0;padding:0}
-.swatch .nm{border:0;background:none;padding:2px 0;font:500 14px Archivo,system-ui,sans-serif;width:100%}
-.swatch .nm:focus{outline:none;border-bottom:1px solid var(--focus)}
-.swatch .meta{display:flex;align-items:center;gap:7px;font:400 11px/1.3 Archivo,system-ui,sans-serif;color:var(--dim)}
-.roles{display:flex;gap:3px;margin-top:3px}
-.roles button{border:1px solid var(--line);background:none;border-radius:4px;padding:2px 6px;
-  font:500 10px/1.4 Archivo,system-ui,sans-serif;color:var(--dim);cursor:pointer}
-.roles button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
-.ct{font-variant-numeric:tabular-nums;white-space:nowrap}
-.ct b{font-weight:600}
-.ct.fail b{color:var(--stop)}.ct.AA b,.ct.AAA b{color:var(--ok)}.ct.AA-large b{color:var(--warn)}
-.x{background:none;border:0;color:var(--faint);cursor:pointer;font-size:17px;line-height:1;padding:3px 4px}
-.x:hover{color:var(--stop)}
-.add{background:none;border:1px dashed var(--line);border-radius:8px;padding:9px;width:100%;
-  color:var(--link);cursor:pointer;font:500 13px/1 Archivo,system-ui,sans-serif;text-align:center}
-.add:hover{border-color:var(--link)}
-
-/* typography */
-.pairs{display:grid;gap:8px}
-.pair{display:block;width:100%;text-align:left;border:1px solid var(--line);border-radius:8px;
-  padding:11px 13px;cursor:pointer;background:var(--bg)}
-.pair:hover{border-color:var(--link)}
-.pair[aria-pressed=true]{border-color:var(--ink);background:var(--card)}
-.pair .d{font-size:19px;line-height:1.2;margin-bottom:3px;display:block}
-.pair .b{font-size:12px;color:var(--dim);display:block}
-.pair .n{font:500 11px/1 Archivo,system-ui,sans-serif;color:var(--faint);margin-top:7px;display:block}
-.own{margin-top:8px}
-
-.locks{display:grid;grid-template-columns:1fr 1fr;gap:7px}
-.locks label{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;
-  padding:10px 11px;cursor:pointer;background:var(--bg);font:500 13px/1 Archivo,system-ui,sans-serif;margin:0}
-.locks label:has(input:checked){border-color:var(--ink)}
-.locks label:has(input:disabled){opacity:.4;cursor:not-allowed}
-details.inks{border:1px solid var(--line);border-radius:8px;padding:11px 13px;background:var(--bg)}
-details.inks summary{cursor:pointer;font:500 13px/1.4 Archivo,system-ui,sans-serif}
-.ir{display:grid;grid-template-columns:18px 1fr;gap:9px;align-items:center;margin-top:9px}
-.ir .s{width:18px;height:18px;border-radius:4px;border:1px solid var(--line)}
-.ir input{width:100%;font:400 13px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink);
-  background:var(--card);border:1px solid var(--line);border-radius:5px;padding:6px 8px}
-.ir input.bad{border-color:var(--stop)}
-
-/* findings */
-.finds{display:grid;gap:8px}
-.finds:not(:empty){margin-top:12px}
-#artStatus:empty{display:none}
-.f{border:1px solid var(--line);border-left-width:3px;border-radius:7px;padding:11px 13px;background:var(--bg)}
-.f.fixed{border-left-color:var(--ok)}.f.warning{border-left-color:var(--warn)}.f.blocker{border-left-color:var(--stop)}
-.f .lvl{font:600 10px/1 Archivo,system-ui,sans-serif;letter-spacing:.07em;text-transform:uppercase;
-  padding:3px 6px;border-radius:4px;display:inline-block}
-.f.fixed .lvl{color:var(--ok);background:var(--okbg)}
-.f.warning .lvl{color:var(--warn);background:var(--warnbg)}
-.f.blocker .lvl{color:var(--stop);background:var(--stopbg)}
-.f .on{font:500 10px/1 Archivo,system-ui,sans-serif;color:var(--faint);letter-spacing:.05em;
-  text-transform:uppercase;margin-left:7px}
-.f .what{font-weight:600;margin:7px 0 3px;font-size:14px}
-.f .why{margin:0;color:var(--dim);font-size:14px}
-.f .how{margin:6px 0 0;font:400 13px/1.5 Archivo,system-ui,sans-serif;color:var(--dim)}
-.f .how::before{content:"→ ";color:var(--faint)}
-.measured{display:grid;grid-template-columns:auto 1fr;gap:0;border:1px solid var(--line);
-  border-radius:8px;overflow:hidden;background:var(--bg)}
-.measured dt{padding:8px 12px;font:500 12px/1.5 Archivo,system-ui,sans-serif;color:var(--dim);
-  border-bottom:1px solid var(--line2);white-space:nowrap}
-.measured dd{margin:0;padding:8px 12px;border-bottom:1px solid var(--line2);font-size:14px;
-  font-variant-numeric:tabular-nums}
-.measured dt:nth-last-of-type(1),.measured dd:last-child{border-bottom:0}
-
-/* buttons */
-.go{font:600 14px/1 Archivo,system-ui,sans-serif;background:var(--ink);color:var(--bg);border:0;
-  border-radius:8px;padding:13px 18px;cursor:pointer;width:100%;text-align:center;
-  text-decoration:none;display:block}
+/* -------------------------------------------------------------- controls */
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;align-items:center;gap:14px;
+  padding:14px clamp(18px,4vw,46px);background:color-mix(in srgb,var(--paper) 90%,transparent);
+  backdrop-filter:blur(14px);border-top:1px solid var(--line)}
+.bar .say{color:var(--ink-2);font-size:14px;margin-right:auto;max-width:60ch}
+.go{padding:12px 22px;border-radius:10px;border:1px solid transparent;background:var(--ink);
+  color:var(--paper);font-weight:600;cursor:pointer;font-size:15px;transition:opacity .16s}
 .go:hover{opacity:.88}
-.go[disabled]{opacity:.4;cursor:not-allowed}
-.flat{font:500 13px/1 Archivo,system-ui,sans-serif;background:none;border:1px solid var(--line);
-  border-radius:8px;padding:11px 14px;cursor:pointer;width:100%}
-.flat:hover{border-color:var(--ink)}
-.busy{display:flex;align-items:center;gap:9px;color:var(--dim);margin-top:10px;
-  font:500 13px Archivo,system-ui,sans-serif}
-.spin{width:13px;height:13px;border:2px solid var(--line);border-top-color:var(--ink);
-  border-radius:50%;animation:sp .7s linear infinite;flex:none}
+.go[disabled]{opacity:.35;cursor:not-allowed}
+.back{padding:12px 18px;border-radius:10px;border:1px solid var(--line-2);background:transparent;cursor:pointer;font-size:15px}
+.spin{display:inline-block;width:13px;height:13px;border:2px solid currentColor;border-right-color:transparent;
+  border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:8px}
 @keyframes sp{to{transform:rotate(360deg)}}
-@media (prefers-reduced-motion:reduce){.spin{animation-duration:2.4s}}
-.note{font:400 12px/1.5 Archivo,system-ui,sans-serif;color:var(--faint);margin:10px 0 0}
-.empty{color:var(--faint);font:400 13px Archivo,system-ui,sans-serif;text-align:center;padding:30px 0}
-</style></head><body>
-<div class="top">
-  <b>Handover</b><span class="sub">your logo, and everything that comes after it</span>
-  <span class="sp"></span>
-  <a href="/gallery/">seventeen identities →</a>
-</div>
+.err{margin-top:22px;padding:16px 18px;border-radius:12px;border:1px solid var(--bad);
+  background:color-mix(in srgb,var(--bad) 8%,var(--paper))}
+.err b{display:block;font-weight:600;margin-bottom:6px}
+.err span{color:var(--ink-2);font-size:14.5px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style>
+</head>
+<body>
 
-<div class="work">
-  <!-- ── stage ─────────────────────────────────────────── -->
-  <section class="stage">
-    <div class="sbar" role="tablist" aria-label="What the stage shows">
-      <button class="tab" id="tabArt"  role="tab" aria-selected="true"  aria-controls="vArt">Artwork</button>
-      <button class="tab" id="tabLock" role="tab" aria-selected="false" aria-controls="vLock" disabled>Lockups</button>
-      <button class="tab" id="tabPkg"  role="tab" aria-selected="false" aria-controls="vPkg"  disabled>Package</button>
-      <span class="sp"></span>
-      <div class="tog" id="overlays" hidden>
-        <button data-ov="ink"   aria-pressed="true">Ink box</button>
-        <button data-ov="clear" aria-pressed="true">Clear space</button>
-        <button data-ov="floor" aria-pressed="false">Smallest size</button>
-      </div>
+<header class="top">
+  <span class="logo"><i></i>Handover</span>
+  <nav class="steps" id="steps" aria-label="Steps"></nav>
+</header>
+
+<main class="wrap">
+
+  <!-- 1 ------------------------------------------------------------------ -->
+  <section class="panel on" id="p-art" aria-labelledby="h-art">
+    <p class="eyebrow">One master file in</p>
+    <h1 class="lede" id="h-art">Drop your logo. Everything else is measured.</h1>
+    <p class="sub">An SVG of the mark, the logotype, or both. Nothing is uploaded anywhere —
+      this runs on your machine and the package it writes is yours.</p>
+
+    <div class="drop" id="drop" tabindex="0" role="button" aria-describedby="droph">
+      <h3>Drop an SVG here</h3>
+      <p id="droph">or press to choose a file</p>
+      <p class="mono">.svg · up to 2 MB</p>
+      <input type="file" id="file" accept=".svg,image/svg+xml" multiple class="sr">
     </div>
 
-    <div class="view on" id="vArt" role="tabpanel">
-      <!-- empty state -->
-      <div class="mid" id="dropStage">
-        <div class="dropwrap">
-          <h2>Bring your artwork</h2>
-          <p>One SVG is enough — a symbol, a logotype, or both. Nothing is decided yet.</p>
-          <div class="drops">
-            <div class="drop" id="dropMark" tabindex="0" role="button" aria-label="Choose the mark SVG">
-              <input type="file" id="fileMark" accept=".svg,image/svg+xml">
-              <div class="pv" id="pvMark"><span class="ph"></span></div>
-              <h3>The mark</h3><p id="hintMark">the symbol</p>
-            </div>
-            <div class="drop" id="dropWord" tabindex="0" role="button" aria-label="Choose the wordmark SVG">
-              <input type="file" id="fileWord" accept=".svg,image/svg+xml">
-              <div class="pv" id="pvWord"><span class="ph"></span></div>
-              <h3>The wordmark <span class="opt">optional</span></h3><p id="hintWord">the name, outlined</p>
-            </div>
-          </div>
-          <p class="note" style="margin-top:16px">
-            No SVG to hand? <button class="add" id="btnSample" style="margin-top:8px">Try it with a sample mark</button>
-          </p>
-        </div>
-      </div>
-      <!-- the artwork, measured -->
-      <div class="mid" id="specStage" hidden>
-        <div class="specimen">
-          <div class="artbox" id="artbox"></div>
-          <div class="legend" id="legend"></div>
-          <div class="scale" id="scaleRow"></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="view" id="vLock" role="tabpanel"><div class="grid" id="lockGrid"></div></div>
-    <div class="view" id="vPkg" role="tabpanel">
-      <div class="tally" id="tally"></div>
-      <div class="docs" id="docs"></div>
-      <p class="note" id="openNote" hidden></p>
-    </div>
+    <div id="seen" hidden></div>
+    <div id="art-err"></div>
   </section>
 
-  <!-- ── control column ────────────────────────────────── -->
-  <aside class="panel">
-    <section class="sec" id="secArt">
-      <h3>Artwork</h3>
-      <div class="in">
-        <div id="artStatus" class="empty">Drop an SVG on the stage to begin.</div>
-        <div id="measured"></div>
-        <div id="findings" class="finds"></div>
-      </div>
-    </section>
+  <!-- 2 ------------------------------------------------------------------ -->
+  <section class="panel" id="p-ask" aria-labelledby="h-ask">
+    <p class="eyebrow">Six questions</p>
+    <h1 class="lede" id="h-ask">Only what the file cannot be asked.</h1>
+    <p class="sub">Three of these are the engine showing its own answer. Change any of them.</p>
+    <div id="qs"></div>
+  </section>
 
-    <section class="sec" id="secId" hidden>
-      <h3>Identity</h3>
-      <div class="in">
-        <div class="fld">
-          <label for="brand">Name <span class="hint">— titles every document and every file</span></label>
-          <input type="text" id="brand" placeholder="Winterbourne" autocomplete="off" spellcheck="false">
-        </div>
-        <div class="fld" id="latinFld" hidden>
-          <label for="latinName">Roman spelling <span class="hint">— for file names; documents keep the real name</span></label>
-          <input type="text" id="latinName" placeholder="Maayan" autocomplete="off" spellcheck="false">
-        </div>
-        <div class="fld">
-          <label>Palette <span class="hint">— read out of your artwork</span></label>
-          <div class="sw" id="sw"></div>
-          <button class="add" id="addColour" style="margin-top:8px">+ add a colour</button>
-        </div>
-        <div class="fld">
-          <label>Typeface <span class="hint">— the identity is set in this, not just the documents</span></label>
-          <div class="pairs" id="pairs"></div>
-          <div class="own">
-            <button class="flat" id="btnOwnType">I have a licensed typeface</button>
-            <p class="note" id="ownNote" hidden></p>
-          </div>
-        </div>
-        <div class="fld">
-          <label>Lockups</label>
-          <div class="locks" id="locks"></div>
-          <p class="note" id="lockNote"></p>
-        </div>
-        <div class="fld">
-          <details class="inks">
-            <summary>Print inks <span class="hint">— the one thing the engine cannot work out</span></summary>
-            <p class="note" style="margin:8px 0 4px">A hex describes light leaving a screen. What it becomes in
-            ink depends on a press and a paper no formula knows, so the engine asks rather than inventing four
-            numbers.</p>
-            <div id="inks"></div>
-          </details>
-        </div>
-      </div>
-    </section>
+  <!-- 3 ------------------------------------------------------------------ -->
+  <section class="panel" id="p-style" aria-labelledby="h-style">
+    <p class="eyebrow">The book</p>
+    <h1 class="lede" id="h-style">Four ways to lay it out, drawn with your logo.</h1>
+    <p class="sub">These are not colour schemes. They change the scale the type is built on,
+      the measure, how much air a specimen stands in, and how a chapter opens.</p>
+    <div class="picks" id="picks"></div>
+  </section>
 
-    <section class="sec" id="secBuild" hidden>
-      <h3>Package</h3>
-      <div class="in">
-        <button class="go" id="btnBuild">Build the package</button>
-        <div id="buildBusy"></div>
-        <div id="buildErr" class="finds" style="margin-top:12px"></div>
-        <div id="after" hidden style="margin-top:12px">
-          <a class="go" id="btnZip" href="#" style="margin-bottom:8px">Download the package</a>
-          <button class="flat" id="btnAgain">Start again</button>
-          <div id="buildNotes" class="finds" style="margin-top:12px"></div>
-        </div>
-        <p class="note" id="privacy"></p>
-      </div>
-    </section>
-  </aside>
+  <!-- 4 ------------------------------------------------------------------ -->
+  <section class="panel" id="p-done" aria-labelledby="h-done">
+    <p class="eyebrow">Built</p>
+    <h1 class="lede" id="h-done">It is yours.</h1>
+    <p class="sub" id="done-sub"></p>
+    <div class="out" id="out"></div>
+    <div class="notes" id="notes"></div>
+  </section>
+
+</main>
+
+<div class="bar">
+  <p class="say" id="say"></p>
+  <button class="back" id="back" hidden>Back</button>
+  <button class="go" id="go" disabled>Continue</button>
 </div>
-<script src="/contrast.js"></script>
-<script src="/jszip.min.js"></script>
+
 <script>
 (function () {
   'use strict';
-  const C = window.HandoverContrast;
-  const $ = (id) => document.getElementById(id);
-  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  const KEY = 'handover.identity.v1';
+  var S = { mark: null, wordmark: null, seen: null, qs: null, answers: {}, step: 0, built: null };
+  var STEPS = ['Artwork', 'Questions', 'Layout', 'Package'];
+  var $ = function (id) { return document.getElementById(id); };
+  var el = function (t, c, x) { var n = document.createElement(t); if (c) n.className = c;
+    if (x != null) n.textContent = x; return n; };
 
-  const S = { mark: null, markName: '', word: null, wordName: '',
-              palette: [], slots: [], lockups: [], art: {}, measured: null,
-              colours: [], type: 0, ownType: '', picked: [], build: null };
-
-  // ── what survives a reload ────────────────────────────────────────────
-  // The decisions do; the artwork does not, because it is megabytes and this is
-  // a browser's local store. Saying so beats letting somebody find out.
-  const save = () => {
-    try {
-      localStorage.setItem(KEY, JSON.stringify({ brand: $('brand').value,
-        latinName: $('latinName').value, colours: S.colours, type: S.type,
-        ownType: S.ownType, picked: S.picked }));
-    } catch (e) { /* a private window has no store, and that is not an error */ }
-  };
-  const restore = () => {
-    try {
-      const v = JSON.parse(localStorage.getItem(KEY) || 'null');
-      if (!v) return null;
-      $('brand').value = v.brand || '';
-      $('latinName').value = v.latinName || '';
-      if (Array.isArray(v.colours) && v.colours.length) S.colours = v.colours;
-      S.type = v.type || 0; S.ownType = v.ownType || ''; S.picked = v.picked || [];
-      return v;
-    } catch (e) { return null; }
-  };
-
-  // ── stage tabs ────────────────────────────────────────────────────────
-  const TABS = [['tabArt', 'vArt'], ['tabLock', 'vLock'], ['tabPkg', 'vPkg']];
-  function show(which) {
-    for (const [t, v] of TABS) {
-      const on = t === which;
-      $(t).setAttribute('aria-selected', String(on));
-      $(v).classList.toggle('on', on);
-    }
-    $('overlays').hidden = which !== 'tabArt' || !S.measured;
-  }
-  for (const [t] of TABS) $(t).addEventListener('click', () => { if (!$(t).disabled) show(t); });
-
-  // ── findings ──────────────────────────────────────────────────────────
-  const LEVEL = { fixed: 'Fixed for you', warning: 'Worth a look', blocker: 'Must fix' };
-  const card = (f) => `<div class="f ${esc(f.level)}"><span class="lvl">${esc(LEVEL[f.level] || f.level)}</span>`
-    + (f.on ? `<span class="on">${esc(f.on)}</span>` : '')
-    + `<p class="what">${esc(f.what)}</p>`
-    + (f.why ? `<p class="why">${esc(f.why)}</p>` : '')
-    + (f.how ? `<p class="how">${esc(f.how)}</p>` : '') + '</div>';
-  const findings = (el, list) => { el.innerHTML = (list || []).map(card).join(''); };
-
-  // ── the artwork, measured ─────────────────────────────────────────────
-  // Every number the engine took off the artwork, drawn on the artwork. They
-  // were a table of figures beside a picture that could have shown them.
-  const OV = { ink: true, clear: true, floor: false };
-  for (const b of $('overlays').querySelectorAll('button')) {
-    b.addEventListener('click', () => {
-      const k = b.getAttribute('data-ov');
-      OV[k] = !OV[k]; b.setAttribute('aria-pressed', String(OV[k])); drawSpecimen();
+  function steps() {
+    var n = $('steps'); n.textContent = '';
+    STEPS.forEach(function (s, i) {
+      var b = el('b', i === S.step ? 'on' : (i < S.step ? 'done' : ''), (i + 1) + ' ' + s);
+      n.appendChild(b);
     });
   }
+  function show(i) {
+    S.step = i; steps();
+    ['p-art', 'p-ask', 'p-style', 'p-done'].forEach(function (id, k) {
+      $(id).classList.toggle('on', k === i);
+    });
+    $('back').hidden = i === 0 || i === 3;
+    $('go').hidden = i === 3;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    gate();
+  }
+  function say(t, bad) { var s = $('say'); s.textContent = t || ''; s.style.color = bad ? 'var(--bad)' : ''; }
+  function busy(on, label) {
+    $('go').disabled = on || !ready();
+    $('go').innerHTML = on ? '<span class="spin"></span>' + (label || 'Working') : nextLabel();
+  }
+  function nextLabel() { return S.step === 2 ? 'Build the package' : 'Continue'; }
+  function ready() {
+    if (S.step === 0) return !!(S.mark || S.wordmark);
+    if (S.step === 1) return !!(S.answers.brand && S.answers.brand.trim());
+    if (S.step === 2) return !!S.answers.style;
+    return false;
+  }
+  function gate() { $('go').disabled = !ready(); $('go').textContent = nextLabel(); }
 
-  function drawSpecimen() {
-    const m = S.measured; if (!m) return;
-    const vb = m.viewBox, ink = m.ink;
-    const art = S.art.mark || S.art.wordmark || '';
-    // the artwork, painted in the chosen ink, inside its own viewBox
-    const inner = art.replace(/^[\s\S]*?<svg[^>]*>/i, '').replace(/<\/svg>\s*$/i, '');
-    const cs = m.clearSpace;
-    const g = (on, s) => (on ? s : '');
-    const stroke = (c, d) => `stroke="${c}" fill="none" stroke-width="${d}" vector-effect="non-scaling-stroke"`;
-    // Clear space is a margin around the ink, and on a tight artboard it falls
-    // outside the artwork's own viewBox — so drawing it in that viewBox clipped
-    // it to one dashed line under the mark. The frame is the union of what has
-    // to be shown, not the box the file happened to be drawn on.
-    const x1 = Math.min(vb.x, ink.x - cs), y1 = Math.min(vb.y, ink.y - cs);
-    const x2 = Math.max(vb.x + vb.w, ink.x + ink.w + cs), y2 = Math.max(vb.y + vb.h, ink.y + ink.h + cs);
-    const pad = Math.max(x2 - x1, y2 - y1) * 0.06;
-    const frame = `${x1 - pad} ${y1 - pad} ${(x2 - x1) + pad * 2} ${(y2 - y1) + pad * 2}`;
-    $('artbox').innerHTML = `<svg viewBox="${frame}" style="padding:5%">
-      <g id="artPaint">${inner}</g>
-      ${g(OV.clear, `<rect x="${ink.x - cs}" y="${ink.y - cs}" width="${ink.w + cs * 2}" height="${ink.h + cs * 2}"
-        ${stroke('#12a26b', 1)} stroke-dasharray="5 4"/>`)}
-      ${g(OV.ink, `<rect x="${ink.x}" y="${ink.y}" width="${ink.w}" height="${ink.h}"
-        ${stroke('#3b82f6', 1)} stroke-dasharray="4 3"/>`)}
-    </svg>`;
-    paintArt();
-    // the legend names what is on the screen, and nothing else
-    $('legend').innerHTML = [
-      OV.ink && '<span class="ink"><i></i>ink box — what is actually drawn</span>',
-      OV.clear && `<span class="clear"><i></i>clear space — ${cs} on every side</span>`,
-      OV.floor && '<span class="floor">the mark below is at its smallest usable size</span>',
-    ].filter(Boolean).join('') || '<span>nothing drawn over it</span>';
-    // the smallest usable size, shown at that size rather than stated in a row
-    const px = parseFloat(m.floorPx) || 32;
-    $('scaleRow').innerHTML = OV.floor
-      ? `<span class="chip"><svg width="${px}" height="${px}" viewBox="${vb.x} ${vb.y} ${vb.w} ${vb.h}">${inner}</svg>
-           <span><b style="color:var(--ink)">${esc(m.floorPx)}</b> on screen<br>${esc(m.floorMm)} in print</span></span>
-         <span style="max-width:30ch;line-height:1.45">${esc(m.basis)}</span>`
-      : `<span>${esc(m.floorPx)} on screen · ${esc(m.floorMm)} in print · ink ${m.ink.w} × ${m.ink.h} · clear space ${cs}</span>`;
-    for (const el of $('scaleRow').querySelectorAll('svg [fill],svg [stroke]')) paintOne(el);
+  function post(path, body) {
+    return fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body) }).then(function (r) {
+      return r.json().then(function (j) {
+        if (!r.ok || j.ok === false) { var e = new Error(j.what || j.error || 'That did not work.');
+          e.how = j.how || (j.findings && j.findings.map(function (f) { return f.what; }).join(' ')) || '';
+          throw e; }
+        return j;
+      });
+    });
+  }
+  function fail(where, e) {
+    var box = $(where); box.textContent = '';
+    var d = el('div', 'err'); d.appendChild(el('b', null, e.message));
+    if (e.how) d.appendChild(el('span', null, e.how));
+    box.appendChild(d);
   }
 
-  // ── live recolouring ──────────────────────────────────────────────────
-  // The engine composed these lockups and left the colour slots marked, so the
-  // browser repaints the slots as a swatch is touched. No round trip, and no
-  // second implementation of lockup geometry to disagree with the package.
-  const inkColour = () => (S.colours.find((c) => c.role === 'primary') || S.colours[0] || { hex: '#14171a' }).hex;
-  const groundColour = () => (S.colours.find((c) => c.role === 'ground') || { hex: '#ffffff' }).hex;
+  // --------------------------------------------------------------- artwork
+  var drop = $('drop'), file = $('file');
+  drop.addEventListener('click', function () { file.click(); });
+  drop.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); file.click(); } });
+  ['dragenter', 'dragover'].forEach(function (t) {
+    drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.add('hot'); }); });
+  ['dragleave', 'drop'].forEach(function (t) {
+    drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.remove('hot'); }); });
+  drop.addEventListener('drop', function (e) { take(e.dataTransfer.files); });
+  file.addEventListener('change', function () { take(file.files); });
 
-  function paintOne(el, hex) {
-    const c = hex || inkColour();
-    if (el.getAttribute('fill') && el.getAttribute('fill') !== 'none') el.setAttribute('fill', c);
-    if (el.getAttribute('stroke') && el.getAttribute('stroke') !== 'none') el.setAttribute('stroke', c);
+  function take(files) {
+    var list = [].slice.call(files || []).filter(function (f) { return /\.svg$/i.test(f.name); });
+    if (!list.length) { fail('art-err', { message: 'That is not an SVG.',
+      how: 'Export the artwork as SVG. A PNG has no geometry in it to measure.' }); return; }
+    var read = list.map(function (f) {
+      return new Promise(function (res) {
+        var r = new FileReader();
+        r.onload = function () { res({ name: f.name, text: String(r.result) }); };
+        r.readAsText(f);
+      });
+    });
+    Promise.all(read).then(function (got) {
+      // two files: the one whose name says wordmark is the wordmark
+      got.forEach(function (g) {
+        var w = /word|type|logotype/i.test(g.name);
+        if (got.length === 1) { S.mark = g.text; S.wordmark = null; }
+        else if (w) S.wordmark = g.text; else S.mark = g.text;
+      });
+      $('art-err').textContent = '';
+      drop.classList.add('small');
+      drop.querySelector('h3').textContent = 'Replace the artwork';
+      busy(true, 'Measuring');
+      return post('/api/ask', { mark: S.mark, wordmark: S.wordmark });
+    }).then(function (j) {
+      S.seen = j.seen; S.qs = j.questions;
+      j.questions.forEach(function (q) { if (q.suggested !== undefined) S.answers[q.key] = q.suggested; });
+      drawSeen(); drawQs(); busy(false); gate();
+      say('Measured. ' + (S.seen.parts.length ? S.seen.parts.length + ' named parts, ' : '')
+        + S.seen.foundColours + ' colours, floor ' + S.seen.floor.screenPx + ' px.');
+    }).catch(function (e) { busy(false); fail('art-err', e); say('', true); });
   }
-  function paintInto(root, hex) {
-    if (!root) return;
-    const slotted = root.querySelectorAll('[data-slot]');
-    const targets = slotted.length ? slotted : root.querySelectorAll('path,circle,rect,ellipse,polygon,polyline,line,g');
-    for (const el of targets) paintOne(el, hex);
-  }
-  const paintArt = () => paintInto($('artPaint'));
 
-  function drawLockups() {
-    const picked = S.picked.length ? S.picked : S.lockups;
-    const ways = [];
-    const ink = S.colours.find((c) => c.role === 'primary') || S.colours[0];
-    const ground = S.colours.find((c) => c.role === 'ground') || { name: 'ground', hex: '#FFFFFF' };
-    if (ink) ways.push({ name: ink.name, ink: ink.hex, on: ground.hex, onName: ground.name });
-    ways.push({ name: 'reverse', ink: ground.hex, on: ink ? ink.hex : '#14171a', onName: ink ? ink.name : 'ink' });
-    for (const c of S.colours) {
-      if (c === ink || c.role === 'ground') continue;
-      ways.push({ name: c.name, ink: c.hex, on: ground.hex, onName: ground.name });
-    }
-    const cells = [];
-    for (const l of picked) {
-      const svg = S.art[l];
-      if (!svg) continue;
-      for (const w of ways) {
-        const r = C.ratio(w.ink, w.on), v = C.verdict(r);
-        cells.push(`<div class="cell">
-          <div class="art" style="background:${esc(w.on)}" data-ink="${esc(w.ink)}">${svg}</div>
-          <div class="cap"><span class="l">${esc(l)}</span>
-            <span class="r ct ${v.level}">${esc(w.name)} on ${esc(w.onName)} · <b>${r == null ? '—' : r.toFixed(1)}:1</b></span></div>
-        </div>`);
+  function drawSeen() {
+    var box = $('seen'); box.hidden = false; box.textContent = ''; box.className = 'seen';
+    var art = el('div', 'art');
+    art.innerHTML = (S.mark || S.wordmark).replace(/<\?xml[^>]*\?>/g, '').replace(/<!--[\s\S]*?-->/g, '');
+    var f = el('div', 'facts');
+    var rows = [
+      ['What it is', S.seen.hasBoth ? 'a mark and a logotype' : (S.seen.master === 'mark' ? 'a symbol' : 'a logotype')],
+      ['Colours in the file', String(S.seen.foundColours)],
+      ['Named parts', S.seen.parts.length ? S.seen.parts.join(', ') : 'none'],
+      ['Smallest it holds', S.seen.floor.screenPx + ' px / ' + S.seen.floor.printMm + ' mm'],
+      ['Thinnest stroke', S.seen.floor.thinnestStroke + ' units'],
+      ['Its pattern', S.seen.pattern ? S.seen.pattern.motifName + ', ' + S.seen.pattern.construction : '—'],
+    ];
+    rows.forEach(function (r) {
+      var d = el('div', 'fact'); d.appendChild(el('b', null, r[0])); d.appendChild(el('span', null, r[1]));
+      f.appendChild(d);
+    });
+    box.appendChild(art); box.appendChild(f);
+  }
+
+  // ------------------------------------------------------------- questions
+  function drawQs() {
+    var box = $('qs'); box.textContent = '';
+    S.qs.forEach(function (q) {
+      if (q.key === 'style') return;                 // asked by picture, on its own screen
+      var d = el('div', 'q');
+      d.appendChild(el('h3', null, q.ask));
+      d.appendChild(el('p', 'why', q.why));
+      var b = el('div', 'body');
+      if (q.kind === 'text' || q.kind === 'line') {
+        var i = el('input'); i.type = 'text'; i.placeholder = q.placeholder || '';
+        i.value = S.answers[q.key] || '';
+        i.setAttribute('aria-label', q.ask);
+        i.addEventListener('input', function () { S.answers[q.key] = i.value; gate(); });
+        b.appendChild(i);
+      } else if (q.kind === 'pick-many') {
+        var g = el('div', 'opts');
+        (q.options || []).forEach(function (o) {
+          var on = (S.answers[q.key] || []).indexOf(o.value) > -1;
+          var lab = el('label', 'opt' + (on ? ' on' : '') + (o.available === false ? ' off' : ''));
+          var c = el('input'); c.type = 'checkbox'; c.checked = on; c.disabled = o.available === false;
+          var t = el('div');
+          t.appendChild(el('b', null, o.label));
+          t.appendChild(el('span', null, o.note || ''));
+          lab.appendChild(c); lab.appendChild(t);
+          c.addEventListener('change', function () {
+            var cur = (S.answers[q.key] || []).slice();
+            var k = cur.indexOf(o.value);
+            if (c.checked && k < 0) cur.push(o.value); else if (!c.checked && k > -1) cur.splice(k, 1);
+            S.answers[q.key] = cur; lab.classList.toggle('on', c.checked);
+          });
+          g.appendChild(lab);
+        });
+        b.appendChild(g);
+      } else if (q.kind === 'confirm-colours') {
+        var cg = el('div', 'cols');
+        (S.answers.colours || []).forEach(function (c, n) {
+          var card = el('div', 'col');
+          var sw = el('div', 'sw'); sw.style.background = c.hex; card.appendChild(sw);
+          var m = el('div', 'm');
+          var nm = el('input'); nm.type = 'text'; nm.value = c.name;
+          nm.setAttribute('aria-label', 'Name for ' + c.hex);
+          nm.addEventListener('input', function () { S.answers.colours[n].name = nm.value; });
+          var sel = el('select'); sel.setAttribute('aria-label', 'Role for ' + c.hex);
+          ['primary', 'ground', 'accent', 'secondary', 'neutral'].forEach(function (r) {
+            var o = el('option', null, r); o.value = r; if (r === c.role) o.selected = true; sel.appendChild(o);
+          });
+          sel.addEventListener('change', function () { S.answers.colours[n].role = sel.value; });
+          m.appendChild(nm); m.appendChild(sel); m.appendChild(el('span', 'hex', c.hex));
+          card.appendChild(m); cg.appendChild(card);
+        });
+        b.appendChild(cg);
       }
-    }
-    $('lockGrid').innerHTML = cells.length ? cells.join('')
-      : '<p class="empty">Pick a lockup to see it.</p>';
-    for (const art of $('lockGrid').querySelectorAll('.art')) paintInto(art, art.getAttribute('data-ink'));
-  }
-
-  // ── palette ───────────────────────────────────────────────────────────
-  const ROLES = [['primary', 'ink'], ['ground', 'ground'], ['accent', 'accent'], ['', '—']];
-  const NAMES = ['primary', 'ground', 'accent', 'highlight', 'shade', 'support'];
-
-  function defaults() {
-    const seen = S.palette.filter((h) => h && h.toUpperCase() !== '#FFFFFF');
-    const out = [{ hex: seen[0] || '#23303A', name: 'primary', role: 'primary' },
-                 { hex: '#FFFFFF', name: 'ground', role: 'ground' }];
-    for (let i = 1; i < Math.min(seen.length, 4); i++) {
-      out.push({ hex: seen[i], name: NAMES[i + 1] || `colour${i + 1}`, role: i === 1 ? 'accent' : '' });
-    }
-    return out;
-  }
-
-  function drawSwatches() {
-    const ground = groundColour();
-    $('sw').innerHTML = S.colours.map((c, i) => {
-      const isGround = c.role === 'ground';
-      const r = isGround ? null : C.ratio(c.hex, ground);
-      const v = C.verdict(r);
-      return `<div class="swatch" data-i="${i}">
-        <button class="chip" style="background:${esc(c.hex)}" aria-label="Change ${esc(c.name)}">
-          <input type="color" value="${esc(c.hex)}" data-k="hex" tabindex="-1"></button>
-        <div><input class="nm" value="${esc(c.name)}" data-k="name" spellcheck="false" aria-label="Name">
-          <div class="roles">${ROLES.map(([val, lab]) =>
-            `<button data-role="${val}" aria-pressed="${String(c.role === val || (!c.role && !val))}">${lab}</button>`).join('')}</div>
-        </div>
-        <div class="meta"><span class="ct ${v.level}">${isGround ? 'the ground'
-          : `<b>${r == null ? '—' : r.toFixed(1)}:1</b> ${esc(v.use)}`}</span>
-          <button class="x" data-rm="${i}" aria-label="Remove ${esc(c.name)}">×</button></div>
-      </div>`;
-    }).join('');
-    drawInks();
-  }
-
-  $('sw').addEventListener('input', (e) => {
-    const row = e.target.closest('.swatch'); if (!row) return;
-    const k = e.target.getAttribute('data-k'); if (!k) return;
-    S.colours[+row.getAttribute('data-i')][k] = e.target.value;
-    if (k === 'hex') row.querySelector('.chip').style.background = e.target.value;
-    refresh();
-  });
-  $('sw').addEventListener('click', (e) => {
-    const row = e.target.closest('.swatch'); if (!row) return;
-    const rm = e.target.getAttribute('data-rm');
-    if (rm != null) {
-      if (S.colours.length <= 2) return;      // an ink and a ground is the floor
-      S.colours.splice(+rm, 1); drawSwatches(); refresh(); return;
-    }
-    const role = e.target.getAttribute('data-role');
-    if (role != null) {
-      // one ground at a time, because "on" has to mean something
-      if (role === 'ground') for (const c of S.colours) { if (c.role === 'ground') c.role = ''; }
-      S.colours[+row.getAttribute('data-i')].role = role;
-      drawSwatches(); refresh();
-    }
-  });
-  $('addColour').addEventListener('click', () => {
-    S.colours.push({ hex: '#8899a6', name: NAMES[S.colours.length] || `colour${S.colours.length + 1}`, role: '' });
-    drawSwatches(); refresh();
-  });
-
-  // ── typography ────────────────────────────────────────────────────────
-  // Never asked for until now. The app hard-coded Archivo and Literata into
-  // every project it built, and the manual then named them as though somebody
-  // had chosen them.
-  const PAIRS = [
-    { d: 'Archivo', t: 'Literata', n: 'A grotesque that holds figures, over a serif made for screens.' },
-    { d: 'Literata', t: 'Archivo', n: 'Serif headlines, sans text. Editorial, and it prints well.' },
-    { d: 'Archivo', t: 'Archivo', n: 'One family throughout. Quiet, and nothing to keep in step.' },
-    { d: 'Playfair Display', t: 'Source Sans 3', n: 'High contrast display over a plain workhorse.' },
-  ];
-  function drawPairs() {
-    $('pairs').innerHTML = PAIRS.map((p, i) => `<button class="pair" data-p="${i}" aria-pressed="${String(S.type === i && !S.ownType)}">
-      <span class="d" style="font-family:'${esc(p.d)}',Georgia,serif">${esc(p.d)}</span>
-      <span class="b" style="font-family:'${esc(p.t)}',system-ui,sans-serif">${esc(p.t)} — ${esc(p.n)}</span>
-      <span class="n">${esc(p.d)} / ${esc(p.t)}</span></button>`).join('');
-    $('ownNote').hidden = !S.ownType;
-    if (S.ownType) {
-      $('ownNote').textContent = `${S.ownType}. The engine will name it in every document and set the fallback `
-        + 'instead, and say so in the warnings — a licensed face has to travel as files, which the command line '
-        + 'takes today: list them under the family in the project.';
-    }
-    for (const b of $('pairs').querySelectorAll('.pair')) {
-      b.addEventListener('click', () => { S.type = +b.getAttribute('data-p'); S.ownType = ''; drawPairs(); save(); });
-    }
-  }
-  $('btnOwnType').addEventListener('click', () => {
-    const v = prompt('What is the typeface called? It will be named in every document.', S.ownType || '');
-    if (v === null) return;
-    S.ownType = v.trim(); drawPairs(); save();
-  });
-
-  // ── lockups ───────────────────────────────────────────────────────────
-  const LOCKS = [['horizontal', 'Horizontal'], ['stacked', 'Stacked'], ['mark', 'Mark alone'], ['wordmark', 'Wordmark alone']];
-  function drawLocks() {
-    $('locks').innerHTML = LOCKS.map(([v, label]) => {
-      const can = S.lockups.indexOf(v) > -1;
-      const on = can && (!S.picked.length || S.picked.indexOf(v) > -1);
-      return `<label><input type="checkbox" value="${v}"${on ? ' checked' : ''}${can ? '' : ' disabled'}> ${label}</label>`;
-    }).join('');
-    $('lockNote').textContent = S.lockups.length === 4 ? ''
-      : S.lockups[0] === 'mark'
-        ? 'The other three need a wordmark as well. Add one to switch them on.'
-        : 'The other three need a symbol as well. A logotype on its own is a whole identity — Google, FedEx and most of publishing are exactly that.';
-    for (const i of $('locks').querySelectorAll('input')) {
-      i.addEventListener('change', () => {
-        S.picked = [...$('locks').querySelectorAll('input:checked')].map((x) => x.value);
-        drawLockups(); save();
-      });
-    }
-  }
-
-  // ── print inks ────────────────────────────────────────────────────────
-  function drawInks() {
-    $('inks').innerHTML = S.colours.map((c, i) => `<div class="ir">
-      <span class="s" style="background:${esc(c.hex)}"></span>
-      <input type="text" data-ink="${i}" value="${esc(c.cmyk || '')}" placeholder="${esc(c.name)} — 88 58 45 72"
-        spellcheck="false" aria-label="CMYK for ${esc(c.name)}"></div>`).join('');
-  }
-  $('inks').addEventListener('input', (e) => {
-    const i = e.target.getAttribute('data-ink'); if (i == null) return;
-    S.colours[+i].cmyk = e.target.value;
-    e.target.classList.toggle('bad', !!e.target.value.trim() && cmyk(e.target.value) === null);
-    save();
-  });
-  function cmyk(v) {
-    const n = String(v).trim().split(/[\s,/]+/).filter(Boolean).map(Number);
-    if (n.length !== 4 || n.some((x) => !isFinite(x) || x < 0 || x > 100)) return null;
-    return n;
-  }
-
-  // one place that redraws everything a colour change touches
-  function refresh() { drawSwatches(); drawSpecimen(); drawLockups(); save(); }
-
-  // ── artwork in ────────────────────────────────────────────────────────
-  function wireDrop(zone, input, which) {
-    const stop = (e) => { e.preventDefault(); e.stopPropagation(); };
-    zone.addEventListener('dragover', (e) => { stop(e); zone.classList.add('over'); });
-    zone.addEventListener('dragleave', (e) => { stop(e); zone.classList.remove('over'); });
-    zone.addEventListener('drop', (e) => {
-      stop(e); zone.classList.remove('over');
-      const f = e.dataTransfer.files && e.dataTransfer.files[0];
-      if (f) read(f, which);
+      d.appendChild(b); box.appendChild(d);
     });
-    zone.addEventListener('keydown', (e) => {
-      if ((e.key === 'Enter' || e.key === ' ') && !zone.classList.contains('has')) { e.preventDefault(); input.click(); }
-    });
-    input.addEventListener('change', () => { if (input.files[0]) read(input.files[0], which); });
-  }
-  function read(file, which) {
-    const hint = which === 'mark' ? $('hintMark') : $('hintWord');
-    if (!/\.svg$/i.test(file.name) && file.type !== 'image/svg+xml') {
-      hint.innerHTML = '<span style="color:var(--stop)">Not an SVG. Export the vector, not a picture of it.</span>';
-      return;
-    }
-    const r = new FileReader();
-    r.onload = () => {
-      const t = String(r.result || '');
-      if (which === 'mark') { S.mark = t; S.markName = file.name; } else { S.word = t; S.wordName = file.name; }
-      showDrop(which);
-      inspect();
-    };
-    r.readAsText(file);
-  }
-  function showDrop(which) {
-    const zone = which === 'mark' ? $('dropMark') : $('dropWord');
-    const pv = which === 'mark' ? $('pvMark') : $('pvWord');
-    const hint = which === 'mark' ? $('hintMark') : $('hintWord');
-    const src = which === 'mark' ? S.mark : S.word;
-    const name = which === 'mark' ? S.markName : S.wordName;
-    if (!src) { zone.classList.remove('has'); pv.innerHTML = '<span class="ph"></span>';
-      hint.textContent = which === 'mark' ? 'the symbol' : 'the name, outlined'; return; }
-    zone.classList.add('has');
-    pv.innerHTML = `<img alt="" src="data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(src)))}">`;
-    hint.textContent = name;
-  }
-  wireDrop($('dropMark'), $('fileMark'), 'mark');
-  wireDrop($('dropWord'), $('fileWord'), 'word');
-
-  $('btnSample').addEventListener('click', (e) => {
-    e.stopPropagation();
-    S.mark = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">'
-      + '<g data-slot="ink" fill="none" stroke="#23303A" stroke-width="7" stroke-linecap="round">'
-      + '<path d="M26 84 L26 52"/><path d="M43 84 L43 40"/><path d="M77 84 L77 40"/>'
-      + '<path d="M94 84 L94 52"/><path d="M20 30 C40 12, 80 12, 100 30"/></g></svg>';
-    S.markName = 'sample-mark.svg';
-    showDrop('mark');
-    if (!$('brand').value) $('brand').value = 'Winterbourne';
-    inspect();
-  });
-
-  async function post(url, body) {
-    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body) });
-    let d; try { d = await res.json(); } catch (e) {
-      throw { findings: [{ level: 'blocker', what: 'The engine did not answer.',
-        why: 'The request went out and nothing readable came back.', how: 'Reload and try again.' }] }; }
-    if (!res.ok || d.ok === false) throw d;
-    return d;
   }
 
-  async function inspect() {
-    $('artStatus').innerHTML = '<span class="busy"><span class="spin"></span>reading the artwork…</span>';
-    findings($('findings'), []); $('measured').innerHTML = '';
-    try {
-      const r = await post('/api/inspect', { brand: $('brand').value || 'Untitled',
-        mark: S.mark, wordmark: S.word });
-      S.palette = r.palette || []; S.slots = r.slots || [];
-      S.lockups = r.lockups || []; S.art = r.art || {}; S.measured = r.measured;
-      if (!S.colours.length) S.colours = defaults();
-
-      const both = S.mark && S.word;
-      const list = [].concat(
-        (r.findings.mark || []).map((f) => Object.assign({ on: both ? 'the mark' : '' }, f)),
-        (r.findings.wordmark || []).map((f) => Object.assign({ on: both ? 'the wordmark' : '' }, f)));
-      $('artStatus').innerHTML = list.length ? '' :
-        '<div class="f fixed"><span class="lvl">Clean</span><p class="what">Nothing to fix and nothing to flag.</p>'
-        + '<p class="why">No stray metadata, no live text, nothing hidden.</p></div>';
-      findings($('findings'), list);
-      const m = r.measured;
-      $('measured').innerHTML = `<dl class="measured">
-        <dt>Ink box</dt><dd>${m.ink.w} × ${m.ink.h}</dd>
-        <dt>Artboard</dt><dd>${m.viewBox.w} × ${m.viewBox.h}</dd>
-        <dt>Clear space</dt><dd>${m.clearSpace}</dd>
-        <dt>Thinnest part</dt><dd>${m.thinnest}</dd>
-        <dt>Smallest use</dt><dd>${esc(m.floorPx)} · ${esc(m.floorMm)}</dd>
-        <dt>Colour slots</dt><dd>${(r.slots || []).join(', ') || 'none marked'}</dd></dl>`;
-
-      $('dropStage').hidden = true; $('specStage').hidden = false;
-      $('secId').hidden = false; $('secBuild').hidden = false;
-      $('tabLock').disabled = false;
-      drawSwatches(); drawPairs(); drawLocks(); drawSpecimen(); drawLockups();
-      $('overlays').hidden = false;
-      if (!$('brand').value) $('brand').focus();
-    } catch (err) {
-      $('artStatus').innerHTML = '';
-      findings($('findings'), (err && err.findings) || [{ level: 'blocker', what: 'Could not read that.',
-        why: 'The engine refused the file.', how: 'Try re-exporting it as plain SVG.' }]);
-    }
-  }
-
-  $('brand').addEventListener('input', () => {
-    $('latinFld').hidden = !$('brand').value || /[a-z]/i.test($('brand').value);
-    save();
-  });
-  $('latinName').addEventListener('input', save);
-
-  // ── build ─────────────────────────────────────────────────────────────
-  const CARDS = { 'guidelines.html': ['Brand manual', 'Every rule, drawn from the artwork rather than typed.'],
-    'deck.html': ['Deck', 'The same identity as slides.'],
-    'published.html': ['Cover', 'A page published out of the canvas.'],
-    'editor.html': ['Canvas', 'Drag blocks, drop a photograph, lay out a page.'] };
-  const KB = (n) => (n >= 1024 * 1000 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.round(n / 1024)} KB`);
-
-  async function openable(r) {
-    if (r.base) return { url: (f) => r.base + f, zip: r.zip ? `${r.base}${r.zip}?download` : null };
-    const bytes = Uint8Array.from(atob(r.zipBase64), (c) => c.charCodeAt(0));
-    const blobUrl = (d, t) => URL.createObjectURL(new Blob([d], { type: t }));
-    const zip = await JSZip.loadAsync(bytes);
-    const urls = {};
-    for (const f of r.documents) {
-      const e = zip.file(f);
-      if (e) urls[f] = blobUrl(await e.async('uint8array'), 'text/html');
-    }
-    return { url: (f) => urls[f] || '#', zip: blobUrl(bytes, 'application/zip'), name: r.zipName };
-  }
-
-  $('btnBuild').addEventListener('click', async () => {
-    const name = $('brand').value.trim();
-    findings($('buildErr'), []);
-    if (!name) {
-      findings($('buildErr'), [{ level: 'blocker', what: 'The identity has no name.',
-        why: 'It titles the manual, the deck and every file.', how: 'Type it above.' }]);
-      $('brand').focus(); return;
-    }
-    const picked = [...$('locks').querySelectorAll('input:checked')].map((i) => i.value);
-    $('buildBusy').innerHTML = '<span class="busy"><span class="spin"></span>building — a few seconds…</span>';
-    $('btnBuild').disabled = true;
-    try {
-      const pair = PAIRS[S.type] || PAIRS[0];
-      const r = await post('/api/build', {
-        brand: name, latinName: $('latinName').value.trim() || undefined,
-        mark: S.mark, wordmark: S.word,
-        colours: S.colours.filter((c) => c.name.trim()).map((c) => ({ name: c.name.trim(), hex: c.hex,
-          role: c.role || undefined, cmyk: c.cmyk ? cmyk(c.cmyk) || undefined : undefined })),
-        lockups: picked.length ? picked : S.lockups,
-        slots: S.slots,
-        type: S.ownType ? { heading: S.ownType, body: S.ownType } : { heading: pair.d, body: pair.t },
+  // ---------------------------------------------------------------- layout
+  function drawPicks() {
+    var box = $('picks'); box.textContent = '';
+    busy(true, 'Drawing four');
+    post('/api/preview', { mark: S.mark, wordmark: S.wordmark, brand: S.answers.brand,
+      positioning: S.answers.positioning, colours: S.answers.colours }).then(function (j) {
+      box.textContent = '';
+      j.previews.forEach(function (p) {
+        var card = el('div', 'pick' + (S.answers.style === p.key ? ' on' : ''));
+        card.tabIndex = 0; card.setAttribute('role', 'radio');
+        card.setAttribute('aria-checked', String(S.answers.style === p.key));
+        var fr = el('div', 'frame');
+        var f = el('iframe'); f.setAttribute('title', p.name + ' layout, drawn with your logo');
+        f.setAttribute('loading', 'lazy'); f.srcdoc = p.html;
+        fr.appendChild(f); card.appendChild(fr);
+        var m = el('div', 'm');
+        var b = el('b'); b.appendChild(el('i')); b.appendChild(document.createTextNode(p.name));
+        m.appendChild(b); m.appendChild(el('span', null, p.note));
+        card.appendChild(m);
+        function choose() {
+          S.answers.style = p.key;
+          [].forEach.call(box.children, function (c) {
+            c.classList.toggle('on', c === card); c.setAttribute('aria-checked', String(c === card)); });
+          gate(); say(p.name + ' — ' + p.note.split('.')[0] + '.');
+        }
+        card.addEventListener('click', choose);
+        card.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(); } });
+        box.appendChild(card);
       });
-      S.build = r;
-      const at = await openable(r);
-      $('tally').innerHTML = [[r.files, 'files'], [KB(r.bytes), 'on disk'],
-        [r.measured.floorPx, 'smallest on screen'], [r.measured.floorMm, 'smallest in print'],
-        [r.measured.clearSpace, 'clear space']]
-        .map(([a, b]) => `<span><b>${esc(a)}</b>${esc(b)}</span>`).join('');
-      $('docs').innerHTML = r.documents.map((f) => {
-        const c = CARDS[f] || [f, ''];
-        return `<a class="doc" href="${esc(at.url(f))}" target="_blank" rel="noopener">
-          <span class="shot"><iframe src="${esc(at.url(f))}" loading="lazy" tabindex="-1" title=""></iframe></span>
-          <span class="t"><b>${esc(c[0])}</b><span>${esc(c[1])}</span></span></a>`;
-      }).join('');
-      $('btnZip').href = at.zip || '#';
-      if (at.name) $('btnZip').setAttribute('download', at.name);
-      $('openNote').hidden = !!r.base;
-      $('openNote').textContent = r.base ? ''
-        : 'These open from this page’s memory, so they will not survive a reload and the tabs close when '
-          + 'this one does. The zip has all of them; run it yourself for real URLs.';
-      findings($('buildNotes'), [].concat(
-        (r.warnings || []).map((w) => ({ level: 'warning', what: w })),
-        (r.notes || []).map((n) => ({ level: 'fixed', what: n }))));
-      $('after').hidden = false;
-      $('btnBuild').textContent = 'Build it again';
-      $('tabPkg').disabled = false;
-      show('tabPkg');
-    } catch (err) {
-      findings($('buildErr'), (err && err.findings) || [{ level: 'blocker', what: 'The build stopped.',
-        why: 'The engine would not write a package it could not stand behind.', how: 'The terminal has the detail.' }]);
-    } finally {
-      $('buildBusy').innerHTML = ''; $('btnBuild').disabled = false;
-    }
+      busy(false); gate();
+    }).catch(function (e) { busy(false); fail('picks', e); });
+  }
+
+  // ----------------------------------------------------------------- build
+  function buildIt() {
+    busy(true, 'Building');
+    say('Measuring the artwork, cutting every file, writing the documents.');
+    post('/api/build', { brand: S.answers.brand, mark: S.mark, wordmark: S.wordmark,
+      colours: S.answers.colours, lockups: S.seen.hasBoth
+        ? ['horizontal', 'stacked', 'mark', 'wordmark'] : [S.seen.master],
+      slots: S.seen.slots, answers: S.answers }).then(function (j) {
+      S.built = j;
+      $('done-sub').textContent = j.files + ' files, ' + Math.round(j.bytes / 1024) + ' KB. '
+        + 'Every one cut from your master at the moment it was built. Nothing here asks the network for anything.';
+      var out = $('out'); out.textContent = '';
+      var docs = [
+        ['guidelines.html', 'The manual', 'Every rule, every measurement, every specimen.'],
+        ['deck.html', 'The deck', 'The same identity as a presentation.'],
+        ['editor.html', 'The canvas', 'Lay out a page with the identity already in it.'],
+        ['published.html', 'A published page', 'What the canvas puts out.'],
+      ];
+      docs.forEach(function (d) {
+        if ((j.documents || []).indexOf(d[0]) < 0) return;
+        var a = el('a', 'card'); a.href = j.base + d[0]; a.target = '_blank'; a.rel = 'noopener';
+        a.appendChild(el('b', null, d[1])); a.appendChild(el('span', null, d[2]));
+        out.appendChild(a);
+      });
+      if (j.zip) {
+        var z = el('a', 'card'); z.href = j.base + j.zip + '?download';
+        z.appendChild(el('b', null, 'Download the package'));
+        z.appendChild(el('span', null, 'The whole thing, zipped. It is yours to keep.'));
+        out.appendChild(z);
+      }
+      var nb = $('notes'); nb.textContent = '';
+      (j.warnings || []).forEach(function (w) {
+        var d = el('div', 'n warn'); d.appendChild(el('b', null, 'Worth a look'));
+        d.appendChild(document.createTextNode(w)); nb.appendChild(d);
+      });
+      (j.notes || []).slice(0, 4).forEach(function (n) {
+        var d = el('div', 'n'); d.appendChild(el('b', null, 'What it did'));
+        d.appendChild(document.createTextNode(n)); nb.appendChild(d);
+      });
+      busy(false); say(''); show(3);
+    }).catch(function (e) { busy(false); fail('picks', e); say(e.message, true); });
+  }
+
+  // --------------------------------------------------------------- driving
+  $('go').addEventListener('click', function () {
+    if (S.step === 0) { show(1); say('Six questions. Three are already answered.'); }
+    else if (S.step === 1) { show(2); drawPicks(); }
+    else if (S.step === 2) buildIt();
   });
+  $('back').addEventListener('click', function () { show(Math.max(0, S.step - 1)); say(''); });
 
-  $('btnAgain').addEventListener('click', () => {
-    try { localStorage.removeItem(KEY); } catch (e) { /* nothing to clear */ }
-    location.reload();
-  });
-
-  // ── where this is running ─────────────────────────────────────────────
-  const local = /^(localhost|127\.|\[::1\])/.test(location.hostname) || location.protocol === 'file:';
-  $('privacy').textContent = local
-    ? 'Nothing is uploaded: this runs on your machine and the artwork never leaves it. Your name, palette and type choices are remembered here; the artwork is not.'
-    : 'This copy is hosted, so the artwork is sent to a server that builds it and keeps nothing. Your name, palette and type choices are remembered in this browser; the artwork is not.';
-
-  restore();
-  drawPairs();
-}());
+  steps(); gate();
+  say('Nothing leaves this machine.');
+})();
 </script>
-</body></html>
+</body>
+</html>

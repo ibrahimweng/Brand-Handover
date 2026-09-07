@@ -958,6 +958,26 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       }
     }
   }
+  // The faces the engine holds, written out beside the ones the project ships.
+  // A client who is handed a package should be handed the type in it: the
+  // documents carry it inline so they survive being emailed, and these are the
+  // files for everything else they will set.
+  const TFS = require('./typefaces');
+  const held = TFS.embed(project.tokens.type, null).used;
+  const heldFamilies = [...new Set(held.map((f) => f.family))];
+  for (const f of held) write(`09-type/${path.basename(f.file)}`, fs.readFileSync(path.join(TFS.DIR, f.file)));
+  if (heldFamilies.length) {
+    const cat = TFS.catalogue();
+    const notices = heldFamilies.map((f) => (cat[f] && cat[f].copyright) || `${f}: copyright not recorded`);
+    write('09-type/OFL.txt', `The typefaces in this folder\n${'='.repeat(27)}\n\n`
+      + `${heldFamilies.join(', ')} — supplied with this package so that nothing has to be\n`
+      + `installed or fetched to use the identity.\n\n${notices.join('\n')}\n\n`
+      + `${fs.readFileSync(path.join(TFS.DIR, 'OFL.txt'), 'utf8')}`);
+    notes.push(`${heldFamilies.join(' and ')} ${heldFamilies.length === 1 ? 'is' : 'are'} in 09-type as `
+      + `${held.length} web font files, under the SIL Open Font License, and inlined in every document so `
+      + 'nothing is fetched to read one. No page in this package asks the network for anything.');
+  }
+
   if ((project.fonts || []).length) {
     const terms = project.fonts.filter((f) => f.licence)
       .map((f) => `${f.family}\n  ${f.licence}`).join('\n\n');
@@ -970,16 +990,43 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     notes.push(`the ${project.fonts.length === 1 ? 'typeface is' : 'typefaces are'} in 09-type, `
       + `with the licence terms beside them, and inlined in every document so nothing has to be installed to read one.`);
   }
-  // A face named in the tokens that is neither hosted nor shipped will be asked
-  // for by name and silently replaced by the fallback, while the manual's
-  // specimen page goes on saying it is the face. Nothing said so for sixteen
-  // rounds, because every fixture happened to use a font Google hosts.
+  // A face named in the tokens that the engine does not hold and the project does
+  // not ship will be asked for by name and silently replaced by the fallback,
+  // while the manual's specimen page goes on saying it is the face. Nothing said
+  // so for sixteen rounds, because every fixture happened to name a font that
+  // was linked from somebody else's server.
   for (const miss of TF.unreachable(project.tokens.type, project.fonts)) {
-    warnings.push(`the ${miss.role} typeface is "${miss.family}", and nothing can fetch it: it is not `
-      + `marked "google": true and no files are listed for it. Every document will name it and set `
+    warnings.push(`the ${miss.role} typeface is "${miss.family}", and nothing can supply it: it is not one `
+      + `the engine holds and no files are listed for it. Every document will name it and set `
       + `${miss.fallback ? miss.fallback.split(',')[0] : 'whatever the reader happens to have'} instead, `
       + `including the specimen page that is meant to prove what it looks like. Add "files" to the family `
-      + `with the webfont you are licensed to ship, or "google": true if it is served from there.`);
+      + `with the webfont you are licensed to ship, or use one of the ${TFS.NAMES().length} the engine has: `
+      + `${TFS.NAMES().join(', ')}.`);
+  }
+
+  // Every document carries the type inline so it survives being emailed, and
+  // that is the cost of it. A size threshold would fire on almost every project
+  // and mean nothing; a weight that nothing sets is precise, actionable, and
+  // paid for in every document in the package.
+  const typeKb = Math.round(held.reduce((n, f) => n + f.bytes, 0) * 1.34 / 1024);
+  const setWeights = new Set();
+  for (const step of ((project.tokens.type || {}).scale) || []) setWeights.add(Number(step.weight) || 400);
+  if (project.nameSetting) setWeights.add(Number(project.nameSetting.weight) || 400);
+  for (const [role, fam] of Object.entries((project.tokens.type || {}).families || {})) {
+    if (!TFS.has(fam.family)) continue;
+    const idle = (fam.weights || []).filter((w) => !setWeights.has(Number(w)));
+    if (!idle.length || idle.length === (fam.weights || []).length) continue;
+    const each = Math.round(held.filter((f) => f.family === fam.family && idle.includes(f.weight))
+      .reduce((n, f) => n + f.bytes, 0) * 1.34 / 1024);
+    warnings.push(`the ${role} family lists ${fam.family} at ${(fam.weights || []).join(', ')}, and nothing `
+      + `in the type scale sets ${idle.join(' or ')}. Every document in this package carries `
+      + `${each} KB of a weight it never uses, because the type is inlined so the documents work without a `
+      + `network. Take ${idle.length === 1 ? 'it' : 'them'} out of tokens.type.families.${role}.weights, or `
+      + 'use it in the scale.');
+  }
+  if (heldFamilies.length) {
+    notes.push(`the type is ${typeKb} KB inlined into each of the documents, which is what it costs to open `
+      + 'one with no network at all.');
   }
 
   // the pattern is cut from the master, which is not the drawing icons come from:

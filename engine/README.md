@@ -3163,6 +3163,59 @@ suggestion to untick is a better question than a blank list.
 Six answers and a drawing make a 73 file package, and the only thing it complains
 about is CMYK, which genuinely cannot be measured: it has to come from a printer.
 
+## The type, and the last link out
+
+A `google: true` family became a `<link>` to fonts.googleapis.com. Three things
+were wrong with that and only one of them is about privacy:
+
+- **the document did not work without a network.** Open a manual on a plane and
+  the identity is set in Georgia. It bit this repository during the layout work:
+  four preview pages hung for thirty seconds each waiting for a stylesheet.
+- **the package was not self contained**, which is the one promise the whole
+  engine is built on — *the client keeps this whether or not anyone is still
+  paying for the tool that made it* — and it was not true of the type.
+- **the build was not reproducible**, because the bytes came from somebody
+  else's server and could change under it.
+
+`fonts/` holds the faces now: eleven families, sixty-four woff2 files, with a
+manifest of the weight and unicode subset each one covers and the copyright
+notice each one ships under. `src/typefaces.js` inlines them into every document
+as data URIs and writes them into `09-type` with the licence. Nothing is fetched
+at render time and nothing is fetched at build time.
+
+Which subsets go in is measured rather than assumed. A `unicode-range` stops a
+browser *downloading* a subset it does not need, and a data URI is already
+downloaded, so the range saves nothing once the bytes are inline — the filtering
+has to happen first. The document's own words decide it: **an English manual
+carries four faces at 162 KB and a French one carries eight at 296 KB**, because
+French needs Latin Extended and English does not.
+
+That costs something, and the package says what: *the type is 453 KB inlined into
+each of the documents, which is what it costs to open one with no network at
+all.* A size threshold as a warning would fire on almost every project and mean
+nothing, so the warning is the precise version of the same question — **a weight
+the type scale never sets**, carried in every document for nothing, named with
+what it costs.
+
+## A front door that asks six questions
+
+`src/app/client.html` is four screens: drop the artwork, answer what the file
+cannot be asked, choose a layout by looking at four of them drawn with your own
+logo, and take the package. The page sets its own type in faces the engine holds,
+inlined by the server — the front door was the last thing in the product still
+reaching out for a stylesheet.
+
+Two endpoints stand behind it. `/api/ask` returns what was measured together with
+the six questions, so the screen never guesses at something the engine already
+knows: the palette with a role proposed for each colour, the named parts, the
+floor, and the pattern it would build. `/api/preview` returns the four layouts as
+whole pages, drawn through the same stylesheet the real manual uses and painted
+in the identity's own ink — a preview in black is a preview of something else.
+
+Driven end to end in a browser: two SVGs in, four parts and two colours measured,
+six questions, four layouts rendered, seventy-three files out, **no request
+leaving the application and no error in the console**.
+
 ## A front door
 
 Sixteen rounds, and the only way into the engine was to hand-write a project

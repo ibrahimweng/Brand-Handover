@@ -11,7 +11,7 @@
 // is inlined, a face somebody else hosts is linked, and neither document has to
 // know which it got.
 const TF = require('../typeface');
-const fontLink = (type, fonts) => TF.head(type, fonts);
+const fontLink = (type, fonts, text) => TF.head(type, fonts, text);
 
 const CSS = `
 :root{--paper:#FCFCFB;--surface:#fff;--sunk:#F2F2F0;--ink:#0E1011;--ink-2:#5A5F63;--ink-3:#6E747A;--rule:#E3E5E6;--rule-2:#C7CACC;--on-ink:#FCFCFB;--on-ink-2:#B9BCBE;
@@ -158,7 +158,7 @@ function displayVar(style, type) {
 const shell = ({ title, type, fonts, body, favicon, language = 'en', direction = 'ltr', style }) => `<!doctype html>
 <html lang="${escText(language)}" dir="${escText(direction)}" data-dir="${escText(style || require('../directions').DEFAULT)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${escText(title)}</title>${favicon ? `\n<link rel="icon" href="${favicon}">` : ''}
-${fontLink(type, fonts)}
+${fontLink(type, fonts, body)}
 <style>${css(style)}</style>${displayVar(style, type)}</head><body><main class="page">${body}</main></body></html>`;
 
 module.exports = { shell, CSS, css, displayVar, fontLink, escText };

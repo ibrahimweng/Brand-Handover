@@ -89,7 +89,15 @@ function handler(req, res) {
   const p = decodeURIComponent(url.pathname);
 
   if (req.method === 'GET' && (p === '/' || p === '/index.html')) {
-    return serveFile(res, path.join(__dirname, 'client.html'));
+    // The page sets its own type in faces the engine holds, inlined here rather
+    // than linked: everything the product shows you stays inside the product,
+    // and the front door was the last thing still reaching out for a stylesheet.
+    const html = fs.readFileSync(path.join(__dirname, 'client.html'), 'utf8')
+      .replace('/*FONTS*/', () => require('../typefaces').embed({ families: {
+        ui: { family: 'Archivo', weights: [400, 500, 600, 700] },
+        text: { family: 'Literata', weights: [400] },
+      } }, null).css);
+    return send(res, 200, html, { 'Content-Type': 'text/html; charset=utf-8' });
   }
 
   // The page asks for this whether it needs it or not: hosted, it opens the
@@ -123,6 +131,16 @@ function handler(req, res) {
     // a path that climbs out of the build directory is not a file in it
     if (path.relative(entry.dir, want).startsWith('..')) return send(res, 403, 'no', { 'Content-Type': 'text/plain' });
     return serveFile(res, want, { download: url.searchParams.has('download') ? path.basename(want) : null });
+  }
+
+  // What the engine can tell from the artwork, plus the six things it cannot.
+  if (req.method === 'POST' && p === '/api/ask') {
+    return readBody(req).then((body) => json(res, 200, H.ask(body))).catch((e) => fail(res, e));
+  }
+
+  // The four layout systems, each drawn with this identity.
+  if (req.method === 'POST' && p === '/api/preview') {
+    return readBody(req).then((body) => json(res, 200, H.preview(body))).catch((e) => fail(res, e));
   }
 
   if (req.method === 'POST' && p === '/api/inspect') {

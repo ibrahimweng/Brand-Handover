@@ -299,7 +299,7 @@ function deck(ctx) {
   const { fontLink } = require('./chrome');
   return `<!doctype html><html lang="${b.esc(L.lang)}" dir="${b.esc(L.dir)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${b.esc(p.brand)} Brand Deck</title>
-${fontLink(p.tokens.type, p.fonts)}
+${fontLink(p.tokens.type, p.fonts, S.join(''))}
 <style>${CSS(t)}</style></head><body>
 <div class="wrap">
   <div class="topbar"><span>${own(p.brand)} · brand deck</span><span><b id="ttl"></b></span></div>
