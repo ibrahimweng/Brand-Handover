@@ -3736,6 +3736,178 @@ and `test/fixtures/layer-offset.svg` is a mark on a layer a thousand units away
 with one shape carrying a transform of its own and one shape off the artboard,
 which is the smallest thing that has three of the five at once.
 
+## A third language, and the first that is not written the way the engine is
+
+`en` and `fr` proved the mechanism is a mechanism. They could not prove much
+else. They share an alphabet, a direction and a sentence shape, so a page that
+is wrong in French is wrong in a way an English reader can see — and the two
+things a language is really made of, the script it is written in and the way it
+runs across a page, were the same in both.
+
+מעיין has been in this repository since the ninth round. It is a Hebrew
+identity, it declares `he`, and every round since the thirtieth has handed it an
+English manual with a warning attached saying the engine had no Hebrew and that
+adding one was "a block of strings in `src/strings.js` and nothing else". That
+last part was wrong, and this is what was actually in the way.
+
+עברית is 499 keys and 3,761 words. Thirteen of the keys are not in English at
+all.
+
+### An ordinal agrees with its noun, and this table had one of each
+
+`motifShapeNth` is "the {ord} {shape} in the drawing", and the ordinals were one
+word each: `ord2: 'second'`. That is right for English and wrong for every other
+language here. French has been printing
+
+    le deuxième ellipse du dessin
+
+since the thirtieth round. `ellipse` is feminine; five of the six shape nouns
+happen to be masculine and the sixth had never come up in a fixture. Hebrew
+makes it unavoidable — every ordinal has two forms, the nouns do not agree with
+one another, and the ordinal follows the noun rather than preceding it.
+
+So a dictionary now says which of its nouns are feminine, a key may carry a
+second form under the same name with an `f` on the end, and `agree()` picks. The
+Hebrew needed it; the French had needed it all along.
+
+    en   the second circle in the drawing   the second ellipse in the drawing
+    fr   le deuxième cercle du dessin       la deuxième ellipse du dessin
+    he   העיגול השני שבשרטוט                האליפסה השנייה שבשרטוט
+
+### The alphabet in a type specimen is a specimen of a script
+
+`alphabet` is `ABCDEFGHIJKLM abcdefghijklm 0123456789`, and français sets the
+same string with an É in it. Both are the same answer to the same question,
+because both languages are asking it about the same letters. Hebrew has no
+capitals at all, so a specimen of it is neither of those and cannot be made from
+either by adding an accent. It is in the dictionary, where it always was — but
+only now for a reason, because only a language knows what its own letters are.
+
+### The manual prints a machine file, and a machine file is English
+
+`brand.json` is read as English whatever the brand's language is. That is the
+decision the whole table was built on and it is the right one: a developer
+reading the machine file reads English. The manual then prints it whole, inside
+a `<pre>`, carrying nothing that says what it is — so a Hebrew manual was 3,719
+Latin characters of JSON keys and English sentences under `lang="he"`.
+
+    in guidelines.html, the page says it is in he and 55 per cent of the
+    text on it that carries no language of its own is latin.
+
+The engine refused to build it, and it was right to: a speech synthesiser told
+the page is Hebrew reads that block in Hebrew. It says `lang="en" dir="ltr"` now.
+So does every `<code>` on the page, for the second half of the same reason —
+`05-icons/` under `dir="rtl"` is drawn `/05-icons`, and `check <icon.svg> --icon`
+comes out with its flag first. Marked, the manual measures 85 per cent Hebrew and
+builds.
+
+### A published page carried one document's words under another's claim
+
+`published.html` is a canvas document, and it asked which language writes the
+*manual*. For a Hebrew project that is Hebrew, and the words on it had all come
+from the English canvas: 97 per cent latin under `lang="he"`. That is the
+thirty-fourth round's fault a level further down, and the same shape as the two
+before it — a claim about a document taken from something that is not that
+document. It asks about the canvas now.
+
+Eleven English literals came out of `editor/bundle.js` while that was being
+looked at. The canvas opens on a document rather than a blank page, and that
+document is content: its page names and its two sentences had never been in any
+dictionary, because everything else on it — the mark, the palette, the pattern —
+is drawn from the project and needs no words at all.
+
+### Every measurement on the page was a different measurement
+
+This is the one nothing at build time could have found, and neither `en` nor
+`fr` could have found at all.
+
+A run of Latin characters inside Hebrew prose is laid out by the bidirectional
+algorithm, and the neutral characters around it — a `#`, a `÷`, a `·`, the space
+between a number and its unit — go to whichever end the paragraph direction says.
+Measured in a browser, character by character, on the manual as it first built:
+
+    file  #C8873A          reader sees  C8873A#
+    file  18 59 58         reader sees  58 59 18
+    file  82 52 60 40      reader sees  40 60 52 82
+    file  1385 C           reader sees  C 1385
+    file  122 × 50 px      reader sees  px 50 × 122
+    file  140 ÷ 7 = 20     reader sees  20 = 7 ÷ 140
+    file  01-horizontal    reader sees  horizontal-01
+    file  1 / 19           reader sees  19 / 1
+
+Twenty-nine of them. Every one of those is a different value from the one the
+package measured: a different colour, a different ink to send to a press, a
+different shape, a sum that is not true, a folder that is not there, slide
+nineteen of one. The file is right in all twenty-nine, every check the engine had
+passed, and the reader was shown something else.
+
+A value has to say it is its own run. U+2068 FIRST STRONG ISOLATE and U+2069 POP
+DIRECTIONAL ISOLATE do that, and they are characters rather than markup, so they
+survive escaping and reach the page through every one of the hundred callers that
+sets a measurement — isolated in one place, in `t()`, where the values are
+substituted. Three things had to be got right and each was found by measuring
+again:
+
+- **The run, not the value.** Isolating each value on its own left the characters
+  *between* two of them outside any isolate, and a neutral between two isolated
+  runs takes the paragraph's direction. `140 ÷ 7 = 20` stayed backwards.
+- **The sentence's punctuation is not the value's.** An isolate that swallows the
+  full stop of `WCAG 2.2.` puts it at the run's left-hand end, which in a
+  right-to-left sentence is the middle of it.
+- **The brand's own name breaks a run.** The sentinel a document leaves where the
+  brand goes is filled in afterwards, so first-strong resolved `מעיין 3.0.0 · 67`
+  as Hebrew and turned the footer back round.
+
+The cells that hold nothing but a value — the palette, the contrast table, the
+floor table — say `direction:ltr` in the stylesheet instead. They were already
+the cells the design sets in the numeric face, so there was a hook to hang it on.
+
+And one thing the isolate cannot reach: the deck's slide counter is built in the
+browser, so the engine emits the two characters into the script.
+
+### A label inside an equation only works in one direction
+
+`basisStroke` is "box {box} ÷ stroke {w} = {ratio} stroke widths across" —
+English puts its labels inside the arithmetic, and that reads because the words
+and the sum run the same way. In Hebrew a word in the middle of a sum breaks the
+sum into two runs, and two runs with a neutral between them are laid out in the
+paragraph's direction. The label goes in front in the Hebrew and the sum stays
+whole. Nothing in the machinery forbids the English shape; the language it is
+wrong for is the one that has to say so.
+
+### An arrow is a direction
+
+The deck's buttons were `← Prev` and `Next →`, characters in the markup,
+whichever way the deck reads. In a right-to-left deck the start is on the right,
+so back points right and forward points left — and the arrow keys go with them,
+because pressing the right arrow in a right-to-left carousel moves towards the
+beginning. Two glyphs and one sign.
+
+### What it is measured with
+
+`test/rtl-check.mjs` reads every text node in a built page, takes the screen
+position of each character in every run that has no right-to-left letter in it,
+and compares the order they are drawn in with the order they are written in. It
+knows that a run which wraps is not a run that was reordered, that two identical
+letters side by side measure to all but the same place, and that punctuation at
+a run's edge belongs to the boundary rather than the value.
+
+Against the manual as it first built it reports 29. Against the one that ships,
+0 — on all four pages, the two that read right to left and the two that do not.
+
+### What עברית does not write
+
+The canvas. Its chrome is literals in `src/editor/emit.js` and, mostly, in
+`src/editor/app.js`, which is client side and would have to be handed a
+dictionary rather than read one. So a Hebrew project gets a Hebrew manual, a
+Hebrew deck, and an English canvas that says it is English — which is the same
+answer français gets, and the point of the mechanism is that the answer is said
+rather than assumed. The build says exactly that, and names the two files.
+
+山彦 is still in `ja` and the engine still has no `ja`, so it has taken over the
+job מעיין used to do: it is the identity that proves a language the engine
+cannot write is said so rather than quietly swapped.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.
@@ -3771,6 +3943,7 @@ which is the smallest thing that has three of the five at once.
     src/previous.js   what moved since the last version, in both languages
     src/access.js     the documents measured, and the canvas asked different things
     test/canvas-check.mjs  the canvas driven by keyboard in a real browser
+    test/rtl-check.mjs     every value, drawn against the way it is written
     src/documents/    blocks.js, chrome.js, index.js (manual), deck.js
     projects/meridian/  the first identity: one stroked mark, one ink
     projects/halyard/   the second: filled artwork, two inks, four faults left in

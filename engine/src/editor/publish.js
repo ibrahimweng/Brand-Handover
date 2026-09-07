@@ -172,7 +172,16 @@ html,body{margin:0;background:var(--shell);color:var(--ink);font-family:ui-sans-
 
     // A published page is written in the engine's language too. The brand's own
     // words on it carry the brand's, set where they are placed.
-    const L = require('../strings').resolve({ language: bundle.language, direction: bundle.direction });
+    //
+    // It is a canvas document, so it asks which language writes the canvas —
+    // not which writes the manual. Asking the default meant a Hebrew project
+    // published a page declaring lang="he" over a document whose every word had
+    // come from the English canvas: 97 per cent of it latin. That is the
+    // thirty-fourth round's fault a level further down, and the same shape as
+    // the two before it — a claim about a document taken from something that is
+    // not that document.
+    const L = require('../strings').resolve(
+      { language: bundle.language, direction: bundle.direction }, 'canvas');
     return `<!doctype html><html lang="${esc(L.lang)}" dir="${esc(L.dir)}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(bundle.brand)}${o.title ? ' · ' + esc(o.title) : ''}</title>

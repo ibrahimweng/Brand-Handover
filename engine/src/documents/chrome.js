@@ -108,6 +108,18 @@ figcaption.said b{display:block;font-weight:600;color:var(--ink);margin-bottom:2
 .ftr span{font-size:14px;line-height:1.45;color:var(--ink-2)}
 .ftr em{font-family:var(--mono);font-style:normal;font-size:12.5px;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
 .ftr em.over{color:#8A6410}
+/* A measured value is a left-to-right run wherever the page reads, and it has
+   to say so. Hebrew is the first language here whose documents run the other
+   way, and a browser laying out an unmarked value inside right-to-left prose
+   moves its neutral characters to the far end: #C8873A is drawn C8873A#, the
+   RGB triple 18 59 58 is drawn 58 59 18, which is a different colour, and the
+   Pantone 1385 C is drawn C 1385, which is a different ink to send to a press.
+   The file is right in all three and the reader is shown something else. These
+   are the cells the design already sets in the numeric face; a direction on an
+   element makes it its own isolate, and on a page that runs left to right it
+   changes nothing. */
+.chip dd,.ctr em,.ftr em,.ftr b,.mrow em,.mrow b{direction:ltr}
+.ftr b,.mrow b{text-align:start}
 @media (max-width:640px){.ftr{grid-template-columns:1fr 1fr;gap:4px 14px}.ftr span{grid-column:1/-1}.ftr.head{display:none}}
 .face{border:1px solid var(--rule);background:var(--surface);padding:22px 24px}.face+.face{margin-top:14px}
 .fn{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:14px}

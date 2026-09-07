@@ -92,6 +92,21 @@ function deck(ctx) {
   // carry the brand's language against whichever the document is written in.
   // See src/strings.js.
   const L = ctx.deckL = require('../strings').resolve(p, 'deck');
+  // The slide counter is built in the browser, so the isolate the engine puts
+  // round every other value cannot reach it: `1 / 19` was drawn `19 / 1`, which
+  // says slide nineteen of one. Two characters, emitted into the script.
+  const ISO = L.dir === 'rtl' ? ['\u2068', '\u2069'] : ['', ''];
+  // An arrow is a direction, and it was a character in the markup. In a deck
+  // that reads right to left the start of the deck is on the right, so "back"
+  // points right and "forward" points left — and the arrow keys go the other
+  // way with them: pressing the right arrow in a right-to-left carousel moves
+  // towards the beginning, which is what every reader of one expects and what
+  // WAI-ARIA says. Two glyphs and one sign, and neither en nor fr could ever
+  // have shown that either was wrong.
+  const rtl = L.dir === 'rtl';
+  const BACK = rtl ? '\u2192' : '\u2190';
+  const FWD = rtl ? '\u2190' : '\u2192';
+  const STEP = rtl ? -1 : 1;
   const own = (t) => b.own(ctx, t, L);
   const say = (k, v) => L.t(k, v);
   const noun = say(ctx.noun === 'mark' ? 'nounMark' : 'nounLogotype');
@@ -336,9 +351,9 @@ ${fontLink(p.tokens.type, p.fonts, S.join(''))}
 <div class="wrap">
   <div class="topbar"><span>${strip}</span><span><b id="ttl"></b></span></div>
   <main class="stage" id="stage" role="region" aria-roledescription="${b.esc(say('deckCarousel'))}" aria-label="${b.esc(say('deckDocTitle', { brand: p.brand }))}">${S.join('')}</main>
-  <div class="ctrl"><button class="btn" id="prev" type="button">← ${b.esc(say('deckPrev'))}</button>
+  <div class="ctrl"><button class="btn" id="prev" type="button">${BACK} ${b.esc(say('deckPrev'))}</button>
   <div class="dots" id="dots" role="tablist" aria-label="${b.esc(say('deckSlides'))}"></div>
-  <button class="btn" id="next" type="button">${b.esc(say('deckNext'))} →</button><span class="hint">${b.esc(say('deckKeys'))}</span></div>
+  <button class="btn" id="next" type="button">${b.esc(say('deckNext'))} ${FWD}</button><span class="hint">${b.esc(say('deckKeys'))}</span></div>
 </div>
 <script>
 (function(){var s=[].slice.call(document.querySelectorAll('.slide')),t=${JSON.stringify(T)},a=${JSON.stringify(A)},i=0,
@@ -348,10 +363,11 @@ x.setAttribute('aria-label',a[k]);x.addEventListener('click',function(){go(k)});
 var e=[].slice.call(d.children);
 function go(k){i=Math.max(0,Math.min(s.length-1,k));s.forEach(function(a,j){a.classList.toggle('on',j===i)});
 e.forEach(function(a,j){a.classList.toggle('on',j===i);a.setAttribute('aria-selected',j===i)});
-p.disabled=!i;n.disabled=i===s.length-1;h.textContent=(i+1)+' / '+s.length+'  ·  '+t[i]}
+p.disabled=!i;n.disabled=i===s.length-1;h.textContent=${JSON.stringify(ISO[0])}+(i+1)+' / '+s.length+${JSON.stringify(ISO[1])}+'  ·  '+t[i]}
 p.addEventListener('click',function(){go(i-1)});n.addEventListener('click',function(){go(i+1)});
-document.addEventListener('keydown',function(v){if(v.key==='ArrowRight'||v.key==='PageDown'){go(i+1);v.preventDefault()}
-if(v.key==='ArrowLeft'||v.key==='PageUp'){go(i-1);v.preventDefault()}if(v.key==='Home'){go(0);v.preventDefault()}
+document.addEventListener('keydown',function(v){var w=${STEP};if(v.key==='ArrowRight'){go(i+w);v.preventDefault()}
+if(v.key==='ArrowLeft'){go(i-w);v.preventDefault()}
+if(v.key==='PageDown'){go(i+1);v.preventDefault()}if(v.key==='PageUp'){go(i-1);v.preventDefault()}if(v.key==='Home'){go(0);v.preventDefault()}
 if(v.key==='End'){go(s.length-1);v.preventDefault()}});go(0)})();
 </script></body></html>`;
 }

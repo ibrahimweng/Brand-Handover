@@ -825,6 +825,14 @@ Object.assign(EN, {
   cgIconWhat: 'icons are drawn at {b} on a {box} box, where the last version drew them at {a}.',
   cgIconWhy: 'The icon weight is taken off the master, so redrawing the master redraws the whole icon set without anyone asking for it. Icons already in a product were built to the old weight and now sit beside the new ones.',
   cgIconHow: 'Either redraw the existing icons at {b}, or set system.icons.stroke to {a} to hold the set where it was.',
+  // The canvas opens on a document rather than a blank page, and that document
+  // is content: its page names and its two sentences were literals in
+  // editor/bundle.js that no dictionary had seen. Everything else on it — the
+  // mark, the palette, the pattern — is drawn from the project and needs no
+  // words at all, which is why eleven strings hid for thirty-five rounds.
+  sldCover: 'Cover',
+  cnvSetOnce: 'Set once, generated after that',
+  cnvFourBlocks: 'These four come from one decision each. Change the rule in the project and every instance follows. Nothing here is redrawn by hand.',
 });
 
 Object.assign(FR, {
@@ -896,9 +904,559 @@ Object.assign(FR, {
   cgIconWhat: 'les icônes sont dessinées à {b} dans une boîte de {box}, là où la version précédente les dessinait à {a}.',
   cgIconWhy: 'La graisse des icônes est relevée sur le fichier maître : redessiner le maître redessine donc tout le jeu d’icônes sans que personne l’ait demandé. Les icônes déjà en production ont été bâties à l’ancienne graisse et voisinent maintenant avec les nouvelles.',
   cgIconHow: 'Soit redessinez les icônes existantes à {b}, soit fixez system.icons.stroke à {a} pour tenir le jeu où il était.',
+  // `ellipse` is feminine and every one of these was written as though no
+  // French noun is. Until this round the manual printed "le deuxième ellipse
+  // du dessin"; three languages found it and two could not.
+  ord1f: 'première',
+  motifShapef: "l'{shape} du dessin",
+  motifShapeNthf: 'la {ord} {shape} du dessin',
+  gender: { shapeEllipse: 'f' },
+  sldCover: 'Couverture',
+  cnvSetOnce: 'Défini une fois, généré ensuite',
+  cnvFourBlocks: "Ces quatre-là découlent chacun d'une seule décision. Changez la règle dans le projet et chaque instance suit. Rien ici n'est redessiné à la main.",
 });
 
-const HAVE = { en: EN, fr: FR };
+// A third language, and the first that is not written the way the engine is.
+//
+// en and fr proved the mechanism is a mechanism. They could not prove much
+// else: they share an alphabet, a direction and a sentence shape, so a page
+// that is wrong in French is wrong in a way an English reader can see. Maayan
+// is a Hebrew identity and has been in this repository since the ninth round,
+// declaring `he` and getting an English manual with a warning attached.
+//
+// Two things came out of writing this one that neither of the others could
+// have found.
+//
+// An ordinal agrees with its noun in most languages that have gender, and this
+// table had one form of each. English hides it. French got it wrong and has
+// been getting it wrong: `ellipse` is feminine, so "le deuxième ellipse du
+// dessin" was already being printed. Hebrew makes it unavoidable — every
+// ordinal has two forms and the six shape nouns do not share a gender. So a
+// dictionary now says which of its nouns are feminine, and a key may carry a
+// second form under the same name with an `f` on the end; `agree()` picks.
+//
+// And the alphabet a type specimen sets is a specimen of a script, not a
+// string. English sets ABC abc, French adds an É to it, and both are the same
+// answer to the same question. Hebrew has no capitals at all, so the specimen
+// is neither of those; it is the Hebrew alphabet, and it is here rather than
+// in the layout because only a language knows what its own letters are.
+const HE = {
+  // The manual and the deck, which is what français writes too. The canvas is
+  // not a document made of this table: its chrome is literals in
+  // editor/emit.js and, mostly, in editor/app.js, which is client side and
+  // would have to be handed a dictionary rather than read one. So a Hebrew
+  // project gets a Hebrew manual, a Hebrew deck, and an English canvas that
+  // says it is English — which is the same answer français gets, and the point
+  // of the mechanism is that the answer is said rather than assumed.
+  lang: 'he', dir: 'rtl', name: 'עברית', writes: ['manual', 'deck'],
+  eyebrow: "מדריך מותג · נוצר מקובץ מקור אחד",
+  manualTitle: "מדריך המותג של {brand}",
+  deckTitle: "{brand} · מצגת מותג",
+  badgeSystem: "משורטט על ידי המערכת",
+  badgeOnce: "נקבע פעם אחת על ידיכם",
+  badgeYours: "שלכם",
+  chMark: "הסמל",
+  chLogotype: "הלוגוטייפ",
+  chColour: "צבע",
+  chType: "טיפוגרפיה",
+  chSystem: "המערכת",
+  chAssets: "הקבצים",
+  chChanges: "מה השתנה מאז {version}",
+  chMaking: "הייצור",
+  chFamily: "המותגים שבתוכו",
+  secPrimaryMark: "הסמל הראשי",
+  secPrimaryLogotype: "הלוגוטייפ",
+  secConstruction: "מבנה",
+  secClearSpace: "מרחב נשימה",
+  secMinimumSize: "גודל מזערי",
+  secEverySize: "הסמל בכל גודל",
+  secLockups: "מערכת ההרכבים",
+  secPartners: "הרכבים עם שותפים",
+  secMisuse: "שימוש שגוי",
+  sayStretch: "אין למתוח או לכווץ אותו.",
+  sayRotate: "אין לסובב אותו.",
+  sayCrowd: "אין לצופף אותו. מרחב הנשימה הוא {x} יחידות מכל צד.",
+  sayUndersize: "אין להשתמש בו מתחת ל־{px}.",
+  sayRecolour: "אין לצבוע אותו מחוץ לפלטה.",
+  sayShadow: "אין להוסיף צל, זוהר או תבליט.",
+  sayOutline: "אין להוסיף לו קו מתאר.",
+  sayBusy: "אין להניח אותו על רקע עמוס בלי שכבת הסתרה.",
+  sayRedraw: "אין לשרטט אותו מחדש. {part} שייך לשרטוט.",
+  sayRetype: "אין להקליד את השם מחדש. זהו שרטוט, לא טקסט חי.",
+  secPalette: "הפלטה",
+  secGradient: "המעבר",
+  secContrast: "ניגודיות ונגישות",
+  secColourVision: "ראיית צבע",
+  secTypefaces: "הגופנים",
+  secScale: "הסולם",
+  secPattern: "הדוגמה",
+  secPhotography: "צילום",
+  secIconGrid: "רשת האייקונים",
+  secMotion: "תנועה",
+  secIdent: "האידנט",
+  secMadeAs: "כיצד הוא מיוצר",
+  secSubBrands: "תת־מותגים",
+  secReadFirst: "לקרוא קודם",
+  secInPackage: "מה יש בחבילה",
+  secMachineFile: "הקובץ קריא־המכונה",
+  machineNote: "נשלח לצד הדף הזה כדי שהכלים של הלקוח יקראו את המותג במקום לנחש אותו.",
+  footerMeasured: "כל מידה בדף הזה נמדדה מתוך {master} בזמן בניית החבילה. שום מידה לא הוקלדה.",
+  footerContrast: "יחסי הניגודיות לפי WCAG 2.2. ה־CMYK מומר מתוך הקוד ההקסדצימלי, ויש להגיה אותו מול פרופיל ICC לפני הדפסה.",
+  footerFiles: "{brand} {version} · {n} קבצים בחבילה.",
+  deckDocTitle: "מצגת המותג של {brand}",
+  deckCarousel: "קרוסלה",
+  deckSlideOf: "שקופית {n}, {title}",
+  deckSlides: "שקופיות",
+  deckPrev: "הקודם",
+  deckNext: "הבא",
+  deckKeys: "מקשי החיצים",
+  nounMark: "סמל",
+  nounLogotype: "לוגוטייפ",
+  sldTitle: "כותרת",
+  sldLockups: "ההרכבים",
+  sldContrast: "ניגודיות",
+  sldPackage: "החבילה",
+  sldClose: "סיום",
+  bdgSystem: "המערכת",
+  bdgOnce: "נקבע פעם אחת",
+  deckBuilt: "נבנה מקובץ מקור אחד",
+  deckPrimary: "הסמל הראשי",
+  deckMeasured: "נמדד, לא הוחלט",
+  deckBox: "התיבה היא {box} יחידות והשרטוט ממלא {ink} מהן. {feature} הוא {thin}.",
+  deckStem: "הגזע הצר ביותר",
+  deckStroke: "הקו הדק ביותר",
+  deckNumbers: "כל מספר כאן נקרא מתוך השרטוט בזמן בניית המצגת.",
+  deckKeepClear: "לשמור על x פנוי",
+  deckClear: "x הוא {x} יחידות, שהם {ratio} מגובה הסמל עצמו. שום דבר לא נכנס למרחב הזה, ובכלל זה טקסט וקצה הדף.",
+  deckFloorPair: "{px}, ו־{mm}",
+  deckFails: "הקו הוא הראשון שנשבר. {basis}, ולכן החזקה שלו על {px} px מציבה שם את הרצפה.",
+  deckAtFloor: "רצפה",
+  deckTooSmall: "קטן מדי",
+  deckAlone: "זהו ה{noun} לבדו. הרכב הוא שרטוט אחר ונעלם בגודל אחר — בשקופית הבאה יש כל אחד מהם, ובמדריך יש את הטבלה.",
+  deckArrangements: "{n} סידורים, {c} מערכי צבע",
+  deckLockupsNote: "כל {n} נחתכו מקובץ מקור אחד, ולכן אף אחד מהם אינו יכול לצאת מסנכרון עם האחרים. המספר שמתחת לכל אחד הוא הגודל הקטן ביותר שמותר להשתמש בו, והוא שלו ולא של ה{noun}.",
+  deckPairs: "{n} שותפים, {p} צמדים",
+  deckPairsNote: "מחצית מכל צמד אינה שלנו: לא נצבעת מחדש, לא משורטטת מחדש, ולא נוצרת כלל היכן שלא סופקה גרסה. צמד הוא שרטוט שלישי, ולכן הגודל הקטן ביותר שלו אינו המספר של אף אחד משני המותגים.",
+  deckBreaksOne: "{n} דרך שבה הוא נשבר",
+  deckBreaksMany: "{n} דרכים שבהן הוא נשבר",
+  deckColours: "{n} צבעים",
+  deckChecked: "נבדק, לא הונח",
+  deckOn: "{fg} על {bg}",
+  deckContrastNote: "שום דבר לא רוכך, ולכן הצמדים שאינם עובדים מפורטים כאן במקום להישאר למישהו לגלות.",
+  deckFaces: "{n} גופנים, {n} תפקידים",
+  alphabet: "אבגדהוזחטיכלמ נסעפצקרשת 0123456789",
+  deckSteps: "{n} דרגות",
+  deckScaleNote: "כל גודל, משקל וגובה שורה נקראים מקובץ הטוקנים, ולכן המצגת הזו והאתר הפעיל אינם יכולים להיפרד זה מזה.",
+  deckTiles: "{n} אריחים, החלטה אחת",
+  deckPatternNote: "נבנתה מתוך <b>{motif}</b> — {draws} — ב־{d} צפיפויות וב־{c} מערכי צבע. שרטטו מחדש את ה{noun} וכל {n} ייחתכו שוב.",
+  deckDuotone: "דואוטון אחד, כל תצלום",
+  deckTreatment: "עיבוד אחד, כל תצלום",
+  deckPhotoFrom: "מ־<b>{a}</b> אל <b>{b}</b>.",
+  deckPhotoScrim: "שכבת הסתרה {dir} ב־{pc} אחוזים.",
+  deckPhotoNote: "העורך מודד את הסמל מול הפיקסלים שמתחתיו, ולכן זה נבדק ולא נזכר.",
+  deckCurves: "שתי עקומות, {n} משכים",
+  deckBuilds: "הסמל נבנה ב־{n} חלקים ו{how}.",
+  deckLoops: "חוזר בלולאה",
+  deckPlaysOnce: "מתנגן פעם אחת",
+  deckNoBuild: "אופן ההיבנות של הסמל עצמו אינו מוגדר.",
+  deckFiles: "{n} קבצים",
+  deckPackageLede: "כל אחד מהם נחתך מקובץ המקור ברגע שהחבילה נבנתה, ולכן שום גרסה ישנה אינה יכולה לשרוד בפינה של התיקייה.",
+  deckPackageNote: "החבילה נשארת אצל הלקוח בין אם מישהו עדיין משלם על הכלי שיצר אותה ובין אם לא.",
+  deckRoot: "(שורש)",
+  deckCloseA: "שנו את הסמל וכל אחד מאלה יהיה נכון שוב.",
+  deckCloseB: "שום דבר כאן אינו מחזיק עותק שלו.",
+  deckCloseNote: "המצגת הזו והמדריך קוראים את אותו פרויקט. הם שני מסמכים שונים, לא מסמך אחד בשתי צורות.",
+  // English sets its labels inside the equation — "box 140 ÷ stroke 7 = 20" —
+  // and that only reads because the words and the arithmetic run the same way.
+  // In Hebrew the labels have to come out of it: a word in the middle of a sum
+  // breaks the sum into two runs, and two runs with a neutral between them are
+  // laid out in the paragraph's direction, so `140 ÷ 7 = 20` was drawn
+  // `20 = 7 ÷ 140`. The label goes in front and the sum stays whole.
+  basisStroke: "התיבה חלקי הקו: {box} ÷ {w} = {ratio} רוחבי קו לרוחב",
+  basisStem: "התיבה חלקי הגזע הצר ביותר: {box} ÷ {w} = {ratio} גזעים לרוחב, נמדד מתוך השרטוט",
+  basisThinner: ", והוא דק יותר מהקו {w}",
+  floorUnknown: "לא נמדד",
+  stepComfortable: "נוח",
+  stepFloor: "הרצפה",
+  stepBelow: "מתחת לרצפה",
+  useUnknown: "לא נמדד",
+  useAAA: "עובר AAA",
+  useAA: "עובר AA",
+  useAALarge: "טקסט גדול בלבד",
+  useFail: "לעולם לא לטקסט",
+  motifSource: "הצורה המסומנת בקובץ המקור",
+  motifMark: "הסמל כולו",
+  motifPart: "ה{part}",
+  motifShape: "ה{shape} שבשרטוט",
+  motifShapeNth: "ה{shape} ה{ord} שבשרטוט",
+  shapePath: "צורה",
+  shapeCircle: "עיגול",
+  shapeRect: "מלבן",
+  shapeEllipse: "אליפסה",
+  shapePolygon: "מצולע",
+  shapeLine: "קו",
+  ord1: "ראשון",
+  ord2: "שני",
+  ord3: "שלישי",
+  ord4: "רביעי",
+  ord5: "חמישי",
+  ord6: "שישי",
+  ord7: "שביעי",
+  ord8: "שמיני",
+  ord9: "תשיעי",
+  ord10: "עשירי",
+  ord11: "אחד־עשר",
+  ord12: "שנים־עשר",
+  ord13: "שלושה־עשר",
+  drawsGrid: "חזרה ישרה, כל מופע באותו כיוון",
+  drawsHalfDrop: "שורות מוסטות בחצי תא, כדרך שאריג חוזר",
+  drawsBrick: "טורים מוסטים בחצי תא, כדרך שנדבכי לבנים נערכים",
+  drawsRotary: "מקבץ של ארבעה, כל אחד מסובב רבע יותר מקודמו",
+  drawsMirror: "מקבץ של ארבעה, משוקפים סביב שני הצירים",
+  drawsScale: "אותה צורה בארבעה גדלים, כדרך שסולם הגדלים יורד",
+  drawsScatter: "ממוקמים במרווחים שאינם מתיישרים, ולעולם לא פעמיים באותו מקום",
+  drawsLines: "קווים במשקל שבו הסמל משורטט, בצפיפות המודול שלו עצמו",
+  drawsArcs: "רבעי מעגל במשקל של הסמל עצמו, נפגשים לאורך כל קצה",
+  rolePrimary: "ראשי",
+  roleSecondary: "משני",
+  roleAccent: "הדגשה",
+  roleGround: "רקע",
+  roleNeutral: "ניטרלי",
+  roleSupport: "תומך",
+  roleAlert: "התראה",
+  scrimTop: "מלמעלה",
+  scrimBottom: "מלמטה",
+  scrimLeft: "משמאל",
+  scrimRight: "מימין",
+  scrimFlat: "אחיד",
+  diaConstruction: "הסמל על רשת המבנה שלו, ובה תיבת {box} היחידות, השטח {w} על {h} שהוא ממלא בפועל, והשוליים שביניהם.",
+  capStem: "הגזע הצר ביותר",
+  capStroke: "קו",
+  capFills: "ממלא {w} × {h} · {feature} {thin}",
+  capModule: " · מודול של {unit} יחידות, {across} לרוחב",
+  capBox: "תיבה של {w} יחידות",
+  capBoxModule: "תיבה של {w} יחידות · {across} מודולים של {unit}",
+  diaClearSpace: "מרחב נשימה של {x} יחידות מכל צד, שהם {ratio} מגובה ה{noun}.",
+  capClear: "x = {x} יחידות · {ratio} מגובה ה{noun}",
+  minLead: "{px} במסך ו־{mm} בדפוס{alone}.",
+  minAlone: " עבור הסמל לבדו",
+  minBody: "{basis}, ולכן החזקת הקו על {px} px ועל {mm} mm מציבה שם את הרצפה. שנו אחד משני הכללים והרצפה זזה איתו.",
+  minBothWidth: " שני המספרים הם הרוחב; השני הוא הגובה שנלווה אליו.",
+  minProportion: " שלושת אלה ביחס זה לזה ולא בגודל אמיתי: {px} px רחב יותר מהדף הזה.",
+  thFolder: "תיקייה",
+  thDisappears: "מה נעלם ראשון",
+  thOnScreen: "במסך",
+  thInPrint: "בדפוס",
+  floorNote: "גודל מזערי שייך לשרטוט, ויש {n} כאלה בחבילה הזו. השתמשו במספר של התיקייה שממנה יצא הקובץ, לא בזה שמעליה{over}.",
+  floorOver: ": {which} ב־{px} — הרכב מציב את השם לצד הסמל בשבריר מגובהו, ולכן הוא רחב מהסמל והחלק העדין ביותר בו עדין יותר, ושניהם מעלים את הרצפה",
+  floorOverOne: "אחד מהם אינו מחזיק",
+  floorOverMany: "{n} מהם אינם מחזיקים",
+  bandAbove: "{from} px ומעלה",
+  bandRange: "{from} עד {to} px",
+  printAbove: "{from} mm ומעלה",
+  printRange: "{from} עד {to} mm",
+  ladderPiece: "{n} חלק של דיו.",
+  ladderPieces: "{n} חלקים של דיו.",
+  ladderShown: "מוצג כאן ב־{px} px, הגודל הקטן ביותר שבו הוא בשימוש.",
+  howDraws: "משרטט את עצמו",
+  howRises: "עולה",
+  howFades: "נמוג",
+  howTurns: "מסתובב",
+  ladderReadLead: "יש לקרוא אותו מלמעלה למטה.",
+  ladderRead: "השתמשו בשרטוט שהגודל נופל ברצועה שלו. המעבר אינו העדפה ואינו שיפוט שנעשה ברגע: כל שלב משמש מהגודל שבו הוא מחזיק ועד לגודל שבו הבא תופס את מקומו, והמספרים האלה הם מה שהשרטוטים מודדים, לא מה שמישהו החליט שהם צריכים להיות.",
+  ladderBelowLead: "מתחת ל־{px} px אין דבר.",
+  ladderBelowA: "זו הרצפה של הזהות, והיא {px} px עבור השרטוט שבראש הסולם — ההפרש בין השניים הוא כל הסיבה לקיומו של הסולם. כל אייקון וכל favicon בחבילה הזו נחתכים מתוך",
+  ladderBelowB: ", משום שזה השרטוט שהזהות הזו משתמשת בו בגדלים שבהם אייקון חי.",
+  identPlaying: "האידנט, מתנגן. הוא רץ {ms} ms ואז נעצר. זהו אותו קובץ שהחבילה מכילה, לא תמונה שלו.",
+  identParts: "כל חלק, מתי הוא מגיע וכמה זמן הוא לוקח. החלקים הם אלה שקובץ המקור מציין באמצעות",
+  identPartsB: "; רצף אינו רשאי לציין דבר אחר.",
+  identHow: "קו משרטט את עצמו על ידי מתן מקווקו באורך הקו והזזתו אל מחוץ לקצה; למילוי אין אורך לקוות, ולכן הוא עולה או נמוג במקומו. בקשו ממילוי לשרטט את עצמו והמנוע יאמר זאת במקום לנגן בשקט משהו אחר.",
+  identReducedLead: "קורא שביקש פחות תנועה מקבל את הסמל המוגמר ובלי הנפשה.",
+  identReducedA: "לא גרסה מקוצרת של האידנט ולא תמונת סטילס של הפריים האחרון — הסמל, מגיע כשהוא כבר הגיע.",
+  identReducedB: "מחזיקה קובץ אחד לכל מערך צבע, ובכל אחד ה־CSS שלו בתוכו: אין מה להתקין, אין מה להביא, ואין דבר שמפסיק לעבוד כשאין נגן.",
+  kinSetIn: "מסודר בגופן",
+  kinEndorsed: "עם השורה מעל",
+  kinWithout: "בלי השורה ועד {px} px; הסמל לבדו מתחת לכך.",
+  kinRuleLead: "תת־מותג הוא הסמל ועוד הבדל מוצהר.",
+  kinRule: "ההבדל הוא שם וצבע. שום דבר כאן אינו משורטט: השם מסודר מהגופן שהזהות הזו מספקת, וההרכב מורכב מהדיו הנמדד של הסמל עצמו — השם ב־{name} מגובהו, שורת האישור ב־{endorsement}, המרווח ב־{gap} — ולכן תת־מותג אינו יכול להיסחף מהורהו, ותת־מותג חדש עולה שורה בקובץ הפרויקט.",
+  kinFinestLead: "המילים הן הדבר העדין ביותר בשרטוט.",
+  kinFinest: "רצפה היא התיבה מחולקת בדק ביותר שבתוכה, ובהרכב עם שורת אישור זו אות ולא הסמל. כל אחד מאלה מחזיק במאות פיקסלים אחדות במקום שבו הסמל לבדו מחזיק ב־{px}. זו אינה תקלה, זה מה ששורת האישור עולה — ולכן החבילה מכילה גם את ההרכב בלעדיה, והמספרים שלמעלה אומרים היכן להחליף.",
+  thMadeAs: "מיוצר כ",
+  thWhichDrawing: "איזה שרטוט, ולמה",
+  thFinest: "החלק העדין ביותר",
+  thProcessHolds: "התהליך מחזיק",
+  fabCutFrom: "נחתך מתוך",
+  fabCutFromB: ", שהחלק העדין ביותר שלו מודד שם {mm} mm.",
+  fabHolds: ", ולכן שום דבר עדין מ־{mm} mm אינו נשלח ליצרן הזה.",
+  fabOutline: " השרטוט משורטט בקווים ויש להמיר אותו למתאר לפני שהוא נשלח.",
+  fabNone: "שום דבר בזהות הזו אינו ניתן לייצור בדרך הזו בגודל הזה.",
+  fabArithmeticLead: "כל אחד מאלה הוא חשבון.",
+  fabArithmetic: "לתהליך יש מאפיין קטן ביותר שהוא מסוגל להחזיק; לשרטוט יש חלק עדין ביותר; הגודל שבו הדבר מיוצר הופך את השני למילימטרים. היכן שהסמל המלא אינו שורד, השרטוט הנשלח הוא המפורט ביותר ששורד — וזה מה שהסולם בסעיף 1.5 נועד לו.",
+  fabFolder: "מחזיקה כל אחד מהם בגודל אמיתי, במילימטרים, מוכן לשליחה.",
+  fabWorkingA: "המספרים שתהליך מחזיק הם מספרי עבודה והם נמצאים ב",
+  fabWorkingB: ". יצרן שמכיר את המכונה שלו יודע טוב יותר מהקובץ הזה: קבעו",
+  fabWorkingC: "בערך וכל מספר שלמעלה זז איתו.",
+  nameLead: "השם אינו משורטט.",
+  nameSetInA: "הוא מסודר בגופן",
+  nameSetInB: "במשקל {w}{caps}, במרווח אותיות של {track}/1000 אֶם, בגובה",
+  nameCaps: ", באותיות רישיות",
+  namePerCent: "{n} אחוזים",
+  nameSetInC: "מגובה הדיו של הסמל — {h} יחידות, ולכן השם עומד על {stands}. סדרו אותו כך והוא נכון; הקבצים ב",
+  nameSetInD: "הם הסידור הזה מומר למתאר בזמן הבנייה, ולכן אינם זקוקים לגופן כדי להיות מוצגים ולא ייצאו מסנכרון עם שלט. {family} הוא הגופן ה{role} בפלטה שלמעלה: שנו אותו שם והשם משורטט מחדש איתו.",
+  cvAsYouSee: "כפי שאתם רואים",
+  visProtanopia: "פרוטנופיה",
+  visDeuteranopia: "דאוטרנופיה",
+  visTritanopia: "טריטנופיה",
+  sayProtanopia: "פרוטנופ, שאין לו קולטן אדום",
+  sayDeuteranopia: "דאוטרנופ, שאין לו קולטן ירוק",
+  sayTritanopia: "טריטנופ, שאין לו קולטן כחול",
+  shareProtanopia: "בערך גבר אחד מכל 100",
+  shareDeuteranopia: "בערך גבר אחד מכל 16, והשכיח מבין השלושה",
+  shareTritanopia: "בערך אדם אחד מכל 10,000",
+  cvSetLead: "מערך {name}.",
+  cvCoveredA: "שום דבר בו אינו מובחן על פי צבע בלבד:",
+  cvIs: "הוא",
+  cvCoveredB: ". זה הכלל, והוא הכלל משום ששניים מהצבעים האלה הם צבע אחד עבור חלק מהקוראים.",
+  cvNotCovered: "אלה מובחנים על פי צבע בלבד.",
+  cvSomeLead: "{which} עבור רוב הקוראים ולא עבור כולם.",
+  cvOnePair: "צמד אחד מפריד",
+  cvManyPairs: "{n} צמדים מפרידים",
+  cvPairNames: "{a} ו{b}",
+  cvPair: "{pair} מרוחקים {normal} עבורכם ו־{worst} עבור {kind}, {share}",
+  cvPairTail: ". כל אחד מהם עובר את טבלת הניגודיות שלמעלה, משום שהטבלה ההיא מודדת בהירות וזו גוון.",
+  cvAllLead: "כל צמד בפלטה הזו שנפרד עבורכם נפרד עבור כל השלושה.",
+  cvAll: "שום דבר כאן אינו מובחן על פי גוון בלבד.",
+  cvMethod: "המרחקים הם CIE ΔE*ab, ובערך {floor} היא הנקודה שבה שני צבעים שטוחים זה לצד זה מפסיקים להיות שונים באופן מהימן. שלוש השורות הן דיכרומטיות — היעדר סוג אחד של קולטן — מדומות לפי Viénot, Brettel ו־Mollon (1999). המצב השכיח יותר הוא טריכרומטיות חריגה, שבה הקולטן קיים ומוסט: הקוראים האלה רואים גרסה מרוככת של אותו דבר, ולכן כל צמד שמצוין כאן קשה עבורם לכל הפחות, ולעיתים קרובות בדיוק כך.",
+  ptOn: "{way} על {ground}.",
+  ptSmallestA: "השימוש הקטן ביותר",
+  ptSmallestB: "/ {mm} mm, נקבע לפי {by}.",
+  ptPlaced: "הסמל שלהם ממוקם ב־{scale} מהגודל שבו סופק, ולכן רוחב הצמד הוא {w} יחידות",
+  ptTimes: " — פי {n} מהצמד הצר ביותר כאן",
+  ptMissing: " הם לא סיפקו גרסת {which}, ולכן אין צמד על {which}.",
+  ptOr: "{a} או {b}",
+  ptScaleNote: "{n} שלמעלה משורטטים בגודל שבו אפשר לקרוא כל אחד מהם, ולא בקנה מידה אחיד: {ratio} מפרידים בין הרחב שבהם לצר שבהם, ובגורם אחד אי אפשר לקרוא את הצרים. הרוחב של כל אחד מופיע מתחתיו.",
+  ptRuleLead: "הכלל.",
+  ptRule: "הסמל שלהם מוגדר לאותו {match} כמו שלנו{at}, עם {gap} יחידות משני צדדיו של {divider}, נמדד מגובה הדיו שלנו. המחצית שלנו היא {with}.",
+  ptRuleAt: " ב־{n} ממנו",
+  ptMatchHeight: "גובה",
+  ptWithPrimary: "ההרכב הראשי",
+  ptDividerRule: "קו מפריד של {n} יחידות",
+  ptDividerPlain: "מרווח פשוט",
+  ptNotLead: "מה אסור לעשות בו.",
+  ptNot: "{owners} הם הבעלים של השרטוט שבצד ימין של כל צמד. הוא אינו נצבע מחדש לפלטה הזו, אינו משורטט מחדש, ואינו מוחלף בגרסה אחרת שלהם כשזו המיועדת לרקע חסרה — איזו גרסה עולה על איזה רקע הוא עניין להחלטתם. היכן שצמד אינו מוצג למעלה, הוא אינו קיים, ורק הם יכולים לספק אותו.",
+  ptFloorLead: "השימוש הקטן ביותר אינו של אף אחד משני המותגים.",
+  ptFloor: "צמד הוא שרטוט שלישי, רחב משלנו ומכיל את מה שעדין ביותר בשלהם, ולכן יש לו רצפה משלו. המדריך שלהם קובע את הסמל שלהם לבדו וזה קובע את שלנו; המספר שמתחת לכל צמד למעלה הוא המקום היחיד שבו השניים נמדדים יחד.",
+  diaCrowd: "טקסט וקווים מסודרים בתוך מרחב הנשימה של {x} יחידות, וכך נראה מצב שבו ה{noun} צפוף.",
+  diaUndersize: "ה{noun} משורטט ב־{small} px בתוך תיבת {floor} px שהיא הרצפה שלו.",
+  palNoteA: "ה־RGB מומר מהקוד ההקסדצימלי.",
+  palTypedLead: "CMYK ו־Pantone מוקלדים על ידיכם",
+  palNoteB: ", משום שמה שצבע נעשה בדיו תלוי במכונת הדפוס ובנייר, ואין נוסחה שיודעת איזה נייר.",
+  palGuessLead: "ל{names} {has} עדיין הרכב",
+  palHas: "אין",
+  palHave: "אין",
+  palIt: "עבורו",
+  palThem: "עבורם",
+  palGuess: ", ולכן המספרים המוצגים {it} מומרים מצבע המסך ומסומנים בסימן שאלה. אין לשלוח לדפוס צבע שאין לו הרכב.",
+  palEveryOne: "לכל צבע כאן יש הרכב.",
+  gradCap: "{slots} · {n} עצירות · {kind}",
+  gradAt: "ב־{offsets}, נקרא מתוך השרטוט.",
+  gradAnd: "{a} ו{b}",
+  gradCarriedA: "נישא ב",
+  gradCarriedB: ", ונצבע שטוח ב{flat}.",
+  gradNothingElse: "בשום מקום אחר",
+  gradNoneLead: "שום מערך צבע אינו שומר עליו",
+  gradNone: ", ולכן הוא נמצא בקובץ המקור ובאף אחד מהקבצים לא.",
+  gradSpot: "מעבר אינו ניתן להדפסה כדיו נקודתי, ולכן הגרסה השטוחה היא זו שעבודה בצבע אחד או בשניים משתמשת בה, וקובץ PDF שנושא את המעבר מחזיק את החלק הזה ב־DeviceRGB יהיה השאר במרחב שיהיה.",
+  patMotifLabel: "{name}, הצורה שהדוגמה הזו בנויה ממנה",
+  patCell: "{density} · תא {n}",
+  patWeight: "משקל הקו הוא אותו שבר מהמוטיב שהקו של ה{noun} הוא מה{noun}, והאוויר סביבו הוא כלל מרחב הנשימה, ולכן השדה משורטט באותה יד בכל גודל.",
+  patChosen: " נבחרה מתוך {n} {shapes} בשרטוט ומתוך {m} מבנים; הקנבס מציע כל אחד מהם.",
+  patShape: "צורה",
+  patShapes: "צורות",
+  patDensities: "{d} צפיפויות ב־{c} {colourways} —",
+  patColourway: "מערך צבע",
+  patColourways: "מערכי צבע",
+  patTiles: "{n} אריחים",
+  patAllIn: ", כולם בחבילה, וכל אחד מהם חלק בשני הכיוונים. שרטטו מחדש את ה{noun} וכל {n} ייחתכו שוב.",
+  phRamp: "סולם אפורים, מעובד",
+  phUnderScrim: ", מתחת לשכבת ההסתרה",
+  phDuoA: "כל תצלום הוא דואוטון מ",
+  phDuoB: "בצללים אל",
+  phDuoC: "באורות, ב־{pct} אחוזים.",
+  phUntreated: "התצלומים רצים ללא עיבוד.",
+  phScrim: "שכבת הסתרה של {colour} ב־{pct} אחוזים רצה {dir}, וזה מה שהטקסט יושב עליו.",
+  edgeTop: "מלמעלה",
+  edgeBottom: "מלמטה",
+  edgeLeft: "משמאל",
+  edgeRight: "מימין",
+  edgeFlat: "באופן אחיד",
+  phCrops: "החיתוכים הם {ratios}.",
+  phEditor: "העורך מודד את הסמל מול הפיקסלים שנמצאים בפועל מתחתיו ואומר איזה מערך צבע נקרא שם, ולכן זה כלל שאפשר לבדוק ולא כלל שצריך לזכור.",
+  diaIconGrid: "רשת האייקונים: תיבה של {box} יחידות עם שטח חי של {live} יחידות וקו של {stroke} יחידות.",
+  capIconGrid: "תיבה של {box} יחידות · {live} חי · קו {stroke}",
+  iconFigure: "הרשת שכל אייקון משורטט עליה",
+  iconA: "לא הוחלט: נלקח מה{noun} עצמו. התיבה שלו היא {vb} יחידות והוא ממלא {ink} מהן, ולכן השוליים הם {margin} —",
+  iconB: ", וזה אותם שוליים שאייקון שומר. החלק הצר ביותר שלו הוא {stroke} יחידות, שהם",
+  iconC: "מהתיבה, ולכן הקו של אייקון הוא {s} בתיבה של {b}. הקצוות הם {cap}, הפינות {join}, והסדרה {fill}. שרטטו מחדש את ה{noun} ואלה זזים איתו. הריצו",
+  iconFilled: "ממולאת",
+  iconOutline: "משורטטת בקו מתאר",
+  iconD: "כדי שאייקון יימדד מולם.",
+  iconSimplifiedA: "האייקונים אינם הסמל. סמל מורכב או כל שרטוט עם חלקים עדינים נסתם בגדלים של אייקון, ולכן לזהות הזו יש שרטוט מפושט עבורם — פחות חלקים, קווים כבדים יותר, אותה משמעות. זה מה שכל דבר ב",
+  iconSimplifiedB: "נחתך ממנו.",
+  diaCurve: "{label}, בזייה מדרגה שלישית דרך {points}.",
+  motDurations: "כמה זמן כל דבר לוקח",
+  motBuildsA: "הסמל נבנה ב־{n} חלקים:",
+  motStepFrom: "מ־{from} עד {to} ms על",
+  motBuildsB: ". הוא {loop}. החלקים הם אלה שקובץ המקור מציין, ו",
+  motLoops: "חוזר בלולאה",
+  motPlaysOnce: "מתנגן פעם אחת ונעצר",
+  motBuildsC: "מחזיקה את הקובץ שמנגן אותם.",
+  motNoBuildA: "הזהות הזו לא אמרה כיצד הסמל נבנה, ולכן שום דבר כאן אינו עושה זאת. העקומות והמשכים שלמעלה חלים על כל דבר שזז — פאנל, תפריט, דף — והרצף שבו הסמל עצמו מגיע הוא החלטה, כלומר החלטה שמישהו צריך לקבל ולא כזו שהמנוע יכול לספק. סמנו את החלקים בקובץ המקור באמצעות",
+  motNoBuildB: "ותנו לכל אחד שלב ב",
+  motNoBuildC: ", והחבילה תכיל קובץ שמנגן אותו.",
+  motWhole: "שתי עקומות ו־{n} משכים הם כל העניין; כל דבר אחר על המסך הוא אחד מאלה.",
+  thSample: "דוגמית",
+  thPair: "צמד",
+  thRatio: "יחס",
+  thVerdict: "פסיקה",
+  ctNote: "כל צמד בפלטה, נבדק מול WCAG 2.2 וממוין כשהגרוע אחרון. שום דבר כאן לא רוכך, ולכן הצירופים שאינם עובדים מפורטים כאן במקום להישאר למישהו לגלות.",
+  asFilesLead: "{n} קבצים.",
+  asFiles: "כל אחד מהם נחתך מקובץ המקור ברגע שהחבילה נבנתה, ולכן שום גרסה ישנה אינה יכולה לשרוד בפינה של התיקייה. החבילה נשארת אצל הלקוח בין אם מישהו עדיין משלם על הכלי שיצר אותה ובין אם לא.",
+  cngSameA: "החבילה הזו היא גרסה",
+  cngSameB: "והקודמת הייתה",
+  cngSameC: ", ושום דבר שנמדד כאן אינו שונה ביניהן: אותה פלטה, אותם הרכבים, אותם מערכי צבע, אותה רצפה, אותו מרחב נשימה. מי שמחזיק בחבילה הקודמת יכול לשמור אותה.",
+  cngComparedA: "בהשוואה ל",
+  cngComparedB: ": {n} {changes}.",
+  cngOne: "שינוי",
+  cngMany: "שינויים",
+  cngBreaking: "{n} מ{those} {retires} משהו שכבר קיים.",
+  cngThem: "הם",
+  cngThose: "אלה",
+  cngRetires: "מוציא משימוש",
+  cngRetire: "מוציאים משימוש",
+  cngBreakingNote: "שום דבר בקבצים שכבר נמצאים אצל מישהו אינו משתנה מעצמו, ולכן עד שמישהו פועל לפי הרשימה הזו שתי הגרסאות בשימוש בו־זמנית ושתיהן נראות נכונות.",
+  cngNoneRetires: "אף אחד מהם אינו מוציא משימוש דבר שכבר נוצר.",
+  procEmbroidery: "רקמה",
+  procVinyl: "ויניל",
+  procScreenprint: "הדפס רשת",
+  procFoil: "הטבעת רדיד",
+  procEngraving: "חריטה",
+  procCast: "יציקה",
+  whatEmbroidery: "תפר סאטן צר מזה לא ישכב, ונקרא כקמט ולא כקו",
+  whatVinyl: "כל דבר צר מזה נקרע כשמקלפים את השאריות מהנייר הנושא",
+  whatScreenprint: "קו דק מזה נסתם או מתפרק, תלוי ברשת",
+  whatFoil: "מתחת לזה הרדיד מגשר על המרווח והפרט נסתם למקשה אחת",
+  whatEngraving: "חריץ צר מהכלי אינו ניתן לחיתוך כלל",
+  whatCast: "מתכת דקה מזה אינה ממלאת את התבנית, ומה שכן ממלא אותה לא ישרוד טיפול",
+  whyMarked: "קובץ המקור מסמן את הצורה הזו ב־data-pattern=\"source\", ולכן זו לא הייתה בחירה שהמנוע היה צריך לעשות.",
+  whySquare: "היא קרובה לריבוע, ולכן היא חוזרת כשדה ולא כפסים",
+  whySquarish: "היא מרובעת דיה כדי לחזור בלי להיקרא כפסים",
+  whySimple: "היא פשוטה דיה כדי לשרוד שרטוט בעשירית מהגודל של הסמל",
+  whySubstantial: "היא חלק משמעותי מהשרטוט ולא שבר ממנו",
+  whyRanked: "דורגה ראשונה מתוך {n} {shapes} בשרטוט",
+  whyOthers: "; האחרות מוצעות לצידה",
+  ptOurHalf: "המחצית שלנו",
+  ptTheirMark: "הסמל שלהם",
+  ptTheRule: "הקו שביניהם",
+  cgUp: "למעלה",
+  cgDown: "למטה",
+  cgAnd: "{a} ו{b}",
+  cgMinWhat: "הגודל הקטן ביותר שניתן לשימוש זז {dir}, מ־{fa} px / {ma} mm ל־{fb} px / {mb} mm.",
+  cgMinWhyUp: "כל דבר שכבר יוצר בין {fa} px ל־{fb} px היה בתוך הכלל כשנוצר והוא מחוצה לו עכשיו: אותיות קטנות, favicons, רקמה, כל דבר שנחתך בוויניל. השרטוט במקומות האלה לא השתנה, ולכן שום דבר בהם אינו נראה שגוי עד שהוא מודפס. בשרטוט החדש יש חלק עדין יותר, והרצפה נקבעת לפי מה שנעלם ראשון.",
+  cgMinWhyDown: "לשרטוט החדש אין חלק עדין מזה שהיה בישן, ולכן הוא שורד נמוך יותר. שום דבר שכבר יוצר אינו מושפע.",
+  cgMinHowUp: "רשמו היכן הסמל מופיע מתחת ל־{fb} px או ל־{mb} mm, והגדילו אותו או השתמשו בהרכב שמחזיק בגודל הזה. התיקייה 05-icons מראה אילו גדלים השרטוט החדש עובר.",
+  cgMinHowDown: "אין מה לעשות. הרצפה הישנה עדיין מחזיקה, ולכן יישומים קיימים נשארים בתוך הכלל.",
+  cgLockWhat: "הרכב {l} מחזיק עכשיו ב־{yp} px / {ym} mm, במקום שבו החזיק ב־{xp} px / {xm} mm.",
+  cgLockWhyUp: "כל שימוש בהרכב האחד הזה מתחת ל־{yp} px היה בתוך הכלל והוא מחוצה לו עכשיו. הרצפה של הסמל עצמו אינה אומרת דבר על כך: הרכב הוא שרטוט אחר.",
+  cgLockWhyDown: "הוא שורד נמוך יותר מכפי שהיה, ולכן שום דבר שכבר יוצר בו אינו מושפע.",
+  cgLockHowUp: "בדקו היכן {l} ממוקם והעלו אותו, או השתמשו בהרכב שמחזיק בגודל שאתם צריכים.",
+  cgNothingToDo: "אין מה לעשות.",
+  cgPartnerAddedWhat: "{name} הוא שותף חדש.",
+  cgPartnerAddedWhy: "שום דבר שכבר יוצר אינו נושא את הצמד, ולכן הוא מתווסף לסדרה בלי להפריע לדבר.",
+  cgPartnerAddedHow: "הצמדים שסופק עבורם שרטוט נמצאים ב־11-partners.",
+  cgPartnerVersionWhat: "הצמד {name} כבר אינו נוצר ב{gone}.",
+  cgPartnerVersionWhy: "{owner} משך את הגרסה של הסמל שלו שעמדה על הרקע הזה, או שהיא הוצאה מהפרויקט הזה. קבצים שכבר חולקו עדיין נושאים אותה ועדיין נראים נכונים.",
+  cgPartnerVersionHow: "שאלו את {owner} אם הגרסה נמשכה או רק חסרה, ואמרו איזה צמד מחליף אותה.",
+  cgPartnerGoneWhat: "{name} כבר אינו שותף בחבילה הזו.",
+  cgPartnerGoneWhy: "כל צמד שנוצר איתם הלך איתם, ושום דבר בקבצים שכבר נמצאים אצל מישהו אינו אומר זאת. הרכב שותפים שורד את השותפות אלא אם מישהו מושך אותו.",
+  cgPartnerGoneHow: "אמרו מתי הצמד {name} מפסיק להיות בשימוש, והודיעו למי שמחזיק שרטוט שלו.",
+  cgClearWhat: "מרחב הנשימה עבר מ־{ca} ל־{cb} יחידות.",
+  cgClearWhyUp: "כל פריסה שנבנתה לפי המספר הישן שומרת עכשיו מעט מדי, והסמל יושב קרוב לשכניו יותר משהכלל מתיר. המספר הוא שבר מהסמל, והסמל שינה צורה.",
+  cgClearWhyDown: "פריסות שנבנו לפי המספר הישן שומרות יותר משהכלל מבקש עכשיו, וזה בטוח.",
+  cgClearHowUp: "תבניות, משבצות מודעה ושרטוטי שילוט שקיבעו את המספר הישן זקוקים להעלאתו.",
+  cgColourAddedWhat: "{name} הוא צבע חדש, {hex}.",
+  cgColourAddedWhy: "שום דבר שכבר יוצר אינו משתמש בו, ולכן הוא מתווסף לפלטה בלי להפריע לה.",
+  cgColourAddedHow: "הוא נמצא ב־07-colour ובטבלת הניגודיות עם כל צמד שהוא יוצר.",
+  cgColourMovedWhat: "{name} זז מ־{a} ל־{b}.",
+  cgColourMovedWhy: "מלאי שכבר הודפס, אתרים שכבר נבנו וקבצים שכבר חולקו נושאים את הערך הישן. צבע שזז מעט גרוע מצבע שזז הרבה, משום ששניהם יושבים זה לצד זה ונקראים כתקלת דפוס ולא כשתי גרסאות.",
+  cgColourMovedHow: "חפשו {a} בקוד ובתבניות והחליפו אותו. לגבי כל דבר שכבר הודפס, החליטו אם הוא מודפס מחדש או שמניחים לו להיגמר.",
+  cgPantoneWhat: "{name} שומר על ערך המסך שלו ומשנה Pantone, מ־{a} ל־{b}.",
+  cgPantoneNone: "אין",
+  cgPantoneWhy: "קוני דפוס עובדים לפי ה־Pantone, ולכן עבודה שכבר במכונה מותאמת לצ׳יפ הישן.",
+  cgPantoneHow: "הודיעו למי שמחזיק במפרט הדפוס. שום דבר על המסך אינו משתנה.",
+  cgColourGoneWhat: "{name} ({hex}) נמשך מהפלטה.",
+  cgColourGoneWhy: "כל דבר שכבר יוצר בו נמצא עכשיו מחוץ לפלטה, ושום דבר בקבצים האלה אינו אומר זאת. הצבע אינו מפסיק להתקיים משום שיצא מרשימת הטוקנים.",
+  cgColourGoneHow: "החליטו מה מחליף את {hex} היכן שהוא כבר בשימוש, ואמרו זאת למי שמחזיק בקבצים האלה.",
+  cgLockup: "הרכב",
+  cgColourway: "מערך צבע",
+  cgSetGoneWhatOne: "{list} הוא {label} שנמשך.",
+  cgSetGoneWhatMany: "{list} הם מסוג {label} ונמשכו.",
+  cgWhereLockupsOne: "{folders} אינה בחבילה הזו",
+  cgWhereLockupsMany: "{folders} אינן בחבילה הזו",
+  cgWhereColourways: "שום קובץ בחבילה הזו אינו מסתיים ב־{suffixes}, ואין מערך צבע בשם הזה",
+  cgSetGoneWhy: "{where}. הקבצים נקראים {brand}-{lockup}-{colourway}, ולכן אלה שכבר הורדו ממשיכים לעבוד ושומרים על שמם, ושום דבר בהם אינו מכריז שהם כבר אינם חלק מהזהות.",
+  cgSetGoneHowOne: "אמרו איזה {label} מחליף אותו והיכן. אחרת, מי שישווה את החבילה הישנה לזו יקרא זאת כקובץ שנכשל בבנייה.",
+  cgSetGoneHowMany: "אמרו איזה {label} מחליף אותם והיכן. אחרת, מי שישווה את החבילה הישנה לזו יקרא זאת כקובץ שנכשל בבנייה.",
+  cgSetAddedWhatOne: "{list} הוא {label} חדש.",
+  cgSetAddedWhatMany: "{list} הם מסוג {label} והם חדשים.",
+  cgSetAddedWhyOne: "שום דבר שכבר יוצר אינו מתייחס אליו, ולכן הוא מתווסף לסדרה בלי להפריע לה.",
+  cgSetAddedWhyMany: "שום דבר שכבר יוצר אינו מתייחס אליהם, ולכן הם מתווספים לסדרה בלי להפריע לה.",
+  cgSetAddedHowLockupsOne: "הוא נמצא ב־{folders}.",
+  cgSetAddedHowLockupsMany: "הם נמצאים ב־{folders}.",
+  cgSetAddedHowWaysOne: "כל הרכב נכתב בו לצד האחרים.",
+  cgSetAddedHowWaysMany: "כל הרכב נכתב בהם לצד האחרים.",
+  cgAllowsAAA: "כל טקסט בכל גודל",
+  cgAllowsAA: "טקסט גוף ומעלה",
+  cgAllowsLarge: "כותרות מ־24 px ומעלה, וצורות",
+  cgAllowsNever: "שום טקסט כלל",
+  cgContrastWhat: "{pair} {verb} למה שהגיע קודם: {ra}:1 {va} הוא עכשיו {rb}:1 {vb}.",
+  cgNoLonger: "כבר אינו מגיע",
+  cgNowReaches: "מגיע עכשיו מעבר",
+  cgContrastWhyFell: "טקסט שכבר סודר בצמד הזה עבר כשסודר ואינו עובר עכשיו. המילים לא השתנו והפריסה לא השתנתה, ולכן אין בדף מה לראות — רק הצבע שמתחת זז.",
+  cgContrastWhyRose: "צמד שהיה מוגבל קיבל יותר מרחב משהיה לו.",
+  cgContrastHowSome: "הצמד הזה מתאים עכשיו ל{allows}. מצאו היכן הוא נושא משהו קטן מזה ושנו את הגודל או אחד משני הצבעים.",
+  cgContrastHowNone: "הוציאו טקסט מהצמד הזה בכל מקום שהוא מופיע בו, או שנו אחד משני הצבעים.",
+  cgContrastHowRose: "הצמד מתאים עכשיו ל{allows}, במקום ש{was} הותר בגרסה הקודמת.",
+  cgVisionWhat: "{pair} היו ניתנים להבחנה בגרסה הקודמת ואינם ניתנים עכשיו: הם מרוחקים {normal} עבור רוב הקוראים ו־{worst} עבור {kind}.",
+  cgVisionWhy: "צבע זז ולקח את זה איתו. ניגודיות היא יחס של בהירות ואינה תופסת זאת: שני אלה עדיין עוברים כל יחס בטבלה. כל דבר שמשתמש בשניהם כדי לומר דברים שונים — מקרא, תרשים, סטטוס, מפה — הפסיק לעבוד עבור הקוראים האלה בגרסה הזו, ושום דבר בדף אינו אומר זאת.",
+  cgVisionHow: "הזיזו אחד מהם חזרה או הרחק יותר, או תנו למה שמשתמש בהם ערוץ שני — צורה, מילוי, מילה — וציינו אותו ב־tokens.sets כדי שהמנוע יחזיק בכך את הגרסה הבאה.",
+  cgIconWhat: "אייקונים משורטטים ב־{b} על תיבה של {box}, במקום שבו הגרסה הקודמת שרטטה אותם ב־{a}.",
+  cgIconWhy: "משקל האייקון נלקח מקובץ המקור, ולכן שרטוט מחדש של קובץ המקור משרטט מחדש את כל סדרת האייקונים בלי שאיש ביקש זאת. אייקונים שכבר נמצאים במוצר נבנו למשקל הישן ועכשיו הם יושבים לצד החדשים.",
+  cgIconHow: "או שרטטו מחדש את האייקונים הקיימים ב־{b}, או קבעו את system.icons.stroke ל־{a} כדי להחזיק את הסדרה במקום שבו הייתה.",
+  // Every ordinal again, agreeing with a feminine noun. See gender below.
+  ord1f: "ראשונה",
+  ord2f: "שנייה",
+  ord3f: "שלישית",
+  ord4f: "רביעית",
+  ord5f: "חמישית",
+  ord6f: "שישית",
+  ord7f: "שביעית",
+  ord8f: "שמינית",
+  ord9f: "תשיעית",
+  ord10f: "עשירית",
+  ord11f: "אחת־עשרה",
+  ord12f: "שתים־עשרה",
+  ord13f: "שלוש־עשרה",
+  sldCover: 'שער',
+  cnvSetOnce: 'נקבע פעם אחת, נוצר מכאן ואילך',
+  cnvFourBlocks: 'ארבעת אלה נובעים מהחלטה אחת כל אחד. שנו את הכלל בפרויקט וכל מופע עוקב אחריו. שום דבר כאן אינו משורטט מחדש ביד.',
+  // Which of this language's nouns are feminine, so an ordinal beside one can
+  // agree with it. Only the words that something else in the table is made to
+  // agree with need an entry.
+  gender: { shapePath: 'f', shapeEllipse: 'f' },
+};
+
+const HAVE = { en: EN, fr: FR, he: HE };
 
 // The language a document is written in, which is the engine's unless the
 // project's own is one the engine can write — and it is asked per document,
@@ -915,14 +1473,69 @@ function resolve(project, which = 'manual') {
   // what it had to fall back on, and the build reads it. A silent fallback is
   // how a document ends up declaring a language it is not written in.
   const missed = new Set();
+  // A measurement dropped into a right-to-left sentence is reordered by the
+  // browser, and what comes out is a different number. `#C8873A` is drawn
+  // `C8873A#`; `18 59 58` is drawn `58 59 18`, which is a different colour;
+  // `122 × 50 px` is drawn `px 50 × 122`, which is a different shape; `1385 C`
+  // is drawn `C 1385`, which is a different Pantone to send to a press. The
+  // file is right in every one of those and the reader is shown something else.
+  //
+  // A value is its own run and has to say so. U+2068 FIRST STRONG ISOLATE and
+  // U+2069 POP DIRECTIONAL ISOLATE do exactly that and are characters rather
+  // than markup, so they survive escaping and reach the page through every
+  // caller — which matters, because these values are set by a hundred callers
+  // and isolated in one place. First-strong rather than left-to-right, so a
+  // value that is itself Hebrew is left alone.
+  //
+  // Only where the document runs right to left. In en and fr it would be bytes
+  // that change nothing, and there is no reason for a language to pay for a
+  // problem it does not have.
+  // Isolate the run rather than the value. Isolating each value on its own
+  // left the characters between two of them — the arithmetic in `140 ÷ 7 = 20`,
+  // the separator in `3.0.0 · 67` — outside any isolate, and a neutral between
+  // two isolated runs takes the paragraph's direction: the sum came out
+  // `20 = 7 ÷ 140` and the footer `67 · 3.0.0`. A run of characters with no
+  // Hebrew in it is one left-to-right thing however many values went into it.
+  // U+0000 is the sentinel a document leaves where the brand's own name goes,
+  // filled in with markup afterwards. It has to break a run, or the isolate
+  // ends up around the brand name too and first-strong resolves the whole
+  // thing right to left: the footer read `67 · 3.0.0` for `3.0.0 · 67`.
+  const RUN = /[^֐-ࣿיִ-﷿ﹰ-﻿⁦-⁩\u0000]*[0-9A-Za-z][^֐-ࣿיִ-﷿ﹰ-﻿⁦-⁩\u0000]*/g;
+  const isolate = (out) => out.replace(RUN, (run) => {
+    // trailing sentence punctuation belongs to the sentence, not to the value:
+    // an isolate around `WCAG 2.2.` puts the full stop at the run's left-hand
+    // end, which in a right-to-left sentence is the middle of it
+    // Punctuation at either edge belongs to the sentence, not to the value.
+    // An isolate around `WCAG 2.2.` puts the full stop at the run's left-hand
+    // end, which in a right-to-left sentence is the middle of it; one that
+    // starts at `: 140 ÷ 7` takes the colon off the clause it belongs to.
+    const core = run.replace(/^[\s.,;:!?]+/, '').replace(/[\s.,;:!?]+$/, '');
+    if (!core) return run;
+    const at = run.indexOf(core);
+    return `${run.slice(0, at)}\u2068${core}\u2069${run.slice(at + core.length)}`;
+  });
   const t = (key, vars) => {
     let s = set[key];
     if (s === undefined) { if (set !== EN && EN[key] !== undefined) missed.add(key); s = EN[key]; }
     if (s === undefined) return key;
     for (const [k, v] of Object.entries(vars || {})) s = s.split(`{${k}}`).join(String(v));
-    return s;
+    return set.dir === 'rtl' ? isolate(s) : s;
   };
-  return { lang: set.lang, dir: set.dir, name: set.name, t, document: which,
+  // The same lookup, in the form that agrees with a noun. A language says
+  // which of its nouns are feminine and puts the second form of a key under
+  // the same name with an `f` on the end; anything that has neither is
+  // answered by `t` unchanged, which is every key in English.
+  const genderOf = (key) => (set.gender && set.gender[key]) || '';
+  const agree = (key, nounKey, vars) => {
+    const g = genderOf(nounKey);
+    return t(g && set[key + g] !== undefined ? key + g : key, vars);
+  };
+  return { lang: set.lang, dir: set.dir, name: set.name, t, agree, document: which,
+    // For a value a document sets straight into markup rather than through a
+    // key. `t` isolates what it substitutes; a caption built as
+    // `${caption} · ${t(label)}` never passes the caption through it, and
+    // `120 px · comfortable` came out `comfortable · px 120`.
+    iso: (v) => (set.dir === 'rtl' ? isolate(String(v)) : String(v)),
     // what the project asked for, and whether this document could be written in
     // it: the deck of a French project is English until deck.js takes its words
     // from here, and saying so is the difference between a claim and a lie

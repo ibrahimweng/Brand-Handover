@@ -2915,23 +2915,31 @@ test('a brand not named in a-z can be built at all', () => {
 test('a document says what language it is in and which way it reads', () => {
   // The seventh round made every document declare the brand's language, because
   // all four declared English whatever was in them. That was half right and the
-  // wrong half: the manual is in English *about* a Hebrew brand, so declaring
+  // wrong half: the manual was in English *about* a Hebrew brand, so declaring
   // Hebrew told a screen reader to read 988 English words in a Hebrew voice and
-  // laid the whole page out right to left. The document carries the language it
+  // laid the whole page out right to left. A document carries the language it
   // is written in; the brand's own words carry the brand's. See src/strings.js.
+  //
+  // The thirty-sixth round wrote the Hebrew, so מעיין's manual and deck are the
+  // language they claim now. Its canvas is not — that is still literals in
+  // editor/ — and the same rule that used to give it three English documents
+  // now gives it one, for the same reason and said the same way.
   assert.strictEqual(MY.language, 'he');
   assert.strictEqual(MY.direction, 'rtl');       // still derived, still available
   const docs = require('../src/documents');
   const { deck } = require('../src/documents/deck');
   const emit = require('../src/editor/emit');
   const ctx = docs.context(MY, myM, [], {});
-  for (const html of [docs.guidelines(ctx), deck(ctx), emit.editorHtml(MY, myM, [])]) {
+  for (const html of [docs.guidelines(ctx), deck(ctx)]) {
     const tag = (/<html[^>]*>/.exec(html) || [])[0];
-    assert.ok(/lang="en"/.test(tag) && /dir="ltr"/.test(tag), `a document says ${tag}`);
+    assert.ok(/lang="he"/.test(tag) && /dir="rtl"/.test(tag), `a document says ${tag}`);
   }
-  // and the brand's own name is marked as its own, which is what makes both true
-  assert.ok(/lang="he"[^>]*dir="rtl"|dir="rtl"[^>]*lang="he"/.test(docs.guidelines(ctx)),
-    "the brand's own words are not marked as Hebrew");
+  const cnv = (/<html[^>]*>/.exec(emit.editorHtml(MY, myM, [])) || [])[0];
+  assert.ok(/lang="en"/.test(cnv) && /dir="ltr"/.test(cnv), `the canvas says ${cnv}`);
+  // and the brand's own name is marked as its own wherever the document is not
+  // in it, which is what makes both claims true
+  assert.ok(/lang="he"[^>]*dir="rtl"|dir="rtl"[^>]*lang="he"/.test(emit.editorHtml(MY, myM, [])),
+    "the brand's own words are not marked as Hebrew on the canvas");
   // an identity in a language the engine writes gets a document in it — and
   // that is asked per document, because the two are not written from the same
   // words. Both come out of the dictionary end to end now, so français writes
@@ -6510,28 +6518,130 @@ const STR = require('../src/strings');
 const NORM = require('../src/normalise');
 const VERD = path.join(__dirname, '..', 'projects', 'verdon', 'project.json');
 const verdon = projectLoader.load(VERD);
-let verdOut, maayOut;
+let verdOut, maayOut, yamaOut;
 before(async () => {
   verdOut = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-verd-'));
   await build(verdon, verdOut);
   maayOut = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-maay-'));
   await build(projectLoader.load(path.join(__dirname, '..', 'projects', 'maayan', 'project.json')), maayOut);
+  // 山彦 is in ja and the engine has no ja, so it is what maayan used to be:
+  // the identity that proves a language the engine cannot write is said so
+  // rather than assumed. It moved here when Hebrew stopped being one.
+  yamaOut = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-yama-'));
+  await build(projectLoader.load(path.join(__dirname, '..', 'projects', 'yamabiko', 'project.json')), yamaOut);
 });
 
 test('a document is in the language it is written in, not the one it is about', () => {
   const en = STR.resolve({ language: 'en' });
   const fr = STR.resolve({ language: 'fr' }, 'deck');
   const he = STR.resolve({ language: 'he', direction: 'rtl' });
+  const ja = STR.resolve({ language: 'ja' });
   assert.strictEqual(fr.lang, 'fr');
-  // français writes both documents; a language with no dictionary writes neither
+  // français and עברית each write both documents; a language with no dictionary
+  // writes neither, and the engine says which rather than assuming
   assert.strictEqual(STR.resolve({ language: 'fr' }, 'manual').lang, 'fr');
-  assert.strictEqual(STR.resolve({ language: 'he' }, 'deck').lang, 'en');
-  assert.strictEqual(he.lang, 'en', 'a Hebrew brand got a document claiming to be in Hebrew');
-  assert.strictEqual(he.dir, 'ltr', 'an English document was laid out right to left');
+  assert.strictEqual(STR.resolve({ language: 'he' }, 'deck').lang, 'he');
+  assert.strictEqual(he.lang, 'he');
+  assert.strictEqual(he.dir, 'rtl', 'a Hebrew document was laid out left to right');
   assert.strictEqual(he.brandLang, 'he');
-  assert.strictEqual(he.brandDir, 'rtl');
-  assert.ok(en.speaksBrand && fr.speaksBrand && !he.speaksBrand);
+  // neither writes the canvas, whose words are still literals in editor/
+  assert.strictEqual(STR.resolve({ language: 'he' }, 'canvas').lang, 'en');
+  assert.strictEqual(STR.resolve({ language: 'fr' }, 'canvas').lang, 'en');
+  // and a language the engine has no dictionary for gets English, and says so
+  assert.strictEqual(ja.lang, 'en', 'a Japanese brand got a document claiming to be in Japanese');
+  assert.strictEqual(ja.dir, 'ltr', 'an English document was laid out the other way');
+  assert.strictEqual(ja.brandLang, 'ja');
+  assert.ok(en.speaksBrand && fr.speaksBrand && he.speaksBrand && !ja.speaksBrand);
 });
+test('a deck that reads the other way is driven the other way', () => {
+  // An arrow is a direction and it was a character in the markup: "← Prev" and
+  // "Next →" whichever way the deck reads. In a right-to-left deck the start is
+  // on the right, so back points right; and the arrow keys go with it, because
+  // pressing the right arrow in a right-to-left carousel moves towards the
+  // beginning. Two glyphs and one sign that neither en nor fr could show wrong.
+  const { deck: mkDeck } = require('../src/documents/deck');
+  const docs3 = require('../src/documents');
+  const he = mkDeck(docs3.context(MY, myM, [], {}));
+  const en = mkDeck(docs3.context(project, m, [], {}));
+  const btn = (html, id) => (new RegExp(`<button[^>]*id="${id}"[^>]*>([^<]*)<`).exec(html) || [])[1] || '';
+  assert.ok(btn(he, 'prev').startsWith('\u2192'), `the Hebrew deck's back button reads ${btn(he, 'prev')}`);
+  assert.ok(btn(he, 'next').trim().endsWith('\u2190'), `the Hebrew deck's forward button reads ${btn(he, 'next')}`);
+  assert.ok(btn(en, 'prev').startsWith('\u2190') && btn(en, 'next').trim().endsWith('\u2192'),
+    'the English deck stopped pointing the way it reads');
+  // and the key handler steps the other way with them
+  assert.ok(/var w=-1;/.test(he), 'the Hebrew deck steps forward on the right arrow');
+  assert.ok(/var w=1;/.test(en), 'the English deck stopped stepping forward on the right arrow');
+  // the slide counter is built in the browser, so the engine has to put the
+  // isolate into the script: 1 / 19 was drawn 19 / 1, which is slide nineteen
+  // of one
+  assert.ok(he.includes('"\u2068"+(i+1)'), 'the Hebrew slide counter is not isolated');
+  assert.ok(en.includes('""+(i+1)'), 'the English deck carries isolate characters');
+});
+
+test('every string the English set has, the Hebrew set has too', () => {
+  const missing = Object.keys(STR.EN).filter((k) => STR.HAVE.he[k] === undefined);
+  assert.deepStrictEqual(missing, [], 'a Hebrew document would fall back to English mid-sentence');
+  for (const k of Object.keys(STR.EN)) assert.notStrictEqual(STR.HAVE.he[k], k);
+  // and none of it was left in English, which a dictionary of the same script
+  // could hide and this one cannot
+  // A key whose value is only punctuation and slots is the same in every
+  // language and is not evidence of anything; anything with words in it is.
+  const latin = Object.entries(STR.HAVE.he).filter(([k, v]) => typeof v === 'string'
+    && !['lang', 'dir', 'alphabet'].includes(k) && !/[\u0590-\u05FF]/.test(v)
+    && /[A-Za-z]{3}/.test(v.replace(/\{\w+\}/g, ' ')));
+  assert.deepStrictEqual(latin.map(([k]) => k), [], 'Hebrew keys still written in English');
+});
+
+test('an ordinal agrees with the noun beside it', () => {
+  // The table had one form of each ordinal, which is right for English and
+  // wrong for every language here that has gender. French has been printing
+  // "le deuxième ellipse du dessin" — ellipse is feminine — and nothing could
+  // see it, because five of the six shape nouns happen to be masculine and the
+  // sixth never came up. Hebrew makes it unavoidable: every ordinal has two
+  // forms and the nouns do not agree with each other.
+  const want = {
+    en: ['the second circle in the drawing', 'the second ellipse in the drawing'],
+    fr: ['le deuxième cercle du dessin', "la deuxième ellipse du dessin"],
+    he: ['העיגול השני שבשרטוט', 'האליפסה השנייה שבשרטוט'],
+  };
+  for (const [lang, [m, f]] of Object.entries(want)) {
+    const L = STR.resolve({ language: lang }, 'manual');
+    const say = (shapeKey) => pat.motifName(
+      { nameKey: 'motifShapeNth', nameVars: { shapeKey, ordKey: 'ord2' } }, L);
+    assert.strictEqual(say('shapeCircle').replace(/[\u2066-\u2069]/g, ''), m, `${lang}, masculine`);
+    assert.strictEqual(say('shapeEllipse').replace(/[\u2066-\u2069]/g, ''), f, `${lang}, feminine`);
+  }
+});
+
+test('a measurement keeps its own order in a document that reads the other way', () => {
+  // A value dropped into right-to-left prose is reordered by the browser and
+  // comes out a different value: #C8873A drawn C8873A#, the triple 18 59 58
+  // drawn 58 59 18, the sum 140 ÷ 7 = 20 drawn 20 = 7 ÷ 140. The file is right
+  // in every one and the reader is shown something else, so a value says it is
+  // its own run — with characters rather than markup, because a hundred callers
+  // set these and only one place can isolate them. Measured in a browser by
+  // test/rtl-check.mjs; this is the mechanism underneath it.
+  const he = STR.resolve({ language: 'he' }, 'manual');
+  const en = STR.resolve({ language: 'en' }, 'manual');
+  const ISO = /^\u2068[^\u2068\u2069]*\u2069$/;
+  const sum = he.t('basisStroke', { box: '140', w: '7', ratio: '20' });
+  assert.ok(/\u2068140 ÷ 7 = 20\u2069/.test(sum), `the sum is not one run: ${JSON.stringify(sum)}`);
+  // the whole run, not each value: a neutral left between two isolates takes
+  // the paragraph's direction, which is how the sum came out backwards
+  assert.ok(!/\u2069 ÷ \u2068/.test(sum), 'the arithmetic was isolated value by value');
+  // the brand's sentinel breaks a run, or first-strong resolves the value with it
+  const foot = he.t('footerFiles', { brand: '\u0000', version: '3.0.0', n: 67 });
+  assert.ok(/\u20683\.0\.0 · 67\u2069/.test(foot), `the footer is not one run: ${JSON.stringify(foot)}`);
+  assert.ok(foot.indexOf('\u0000') < foot.indexOf('\u2068'), 'the brand name is inside the isolate');
+  // a sentence's own full stop is not part of the value
+  assert.ok(/\u2068WCAG 2\.2\u2069\./.test(he.t('footerContrast')), 'the full stop was swallowed');
+  // and a document that reads the same way as its values pays nothing for this
+  assert.ok(!/[\u2066-\u2069]/.test(en.t('basisStroke', { box: '140', w: '7', ratio: '20' })
+    + en.t('footerContrast')), 'an English document carries isolate characters');
+  assert.ok(ISO.test(he.iso('120 px')) && he.iso('120 px').includes('120 px'));
+  assert.strictEqual(en.iso('120 px'), '120 px');
+});
+
 test('every string the English set has, the French set has too', () => {
   const missing = Object.keys(STR.EN).filter((k) => STR.FR[k] === undefined);
   assert.deepStrictEqual(missing, [], 'a French document would fall back to English mid-sentence');
@@ -6558,7 +6668,9 @@ test('a French identity gets a French manual, body and all', () => {
   assert.ok(/<html[^>]*lang="fr"/.test(raw));
   // the <pre> is brand.json, a machine file that is English whatever the brand
   // is — the same reason geometry.js keeps its English sentence beside the facts
-  const html = raw.replace(/<pre>[\s\S]*?<\/pre>/g, '');
+  // the <pre> is brand.json and now says so on the element — lang="en" — which
+  // is what stopped a Hebrew manual being 55 per cent latin
+  const html = raw.replace(/<pre\b[^>]*>[\s\S]*?<\/pre>/g, '');
   for (const phrase of ['Charte graphique', 'Zone de protection', 'Tracé par le système',
     'boîte 240 ÷ trait 16', 'Ce qui disparaît en premier', 'Comme vous les voyez',
     'le plancher', 'Le RVB est converti depuis l’hexadécimal',
@@ -6573,21 +6685,42 @@ test('a French identity gets a French manual, body and all', () => {
   }
 });
 test('a language the engine cannot write gets an English document that says so', () => {
+  // 山彦 is in ja, the engine has no ja, and this is what that looks like. It
+  // used to be מעיין's job; the thirty-sixth round wrote the Hebrew, so the
+  // fixture moved rather than the rule.
   for (const f of ['guidelines.html', 'deck.html', 'published.html']) {
-    const html = fs.readFileSync(path.join(maayOut, f), 'utf8');
+    const html = fs.readFileSync(path.join(yamaOut, f), 'utf8');
     assert.ok(/<html[^>]*lang="en"/.test(html), `${f} still claims a language it is not in`);
-    assert.ok(!/<html[^>]*dir="rtl"/.test(html), `${f} lays an English document out right to left`);
   }
   // the brand's own words carry the brand's language
+  const g = fs.readFileSync(path.join(yamaOut, 'guidelines.html'), 'utf8');
+  assert.ok(/lang="ja"/.test(g), "the brand's own name is not marked as Japanese");
+});
+
+test('a Hebrew identity gets a Hebrew manual and a Hebrew deck', () => {
+  for (const f of ['guidelines.html', 'deck.html']) {
+    const html = fs.readFileSync(path.join(maayOut, f), 'utf8');
+    assert.ok(/<html[^>]*lang="he"/.test(html), `${f} is not written in Hebrew`);
+    assert.ok(/<html[^>]*dir="rtl"/.test(html), `${f} is not laid out right to left`);
+    // and it really is Hebrew, measured off the page rather than declared on it
+    const seen = require('../src/access').language(html);
+    assert.ok(seen.ok && seen.top === 'hebrew',
+      `${f} says he and is ${Math.round((1 - seen.ownShare) * 100)} per cent not`);
+  }
+  // the canvas is not a document this dictionary writes, and does not pretend to
+  const ed = fs.readFileSync(path.join(maayOut, 'editor.html'), 'utf8');
+  assert.ok(/<html[^>]*lang="en"/.test(ed), 'the canvas claims a language its chrome is not in');
+  // brand.json is English whatever the brand is, and the page it is printed on
+  // says so — without that the Hebrew manual measured 55 per cent latin
   const g = fs.readFileSync(path.join(maayOut, 'guidelines.html'), 'utf8');
-  assert.ok(/lang="he"/.test(g), "the brand's own name is not marked as Hebrew");
-  assert.ok(/dir="rtl"/.test(g), "the brand's own name is not marked as right to left");
+  assert.ok(/<pre lang="en" dir="ltr">/.test(g), 'the machine file does not say what it is');
 });
 test('the language check catches a page that claims what it is not', () => {
   const ACC2 = require('../src/access');
-  const real = fs.readFileSync(path.join(maayOut, 'guidelines.html'), 'utf8');
+  const real = fs.readFileSync(path.join(yamaOut, 'guidelines.html'), 'utf8');
   assert.strictEqual(ACC2.language(real).ok, true);
-  // the page exactly as it shipped for twenty-nine rounds
+  // the page exactly as מעיין's shipped for twenty-nine rounds: English prose
+  // under a declaration that it is not English
   const was = real.replace('lang="en"', 'lang="he"');
   const got = ACC2.language(was);
   assert.strictEqual(got.ok, false);
@@ -6799,8 +6932,11 @@ test('a deck says what language it is written in, not what the brand is in', () 
   assert.ok(/<html[^>]*lang="fr"/.test(manual), 'the manual is not written in the language it can be');
   assert.deepStrictEqual(STR.resolve({ language: 'fr' }, 'deck').lang, 'fr');
   assert.deepStrictEqual(STR.resolve({ language: 'fr' }, 'manual').lang, 'fr');
+  // עברית writes both too, which is the thirty-sixth round
+  assert.deepStrictEqual(STR.resolve({ language: 'he' }, 'deck').lang, 'he');
+  assert.deepStrictEqual(STR.resolve({ language: 'he' }, 'manual').lang, 'he');
   // and a language the engine has no dictionary for still gets English
-  assert.deepStrictEqual(STR.resolve({ language: 'he' }, 'manual').lang, 'en');
+  assert.deepStrictEqual(STR.resolve({ language: 'ja' }, 'manual').lang, 'en');
 });
 
 test('what a language says it writes is measured off the finished page', () => {

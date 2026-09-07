@@ -112,6 +112,12 @@ function bundle(project, measured, files = []) {
     contrast: contrast.matrix(cols),
     files: files.map((f) => ({ path: f.path, bytes: f.bytes })),
     content: project.content || {},
+    // What language the canvas is written in, so the document it opens on is
+    // written in it too. The starter document is content rather than chrome and
+    // was eleven English literals; a Hebrew project got a canvas whose own words
+    // were Hebrew and whose first document was not, and `published.html` came
+    // out 97 per cent Latin under lang="he".
+    language: project.language || 'en', direction: project.direction || null,
   };
 }
 
@@ -119,6 +125,7 @@ function bundle(project, measured, files = []) {
 // beginner meets the editor with something already on it.
 function starterDoc(bu) {
   const M = require('./model');
+  const L = require('../strings').resolve({ language: bu.language, direction: bu.direction }, 'canvas');
   // ids start again for each document, so building the same project twice in
   // one run gives the same document rather than a second range of numbers
   M.resetIds();
@@ -132,7 +139,7 @@ function starterDoc(bu) {
   const shot = Object.entries(bu.images || {}).find(([, im]) => im.fromProject);
   if (shot) {
     add('slot', { x: 0, y: 0, w: P.w, h: P.h,
-      props: { image: shot[0], fit: 'cover', treatment: true, label: 'Cover', caption: shot[1].caption || '' } });
+      props: { image: shot[0], fit: 'cover', treatment: true, label: L.t('sldCover'), caption: shot[1].caption || '' } });
   } else {
     add('fill', { x: 0, y: 0, w: P.w, h: P.h, props: { colour: 'primary' } });
   }
@@ -142,40 +149,40 @@ function starterDoc(bu) {
   // A block 120 tall at H1 held three lines of it and the rest ran through the
   // caption underneath. Give the block the height its own words need, and set a
   // long statement in a step a reader can take at that length.
-  const lede = bu.content.positioning || `${bu.brand} brand guidelines`;
+  const lede = bu.content.positioning || L.t('manualTitle', { brand: bu.brand });
   const step = (st) => (((bu.type || {}).scale) || []).find((x) => x.name === st) || { size: 17, leading: 27 };
   const ledeStyle = M.textLines(lede, step('H1'), 700) > 3 ? 'H2' : 'H1';
   const ledeH = Math.max(120, M.textFits(lede, step(ledeStyle), 700, 0).needs);
   add('text', { x: 124, y: 420, w: 700, h: ledeH,
     props: { text: lede, style: ledeStyle, align: 'left', colour: 'ground' } });
   add('text', { x: 124, y: 420 + ledeH + 20, w: 520, h: 40,
-    props: { text: `${bu.brand} ${bu.version} · built from one master file`, style: 'Caption', align: 'left', colour: 'ground' } });
+    props: { text: `${bu.brand} ${bu.version} · ${L.t('deckBuilt')}`, style: 'Caption', align: 'left', colour: 'ground' } });
 
-  const p2 = M.makePage('The mark');
+  const p2 = M.makePage(L.t('chMark'));
   doc.pages.push(p2);
   const add2 = (type, at) => p2.blocks.push(M.makeBlock(type, at));
-  add2('text', { x: 80, y: 64, w: 600, h: 60, props: { text: 'The mark', style: 'H1', colour: 'primary' } });
+  add2('text', { x: 80, y: 64, w: 600, h: 60, props: { text: L.t('chMark'), style: 'H1', colour: 'primary' } });
   add2('construction', { x: 80, y: 150, w: 380, h: 420, props: { colourway: 'primary', on: 'ground', line: 'neutral' } });
   add2('clearSpace', { x: 500, y: 150, w: 380, h: 420, props: { colourway: 'primary', on: 'ground', line: 'neutral' } });
   add2('minimumSize', { x: 920, y: 150, w: 280, h: 260, props: { colourway: 'primary' } });
 
-  const p3 = M.makePage('Colour');
+  const p3 = M.makePage(L.t('chColour'));
   doc.pages.push(p3);
-  p3.blocks.push(M.makeBlock('text', { x: 80, y: 64, w: 600, h: 60, props: { text: 'Colour', style: 'H1', colour: 'primary' } }));
+  p3.blocks.push(M.makeBlock('text', { x: 80, y: 64, w: 600, h: 60, props: { text: L.t('chColour'), style: 'H1', colour: 'primary' } }));
   p3.blocks.push(M.makeBlock('palette', { x: 80, y: 150, w: 1120, h: 250 }));
   p3.blocks.push(M.makeBlock('contrast', { x: 80, y: 430, w: 1120, h: 240, props: { limit: 5 } }));
 
   // the third kind of block, so a beginner meets all three on the way in
-  const p4 = M.makePage('The system');
+  const p4 = M.makePage(L.t('chSystem'));
   doc.pages.push(p4);
-  p4.blocks.push(M.makeBlock('text', { x: 80, y: 56, w: 700, h: 56, props: { text: 'Set once, generated after that', style: 'H1', colour: 'primary' } }));
+  p4.blocks.push(M.makeBlock('text', { x: 80, y: 56, w: 700, h: 56, props: { text: L.t('cnvSetOnce'), style: 'H1', colour: 'primary' } }));
   p4.blocks.push(M.makeBlock('pattern', { x: 80, y: 136, w: 440, h: 232, props: { density: 'medium', colourway: 'ground', on: 'primary' } }));
   p4.blocks.push(M.makeBlock('pattern', { x: 544, y: 136, w: 288, h: 232, props: { density: 'fine', colourway: 'primary', on: 'ground', caption: true } }));
   p4.blocks.push(M.makeBlock('photography', { x: 856, y: 136, w: 344, h: 232, props: { on: 'ground' } }));
   p4.blocks.push(M.makeBlock('iconGrid', { x: 80, y: 400, w: 280, h: 264, props: { colourway: 'primary', on: 'ground', line: 'neutral' } }));
   p4.blocks.push(M.makeBlock('motion', { x: 384, y: 400, w: 232, h: 264, props: { colourway: 'ground', on: 'primary' } }));
   p4.blocks.push(M.makeBlock('text', { x: 648, y: 408, w: 552, h: 200,
-    props: { text: 'These four come from one decision each. Change the rule in the project and every instance follows. Nothing here is redrawn by hand.', style: 'Body', colour: 'primary' } }));
+    props: { text: L.t('cnvFourBlocks'), style: 'Body', colour: 'primary' } }));
   return doc;
 }
 

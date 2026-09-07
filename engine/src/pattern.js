@@ -668,9 +668,15 @@ function options(markSource, rules, ink, on, size, measured) {
 function motifName(motif, L) {
   if (!L || !motif || !motif.nameKey) return (motif && motif.name) || '';
   const v = Object.assign({}, motif.nameVars);
+  // The shape is the noun the rest of the phrase agrees with — the ordinal
+  // before it and, in French, the article on the front. English inflects for
+  // neither, which is why "le deuxième ellipse du dessin" survived two rounds
+  // of this table. Fall back to `t` for a caller that built its own L.
+  const noun = v.shapeKey || '';
+  const say = L.agree ? (k, vars) => L.agree(k, noun, vars) : (k, vars) => L.t(k, vars);
   if (v.shapeKey) { v.shape = L.t(v.shapeKey); delete v.shapeKey; }
-  if (v.ordKey) { v.ord = L.t(v.ordKey); delete v.ordKey; }
-  return L.t(motif.nameKey, v);
+  if (v.ordKey) { v.ord = say(v.ordKey); delete v.ordKey; }
+  return say(motif.nameKey, v);
 }
 
 function drawsText(construction, L) {

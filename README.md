@@ -1147,8 +1147,59 @@ pixel-identical, and 15 differing by at most 94 pixels of 720,000, none of them
 adjacent to another, worst channel 29 of 255 — the rasteriser compositing a
 different number of layers, not a copy that showed being cut.
 
-Still to do: that run on **your** identity job, which this is not. A third
-language: `en` and `fr` are two, and two is enough to prove the mechanism is a
-mechanism, but the first non-Latin one will find things neither of these could.
-And the canvas is answerable for itself now, but a screen reader has still never
-been pointed at it: what it says is measured, how it sounds is not.
+The thirty-sixth added a third language, and the first one that is not written
+the way the engine is. `en` and `fr` share an alphabet, a direction and a
+sentence shape; the two things a language is actually made of were the same in
+both. מעיין has been here since the ninth round declaring `he` and getting an
+English manual with a warning saying that adding Hebrew was "a block of strings
+and nothing else". That was wrong, and this is what was in the way.
+
+**An ordinal agrees with its noun.** The table had one form of each, so French
+has been printing **"le deuxième ellipse du dessin"** since the thirtieth round —
+`ellipse` is feminine, five of the six shape nouns are not, and the sixth had
+never come up. Hebrew makes it unavoidable. A dictionary says which of its nouns
+are feminine now and a key may carry a second form; the Hebrew needed it and the
+French had needed it all along.
+
+**A type specimen is a specimen of a script.** English sets ABC abc, French adds
+an É, and both are the same answer to the same question. Hebrew has no capitals,
+so it is neither and cannot be made from either.
+
+**The manual prints `brand.json` whole**, and `brand.json` is English whatever
+the brand is — so a Hebrew manual was 3,719 Latin characters under `lang="he"`,
+55 per cent of the page, and the engine refused to build it. It was right to. The
+machine file says what it is now, and so does every `<code>`: `05-icons/` under
+`dir="rtl"` is drawn `/05-icons`.
+
+**The published page carried the canvas's words under the manual's claim** — 97
+per cent latin under `lang="he"`, which is the thirty-fourth round's fault one
+level down.
+
+**And every measurement on the page was a different measurement.** A value inside
+right-to-left prose is reordered by the browser, and measured character by
+character in a real one, the first Hebrew manual drew twenty-nine of them wrong:
+
+    #C8873A → C8873A#      18 59 58 → 58 59 18      1385 C → C 1385
+    122 × 50 px → px 50 × 122       140 ÷ 7 = 20 → 20 = 7 ÷ 140
+
+A different colour, a different ink to send to a press, a different shape, a sum
+that is not true. The file was right in all twenty-nine and every check passed. A
+value says it is its own run now — two Unicode isolate characters, put in at the
+one place values are substituted, so that none of the hundred callers that set a
+measurement has to know. `test/rtl-check.mjs` reports 29 against the page as it
+first built and 0 against the one that ships.
+
+The arrows went the same way: `← Prev` and `Next →` were characters in the
+markup, and in a right-to-left deck back points right and the right arrow key
+moves towards the beginning.
+
+עברית writes the manual and the deck. It does not write the canvas — that is
+still literals in `editor/` — and the build says so, which is the same answer
+français gets and the whole point of the mechanism. 山彦 is still in `ja` and has
+taken over the job מעיין used to do: the identity that proves a language the
+engine cannot write is said so rather than quietly swapped.
+
+Still to do: that run on **your** identity job. The canvas's own chrome, which
+would let a language write all three documents rather than two. And a screen
+reader has still never been pointed at any of it: what these pages say is
+measured, how they sound is not.

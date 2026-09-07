@@ -343,7 +343,7 @@ function minimumSize(ctx) {
   const room = (w) => `min(${w}px,${svgu.round((w / big) * 100, 2)}%)`;
   return `<div class="row3">` + steps.map((s) =>
     `<figure><div class="stage tight" style="background:${on.ground.hex}">${scaled(art, s.px, room(s.px))}</div>
-     <figcaption>${esc(s.caption)} · ${esc(L.t(s.labelKey || 'stepFloor'))}</figcaption></figure>`).join('') + `</div>
+     <figcaption>${esc(L.iso(s.caption))} · ${esc(L.t(s.labelKey || 'stepFloor'))}</figcaption></figure>`).join('') + `</div>
     <p class="note"><b>${esc(L.t('minLead', { px: geo.floorText(m, 'px', L), mm: geo.floorText(m, 'mm', L),
       alone: ctx.noun === 'mark' ? L.t('minAlone') : '' }))}</b> ${esc(L.t('minBody', {
       basis: geo.basisText(m.basisFacts, L), px: ctx.project.rules.minStrokePx, mm: ctx.project.rules.minStrokeMm }))
@@ -447,11 +447,11 @@ function motionBuild(ctx) {
   return `<div class="row2"><figure><div class="stage tight" style="background:${showOn(ctx).ground.hex}">`
     + `${scaled(a.svg, 260)}</div><figcaption class="said">${esc(L.t('identPlaying', { ms: total }))}</figcaption></figure>
     <figure><div class="stage tight" style="align-items:stretch"><div style="width:100%">${lane}</div></div>
-    <figcaption class="said">${esc(L.t('identParts'))} <code>data-part</code>${esc(L.t('identPartsB'))}</figcaption></figure></div>
+    <figcaption class="said">${esc(L.t('identParts'))} <code dir="ltr">data-part</code>${esc(L.t('identPartsB'))}</figcaption></figure></div>
     <p class="note"><b>${r.build.map((b) => `${esc(b.part)} ${esc(L.t(HOW_KEY[b.how] || 'howDraws'))}`).join(', ')}.</b>
     ${esc(L.t('identHow'))}</p>
     <p class="note"><b>${esc(L.t('identReducedLead'))}</b>
-    ${esc(L.t('identReducedA'))} <code>15-motion</code> ${esc(L.t('identReducedB'))}</p>`;
+    ${esc(L.t('identReducedA'))} <code dir="ltr">15-motion</code> ${esc(L.t('identReducedB'))}</p>`;
 }
 
 // The brands inside the brand.
@@ -500,9 +500,9 @@ function fabrication(ctx) {
     + `<span>${esc(L.t('thFinest'))}</span><span>${esc(L.t('thProcessHolds'))}</span></div>
     ${rows}</div>
     <p class="note"><b>${esc(L.t('fabArithmeticLead'))}</b> ${esc(L.t('fabArithmetic'))}
-    <code>13-fabrication</code> ${esc(L.t('fabFolder'))}</p>
-    <p class="note">${esc(L.t('fabWorkingA'))} <code>brand.json</code>${esc(L.t('fabWorkingB'))}
-    <code>feature</code> ${esc(L.t('fabWorkingC'))}</p>`;
+    <code dir="ltr">13-fabrication</code> ${esc(L.t('fabFolder'))}</p>
+    <p class="note">${esc(L.t('fabWorkingA'))} <code dir="ltr">brand.json</code>${esc(L.t('fabWorkingB'))}
+    <code dir="ltr">feature</code> ${esc(L.t('fabWorkingC'))}</p>`;
 }
 
 // The palette, as three other people see it.
@@ -617,7 +617,7 @@ function lockups(ctx) {
     <b>${esc(L.t('namePerCent', { n: svgu.round(Number(n.heightRatio) * 100, 1) }))}</b> ${esc(L.t('nameSetInC', {
       h: ctx.measured.markInk.h,
       stands: svgu.round(ctx.measured.markInk.h * Number(n.heightRatio), 2) }))}
-    <code>04-wordmark</code> ${esc(L.t('nameSetInD', {
+    <code dir="ltr">04-wordmark</code> ${esc(L.t('nameSetInD', {
       family: fam.family || n.drawn.family, role: n.family }))}</p>`;
 }
 
@@ -992,7 +992,7 @@ function iconSpec(ctx) {
   // round; now that a project can carry it, the manual has to explain why the
   // icons are not the mark.
   const simplified = ctx.project.assets.icon
-    ? `<p class="note">${esc(L.t('iconSimplifiedA'))} <code>05-icons</code> ${esc(L.t('iconSimplifiedB'))}</p>` : '';
+    ? `<p class="note">${esc(L.t('iconSimplifiedA'))} <code dir="ltr">05-icons</code> ${esc(L.t('iconSimplifiedB'))}</p>` : '';
   const k = 200 / r.box, m = (r.box - r.live) / 2;
   const line = ctx.accent.hex;
   return `<figure><div class="stage tight">
@@ -1012,7 +1012,7 @@ function iconSpec(ctx) {
     <b>${esc(L.t('namePerCent', { n: svgu.round(r.strokeRatio * 100, 1) }))}</b> ${esc(L.t('iconC', {
       s: r.stroke, b: r.box, cap: r.cap, join: r.join,
       fill: L.t(r.filled ? 'iconFilled' : 'iconOutline'), noun: nounIn(ctx, L) }))}
-    <code>check &lt;icon.svg&gt; --icon</code> ${esc(L.t('iconD'))}</p>
+    <code dir="ltr">check &lt;icon.svg&gt; --icon</code> ${esc(L.t('iconD'))}</p>
     ${simplified}`;
 }
 
@@ -1044,9 +1044,9 @@ function motionSpec(ctx) {
       `<b>${esc(s.part)}</b> ${esc(L.t(HOW_KEY[s.how] || 'howDraws'))} ${esc(L.t('motStepFrom',
         { from: s.from, to: s.to }))} <i>${esc(s.ease)}</i>`).join(', ')}${esc(L.t('motBuildsB',
       { loop: L.t(r.loop ? 'motLoops' : 'motPlaysOnce') }))}
-    <code>15-motion</code> ${esc(L.t('motBuildsC'))}</p>`
-    : `<p class="note">${esc(L.t('motNoBuildA'))} <code>data-part</code> ${esc(L.t('motNoBuildB'))}
-    <code>system.motion.build</code>${esc(L.t('motNoBuildC'))}</p>`}
+    <code dir="ltr">15-motion</code> ${esc(L.t('motBuildsC'))}</p>`
+    : `<p class="note">${esc(L.t('motNoBuildA'))} <code dir="ltr">data-part</code> ${esc(L.t('motNoBuildB'))}
+    <code dir="ltr">system.motion.build</code>${esc(L.t('motNoBuildC'))}</p>`}
     <p class="note">${esc(L.t('motWhole', { n: Object.keys(r.durations).length }))}</p>`;
 }
 
@@ -1079,6 +1079,13 @@ function typeScale(ctx) {
      <em>${esc(s.name)} · ${s.size} / ${s.leading}</em></div>`).join('') + `</div>`;
 }
 
+// An identifier is not prose in the document's language and it is not written
+// in the document's direction either. `05-icons/` under dir="rtl" comes out as
+// `/05-icons`, and `check <icon.svg> --icon` comes out with its flag first:
+// the browser is right, a path is a neutral-terminated run of Latin and Hebrew
+// reading order puts the punctuation at the other end. Nothing in en or fr
+// could show this — a Latin identifier in a Latin page is already the way
+// round it should be.
 // ---------------------------------------------------------------- assets
 function assetIndex(ctx) {
   const L = lang(ctx);
@@ -1088,11 +1095,18 @@ function assetIndex(ctx) {
     groups.set(dir, (groups.get(dir) || 0) + 1);
   }
   return `<div class="atab">` + [...groups.entries()].sort().map(([d, n]) =>
-    `<div class="ar"><code>${esc(d)}${d === L.t('deckRoot') ? '' : '/'}</code><em>${n}</em></div>`).join('') +
+    `<div class="ar"><code dir="ltr">${esc(d)}${d === L.t('deckRoot') ? '' : '/'}</code><em>${n}</em></div>`).join('') +
     `</div><p class="note"><b>${esc(L.t('asFilesLead', { n: ctx.files.length }))}</b> ${esc(L.t('asFiles'))}</p>`;
 }
 
-const brandJsonBlock = (ctx) => `<pre>${esc(JSON.stringify(ctx.brandJson, null, 2))}</pre>`;
+// brand.json is read as English whatever the brand's language is — that is the
+// decision this table was built on, and it is the right one for a file a
+// developer reads. The manual prints it whole, so a Hebrew page was carrying
+// several thousand English characters that claimed to be Hebrew: 55 per cent
+// of the manual, enough that the engine refused to build it and was right to.
+// It says what it is now, which a speech synthesiser can act on and which
+// stops the braces and the indentation being laid out from the other side.
+const brandJsonBlock = (ctx) => `<pre lang="en" dir="ltr">${esc(JSON.stringify(ctx.brandJson, null, 2))}</pre>`;
 
 // A manual for a second version is read by somebody who already built to the
 // first one. What they need before anything else is not the specification —
