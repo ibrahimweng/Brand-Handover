@@ -15,15 +15,23 @@ const esc = (s) => String(s == null ? '' : s)
 const fontLink = (bu) => bu.fontHead || '';
 
 const CSS = `
-:root{--bg:#141618;--pane:#1B1E20;--line:#2A2E31;--ink:#ECEEF0;--dim:#8D949B;--sel:#3B82F6;--danger:#E8695F;
+:root{--bg:#141618;--pane:#1B1E20;--line:#2A2E31;--ink:#ECEEF0;--dim:#9199A0;--sel:#3B82F6;--danger:#E8695F;
 --ui:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--ui);font-size:13px;overflow:hidden}
 button,input,select,textarea{font:inherit;color:inherit}
+/* Every control here had a focus ring only because Chromium draws one by
+   default. A default is not a decision: it is the browser's colour against a
+   dark application, and it changes between browsers. Say it. */
+:focus-visible{outline:2px solid var(--sel);outline-offset:2px}
+.hb-block:focus-visible{outline:2px solid var(--sel);outline-offset:-2px}
+/* A name a screen reader reads and the page does not show. */
+.sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;
+  clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}
 .app{display:grid;grid-template-columns:210px 1fr 250px;grid-template-rows:44px 1fr;height:100vh}
 .bar{grid-column:1/-1;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid var(--line);background:var(--pane)}
-.bar .brand{font-weight:600;letter-spacing:-.01em}.bar .ver{font-family:var(--mono);font-size:11px;color:var(--dim)}
+.bar .brand{font-weight:600;letter-spacing:-.01em;font-size:13px;margin:0}.bar .ver{font-family:var(--mono);font-size:11px;color:var(--dim)}
 .bar .sp{flex:1}
 .bar button,.tool{background:none;border:1px solid var(--line);color:var(--ink);padding:5px 10px;border-radius:4px;cursor:pointer}
 .bar button:hover:not(:disabled),.tool:hover{background:#24282B}
@@ -31,7 +39,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .bar select{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:5px 6px}
 .rail,.side{background:var(--pane);overflow-y:auto;padding:12px}
 .rail{border-right:1px solid var(--line)}.side{border-left:1px solid var(--line)}
-h4{margin:0 0 8px;font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim);font-weight:500}
+.app h2{margin:0 0 8px;font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim);font-weight:500}
 .pg{display:flex;align-items:center;gap:8px;width:100%;background:none;border:1px solid transparent;border-radius:5px;padding:7px 8px;cursor:pointer;text-align:left;margin-bottom:2px}
 .pg:hover{background:#24282B}.pg.on{background:#24282B;border-color:var(--line)}
 .pg i{font-family:var(--mono);font-size:10px;color:var(--dim);font-style:normal}
@@ -52,7 +60,7 @@ h4{margin:0 0 8px;font-size:10px;letter-spacing:.13em;text-transform:uppercase;c
 /* where the guillotine goes. Drawn over the artwork, under the selection. */
 #trimline{position:absolute;display:none;pointer-events:none;outline:1px dashed rgba(226,200,106,.85);outline-offset:0}
 .sel{position:absolute;outline:1.5px solid var(--sel);outline-offset:0}
-.sel .tag{position:absolute;top:-19px;left:0;background:var(--sel);color:#fff;font-family:var(--mono);font-size:10px;padding:1px 5px;border-radius:3px 3px 0 0;white-space:nowrap}
+.sel .tag{position:absolute;top:-19px;left:0;background:var(--sel);color:var(--bg);font-family:var(--mono);font-size:10px;padding:1px 5px;border-radius:3px 3px 0 0;white-space:nowrap}
 .h{position:absolute;width:9px;height:9px;background:#fff;border:1.5px solid var(--sel);border-radius:2px;pointer-events:auto}
 .h-nw{left:-5px;top:-5px;cursor:nwse-resize}.h-n{left:calc(50% - 4px);top:-5px;cursor:ns-resize}
 .h-ne{right:-5px;top:-5px;cursor:nesw-resize}.h-e{right:-5px;top:calc(50% - 4px);cursor:ew-resize}
@@ -158,45 +166,57 @@ function editorHtml(project, measured, files) {
   const bu = bundle(project, measured, files);
   const doc = starterDoc(bu);
   // The canvas is an application, and its chrome is the engine's own words. It
-  // carries the language it is written in, like the documents beside it.
-  const L = require('../strings').resolve(project);
+  // carries the language it is written in, like the documents beside it — and
+  // that is asked of the canvas rather than of the project, because its words
+  // are literals here and in app.js rather than strings in the dictionary. A
+  // French project got a canvas declaring lang="fr" over Undo, Pages and Add a
+  // block, which is the fault the two rounds before this one spent themselves
+  // removing, in the one page nobody had audited. See src/strings.js.
+  const L = require('../strings').resolve(project, 'canvas');
+  // and the brand's own name carries the brand's, which is what makes both true
+  const own = (text) => (L.speaksBrand ? esc(text)
+    : `<span lang="${esc(L.brandLang)}"${L.brandDir && L.brandDir !== L.dir
+      ? ` dir="${esc(L.brandDir)}"` : ''}>${esc(text)}</span>`);
   return `<!doctype html><html lang="${esc(L.lang)}" dir="${esc(L.dir)}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(bu.brand)} · editor</title>
 ${fontLink(bu)}
 <style>${CSS}</style></head><body>
 <div class="app">
-  <div class="bar">
-    <span class="brand">${esc(bu.brand)}</span><span class="ver">${esc(bu.version)}</span>
+  <header class="bar">
+    <h1 class="brand">${own(bu.brand)}</h1><span class="ver">${esc(bu.version)}</span>
     <button id="undo" title="Undo (Cmd Z)">Undo</button>
     <button id="redo" title="Redo (Cmd Shift Z)">Redo</button>
     <span class="sp"></span>
     <label class="ver">size <select id="sheet-size"></select></label>
     <label class="ver">bleed <select id="bleed"><option value="0">none</option><option value="3">3 mm</option><option value="5">5 mm</option></select></label>
     <label class="ver">grid <select id="grid"><option>4</option><option selected>8</option><option>16</option><option value="0">off</option></select></label>
-    <span id="zoom">100%</span>
+    <span id="zoom"><span class="sr">zoom </span>100%</span>
     <button id="open">Open</button>
     <button id="save">Save JSON</button>
     <button id="publish">Publish</button>
     <button id="reset">Reset</button>
-  </div>
-  <div class="rail">
-    <h4>Pages</h4><div id="pages"></div>
+  </header>
+  <aside class="rail" aria-label="Pages, and the blocks you can add">
+    <h2 id="pages-h">Pages</h2><div id="pages" role="list" aria-labelledby="pages-h"></div>
     <div class="pgbtns"><button id="addpage">Add page</button><button id="delpage">Delete</button></div>
     <label class="f pgsize"><span>This page</span><select id="page-size"></select></label>
-    <h4>Add a block</h4><div id="insert"></div>
+    <h2 id="insert-h">Add a block</h2><div id="insert" aria-labelledby="insert-h"></div>
     <div class="keys">
+      <b>tab</b> next block · <b>shift tab</b> back<br>
+      <b>enter</b> add to selection<br>
       <b>drag</b> move · <b>alt</b> ignore grid<br>
       <b>shift click</b> multi select<br>
-      <b>double click</b> edit text<br>
+      <b>double click</b> or <b>F2</b> edit text<br>
       <b>arrows</b> nudge · <b>shift</b> ×4<br>
+      <b>cmd arrows</b> resize<br>
       <b>cmd Z</b> undo · <b>cmd D</b> duplicate<br>
-      <b>delete</b> remove block<br>
+      <b>delete</b> remove block · <b>esc</b> deselect<br>
       <b>drop a file</b> on an image slot
     </div>
-  </div>
-  <div id="canvas"><div id="stage"><div id="sheet"></div><div id="trimline"></div><div id="overlay"></div></div><div id="notes"></div><span id="sheetname"></span></div>
-  <div class="side"><h4>Properties</h4><div id="panel"></div></div>
+  </aside>
+  <main id="canvas" aria-label="The page you are editing"><div id="stage"><div id="sheet" role="group"></div><div id="trimline"></div><div id="overlay"></div></div><div id="notes" role="status" aria-live="polite"></div><span id="sheetname"></span></main>
+  <aside class="side" aria-label="Properties"><h2 id="props-h">Properties</h2><div id="panel" aria-labelledby="props-h"></div></aside>
 </div>
 <input type="file" id="file" accept="application/json" hidden>
 <input type="file" id="imgfile" accept="image/*" hidden>

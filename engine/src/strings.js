@@ -36,7 +36,13 @@ const EN = {
   // built the pattern from was one inside pattern.js. Each of those keeps its
   // English beside the facts, because brand.json, CHANGES.txt and the command
   // line are read as English whatever the brand's language is.
-  lang: 'en', dir: 'ltr', name: 'English', writes: ['manual', 'deck'],
+  //
+  // The canvas is the third. Its chrome — Undo, Pages, Add a block, Properties —
+  // is still literals in editor/emit.js and editor/app.js, so English is the
+  // only language that writes one, and a French project's canvas says English
+  // rather than carrying lang="fr" over English words. The script check cannot
+  // catch that: French and English are the same alphabet.
+  lang: 'en', dir: 'ltr', name: 'English', writes: ['manual', 'deck', 'canvas'],
   eyebrow: 'Brand manual · generated from one master file',
   manualTitle: '{brand} brand manual',
   deckTitle: '{brand} · brand deck',

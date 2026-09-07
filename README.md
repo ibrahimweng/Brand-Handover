@@ -1056,9 +1056,45 @@ Both documents are written in the language the brand asked for now, or the engin
 says plainly that it cannot. The English manual of all thirty other identities
 comes out with the same words in the same order.
 
+The thirty-fourth looked at the canvas, which no round had. Every
+`ACCESSIBILITY.txt` this engine wrote said the canvas was an application rather
+than a document and was not in the file — true, and also the reason nobody had
+looked. Driven with a keyboard: **four blocks on a page and none of them
+reachable.** Selecting, moving, resizing, duplicating and deleting — the whole
+of the application — worked with a pointer and with nothing else.
+
+Focus is the selection now. Every block is a tab stop that says what it is, how
+big it is, where it sits and whether it is selected. `cmd` with the arrows
+resizes, which had been eight corner handles and no keys at all; `enter` adds a
+second block to the selection; `F2` opens a text block; `escape` lets go. And
+the things a page owes anybody: a `<main>`, one heading, panels that say what
+they are, and a region that announces — every warning the application gave had
+been silent to a reader not watching that corner of the screen.
+
+Three things were found only by measuring. A focus ring nobody decided on is the
+browser's, not the product's — and writing one down immediately found the block
+whose ring was clipped away by the sheet it filled. Four number fields were
+labelled by a caption underneath rather than by a label, so they read as "edit,
+blank". And a stylesheet cannot say what ground a rule lands on: measured
+against the worst ground in the file it called 87 pairs failures; measured in a
+browser against the nearest ancestor that actually paints one, 82 pieces of text
+and a single real failure, the tag naming a selected block at 3.68 to 1.
+
+The checker had a fault of its own: it read the file rather than what a browser
+lays out, so a page that inlines its own scripts was measured on its source
+code — an `<h1>` and forty-nine `<svg>` that are inside `render.js`.
+
+And reading the canvas found the last round's own fault in it. `lang` is an
+accessibility attribute, and the canvas took it from the manual's dictionary —
+so once français wrote both documents, **Verdon's canvas declared `lang="fr"`
+over Undo, Pages and Add a block.** The check that catches Hebrew cannot catch
+this: French and English are the same alphabet.
+
 Still to do: a run on **your** identity job. Twenty identities the engine had
 not seen is worth a great deal more than twenty passes over one, but none of
 them came out of your exporter — and the normaliser is the part that most needs
 to meet one. And a third language: `en` and `fr` are two, and two is enough to
 prove the mechanism is a mechanism, but the first non-Latin one will find things
-neither of these could.
+neither of these could. The canvas is answerable for itself now, but a screen
+reader has still never been pointed at it: what it says is measured, how it
+sounds is not.

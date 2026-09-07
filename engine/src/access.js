@@ -169,7 +169,17 @@ function language(html) {
     ownShare: Number(share.toFixed(3)), ok: share >= 0.5 };
 }
 
-function structure(html) {
+// What a browser lays out, which is not what the file contains. A page that
+// inlines its own scripts carries markup inside them — the canvas ships
+// render.js and publish.js as text, and those hold an <h1> and forty-nine
+// <svg>. Counting those found a heading outline and forty-one unnamed drawings
+// on a page that has neither.
+const layout = (html) => String(html)
+  .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+  .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '');
+
+function structure(source) {
+  const html = layout(source);
   const found = [];
   const levels = [...html.matchAll(/<h([1-6])\b/g)].map((m) => Number(m[1]));
   const h1 = levels.filter((l) => l === 1).length;
@@ -244,9 +254,91 @@ function structure(html) {
   return found;
 }
 
+// ------------------------------------------------------------ the application
+//
+// The canvas was left out of every accessibility statement this engine has
+// written, with a sentence saying so: "the canvas is an application rather than
+// a document and is not in that file". That was true and it was also the reason
+// nobody had looked. What it needs asked of it is not what a document needs —
+// there is no reading order to check and no prose to measure — but there is a
+// keyboard, a focus ring, a name on every control, and somewhere for the
+// application to say what it has just done.
+const CONTROLS = /<(button|select|textarea)\b[^>]*>[\s\S]*?<\/\1>|<(input|a)\b[^>]*>/gi;
+
+// Does this control say what it is? Text inside it, a label pointing at it, an
+// aria-label, or a title.
+function named(tag, html) {
+  if (/\saria-label(?:ledby)?="[^"]+"/i.test(tag)) return true;
+  if (/\stitle="[^"]+"/i.test(tag)) return true;
+  const inner = />([\s\S]*?)<\/(?:button|select|textarea|a)>/i.exec(tag);
+  if (inner && inner[1].replace(/<[^>]+>/g, '').trim()) return true;
+  const id = /\sid="([^"]+)"/i.exec(tag);
+  if (id) {
+    if (new RegExp(`<label[^>]*\\sfor="${id[1]}"`, 'i').test(html)) return true;
+    // a label that wraps the control names it, and the words sit before it
+    const wrap = new RegExp(`<label[^>]*>((?:(?!</?label)[\\s\\S])*?)<[^>]*\\sid="${id[1]}"`, 'i').exec(html);
+    if (wrap && wrap[1].replace(/<[^>]+>/g, '').trim()) return true;
+  }
+  if (/type="(hidden|submit|button|reset)"/i.test(tag)) return true;
+  return false;
+}
+
+function application(source, css = '') {
+  const html = layout(source);
+  const found = [];
+  if (!/<main\b/.test(html)) {
+    found.push({ code: 'appLandmark', level: 'warning',
+      what: 'the application has no <main>.',
+      why: 'The thing being worked on is the point of the page, and there is nothing to skip to it by.',
+      how: 'Wrap the editing surface in <main>, and give the panels around it their own labels.' });
+  }
+  const h1 = (html.match(/<h1\b/g) || []).length;
+  if (h1 !== 1) {
+    found.push({ code: 'appHeading', level: 'warning',
+      what: h1 ? `the application has ${h1} first level headings.` : 'the application has no first level heading.',
+      why: 'An application still opens in a window with a name, and the name is the first thing read.',
+      how: 'Give it one <h1>.' });
+  }
+  // Every control the markup ships. What the application adds while it runs is
+  // measured in a browser instead — see test/canvas-check.mjs.
+  const controls = (html.match(CONTROLS) || []).filter((c) => !/\shidden(?=[\s>])/i.test(c));
+  const anon = controls.filter((c) => !named(c, html));
+  if (anon.length) {
+    found.push({ code: 'appControlName', level: 'warning',
+      what: `${anon.length} of the ${controls.length} controls have no accessible name.`,
+      why: 'A button with no name is announced as "button", which is every button on the page.',
+      how: 'Give each one words inside it, a label, or an aria-label.' });
+  }
+  // A focus ring the browser happens to draw is not a decision: it is one
+  // browser's colour against this application's own, and it changes.
+  if (!/:focus(-visible)?\s*[,{]/.test(css)) {
+    found.push({ code: 'appFocus', level: 'warning',
+      what: 'the application does not say what focus looks like.',
+      why: 'Every control here is reached by keyboard before it is used, and the only thing that says which '
+        + 'one you are on is the ring around it. Left to the browser it is the browser\'s colour against '
+        + 'this application\'s, and it differs between them.',
+      how: 'Set :focus-visible in the stylesheet, in a colour measured against the ground it lands on.' });
+  }
+  if (!/aria-live=|role="(status|alert|log)"/.test(html)) {
+    found.push({ code: 'appLive', level: 'warning',
+      what: 'nothing on the page is a region that announces what changes.',
+      why: 'An application answers without loading a page: it refuses, it warns, it says what it just did. '
+        + 'None of that reaches a reader who is not watching the place it appears.',
+      how: 'Give the place those messages appear role="status" and aria-live.' });
+  }
+  const tabs = (html.match(/tabindex="[1-9]/g) || []).length;
+  if (tabs) {
+    found.push({ code: 'appTabindex', level: 'warning',
+      what: `${tabs} elements set a positive tabindex.`,
+      why: 'The keyboard order stops matching the order things are laid out in.',
+      how: 'Use 0, or nothing at all.' });
+  }
+  return found;
+}
+
 // ---------------------------------------------------------------- the report
 
-function audit(pages, css, rules = {}) {
+function audit(pages, css, rules = {}, app = null) {
   const findings = [];
   const measured = chromeContrast(css, rules);
   const failed = measured.filter((m) => !m.passes);
@@ -265,7 +357,15 @@ function audit(pages, css, rules = {}) {
   for (const [name, html] of Object.entries(pages)) {
     for (const f of structure(html)) findings.push(Object.assign({ page: name }, f));
   }
-  return { findings, measured, pages: Object.keys(pages) };
+  // The canvas is an application, and until the thirty-fourth round every
+  // statement this engine wrote said so and left it out. It is checked here for
+  // the things a file can answer; the three that need a browser — whether the
+  // keyboard reaches everything, whether you can see what it reached, and what
+  // ground each rule actually lands on — are in test/canvas-check.mjs.
+  const canvas = app ? structure(app.html).concat(application(app.html, app.css)) : null;
+  if (canvas) for (const f of canvas) findings.push(Object.assign({ page: app.name || 'editor.html' }, f));
+  return { findings, measured, pages: Object.keys(pages), app: app ? (app.name || 'editor.html') : null,
+    canvas };
 }
 
 // What was checked, what it measured, and what it came to. Written into the
@@ -274,10 +374,11 @@ function audit(pages, css, rules = {}) {
 function statement(result, { brand, standard = 'WCAG 2.2 AA' } = {}) {
   const L = [];
   const rule = (s) => { L.push(s); L.push('='.repeat(s.length)); };
-  rule(`${brand} — the documents in this package`);
+  rule(`${brand} — the documents in this package${result.app ? ', and the canvas' : ''}`);
   L.push('');
   L.push(`Checked against ${standard}, by measurement, when the package was built.`);
   L.push(`Pages: ${result.pages.join(', ')}.`);
+  if (result.app) L.push(`Application: ${result.app}.`);
   L.push('');
   L.push('Text in the documents\' own type');
   L.push('-------------------------------');
@@ -308,6 +409,29 @@ function statement(result, { brand, standard = 'WCAG 2.2 AA' } = {}) {
     'No positive tabindex, so the keyboard order is the reading order.',
     'A language on the document.',
   ]) L.push(`  ${line}`);
+  if (result.app) {
+    L.push('');
+    L.push(`The canvas (${result.app})`);
+    L.push('-'.repeat(`The canvas (${result.app})`.length));
+    for (const line of [
+      'An application rather than a document, so it is asked different things:',
+      '  A <main> to work in, and one first level heading.',
+      '  An accessible name on every control the page ships.',
+      '  A stylesheet that says what focus looks like, rather than leaving it',
+      '    to whichever browser opened the file.',
+      '  A region that announces what the application has just done.',
+      '  No positive tabindex.',
+      '',
+      'Three things about an application cannot be read off its files, because',
+      'all three are about the live page: whether the keyboard reaches every',
+      'control and can work it, whether you can see which one you are on, and',
+      'what ground a rule lands on once it is inside a pane inside a page.',
+      'test/canvas-check.mjs measures those in a browser — every tab stop shot',
+      'focused and blurred, every block moved, resized, duplicated and deleted',
+      'from the keyboard, and every piece of text measured against the nearest',
+      'ancestor that actually paints a ground.',
+    ]) L.push(`  ${line}`);
+  }
   L.push('');
   const bad = result.findings.filter((f) => f.level !== 'fixed');
   if (!bad.length) {
@@ -327,4 +451,4 @@ function statement(result, { brand, standard = 'WCAG 2.2 AA' } = {}) {
   return L.join('\n');
 }
 
-module.exports = { audit, chromeContrast, structure, pageGround, language, unmarkedText, themes, textRules, statement, needs, isLarge };
+module.exports = { audit, chromeContrast, structure, application, layout, pageGround, language, unmarkedText, themes, textRules, statement, needs, isLarge };

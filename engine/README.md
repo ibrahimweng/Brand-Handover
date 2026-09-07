@@ -3504,6 +3504,85 @@ The round after this one moved those words too, and the warning goes quiet for
 `français` — see *The manual's body* above. It still fires for a language the
 engine has no dictionary for at all, which is what it is for.
 
+## The canvas, which nobody had looked at
+
+Every ACCESSIBILITY.txt this engine has written carried this sentence:
+
+    The canvas is an application rather than a document and is not in that
+    file: its own accessibility is a separate question and this package does
+    not claim an answer to it.
+
+True, and also the reason nobody had looked. Driven with a keyboard in a
+browser, the canvas answered for none of it:
+
+    blocks on the sheet: 4, reachable by keyboard: 0
+    <main>: none    <h1>: 0    a region that announces: none
+    the page you are on says so: no
+
+The editing surface — selecting, moving, resizing, duplicating, deleting, the
+whole of the application — was reachable with a pointer and with nothing else.
+The keyboard handler was already there and already good: arrows nudge, shift
+nudges further, cmd D duplicates, delete removes. All of it needed a selection,
+and a selection needed a mouse.
+
+**Focus is the selection.** Every block is a tab stop that says what it is, how
+big it is, where it sits and whether it is selected — `Colour field, 1280 by
+720, at 0 0, selected` — and focusing it selects it, which is what a design tool
+does with a click. Two things had no keyboard at all and now do: `cmd` with the
+arrows resizes, where resizing had been eight corner handles and nothing else,
+and `enter` adds the focused block to the one that was selected before it, which
+is shift-click without the pointer. `F2` opens a text block, `escape` lets go.
+
+Then the things a page owes anybody: a `<main>` to work in, one `<h1>`, panels
+that say what they are, `aria-current` on the page you are on, and `role=status`
+on the strip where the application answers you — every refusal and every warning
+it gave had been silent to a reader who was not watching that corner.
+
+Three things were found only by measuring, and could not have been found any
+other way.
+
+**A focus ring you have not decided on is not a focus ring.** Every control in
+the canvas had a visible one, and only because Chromium draws its own. That is
+one browser's colour against this application's, and it changes between them.
+The stylesheet says it now — and saying it is how the next one was found: the
+one block that fills its sheet had its ring drawn at `outline-offset:3px`, and
+the sheet clips what leaves it, so the ring was cut away. Every block could be
+seen except the one covering the whole page. `outline-offset:-2px`.
+
+**Four number fields had no name.** The boxes that set position and size were
+labelled by a row of `X Y W H` underneath them, which is a caption and not a
+label: a screen reader reached four unnamed fields and read "edit, blank".
+
+**A stylesheet cannot say what ground a rule lands on.** The first attempt
+measured every text rule against every ground the application declares and took
+the worst, which called 87 pairs failures — `.keys` measured against the colour
+of a warning chip it never sits on. An application has a real ancestor chain and
+only a browser has it. The measurement moved into `test/canvas-check.mjs`, which
+reads the computed colour of every piece of text and walks up to the nearest
+element that actually paints a ground. Measured that way, 82 pieces of text, one
+failure: the tag naming a selected block, white on the selection blue, 3.68 to 1
+at 10 px. It is set in the application's own ground colour now — 4.93, and one
+blue rather than two.
+
+And the checker had a defect of its own. `structure()` read the file rather than
+what a browser lays out, so a page that inlines its scripts was measured on its
+own source code: the canvas ships `render.js` and `publish.js` as text, and
+those hold an `<h1>` and forty-nine `<svg>`. It reported a heading outline and
+forty-one unnamed drawings on a page that has neither.
+
+`ACCESSIBILITY.txt` now covers the canvas, and says which three questions were
+answered in a browser rather than at build time, because a file cannot answer
+them. Run against the canvas as it was, the browser check reports twelve.
+
+One more thing turned up while it was being read. `lang` is an accessibility
+attribute, and the canvas resolved it against the manual's dictionary — so
+after the two rounds that made français write both documents, **Verdon's canvas
+declared `lang="fr"` over Undo, Pages, Add a block and Properties.** The script
+check that catches Maayan cannot catch this: French and English are the same
+alphabet. The canvas is a third document a dictionary declares now, English
+writes it and français does not, and the build says which files its words are
+still literals in.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.
@@ -3537,6 +3616,8 @@ engine has no dictionary for at all, which is what it is for.
     src/misuse.js     what not to do, drawn from the artwork rather than described
     src/strings.js    every word both documents set, and what a language can write
     src/previous.js   what moved since the last version, in both languages
+    src/access.js     the documents measured, and the canvas asked different things
+    test/canvas-check.mjs  the canvas driven by keyboard in a real browser
     src/documents/    blocks.js, chrome.js, index.js (manual), deck.js
     projects/meridian/  the first identity: one stroked mark, one ink
     projects/halyard/   the second: filled artwork, two inks, four faults left in

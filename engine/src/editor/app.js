@@ -353,12 +353,36 @@
     drawOverlay();
   }
 
+  // What a block is, said out loud. Until the thirty-fourth round the editing
+  // surface could only be worked with a pointer: four blocks on a page and not
+  // one of them reachable by keyboard, so selecting, moving, resizing and
+  // deleting — the whole of the application — were unavailable without a mouse.
+  // Focus is the selection here, which is what a design tool does; the sentence
+  // says which block, how big it is, where it sits and whether it is selected.
+  function labelFor(b) {
+    const on = selection.includes(b.id);
+    return `${nameOf(b.type)}, ${Math.round(b.w)} by ${Math.round(b.h)}, `
+      + `at ${Math.round(b.x)} ${Math.round(b.y)}${on ? ', selected' : ''}`;
+  }
+
+  function wireBlocks() {
+    const p = page();
+    sheet.setAttribute('aria-label', `${p.blocks.length} block${p.blocks.length === 1 ? '' : 's'} on ${p.name}`);
+    for (const node of sheet.querySelectorAll('.hb-block')) {
+      const b = blockById(node.dataset.id);
+      if (!b) continue;
+      node.tabIndex = 0;
+      node.setAttribute('aria-label', labelFor(b));
+    }
+  }
+
   function draw() {
     const p = page();
     const box = boxOf(p);
     sheet.innerHTML = p.blocks.map((b) => R.positioned(b, BUNDLE, sheetOf(p), box)).join('');
     sheet.style.background = BUNDLE.roles.ground.hex;
     fitSheet();
+    wireBlocks();
     drawPages(); drawOverlay(); drawPanel(); drawHistory(); drawSizes();
     for (const im of sheet.querySelectorAll('img')) im.addEventListener('load', scheduleOverlayCheck, { once: true });
     scheduleOverlayCheck();
@@ -366,6 +390,11 @@
 
   function drawOverlay() {
     overlay.innerHTML = '';
+    // the selection moved; what each block says about itself moves with it
+    for (const node of sheet.querySelectorAll('.hb-block')) {
+      const b = blockById(node.dataset.id);
+      if (b) node.setAttribute('aria-label', labelFor(b));
+    }
     for (const id of selection) {
       const b = blockById(id); if (!b) continue;
       const box = el('div', 'sel');
@@ -406,6 +435,8 @@
     const list = $('#pages'); list.innerHTML = '';
     D().pages.forEach((p, i) => {
       const row = el('button', 'pg' + (p.id === pageId ? ' on' : ''));
+      row.setAttribute('role', 'listitem');
+      if (p.id === pageId) row.setAttribute('aria-current', 'page');
       const own = p.page ? M.pageSize(D(), p).name : '';
       row.innerHTML = `<i>${String(i + 1).padStart(2, '0')}</i><span>${esc(p.name)}`
         + (own ? `<u>${esc(own)}</u>` : '') + `</span><em>${p.blocks.length}</em>`;
@@ -432,7 +463,8 @@
 
   // ------------------------------------------------------------- panel
   const field = (label, input) => `<label class="f"><span>${esc(label)}</span>${input}</label>`;
-  const num = (k, v) => `<input type="number" data-num="${k}" value="${v}">`;
+  const NUM_NAME = { x: 'left', y: 'top', w: 'width', h: 'height' };
+  const num = (k, v) => `<input type="number" data-num="${k}" value="${v}" aria-label="${esc(NUM_NAME[k] || k)}">`;
   const opts = (list, cur) => list.map((o) => `<option value="${esc(o)}"${o === cur ? ' selected' : ''}>${esc(o)}</option>`).join('');
   const sel = (k, list, cur) => `<select data-prop="${k}">${opts(list, cur)}</select>`;
   const chk = (k, on) => `<input type="checkbox" data-prop="${k}"${on ? ' checked' : ''}>`;
@@ -547,7 +579,7 @@
       + (tw ? `<p class="hint bad">${esc(tw.what)} ${esc(tw.how)}</p>` : '')
       + (NOTE[kind] ? `<p class="hint">${NOTE[kind]}</p>` : '')
       + `<div class="grid4">${num('x', b.x)}${num('y', b.y)}${num('w', b.w)}${num('h', b.h)}</div>`
-      + `<div class="labels"><span>X</span><span>Y</span><span>W</span><span>H</span></div>`
+      + `<div class="labels" aria-hidden="true"><span>X</span><span>Y</span><span>W</span><span>H</span></div>`
       + ((PROPS[b.type] && PROPS[b.type](b)) || '')
       + `<div class="ord"><button data-ord="back">Back</button><button data-ord="-1">−</button><button data-ord="1">+</button><button data-ord="front">Front</button></div>`
       + `<button class="danger" id="del">Delete block</button>`;
@@ -608,6 +640,23 @@
     node.onblur = finish;
     node.onkeydown = (e) => { if (e.key === 'Escape') { e.preventDefault(); node.blur(); } e.stopPropagation(); };
   }
+
+  // Focusing a block selects it, which is the keyboard half of the click below.
+  // Shift keeps what was already selected, the way shift-click does.
+  // What the selection was before focus replaced it, so a second block can be
+  // added to it. Tab moving focus has to select — otherwise the arrows have
+  // nothing to move — and that leaves no way to build a selection of two
+  // unless the one it displaced is remembered.
+  let prior = [];
+  sheet.addEventListener('focusin', (e) => {
+    const node = e.target.closest && e.target.closest('.hb-block');
+    if (!node || editing) return;
+    const id = node.dataset.id;
+    if (selection.length === 1 && selection[0] === id) return;
+    prior = selection.slice();
+    selection = [id];
+    drawOverlay(); drawPanel();
+  });
 
   // ------------------------------------------------------------- pointer
   const toPage = (e) => {
@@ -742,13 +791,41 @@
     if (mod && e.key.toLowerCase() === 'd') { e.preventDefault(); duplicate(); return; }
     if (mod && e.key.toLowerCase() === 'a') { e.preventDefault(); selection = page().blocks.map((b) => b.id); drawOverlay(); drawPanel(); return; }
     if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); removeSelected(); return; }
-    if (e.key === 'Escape') { selection = []; drawOverlay(); drawPanel(); return; }
-    const step = e.shiftKey ? D().grid * 4 : D().grid;
-    const nudge = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
-    if (nudge && selection.length) {
+    if (e.key === 'Escape') { selection = []; drawOverlay(); drawPanel(); $('#sheet').focus(); return; }
+    const onBlock = e.target.closest && e.target.closest('.hb-block');
+    // Enter adds the block focus has just landed on to the one that was
+    // selected before it, which is shift-click without the pointer. Pressed
+    // again it takes it back out, so it is a toggle either way.
+    if (onBlock && (e.key === 'Enter' || e.key === ' ')) {
       e.preventDefault();
-      change((d) => M.ops.moveBlocks(d, pageId, selection, nudge[0], nudge[1], D().grid));
+      const id = onBlock.dataset.id;
+      const base = selection.length === 1 && selection[0] === id ? prior : selection;
+      selection = base.includes(id) ? base.filter((x) => x !== id) : [...base, id];
+      prior = [];
+      drawOverlay(); drawPanel();
+      return;
     }
+    // F2 is the edit key everywhere else a list has editable rows, and it is
+    // the only way into a text block without a double click.
+    if (onBlock && e.key === 'F2') {
+      const b = blockById(onBlock.dataset.id);
+      if (b && b.type === 'text') { e.preventDefault(); startTextEdit(b); return; }
+    }
+    const step = e.shiftKey ? D().grid * 4 : D().grid;
+    const arrow = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    if (!arrow || !selection.length) return;
+    e.preventDefault();
+    // A block is moved with the arrows and resized with them held down with the
+    // same modifier that undoes and duplicates, because resizing was a corner
+    // handle and nothing else — eight of them, all pointer only.
+    if (mod) {
+      const dw = arrow[0] * step, dh = arrow[1] * step;
+      const boxes = selection.map((id) => blockById(id)).filter(Boolean)
+        .map((b) => ({ id: b.id, x: b.x, y: b.y, w: b.w + dw, h: b.h + dh }));
+      change((d) => { for (const box of boxes) M.ops.resizeBlock(d, pageId, box.id, box, D().grid); });
+      return;
+    }
+    change((d) => M.ops.moveBlocks(d, pageId, selection, arrow[0] * step, arrow[1] * step, D().grid));
   });
 
   // ------------------------------------------------------------- chrome

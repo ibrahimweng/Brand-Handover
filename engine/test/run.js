@@ -6290,6 +6290,67 @@ test('the structure checks can each fail', () => {
   assert.deepStrictEqual(codes('<html lang="en"><main><h1>a</h1><h2>b</h2>'
     + '<svg aria-hidden="true"></svg><img src="x" alt=""></main></html>'), []);
 });
+test('the checker reads what a browser lays out, not the page\'s own source', () => {
+  // A page that inlines its scripts carries markup inside them. The canvas
+  // ships render.js and publish.js as text, and those hold an <h1> and 49
+  // <svg>: the checker found a heading outline and 41 unnamed drawings on a
+  // page that has neither.
+  const html = fs.readFileSync(path.join(rookOut, 'editor.html'), 'utf8');
+  assert.ok(/<h1\b/.test(html), 'the fixture no longer inlines a script with markup in it');
+  const inScript = /<script\b[^>]*>[\s\S]*?<h1\b/.test(html);
+  assert.ok(inScript, 'the <h1> this test is about is not inside a script');
+  assert.ok(!/<h1\b/.test(ACC.layout(html).replace(/<h1 class="brand">[\s\S]*?<\/h1>/, '')),
+    'a heading inside a script survived the strip');
+  // and the strip does not eat the page
+  assert.ok(ACC.layout(html).length > 2000);
+});
+
+test('the canvas says which language it is written in, like the pages beside it', () => {
+  // Both documents are written in français for Verdon and the canvas is not:
+  // its chrome is literals in editor/emit.js and editor/app.js. It said fr
+  // anyway, over Undo, Pages and Add a block — and the script check cannot
+  // catch that, because French and English are the same alphabet.
+  const EMIT = require('../src/editor/emit');
+  const vm = measure(verdon);
+  const fr = EMIT.editorHtml(verdon, vm, []);
+  assert.ok(/<html[^>]*lang="en"/.test(fr), 'the canvas claims a language its chrome is not in');
+  assert.ok(/<h1 class="brand"><span lang="fr"/.test(fr), "the brand's own name is not marked as its own");
+  assert.strictEqual(STR.resolve({ language: 'fr' }, 'canvas').lang, 'en');
+  assert.strictEqual(STR.resolve({ language: 'en' }, 'canvas').lang, 'en');
+  // and an English identity's canvas has nothing to mark
+  const en = EMIT.editorHtml(project, measure(project), []);
+  assert.ok(/<html[^>]*lang="en"/.test(en));
+  assert.ok(!/<h1 class="brand"><span/.test(en));
+});
+
+test('the canvas is checked as the application it is', () => {
+  const html = fs.readFileSync(path.join(rookOut, 'editor.html'), 'utf8');
+  const EMIT = require('../src/editor/emit');
+  assert.deepStrictEqual(ACC.application(html, EMIT.CSS).map((f) => f.code), [],
+    'the canvas does not answer for itself');
+  assert.deepStrictEqual(ACC.structure(html).map((f) => f.code), []);
+});
+
+test('each of the application checks can fail', () => {
+  const codes = (h, css) => ACC.application(h, css === undefined ? ':focus-visible{outline:1px}' : css).map((f) => f.code);
+  const ok = '<main><h1>a</h1><button>Save</button><p role="status"></p></main>';
+  assert.deepStrictEqual(codes(ok), []);
+  assert.ok(codes('<h1>a</h1><button>Save</button><p role="status"></p>').indexOf('appLandmark') > -1);
+  assert.ok(codes('<main><button>Save</button><p role="status"></p></main>').indexOf('appHeading') > -1);
+  assert.ok(codes('<main><h1>a</h1><button></button><p role="status"></p></main>').indexOf('appControlName') > -1);
+  assert.ok(codes(ok, '').indexOf('appFocus') > -1, 'a stylesheet that never mentions focus passes');
+  assert.ok(codes('<main><h1>a</h1><button>Save</button></main>').indexOf('appLive') > -1);
+  assert.ok(codes(`<main><h1>a</h1><button>Save</button><p role="status"></p>`
+    + `<input tabindex="4"></main>`).indexOf('appTabindex') > -1);
+  // the ways a control can be named, all of them
+  for (const named of ['<button>Save</button>', '<button aria-label="Save"></button>',
+    '<button title="Save"></button>', '<label for="a">Size</label><select id="a"></select>',
+    '<label>Size <select id="b"></select></label>']) {
+    assert.deepStrictEqual(codes(`<main><h1>a</h1>${named}<p role="status"></p></main>`), [],
+      `not named: ${named}`);
+  }
+});
+
 test('the package says what was measured, and does not claim what was not', () => {
   const txt = fs.readFileSync(path.join(rookOut, 'ACCESSIBILITY.txt'), 'utf8');
   assert.ok(/Checked against WCAG 2\.2 AA, by measurement/.test(txt));

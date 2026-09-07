@@ -1481,7 +1481,13 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       'deck.html': deck(ctx),
       'published.html': publish(document, bu, { title: 'Guidelines' }),
     };
-    const acc = ACC.audit(pages, chrome.CSS, (rules.accessibility || {}));
+    // The canvas goes in too. Every statement this engine wrote said it was an
+    // application and left it out, and that was true and was also the reason
+    // nobody had looked: four blocks on a page and not one of them reachable
+    // without a mouse. See src/access.js and test/canvas-check.mjs.
+    const canvasHtml = editorHtml(project, measured, wholePackage());
+    const acc = ACC.audit(pages, chrome.CSS, (rules.accessibility || {}),
+      { name: 'editor.html', html: canvasHtml, css: require('./editor/emit').CSS });
     for (const f of acc.findings) {
       const line = `${f.page ? `in ${f.page}, ` : ''}${f.what} ${f.why} ${f.how}`;
       if (f.level === 'blocker') { const e = new Error(f.what); e.findings = [Object.assign({}, f, { what: line })]; throw e; }
@@ -1498,8 +1504,10 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     // writes one. The manual's body is still literals in documents/blocks.js,
     // so français does not write that — and saying which is which is the whole
     // difference between a declaration and a page that lies about itself.
-    const WHERE = { manual: 'src/documents/blocks.js', deck: 'src/documents/deck.js' };
-    const both = [['manual', L], ['deck', LD]];
+    const WHERE = { manual: 'src/documents/blocks.js', deck: 'src/documents/deck.js',
+      canvas: 'src/editor/emit.js and src/editor/app.js' };
+    const LC = require('./strings').resolve(project, 'canvas');
+    const both = [['manual', L], ['deck', LD], ['canvas', LC]];
     const wrote = both.filter(([, x]) => x.speaksBrand).map(([k]) => k);
     const didnt = both.filter(([, x]) => !x.speaksBrand).map(([k]) => k);
     const list = (a) => a.map((k) => `the ${k}`).join(' and ');
@@ -1522,10 +1530,12 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     write('ACCESSIBILITY.txt', ACC.statement(acc, { brand: project.brand,
       standard: (rules.accessibility || {}).standard || 'WCAG 2.2 AA' }));
     if (!acc.findings.length) {
-      notes.push(`the three documents in this package were measured against `
+      notes.push(`the three documents and the canvas in this package were measured against `
         + `${(rules.accessibility || {}).standard || 'WCAG 2.2 AA'} when it was built and ACCESSIBILITY.txt says `
-        + 'what was checked. The canvas is an application rather than a document and is not in that file: its '
-        + 'own accessibility is a separate question and this package does not claim an answer to it.');
+        + 'what was checked. The canvas is an application rather than a document, so it is asked different '
+        + 'things — a landmark, a name on every control, a focus ring it declares itself, somewhere to say '
+        + 'what it has just done — and the three that need a live page rather than a file are measured in a '
+        + 'browser by test/canvas-check.mjs.');
     }
 
     // ---- the pieces the designer laid out ----
