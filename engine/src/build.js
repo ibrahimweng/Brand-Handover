@@ -993,6 +993,17 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       write(`07-pattern/pattern-${naming.slug(t.density)}-${naming.slug(t.colourway)}.svg`, t.tile);
     }
     for (const r of gen.refused) warnings.push(`pattern ${r.density} in ${r.colourway} was not written. ${r.why}`);
+    // Twenty-two of the thirty-one identities in this repository shipped a
+    // warning here instead of a pattern, because the engine would only build one
+    // from a shape carrying data-pattern="source" — an attribute no exported
+    // file has. It measures the drawing and picks now, and says what it picked.
+    if (!(rules.pattern || {}).motif && !(rules.pattern || {}).construction) {
+      notes.push(`the pattern is built from ${gen.motifName} — ${gen.why} It is drawn as `
+        + `"${gen.construction}": ${require('./pattern').CONSTRUCTIONS[gen.construction].draws}. `
+        + `${gen.choices.length} shape${gen.choices.length === 1 ? '' : 's'} in the drawing and `
+        + `${require('./pattern').NAMES.length} constructions were measured; the canvas shows every one of `
+        + `them and system.pattern.motif and system.pattern.construction pin whichever you want.`);
+    }
   } else {
     warnings.push(`no pattern was written. ${gen.why} ${gen.how}`);
   }
@@ -1157,7 +1168,16 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
           + '04-wordmark is that setting outlined, so it needs no font to render.',
       } : null,
       icons: sys.icons,
-      pattern: Object.assign({}, sys.pattern, { source: gen.ok ? 'the shape marked data-pattern in the master' : null }),
+      // Which shape, drawn which way, and why that one — a pattern is a decision
+      // the engine now makes, so the file that exists to be read by software has
+      // to carry the decision rather than a sentence about an attribute.
+      pattern: gen.ok ? Object.assign({}, sys.pattern, {
+        motif: gen.motif, motifName: gen.motifName, construction: gen.construction,
+        draws: require('./pattern').CONSTRUCTIONS[gen.construction].draws,
+        chosenBecause: gen.why,
+        alternatives: { motifs: gen.choices, constructions: require('./pattern').NAMES },
+        tiles: gen.tiles.length, seamless: true,
+      }) : null,
       motion: sys.motion,
       photography: sys.photography,
     },
@@ -1258,6 +1278,12 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       '                  A pair with a partner holds at neither brand\'s figure.',
       '                  11-partners and the manual state each one.'] : []),
     `  Colourways      ${rules.colourways.map((c) => c.name).join(', ')}.`,
+    // The pattern was in the package and in no sentence anybody reads.
+    ...(gen.ok && gen.tiles.length ? [
+      `  The pattern     built from ${gen.motifName}, drawn as "${gen.construction}":`,
+      `                  ${require('./pattern').CONSTRUCTIONS[gen.construction].draws}.`,
+      `                  ${gen.tiles.length} tiles in 07-pattern, every one seamless in both`,
+      '                  directions. Use them as a fill; do not scale one on its own.'] : []),
     // The one rule anybody reads before doing something to a mark, and it was in
     // the manual only. Each line is the sentence the manual prints under the
     // picture of that treatment, so the two cannot say different things.

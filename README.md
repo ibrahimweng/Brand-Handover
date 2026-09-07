@@ -905,6 +905,33 @@ English literal, so Verdon shipped a French manual and an English deck, both
 under `lang="fr"`. A language now says which documents it can write, and each
 document says which it is in.
 
+Then the product met its owner, who pointed out that it does not generate
+patterns — and it did not. `src/pattern.js` would only build one from a shape
+carrying `data-pattern="source"`, an attribute no file out of Illustrator or
+Figma has. **Nine of thirty-one identities had a pattern and all nine had the
+attribute typed in by hand; the other twenty-two shipped a warning.** Refusing to
+guess is right when a guess is a claim nobody can check, and wrong when the
+engine can measure the answer and show its working.
+
+It reads every shape in the drawing now and ranks them on four measurements —
+how square, how simple, what share of the drawing, and how much of its own box it
+actually inks, which is measured by rendering it. Then nine constructions, all
+seamless by construction: grid, half-drop, brick, rotary, mirror, scale, scatter,
+a line system at the weight the mark is drawn in, and arcs. `tile: 100` and
+`weight: 3` are gone; the line weight is the same fraction of the motif that the
+mark's stroke is of the mark, and the air around it is the clear space rule the
+identity already states.
+
+Two things were found by looking rather than by testing. `arcs` built, tiled
+cleanly by the same wrapping as everything else, and **did not join** — four
+hooks meeting nothing, which took a contact sheet to see. And Kvist's master, a
+real Illustrator export, carries the invisible bounding rect Illustrator leaves
+behind: it made the motif measure the whole artboard instead of the mark, and
+made the renderer **panic from Rust and abort the build**.
+
+Thirty-one of thirty-one identities ship a pattern now: 300 tiles, all
+reproducible byte for byte.
+
 Still to do: a run on **your** identity job. Twenty identities the engine had
 not seen is worth a great deal more than twenty passes over one, but none of
 them came out of your exporter — and the normaliser is the part that most needs

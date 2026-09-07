@@ -828,22 +828,48 @@ function patternSpec(ctx) {
   const on = showOn(ctx);
   const pat = require('../pattern');
   const master = ctx.project.assets[ctx.measured.master || 'mark'] || ctx.project.assets.mark;
+  const ink = on.colourway.slots[ctx.measured.slots[0]] || Object.values(on.colourway.slots)[0];
+  const sp = pat.spec(master.source, r, ctx.measured);
   const order = Object.keys(r.densities);
+
+  // The shape the field is made of, drawn on its own at the size a reader can
+  // see it, because the first question anybody asks of a pattern is what it is
+  // made of and no manual this engine wrote had ever answered it.
+  const motifSvg = (() => {
+    const b = sp.motif.box, vb = sp.motif.viewBox;
+    return `<svg xmlns="${svgu.NS}" viewBox="${svgu.round(b.x - b.w * 0.08, 2)} ${svgu.round(b.y - b.h * 0.08, 2)} `
+      + `${svgu.round(b.w * 1.16, 2)} ${svgu.round(b.h * 1.16, 2)}" role="img" `
+      + `aria-label="${esc(`${sp.motif.name}, the shape this pattern is built from`)}" `
+      + `style="width:100%;max-width:120px;height:auto;display:block">`
+      + pat.painted(sp.motif, ink, (sp.motif.stroked ? Math.max(b.w, b.h) * sp.strokeRatio : 0), sp.render)
+      + `</svg>`;
+  })();
+
   const cells = order.map((density) => {
-    const factor = r.densities[density];
-    const scaled = Object.assign({}, r, { tile: svgu.round(r.tile * factor), weight: svgu.round(r.weight * factor, 2) });
-    const sw = pat.swatch(master.source, scaled, on.colourway.slots[ctx.measured.slots[0]]
-      || Object.values(on.colourway.slots)[0], on.ground.hex, 300, 190, `d-${density}`);
+    const scaled = Object.assign({}, r, { tile: svgu.round(sp.cell * r.densities[density]) });
+    const sw = pat.swatch(master.source, scaled, ink, on.ground.hex, 300, 190, `d-${density}`, ctx.measured);
     return `<figure><div class="stage tight" style="padding:0;overflow:hidden">${sw || ''}</div>
-      <figcaption>${esc(density)} · tile ${scaled.tile} · weight ${scaled.weight}</figcaption></figure>`;
+      <figcaption>${esc(density)} · cell ${scaled.tile}</figcaption></figure>`;
   }).join('');
+
   const ways = [...new Set(gen.tiles.map((t) => t.colourway))];
-  return `<div class="row3">${cells}</div>
-    <p class="note">Cut from the shape marked <code>data-pattern="source"</code> in the master, at
-    ${order.length} densities in ${ways.length} colourway${ways.length > 1 ? 's' : ''} —
-    <b>${gen.tiles.length} tiles</b>, all in the package. The tile is ${r.tile} units at medium, rows are
-    offset by ${r.phase} of a tile and spaced ${r.rowSpacing} of one apart. Change the shape in the master
-    and every tile is cut again.</p>`;
+  const how = pat.CONSTRUCTIONS[sp.construction];
+  const chosen = !r.motif && !r.construction;
+  // .two is the deck's class; the manual lays out on .row2, and this block
+  // spent its first build as one column because of it
+  return `<div class="row2" style="align-items:start;margin-bottom:16px">
+      <div><div class="stage tight" style="background:${on.ground.hex}">${motifSvg}</div>
+        <p class="note" style="margin-top:8px"><b>${esc(sp.motif.name)}</b> — ${esc(sp.why)}</p></div>
+      <div><p class="note" style="margin-top:0"><b>${esc(sp.construction)}</b>: ${esc(how.draws)}.
+        The line weight is the same fraction of the motif that the ${esc(ctx.noun)}'s stroke is of the
+        ${esc(ctx.noun)}, and the air around it is the clear space rule, so the field is drawn in the same
+        hand at any size.${chosen ? ` Chosen from ${sp.all.length} shape${sp.all.length === 1 ? '' : 's'}
+        in the drawing and ${pat.NAMES.length} constructions; the canvas offers every one of them.` : ''}</p></div>
+    </div>
+    <div class="row3">${cells}</div>
+    <p class="note">${order.length} densities in ${ways.length} colourway${ways.length > 1 ? 's' : ''} —
+    <b>${gen.tiles.length} tiles</b>, all in the package, every one of them seamless in both directions.
+    Redraw the ${esc(ctx.noun)} and all ${gen.tiles.length} are cut again.</p>`;
 }
 
 function photographySpec(ctx) {

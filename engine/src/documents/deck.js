@@ -244,13 +244,14 @@ function deck(ctx) {
     const on = b.showOn(ctx);
     const ink = Object.values(on.colourway.slots)[0];
     const pat = require('../pattern');
+    const sp = pat.spec(master.source, r, ctx.measured);
     const cells = Object.entries(r.densities).map(([d, f]) => {
-      const scaled = Object.assign({}, r, { tile: svgu.round(r.tile * f), weight: svgu.round(r.weight * f, 2) });
-      return `<div style="flex:1;aspect-ratio:1;overflow:hidden">${pat.swatch(master.source, scaled, ink, on.ground.hex, 300, 300, `k-${d}`) || ''}</div>`;
+      const scaled = Object.assign({}, r, { tile: svgu.round(sp.cell * f) });
+      return `<div style="flex:1;aspect-ratio:1;overflow:hidden">${pat.swatch(master.source, scaled, ink, on.ground.hex, 300, 300, `k-${d}`, ctx.measured) || ''}</div>`;
     }).join('');
     return `<span class="bdg">Set once</span><h2 style="margin-top:2cqw">${ctx.pattern.tiles.length} tiles, one decision</h2>
       <div style="display:flex;gap:1.6cqw;margin-top:2.4cqw">${cells}</div>
-      <p class="sm">Cut from the shape marked <b>data-pattern="source"</b> in the master, at ${Object.keys(r.densities).length} densities in ${[...new Set(ctx.pattern.tiles.map((t) => t.colourway))].length} colourways. Redraw that shape and all ${ctx.pattern.tiles.length} are cut again.</p>`;
+      <p class="sm">Built from <b>${b.esc(sp.motif.name)}</b> — ${b.esc(pat.CONSTRUCTIONS[sp.construction].draws)} — at ${Object.keys(r.densities).length} densities in ${[...new Set(ctx.pattern.tiles.map((t) => t.colourway))].length} colourways. Redraw the ${b.esc(ctx.noun)} and all ${ctx.pattern.tiles.length} are cut again.</p>`;
   }]);
   if (ctx.system.photography.declared) sysSlides.push(['Photography', () => {
     const r = ctx.system.photography;

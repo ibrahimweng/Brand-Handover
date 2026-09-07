@@ -213,10 +213,16 @@ function checkIcon(source, rules) {
 }
 
 // ---------------------------------------------------------------- pattern
+// How large the field reads is a judgement about the piece it goes on, so the
+// cell size stays a decision. Everything else was a number that described no
+// particular drawing — weight: 3 of what? — and is measured off the artwork
+// now. `motif` and `construction` are the two things a designer picks by
+// looking, and the engine picks them when nobody has. See src/pattern.js.
 function patternRules(override) {
   return merge({
-    tile: 100, rowSpacing: 0.22, phase: 0.5, weight: 3, cap: 'round',
+    tile: 100,
     densities: { fine: 0.45, medium: 1, coarse: 2.1 },
+    motif: null, construction: null, render: 'auto',
   }, override || {});
 }
 

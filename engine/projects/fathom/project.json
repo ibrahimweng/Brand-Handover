@@ -55,7 +55,6 @@
     ]
   },
   "system": {
-    "pattern": { "tile": 96, "rowSpacing": 0.26, "phase": 0.5, "weight": 5, "cap": "round",
-                 "densities": { "fine": 0.5, "medium": 1, "coarse": 2 } }
+    "pattern": { "tile": 96, "densities": {"fine": 0.5, "medium": 1, "coarse": 2} }
   }
 }

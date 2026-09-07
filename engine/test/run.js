@@ -503,30 +503,103 @@ console.log('\nrule blocks: the pattern');
 const pat = require('../src/pattern');
 const PR = sys.patternRules();
 
-test('a master with nothing marked is refused, not guessed at', () => {
-  const g = pat.sourceGeometry(project.assets.mark.source.replace(/\sdata-pattern="source"/, ''));
-  assert.strictEqual(g.ok, false);
-  assert.ok(/data-pattern="source"/.test(g.how), 'the refusal did not say how to fix it');
+test('a master with nothing marked still gets a pattern, and says which shape it chose', () => {
+  // This used to be a refusal: "it is a decision, so the engine will not pick
+  // one for you". No file out of Illustrator or Figma carries the attribute, so
+  // twenty-two of the thirty-one identities here shipped a warning instead of a
+  // pattern and every real user got none at all.
+  const bare = project.assets.mark.source.replace(/\sdata-pattern="source"/g, '');
+  assert.ok(!/data-pattern/.test(bare), 'the fixture was not stripped');
+  const sp = pat.spec(bare, sys.patternRules());
+  assert.strictEqual(sp.ok, true);
+  assert.ok(sp.motif && sp.motif.key, 'nothing was chosen');
+  assert.ok(sp.why.length > 30, 'the choice was made without saying why');
+  assert.ok(pat.CONSTRUCTIONS[sp.construction], 'no construction was chosen');
+  // and the shape the master does mark still wins outright when it is there
+  const marked = pat.spec(project.assets.mark.source, sys.patternRules());
+  assert.strictEqual(marked.motif.key, 'source');
+  assert.ok(/data-pattern="source"/.test(marked.why));
 });
 test('the tile is cut from the marked shape alone, not the whole mark', () => {
   const g = pat.sourceGeometry(project.assets.mark.source);
   assert.ok(g.ok, g.why);
   assert.ok(g.box.w < m.markInk.w, 'the tile was measured off the whole mark');
 });
-test('the tile repeats seamlessly: the second row is offset by half a tile', () => {
-  const t = pat.tile(project.assets.mark.source, PR, '#0A2A33');
-  assert.strictEqual(t.width, PR.tile);
-  assert.strictEqual(t.height, Number((PR.tile * PR.rowSpacing * 2).toFixed(2)));
-  // three placements: one on the first row, and two on the second so the
-  // half-drop still covers the tile where it wraps
-  assert.strictEqual((t.body.match(/<g transform=/g) || []).length, 3);
-  const xs = [...t.body.matchAll(/translate\((-?[\d.]+)/g)].map((x) => Number(x[1]));
-  assert.ok(Math.abs((xs[2] - xs[1]) - PR.tile) < 0.01, 'the wrap copy is not exactly one tile across');
+test('every construction makes a tile that repeats seamlessly', () => {
+  // Seamlessness is a property of the wrapping, not of nine pieces of careful
+  // drawing: anything that crosses an edge is emitted again one tile away, and
+  // the tile is clipped to itself. Asserted on the wrapping directly, and then
+  // on every construction for real.
+  const near = pat.wrapped([{ x: 2, y: 50 }], 100, 100, 20);
+  assert.ok(near.some((p) => Math.abs(p.x - 102) < 0.001), 'a shape over the left edge was not wrapped');
+  const corner = pat.wrapped([{ x: 1, y: 1 }], 100, 100, 20);
+  assert.strictEqual(corner.length, 4, 'a shape in a corner needs three neighbours');
+
+  for (const c of pat.NAMES) {
+    const t = pat.tile(project.assets.mark.source, Object.assign({}, PR, { construction: c }), '#0A2A33');
+    assert.ok(t.ok, `${c}: ${t.why}`);
+    assert.ok(t.width > 0 && t.height > 0, `${c} has no size`);
+    assert.ok(/<clipPath/.test(t.body), `${c} is not clipped to its own tile`);
+    geo.inkBox(t.svg);                     // throws if the renderer cannot read it
+  }
 });
-test('the tile carries the pattern weight, not the mark\'s own', () => {
+test('a motif is painted the way the drawing paints it', () => {
+  // Every tile used to be drawn fill="none" stroke=…, whatever the shape was.
+  // Meridian's marked source is the tide lens, a filled path, and it came out
+  // as a hairline outline of itself; Hallward's seal is filled throughout and
+  // tiled as an empty page.
   const t = pat.tile(project.assets.mark.source, PR, '#0A2A33');
-  assert.ok(t.body.includes('stroke="#0A2A33"'));
-  assert.ok(!/stroke-width="9"/.test(t.body), 'the tile kept the mark\'s stroke');
+  assert.ok(t.ok, t.why);
+  assert.ok(/fill="#0A2A33"/.test(t.body), 'a filled motif was forced to a stroke');
+  assert.ok(!/stroke-width="9"/.test(t.body), 'the tile kept the mark\'s own stroke');
+
+  const HW2 = projectLoader.load(path.join(__dirname, '..', 'projects', 'hallward', 'project.json'));
+  const f = pat.tile(HW2.assets.mark.source, sys.patternRules(), '#14110E');
+  assert.ok(f.ok, f.why);
+  assert.ok(/fill="#14110E"/.test(f.body), 'a filled mark tiled as nothing');
+
+  // and a stroked shape is still tiled as a stroke, at the pattern's weight
+  const ring = pat.rank(project.assets.mark.source).find((x) => x.stroked);
+  assert.ok(ring, 'the fixture has no stroked shape to check');
+  const st = pat.tile(project.assets.mark.source,
+    Object.assign({}, PR, { motif: ring.key }), '#0A2A33');
+  assert.ok(/stroke="#0A2A33"/.test(st.body), 'a stroked motif was filled in');
+  assert.ok(/fill="none"/.test(st.body));
+});
+
+test('an element that draws nothing is left out of the motif', () => {
+  // Kvist's master carries the invisible bounding rect Illustrator leaves
+  // behind. It made the motif measure the whole artboard rather than the mark,
+  // and it made resvg abort the process from Rust when the tile was clipped.
+  const KV2 = projectLoader.load(path.join(__dirname, '..', 'projects', 'kvist', 'project.json'));
+  const cs = pat.candidates(KV2.assets.mark.source);
+  for (const c of cs.list) {
+    assert.ok(!/opacity="0(\.0+)?"/.test(c.markup), `${c.key} kept an invisible element`);
+    assert.ok(!/<(defs|style|metadata|clipPath)\b/i.test(c.markup), `${c.key} kept ${c.name}`);
+    assert.ok(!/\sid="/.test(c.markup), `${c.key} kept an id, and a motif is drawn many times`);
+    assert.ok(!/vector-effect/.test(c.markup), `${c.key} kept a non-scaling stroke`);
+  }
+  // and every construction of it renders rather than aborting
+  for (const c of pat.NAMES) {
+    const t = pat.tile(KV2.assets.mark.source, Object.assign({}, sys.patternRules(), { construction: c }), '#B4632A');
+    assert.ok(t.ok, `${c}: ${t.why}`);
+    geo.inkBox(t.svg);
+  }
+});
+
+test('a shape with no height does not take the process down with it', () => {
+  // Coverage is measured by rendering, and resvg does not throw on a zero
+  // dimension, it panics from Rust and aborts the process. A build that dies is
+  // worse than any wrong answer.
+  for (const svg of [
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M10 50 H90" stroke="#000" stroke-width="2" fill="none"/></svg>',
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="10" y="50" width="80" height="0" fill="#000"/><circle cx="50" cy="20" r="12" fill="#000"/></svg>',
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><line x1="50" y1="10" x2="50" y2="90" stroke="#000" stroke-width="3"/></svg>',
+  ]) {
+    const sp = pat.spec(svg, sys.patternRules());
+    assert.strictEqual(sp.ok, true);
+    assert.ok(sp.motif.ink >= 0 && sp.motif.ink <= 1, `ink out of range: ${sp.motif.ink}`);
+  }
 });
 test('every density and colourway is cut once', () => {
   assert.strictEqual(Object.keys(bu.patternTiles).length, 9);   // 3 densities x 3 colourways that pass
@@ -547,7 +620,14 @@ test('the rules reach brand.json, so a developer reads the same numbers', () => 
   const bj = JSON.parse(fs.readFileSync(path.join(out, 'brand.json'), 'utf8'));
   assert.strictEqual(bj.system.icons.stroke, R.stroke);
   assert.strictEqual(bj.system.icons.live, R.live);
-  assert.ok(bj.system.pattern.source, 'brand.json does not say where the pattern comes from');
+  // it used to say "the shape marked data-pattern in the master", which is a
+  // sentence about an attribute rather than the decision the engine made
+  assert.ok(bj.system.pattern.motif, 'brand.json does not say which shape the pattern is built from');
+  assert.ok(bj.system.pattern.construction, 'brand.json does not say how it is drawn');
+  assert.ok(bj.system.pattern.draws.length > 10, 'brand.json does not say what that means');
+  assert.ok(bj.system.pattern.chosenBecause.length > 20, 'brand.json does not say why that shape');
+  assert.ok(bj.system.pattern.alternatives.constructions.length > 1, 'no alternatives are offered');
+  assert.strictEqual(bj.system.pattern.seamless, true);
   assert.strictEqual(bj.system.motion.durations.considered, 480);
 });
 test('a tile is written for every density in every colourway', () => {
@@ -1194,7 +1274,11 @@ test('the whole package builds for a project unlike the first one', async () => 
   assert.ok(/no CMYK: rope/.test(w), 'the undeclared build was not reported');
   assert.ok(/282% ink/.test(w), 'the ink limit was not reported');
   assert.ok(/plain black/.test(w), 'the plain black was not reported');
-  assert.ok(/no pattern was written/.test(w), 'the missing pattern source was not reported');
+  // this project marks no pattern source, and used to get a warning and no
+  // pattern; it gets a pattern and a note saying which shape was chosen
+  assert.ok(!/no pattern was written/.test(w), 'a pattern was still refused');
+  assert.ok(/the pattern is built from/.test(r.notes.join(' ')), 'the choice of shape was not reported');
+  assert.ok(fs.readdirSync(path.join(dir, '07-pattern')).length >= 3, 'no tiles were written');
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
@@ -3006,8 +3090,13 @@ test('a pattern is actually cut, and the files can be opened', () => {
   const rules = system.resolve(FA, faM).pattern;
   const t = pattern.tile(FA.assets.mark.source, rules, '#0F3A46');
   assert.ok(t.ok, t.why);
-  assert.strictEqual((t.svg.match(/stroke-linecap=/g) || []).length, 3, t.svg.slice(0, 200));
-  assert.strictEqual((t.svg.match(/stroke-width=/g) || []).length, 3);
+  // paint is written once per placement and never twice on one element: a
+  // source that carried its own stroke-width used to produce the attribute
+  // twice, which is not valid SVG and which no renderer would open
+  const placements = (t.svg.match(/<g transform=/g) || []).length;
+  assert.ok(placements > 0, 'nothing was placed');
+  assert.strictEqual((t.svg.match(/stroke-width=/g) || []).length, placements);
+  assert.ok(!/<[a-z]+[^>]*stroke-width="[^"]*"[^>]*stroke-width=/.test(t.svg), 'paint was written twice');
   geo.inkBox(t.svg);                       // throws if the renderer cannot read it
   // and every density in every colourway comes out readable
   const ways = FA.rules.colourways.map((c) => ({ name: c.name, ink: Object.values(c.slots)[0],
@@ -3681,8 +3770,10 @@ test('the read me lists the folders the package has, not four fixed ones', async
   const txt = fs.readFileSync(path.join(dir, 'README.txt'), 'utf8');
   const listed = [...txt.matchAll(/^ {2}(\d\d-[a-z]+)/gm)].map((x) => x[1]);
   const onDisk = fs.readdirSync(dir).filter((f) => /^\d\d-/.test(f) && !/icons|social/.test(f));
+  // 07-pattern is in every package now: a logotype has a pattern like anything
+  // else, and before this it had one only if somebody hand-edited the master
   assert.deepStrictEqual(listed, ['04-wordmark']);
-  assert.deepStrictEqual(listed.slice().sort(), onDisk.slice().sort());
+  assert.deepStrictEqual(onDisk.slice().sort(), ['04-wordmark', '07-pattern']);
   // and it says what a logotype is, rather than calling it a fallback for a
   // symbol the identity has not got
   assert.ok(/the logotype, which is the whole identity/.test(txt), txt.split('\n').slice(6, 12).join('\n'));
@@ -4107,8 +4198,13 @@ test('the manual says what the system is', () => {
 
   // and the chapter after it is renumbered rather than colliding
   assert.ok(/<i>5\.1<\/i>What is in the package/.test(html), 'the assets chapter did not move');
+  // Cusp was the project with no system at all. There is no longer such a
+  // thing: every identity has a pattern, because the engine measures the
+  // drawing and picks a shape rather than waiting to be handed one.
   const cu = docs.context(CU, measure(CU), [], {});
-  assert.ok(/<i>4\.1<\/i>The icon grid/.test(docs.guidelines(cu)));
+  const cuHtml = docs.guidelines(cu);
+  assert.ok(/<i>4\.1<\/i>The pattern/.test(cuHtml), 'the barest project has no pattern section');
+  assert.ok(/<i>4\.2<\/i>The icon grid/.test(cuHtml), 'the icon grid did not move down');
 });
 
 test('the deck shows the system it counts among its files', () => {
@@ -4121,10 +4217,12 @@ test('the deck shows the system it counts among its files', () => {
   }
   // renumbered around it
   assert.ok(html.includes('04 · The system') && html.includes('05 · Assets'));
-  // a project with no system at all keeps the four chapters it had
+  // and the barest project in the repository has a system chapter too, because
+  // it has a pattern: nothing has to be marked up by hand to get one
   const cu = deck(docs.context(CU, measure(CU), [], {}));
-  assert.ok(!/chname">The system</.test(cu));
-  assert.ok(cu.includes('04 · Assets'));
+  assert.ok(/chname">The system</.test(cu), 'the barest project lost its system chapter');
+  assert.ok(cu.includes('tiles, one decision'), 'the barest project has no pattern slide');
+  assert.ok(cu.includes('05 · Assets'), 'assets did not move down for it');
 });
 
 // Fifteen identities and not one of them had a photograph in it. Images could
@@ -4347,7 +4445,7 @@ test('a lone logotype is built as a logotype, not as a mark called one', async (
   // still needs a favicon, and it is cut from the logotype for want of anything
   // else. What it must NOT do is call the logotype a mark.
   const folders = fs.readdirSync(dir).filter((f) => /^\d\d-/.test(f));
-  assert.deepStrictEqual(folders, ['04-wordmark', '05-icons'], `it wrote ${folders.join(', ')}`);
+  assert.deepStrictEqual(folders, ['04-wordmark', '05-icons', '07-pattern'], `it wrote ${folders.join(', ')}`);
   fs.rmSync(dir, { recursive: true, force: true });
 
   // and a symbol on its own is still a symbol

@@ -49,7 +49,7 @@
     ]
   },
   "system": {
-    "pattern": { "tile": 120, "rowSpacing": 0.5, "phase": 0.5, "weight": 6, "cap": "round" },
+    "pattern": { "tile": 120 },
     "motion": {
       "easing": { "out": [0.16, 0.84, 0.32, 1], "through": [0.7, 0, 0.2, 1] },
       "durations": { "quick": 140, "base": 280, "considered": 520, "slow": 940 },

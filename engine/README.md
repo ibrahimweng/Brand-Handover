@@ -3008,6 +3008,87 @@ Each document says which language it is in, and the build says why they differ.
 Moving the deck's words into `src/strings.js` closes it; until then the claim on
 the page is true, which is the part that could not wait.
 
+## The pattern the engine would not draw
+
+`src/pattern.js` opened with this:
+
+    // Which shape is the decision, so the designer marks it in the master with
+    // data-pattern="source". Nothing here guesses.
+
+That reads as principled and is not. **No file coming out of Illustrator or
+Figma carries that attribute**, so for every real user the pattern chapter did
+not exist. Nine of the thirty-one identities in this repository had a pattern,
+and they had one because the attribute was typed into the master by hand. The
+other twenty-two shipped this instead:
+
+    warning: no pattern was written. Nothing in the master is marked as the
+    pattern source. Add data-pattern="source" to the shape the pattern should
+    be built from. It is a decision, so the engine will not pick one for you.
+
+Refusing to guess is right when a guess would be a claim nobody could check. It
+is wrong when the engine can **measure** the answer, show its working, and offer
+the alternatives. So it reads every shape in the drawing, ranks them, builds from
+the best one, says which and why, and offers the rest.
+
+    the first shape in the drawing — it is close to square, so it repeats as a
+    field rather than as stripes, it is a substantial part of the drawing rather
+    than a fragment of one. Ranked first of 5 shapes in the drawing.
+
+A shape is ranked on four measurements, not on a rule of thumb: how square it is
+(a long shape tiles as stripes), how simple (a motif is read at a tenth of the
+size the mark is), what share of the drawing it is, and **how much of its own box
+it actually inks** — measured by rendering it. That last one matters: Hallward's
+best-scoring shape was a hairline ring. Close to square, simple, a good share of
+the drawing, and three per cent ink. Tiled, it was an empty page.
+
+Then nine constructions, each seamless by construction rather than by careful
+drawing — anything crossing an edge is emitted again one tile away and the tile
+is clipped to itself, which is what makes `scatter` possible at all:
+
+    grid       a straight repeat, every instance the same way up
+    halfDrop   rows offset by half a cell, the way a textile repeats
+    brick      columns offset by half a cell, the way brickwork courses
+    rotary     a block of four, each turned a quarter more than the last
+    mirror     a block of four, reflected across both axes
+    scale      the same shape at four sizes, the way the size ladder steps down
+    scatter    placed at intervals that do not line up, never twice the same
+    lines      rules at the weight the mark is drawn in, at its own pitch
+    arcs       quarter turns at the mark's weight, meeting across every edge
+
+`tile: 100` and `weight: 3` are gone. How large the field reads is a judgement
+about the piece it goes on, so the cell size stays a decision; everything inside
+it is a proportion off the artwork. The line weight is the same fraction of the
+motif that the mark's stroke is of the mark. The air around it is the clear space
+rule the identity already states. And a **filled** shape tiles as a fill — every
+tile used to be drawn `fill="none" stroke=…` whatever it was, so Meridian's tide
+lens came out as a hairline outline of itself and Hallward's seal as nothing.
+
+Which construction, where nobody has said, comes from the motif: Marlow is a
+logotype and its shape is one fifth as tall as it is wide, so it gets a line
+system rather than six lines of small print repeated.
+
+**What a browser found that the code could not.** Every construction built, and
+`arcs` did not tile: four hooks facing the same way, meeting nothing. It was
+drawn from four corners with the wrong sweep, and no assertion in the engine
+could have known — the tile was valid, seamless by the same wrapping as the
+others, and wrong. It took a contact sheet and looking at it.
+
+**What a real export found that the fixtures could not.** Kvist's master is an
+Illustrator file and carries `<style>`, `<metadata>`, a `<clipPath>`, a
+`vector-effect="non-scaling-stroke"`, and this:
+
+    <rect x="0" y="0" width="228" height="49" opacity="0"/>
+
+The invisible bounding box Illustrator leaves behind. It made the motif measure
+the whole artboard rather than the mark, so the pattern was built at the wrong
+size — and when the tile was clipped, resvg did not throw, it **panicked from
+Rust and aborted the process**. A build that dies is worse than any wrong answer.
+A motif is reduced to the shapes it draws now: no ids (it is drawn many times
+over), no clip paths, no non-scaling strokes, and nothing that draws nothing.
+
+Thirty-one of thirty-one identities ship a pattern: 300 tiles, every one seamless
+in both directions, and the seeded scatter builds the same field twice.
+
 ## A front door
 
 Sixteen rounds, and the only way into the engine was to hand-write a project
