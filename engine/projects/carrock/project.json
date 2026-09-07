@@ -1,0 +1,80 @@
+{
+  "brand": "Carrock",
+  "version": "1.0.0",
+  "assets": { "mark": "mark.svg", "wordmark": "wordmark.svg" },
+  "tokens": {
+    "colour": {
+      "shellac": { "hex": "#241C1A", "role": "primary",   "cmyk": [60, 62, 62, 70], "pantone": "Black 7 C" },
+      "paper":   { "hex": "#F4F1EA", "role": "ground",    "cmyk": [4, 3, 8, 0],     "pantone": "11-0605" },
+      "oxide":   { "hex": "#B4442C", "role": "accent",    "cmyk": [16, 84, 90, 5],  "pantone": "7599 C" },
+      "tape":    { "hex": "#8C8478", "role": "neutral",   "cmyk": [44, 42, 50, 8],  "pantone": "403 C" },
+      "signal":  { "hex": "#E4B23C", "role": "secondary", "cmyk": [10, 30, 86, 0],  "pantone": "129 C" }
+    },
+    "type": {
+      "families": {
+        "display": { "family": "Archivo", "google": true, "weights": [600, 700], "fallback": "Helvetica,Arial,sans-serif" },
+        "text":    { "family": "Public Sans", "google": true, "weights": [400, 500], "fallback": "Helvetica,Arial,sans-serif" }
+      },
+      "scale": [
+        { "name": "Display", "family": "display", "size": 54, "leading": 58, "weight": 700, "tracking": -0.02, "sample": "Held in trust" },
+        { "name": "H1",      "family": "display", "size": 34, "leading": 40, "weight": 700, "sample": "Field recordings, 1949 to now" },
+        { "name": "H2",      "family": "display", "size": 24, "leading": 30, "weight": 600, "sample": "Listening room" },
+        { "name": "H3",      "family": "text",    "size": 18, "leading": 24, "weight": 500, "sample": "Reel 114, side two" },
+        { "name": "Body",    "family": "text",    "size": 17, "leading": 27, "weight": 400, "sample": "Every recording keeps the room it was made in, and the room is usually gone." },
+        { "name": "Small",   "family": "text",    "size": 14, "leading": 21, "weight": 400, "sample": "Acetate, 78 rpm, transferred 2019." },
+        { "name": "Caption", "family": "text",    "size": 12, "leading": 17, "weight": 500, "tracking": 0.08, "sample": "CARROCK" }
+      ]
+    }
+  },
+  "rules": {
+    "clearSpaceRatio": 0.15, "minStrokePx": 3, "minStrokeMm": 0.8,
+    "lockupGapRatio": 0.28, "wordmarkHeightRatio": 0.36,
+    "naming": "{brand}-{lockup}-{colourway}",
+    "lockups": ["horizontal", "stacked", "mark", "wordmark"],
+    "formats": ["svg", "png"],
+    "pngWidths": [512, 1024],
+    "stock": "uncoated",
+    "colourways": [
+      { "name": "shellac", "on": "paper",   "slots": { "ink": "#241C1A", "label": "#B4442C" } },
+      { "name": "reverse", "on": "shellac", "slots": { "ink": "#F4F1EA", "label": "#E4B23C" } },
+      { "name": "oxide",   "on": "paper",   "slots": { "ink": "#B4442C", "label": "#241C1A" } },
+      { "name": "mono",    "on": "paper",   "slots": { "ink": "#241C1A", "label": "#241C1A" } }
+    ],
+    "iconInk": "#F4F1EA", "iconBg": "#241C1A",
+    "iconSizes": [512, 1024], "faviconSizes": [16, 32, 180],
+    "fabrication": [
+      { "process": "engraving",   "at": 90,  "note": "the reading room door plate" },
+      { "process": "foil",        "at": 40,  "note": "the spine of a transfer log" },
+      { "process": "screenprint", "at": 260, "note": "the listening room poster" }
+    ]
+  },
+  "system": {
+    "pattern": { "tile": 120, "rowSpacing": 0.5, "phase": 0.5, "weight": 6, "cap": "round" },
+    "motion": {
+      "easing": { "out": [0.16, 0.84, 0.32, 1], "through": [0.7, 0, 0.2, 1] },
+      "durations": { "quick": 140, "base": 280, "considered": 520, "slow": 940 },
+      "loop": false,
+      "build": [
+        { "part": "label",  "how": "rises", "from": 0,   "to": 280, "ease": "out",     "note": "the label is what a recording is identified by, so it arrives first" },
+        { "part": "inner",  "how": "turns", "from": 140, "to": 620, "ease": "out" },
+        { "part": "middle", "how": "turns", "from": 240, "to": 780, "ease": "out" },
+        { "part": "outer",  "how": "turns", "from": 340, "to": 940, "ease": "through", "note": "the outside comes up to speed last, the way a disc does" }
+      ]
+    }
+  },
+  "content": {
+    "positioning": "Carrock keeps the sound of a place after the place has changed.",
+    "markRationale": "A disc read from the outside in: three grooves, each interrupted where the one outside it left off, and a label in the middle. The ident is the disc coming up to speed — the label arrives, then each groove turns into line behind it. The mark turns. That is why there is no rule here against turning it, and why the gap staying open is the rule there is instead.",
+    "constructionNotes": "Grooves at eight, six and four units of a twelve unit measure — ninety-six, seventy-two and forty-eight — with a stroke of one unit and a label of two and a half. Every groove is interrupted by fifty-six degrees, and every gap sits thirty-two degrees clockwise of the one outside it, so the three interruptions read as one lead-out. Clear space is the label: a circle of it on every side. This mark is set out in radii and degrees rather than on a square module, so the project states no grid: the engine checks every point against a declared module, and a polar drawing would fail that check honestly.",
+    "colourRationale": "Shellac and oxide were matched off a 1949 acetate and its sleeve. Signal is the only colour in the palette that was chosen rather than found, and it is there so that something on a dark page can be urgent.",
+    "typeRationale": "A grotesque for the labels and the same family's text weights for everything a listener reads. An archive sets far more small type than large, so the text face was picked first.",
+    "misuse": [
+      { "do": "redraw", "part": "label", "why": "A disc with nothing in the middle is a target. The label is where a recording is identified, and it is the only part of the mark that ever carries a date." },
+      { "do": "undersize", "why": "Below the floor the three grooves close into one ring and the lead-out disappears with them." },
+      { "do": "retype", "why": "The name is drawn on the same twelve unit module as the mark. Set in the text face it is a caption, and the archive sets a great many captions." },
+      { "do": "crowd", "why": "Clear space here is the label itself, so it is a measurement off the mark rather than a margin somebody liked the look of." },
+      { "do": "recolour", "why": "Shellac and oxide were matched to a particular acetate. Nothing else was." },
+      { "do": "busy", "why": "On a photograph, use the reverse colourway on a solid panel. The grooves are a pattern and they will fight anything else that is one." }
+    ]
+  }
+}

@@ -2452,38 +2452,45 @@ test('every misuse cell shows the mark, and shows it misused', () => {
   // colour belongs to the page and flips with the reader's light or dark
   // setting, so no fixed ink could read on both. Five of Halyard's six have
   // been blank since the day it was added, at 1.01 to 1.
+  //
+  // Which treatment a cell showed used to come from its position in the list;
+  // that it now comes from the rule is the next test's business. This one is
+  // still about whether you can see it.
   const docs = require('../src/documents');
   const b = require('../src/documents/blocks');
   const contrast = require('../src/contrast');
+  const MISU = require('../src/misuse');
+  const BUSY = '#5E6B5B';
   for (const [proj, meas] of [[project, m], [HAL, halM], [KV, kvM], [HW, hwM], [NL, nlM]]) {
     const ctx = docs.context(proj, meas, [], {});
-    const html = b.misuse(ctx);
-    const cells = html.split('<figure>').slice(1);
-    assert.strictEqual(cells.length, 6, `${proj.brand} drew ${cells.length} cells`);
+    const rules = MISU.load(proj);
+    const cells = b.misuseCells(ctx, 62);
+    assert.strictEqual(cells.length, rules.length,
+      `${proj.brand} drew ${cells.length} cells for ${rules.length} rules`);
     const ground = b.showOn(ctx).ground.hex;
+    const proper = Object.values(b.showOn(ctx).colourway.slots).map((h) => h.toUpperCase());
     cells.forEach((cell, i) => {
-      const fill = (/fill="(#[0-9A-Fa-f]{6})"/.exec(cell) || [])[1];
-      assert.ok(fill, `${proj.brand} cell ${i} paints nothing`);
-      if (i === 4) return;                       // the busy cell has its own ground
-      if (i === 5) {                             // hollowed out, outlined in the ink
-        assert.strictEqual(fill.toUpperCase(), ground.toUpperCase(),
-          `${proj.brand} cell 5 is not hollow`);
-        assert.ok(/drop-shadow/.test(cell), `${proj.brand} cell 5 has no outline`);
+      const rule = rules[i];
+      const fill = (/(?:fill|stroke)="(#[0-9A-Fa-f]{6})"/.exec(cell.inner) || [])[1];
+      if (rule.do === 'retype') {                 // words, not artwork
+        assert.ok(/color:#/.test(cell.inner), `${proj.brand} cell ${i} paints nothing`);
         return;
       }
-      assert.ok(contrast.ratio(fill, ground) >= b.SEEN,
-        `${proj.brand} cell ${i}: ${fill} on ${ground} is ${contrast.ratio(fill, ground).toFixed(2)}:1`);
-    });
-    // no cell may show a correct mark under a caption saying not to. A cell is
-    // treated if it is deformed or filtered, sits on the busy ground, or is
-    // painted in something other than the ink the mark is properly drawn in.
-    const proper = (/fill="(#[0-9A-Fa-f]{6})"/.exec(cells[0]) || [])[1].toUpperCase();
-    cells.forEach((cell, i) => {
-      const style = (/<span style="([^"]*)"/.exec(cell) || [])[1] || '';
-      const fill = ((/fill="(#[0-9A-Fa-f]{6})"/.exec(cell) || [])[1] || '').toUpperCase();
-      const treated = style.trim() !== '' || /class="[^"]*\bbusy\b/.test(cell) || fill !== proper;
-      assert.ok(treated,
-        `${proj.brand} cell ${i} shows a correct mark under a caption saying not to`);
+      assert.ok(fill, `${proj.brand} cell ${i} paints nothing`);
+      if (rule.do === 'outline') {                // hollowed out, keylined in the ink
+        assert.strictEqual(fill.toUpperCase(), ground.toUpperCase(),
+          `${proj.brand} outline cell is not hollow`);
+        assert.ok(/drop-shadow/.test(cell.inner), `${proj.brand} outline cell has no keyline`);
+        return;
+      }
+      const on = rule.do === 'busy' ? BUSY : ground;
+      assert.ok(contrast.ratio(fill, on) >= b.SEEN,
+        `${proj.brand} ${rule.do}: ${fill} on ${on} is ${contrast.ratio(fill, on).toFixed(2)}:1`);
+      // and no cell may show a correct mark under a caption saying not to
+      if (rule.do === 'recolour') {
+        assert.ok(proper.indexOf(fill.toUpperCase()) < 0,
+          `${proj.brand} recolour cell is painted in the colourway`);
+      }
     });
   }
 });
@@ -2744,12 +2751,20 @@ test('non-latin words survive into every document', () => {
   const { deck } = require('../src/documents/deck');
   const ctx = docs.context(MY, myM, [], {});
   const heb = /[֐-׿]/;
+  const reasons = MY.content.misuse.map((r) => r.why).filter(Boolean);
+  assert.ok(reasons.length, 'this fixture is meant to write its own reasons');
   for (const [what, html] of [['the manual', docs.guidelines(ctx)], ['the deck', deck(ctx)]]) {
     assert.ok(heb.test(html), `${what} lost the Hebrew`);
-    for (const caption of MY.content.misuse) {
-      assert.ok(html.includes(caption), `${what} is missing "${caption}"`);
-    }
+    // and it is marked as the brand's own, in both documents, whichever
+    // language each of them is written in
+    assert.ok(/lang="he"/.test(html), `${what} does not mark the Hebrew as Hebrew`);
   }
+  // the misuse page states the treatment and the engine writes the sentence;
+  // the reason under it is the brand's, in the brand's own words. The deck
+  // states the rules and the manual states the reasons, which is the difference
+  // between the two documents rather than an omission in one of them.
+  const manual = docs.guidelines(ctx);
+  for (const why of reasons) assert.ok(manual.includes(why), `the manual is missing "${why}"`);
   // the files are named in roman letters, and nothing in them is
   assert.ok(/^[a-z0-9._-]+$/.test(require('../src/naming')
     .fileName(MY.rules.naming, { brand: MY.latinName, lockup: 'stacked', colourway: 'reverse' })));
@@ -3795,7 +3810,7 @@ test('the words a project writes are the length words are', () => {
   for (const k of ['markRationale', 'colourRationale', 'typeRationale', 'constructionNotes']) {
     assert.ok(c[k].length > 250, `${k} is ${c[k].length} characters`);
   }
-  for (const why of c.misuse) assert.ok(why.length > 100, why);
+  for (const r of c.misuse) assert.ok((r.why || '').length > 100, JSON.stringify(r));
   assert.ok(BW.brand.length > 28, 'and the name is a long one');
 });
 
@@ -3938,17 +3953,26 @@ test('a title slide holds its own title', () => {
 });
 
 test('a caption that is a sentence is not set as a label', () => {
+  // The style used to be chosen from the length of the project's own sentences,
+  // which was right while the caption came from the project. It comes from the
+  // engine now — one sentence per treatment, with the designer's reason under it
+  // — so a misuse caption is always a sentence and is always set as one.
   const b = require('../src/documents/blocks');
   const docs = require('../src/documents');
-  const said = (proj, meas) => /<figcaption class="said">/.test(b.misuse(docs.context(proj, meas, [], {})));
-  assert.ok(said(BW, bwM), 'sentences are still set in spaced uppercase monospace');
-  assert.ok(said(project, m), 'Meridian writes sentences too, and always has');
-  for (const [proj, meas] of [[KV, kvM], [SP, spM], [VE, veM]]) {
-    assert.ok(!said(proj, meas), `${proj.brand}: three word labels lost their label style`);
+  for (const [proj, meas] of [[BW, bwM], [project, m], [KV, kvM], [SP, spM], [VE, veM]]) {
+    const html = b.misuse(docs.context(proj, meas, [], {}));
+    assert.ok(/<figcaption class="said">/.test(html),
+      `${proj.brand}: a sentence is still set in spaced uppercase monospace`);
+    assert.ok(!/<figcaption>/.test(html), `${proj.brand}: a misuse cell kept the label style`);
+    // the rule is in bold and the reason, where there is one, is not
+    assert.ok(/<figcaption class="said"><b>[^<]+<\/b>/.test(html), `${proj.brand}: the rule is not the lead`);
   }
-  // the style exists to be used
+  // and the label style is still what names a drawing in three words
+  const lock = b.lockups(docs.context(project, m, [], {}));
+  assert.ok(/<figcaption>/.test(lock), 'the label style is no longer used anywhere');
   const chrome = fs.readFileSync(path.join(__dirname, '..', 'src', 'documents', 'chrome.js'), 'utf8');
   assert.ok(/figcaption\.said\{[^}]*text-transform:none/.test(chrome));
+  assert.ok(/figcaption\.said b\{/.test(chrome), 'the rule and its reason are not told apart');
 });
 
 test('the printed piece and the canvas pick the same colourway', () => {
@@ -6252,9 +6276,189 @@ test('every identity in the repo says what it is in, and means it', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+console.log('\nthe page that says what not to do');
+const MIS = require('../src/misuse');
+const CARR = path.join(__dirname, '..', 'projects', 'carrock', 'project.json');
+const carrock = projectLoader.load(CARR);
+let carrOut, cuspOut;
+before(async () => {
+  carrOut = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-carr-'));
+  await build(carrock, carrOut);
+  cuspOut = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-cusp-'));
+  await build(projectLoader.load(path.join(__dirname, '..', 'projects', 'cusp', 'project.json')), cuspOut);
+});
+
+// the misuse row of a built manual, cell by cell
+function misuseCellsOf(html) {
+  const secs = html.split('<div class="sec">');
+  const sec = secs.find((x) => /<h3>.*?(Misuse|Usages interdits)<\/h3>/s.test(x));
+  if (!sec) return null;
+  const i = sec.indexOf('<div class="row3">');
+  if (i < 0) return [];
+  let depth = 0, end = i;
+  for (const m of sec.slice(i).matchAll(/<div\b|<\/div>/g)) {
+    depth += m[0][1] === '/' ? -1 : 1;
+    if (depth === 0) { end = i + m.index + m[0].length; break; }
+  }
+  const body = sec.slice(i, end);
+  return [...body.matchAll(/<figure>([\s\S]*?)<\/figure>/g)].map((m) => m[1]);
+}
+const capOf = (cell) => (/<figcaption[^>]*>([\s\S]*?)<\/figcaption>/.exec(cell) || [, ''])[1]
+  .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+test('a misuse rule names a treatment, and a sentence on its own is refused', () => {
+  const p2 = JSON.parse(JSON.stringify({ assets: {}, content: {} }));
+  p2.assets = carrock.assets;
+  p2.content = { misuse: ['Do not stretch it. The proportions are the identity.'] };
+  let got = null;
+  try { MIS.load(p2); } catch (e) { got = e.findings[0]; }
+  assert.ok(got, 'a bare sentence was accepted');
+  assert.strictEqual(got.level, 'blocker');
+  // it says what to write instead, with the designer's own words kept
+  assert.ok(got.how.indexOf('"do": "stretch"') > -1, got.how);
+  assert.ok(got.how.indexOf('The proportions are the identity.') > -1, got.how);
+  for (const k of ['what', 'why', 'how']) assert.ok(got[k].length > 40, k);
+});
+
+test('a treatment the engine cannot draw is refused, and the ones it can are listed', () => {
+  let got = null;
+  try { MIS.load({ assets: carrock.assets, content: { misuse: [{ do: 'squash' }] } }); }
+  catch (e) { got = e.findings[0]; }
+  assert.ok(got && got.level === 'blocker');
+  for (const name of MIS.NAMES) assert.ok(got.how.indexOf(name) > -1, `${name} is not offered`);
+});
+
+test('a rule about a part of the drawing needs the drawing to name it', () => {
+  const bad = [[{ do: 'redraw' }, 'outer'], [{ do: 'redraw', part: 'spindle' }, 'spindle']];
+  for (const [rule, needle] of bad) {
+    let got = null;
+    try { MIS.load({ assets: carrock.assets, content: { misuse: [rule] } }); }
+    catch (e) { got = e.findings[0]; }
+    assert.ok(got && got.level === 'blocker', JSON.stringify(rule));
+    assert.ok((got.how + got.what).indexOf(needle) > -1, got.how);
+  }
+  // and an artwork with no named parts says so rather than listing nothing
+  const bare = { assets: { mark: { source: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><rect width="10" height="10"/></svg>' } },
+    content: { misuse: [{ do: 'redraw', part: 'anything' }] } };
+  let got = null;
+  try { MIS.load(bare); } catch (e) { got = e.findings[0]; }
+  assert.ok(got.how.indexOf('data-part') > -1, got.how);
+});
+
+test('the same rule twice is refused, because both cells would be the same picture', () => {
+  let got = null;
+  try { MIS.load({ assets: carrock.assets, content: { misuse: [{ do: 'stretch' }, { do: 'stretch', why: 'again' }] } }); }
+  catch (e) { got = e.findings[0]; }
+  assert.ok(got && got.level === 'blocker');
+  assert.ok(got.what.indexOf('stretch') > -1);
+});
+
+test('the manual cannot forbid what the identity itself does', () => {
+  // Carrock's ident turns the mark, so a rule against rotating it is a
+  // contradiction nothing had ever compared before.
+  const as = JSON.parse(JSON.stringify(carrock.system.motion.build.map((b2) => b2.how)));
+  assert.ok(as.indexOf('turns') > -1, 'the fixture no longer turns anything');
+  const rules = MIS.load(carrock);
+  assert.deepStrictEqual(MIS.contradictions(rules, carrock, { master: 'mark' }), [],
+    'the identity as shipped contradicts itself');
+  const clash = MIS.contradictions(rules.concat([{ do: 'rotate', why: 'x' }]), carrock, { master: 'mark' });
+  assert.strictEqual(clash.length, 1);
+  assert.strictEqual(clash[0].level, 'blocker');
+  assert.ok(clash[0].what.indexOf('turns') > -1, clash[0].what);
+  // and the same for a name that is set rather than drawn
+  const skerry = projectLoader.load(path.join(__dirname, '..', 'projects', 'skerry', 'project.json'));
+  const set = MIS.contradictions([{ do: 'retype' }], skerry, { master: 'mark' });
+  assert.strictEqual(set.length, 1);
+  assert.strictEqual(set[0].code, 'misuseIsUsage');
+});
+
+test('every misuse cell shows the treatment its caption names', () => {
+  const html = fs.readFileSync(path.join(carrOut, 'guidelines.html'), 'utf8');
+  const cells = misuseCellsOf(html);
+  const rules = MIS.load(carrock);
+  assert.strictEqual(cells.length, rules.length, 'a cell went missing');
+  // what each treatment leaves in the markup, checked against the rule that
+  // asked for it. Before this round the two were matched by array position:
+  // all six of Carrock's cells showed the wrong picture, and one of them showed
+  // the mark rotated — the one thing this identity does on purpose.
+  const shows = {
+    stretch: (c) => /scaleX\(/.test(c),
+    rotate: (c) => /rotate\(/.test(c),
+    shadow: (c) => /drop-shadow/.test(c) && (c.match(/drop-shadow/g) || []).length < 4,
+    outline: (c) => (c.match(/drop-shadow/g) || []).length >= 4,
+    busy: (c) => /repeating-linear-gradient/.test(c),
+    crowd: (c) => /stroke-dasharray/.test(c) && (c.match(/<rect/g) || []).length > 2,
+    undersize: (c) => /stroke-dasharray/.test(c) && (c.match(/<rect/g) || []).length <= 2,
+    retype: (c) => /system-ui/.test(c),
+    redraw: (c) => !/scaleX|rotate\(|drop-shadow|dasharray|system-ui/.test(c),
+    recolour: (c) => !/scaleX|rotate\(|drop-shadow|dasharray|system-ui/.test(c),
+  };
+  rules.forEach((r, i) => {
+    assert.ok(shows[r.do](cells[i]), `cell ${i} does not show ${r.do}`);
+    // and the sentence under it is the one that goes with that treatment
+    assert.ok(capOf(cells[i]).length > 10, `cell ${i} has no caption`);
+    if (r.why) assert.ok(capOf(cells[i]).indexOf(r.why.slice(0, 24)) > -1, `cell ${i} lost its reason`);
+  });
+  // the two treatments that draw the same shape are told apart by their ink
+  const recolour = cells[rules.findIndex((r) => r.do === 'recolour')];
+  const palette = Object.values(carrock.tokens.colour).map((c) => c.hex.toUpperCase());
+  const inks = [...recolour.matchAll(/(?:fill|stroke)="(#[0-9A-Fa-f]{6})"/g)].map((m) => m[1].toUpperCase());
+  assert.ok(inks.length && inks.every((h) => palette.indexOf(h) < 0),
+    'the recolour cell is painted in the palette, which is not a misuse');
+  const redraw = cells[rules.findIndex((r) => r.do === 'redraw')];
+  const whole = fs.readFileSync(path.join(__dirname, '..', 'projects', 'carrock', 'mark.svg'), 'utf8');
+  const count = (s2) => (s2.match(/<path|<circle|<rect|<ellipse|<polygon/g) || []).length;
+  assert.ok(count(redraw) < count(whole), 'the redraw cell still has every part of the mark');
+});
+
+test('the figures a misuse cell prints are the ones the package measured', () => {
+  const html = fs.readFileSync(path.join(carrOut, 'guidelines.html'), 'utf8');
+  const brand = JSON.parse(fs.readFileSync(path.join(carrOut, 'brand.json'), 'utf8'));
+  const caps = misuseCellsOf(html).map(capOf).join(' ');
+  const floor = brand.logo.minSize.screenPx;
+  assert.ok(caps.indexOf(`below ${floor} px`) > -1, `the floor in the manual is not ${floor}`);
+  assert.ok(caps.indexOf(`${brand.logo.clearSpaceUnits} units`) > -1,
+    'the clear space rule was typed rather than measured');
+});
+
+test('a manual with no misuse rules has no misuse page', () => {
+  const html = fs.readFileSync(path.join(cuspOut, 'guidelines.html'), 'utf8');
+  assert.ok(html.indexOf('>Misuse<') < 0, 'an empty misuse section is still printed');
+  assert.ok(html.indexOf('<div class="row3"></div>') < 0, 'an empty grid is still printed');
+  // and the deck does not promise a slide it does not have
+  const deckHtml = fs.readFileSync(path.join(cuspOut, 'deck.html'), 'utf8');
+  assert.ok(deckHtml.indexOf('ways it breaks') < 0);
+  assert.ok(deckHtml.indexOf('way it breaks') < 0);
+  // the numbering closes over the gap rather than skipping a section
+  const nums = [...html.matchAll(/<h3><i>(\d+\.\d+)<\/i>/g)].map((m) => m[1]);
+  assert.deepStrictEqual(nums.filter((n) => n.startsWith('1.')), ['1.1', '1.2', '1.3', '1.4', '1.5']);
+});
+
+test('the deck and the manual forbid the same things, in the same order', () => {
+  const html = fs.readFileSync(path.join(carrOut, 'guidelines.html'), 'utf8');
+  const deckHtml = fs.readFileSync(path.join(carrOut, 'deck.html'), 'utf8');
+  const said = misuseCellsOf(html).map((c) => /<b>([\s\S]*?)<\/b>/.exec(c)[1].trim());
+  const slide = deckHtml.slice(deckHtml.indexOf('ways it breaks'));
+  const caps = [...slide.matchAll(/<p class="cap said">([\s\S]*?)<\/p>/g)].map((m) => m[1].trim());
+  assert.deepStrictEqual(caps, said, 'the deck and the manual disagree about what a rule forbids');
+});
+
+test('a deck says what language it is written in, not what the brand is in', () => {
+  // The thirtieth round gave the deck the manual's language and left every
+  // slide in English: Verdon shipped lang="fr" over an English deck.
+  const manual = fs.readFileSync(path.join(verdOut, 'guidelines.html'), 'utf8');
+  const deckHtml = fs.readFileSync(path.join(verdOut, 'deck.html'), 'utf8');
+  assert.ok(/<html[^>]*lang="fr"/.test(manual));
+  assert.ok(/<html[^>]*lang="en"/.test(deckHtml), 'the deck still claims a language it is not in');
+  assert.deepStrictEqual(STR.resolve({ language: 'fr' }, 'deck').lang, 'en');
+  assert.deepStrictEqual(STR.resolve({ language: 'fr' }, 'manual').lang, 'fr');
+});
+
+
 drain().then(() => {
 
-  for (const d of [out, out2, tbOut, kilnOut, orielOut, ancOut, harbOut, farneOut, rookOut, verdOut, maayOut]) if (d) fs.rmSync(d, { recursive: true, force: true });
+  for (const d of [out, out2, tbOut, kilnOut, orielOut, ancOut, harbOut, farneOut, rookOut, verdOut, maayOut, carrOut, cuspOut]) if (d) fs.rmSync(d, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed\n`);
   process.exit(failed ? 1 : 0);
 });

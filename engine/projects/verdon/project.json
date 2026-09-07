@@ -46,6 +46,13 @@
   "content": {
     "positioning": "Le Verdon est un parc naturel régional de quatre-vingt mille hectares.",
     "markRationale": "Les deux versants de la gorge et la rivière qui passe entre eux.",
-    "constructionNotes": "Vingt unités de côté. Chaque point est un multiple du module."
+    "constructionNotes": "Vingt unités de côté. Chaque point est un multiple du module.",
+    "misuse": [
+      { "do": "stretch", "why": "Mettre les deux axes à la même échelle, toujours." },
+      { "do": "rotate" },
+      { "do": "recolour", "why": "Les couleurs sont relevées sur le calcaire des gorges. Aucune autre ne l’est." },
+      { "do": "crowd" },
+      { "do": "busy", "why": "Sur une photographie, poser un voile ou prendre la version en réserve." }
+    ]
   }
 }

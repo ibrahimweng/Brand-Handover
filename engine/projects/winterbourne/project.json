@@ -202,12 +202,11 @@
     "colourRationale": "Slate carries everything and Paper is warm rather than white, because the programmes are printed on uncoated stock and a cold white would fight it. Sedge is for surfaces. Quill marks the one thing on a page that matters and never more than four percent of it.",
     "typeRationale": "The logotype is set in the display face and outlined, so the wordmark and the headline of a programme note are the same drawing. This is a typographic identity: the typeface is not a supporting decision, it is the decision.",
     "misuse": [
-      "Do not set the name in a substitute face. The wordmark is artwork; the licensed face sets everything else.",
-      "Do not stretch. Scale both axes together, always.",
-      "Do not close the gap in the stave. The absence is the mark.",
-      "Do not put Quill behind text. It is there to be the loudest thing on a page, once.",
-      "Do not recolour outside the approved colourways.",
-      "Do not place the mark on low contrast. Use the reversed lockup."
+      { "do": "retype", "why": "The wordmark is artwork; the licensed face sets everything else." },
+      { "do": "stretch", "why": "Scale both axes together, always." },
+      { "do": "redraw", "part": "stave", "why": "Four strokes and a gap where the fifth would be. The absence is the mark." },
+      { "do": "recolour" },
+      { "do": "busy", "why": "Use the reversed lockup." }
     ],
     "constructionNotes": "The stave strokes sit on a seven unit stroke at 17 unit centres, the outer pair shortened by twelve units. The arc is struck at 1.6 times the mark width, crossing the top quarter. Everything is a whole fraction of the 120 unit box."
   }

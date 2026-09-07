@@ -53,6 +53,13 @@
   },
   "content": {
     "positioning": "Kilnsey makes grants in Wharfedale, and its mark is never seen alone.",
-    "markRationale": "A bracket left open on one side. The other half is whoever we funded."
+    "markRationale": "A bracket left open on one side. The other half is whoever we funded.",
+    "misuse": [
+      { "do": "stretch" },
+      { "do": "rotate" },
+      { "do": "recolour" },
+      { "do": "crowd", "why": "The rule between two partners is measured from this one, so crowding ours crowds theirs." },
+      { "do": "outline" }
+    ]
   }
 }

@@ -243,12 +243,12 @@
   "content": {
     "positioning": "Yarrow looks after eleven thousand acres of upland, and the identity has to work on a fingerpost, a lorry, a lanyard and a phone.",
     "misuse": [
-      "Do not stretch it",
-      "Do not rotate it",
-      "Do not recolour it",
-      "Do not add a shadow",
-      "Do not crowd it",
-      "Do not outline it"
+      { "do": "stretch" },
+      { "do": "rotate" },
+      { "do": "recolour" },
+      { "do": "shadow" },
+      { "do": "crowd" },
+      { "do": "outline" }
     ]
   }
 }

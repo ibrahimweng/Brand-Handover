@@ -4,9 +4,9 @@
 //
 // `figcaption` is a label: uppercase, letter-spaced, monospaced, which is right
 // for three words naming a thing. `figcaption.said` is the same caption when it
-// is a sentence, because that style is unreadable at that length. Every
-// fixture's misuse captions were three words until one arrived whose captions
-// were the sentences a real manual writes.
+// is a sentence, because that style is unreadable at that length. A misuse
+// caption is both: the rule the engine writes from the treatment it drew, in
+// `b`, and under it the designer's reason for the rule, in their own words.
 // Answered in one place now: src/typeface.js. A face that ships with the project
 // is inlined, a face somebody else hosts is linked, and neither document has to
 // know which it got.
@@ -52,11 +52,11 @@ h1,h2,h3,h4{font-family:var(--ui);margin:0;text-wrap:balance}
 .row2>figure>.stage svg,.row3>figure>.stage svg{max-width:100%;height:auto}
 .stage.dont{position:relative;overflow:hidden}
 .stage.dont::after{content:"";position:absolute;top:8px;right:8px;width:15px;height:15px;background:#C2352B;clip-path:polygon(20% 0,50% 30%,80% 0,100% 20%,70% 50%,100% 80%,80% 100%,50% 70%,20% 100%,0 80%,30% 50%,0 20%)}
-.stage.busy{background:repeating-linear-gradient(52deg,#7E8C7A 0 12px,#5E6B5B 12px 24px)}
 .row2{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
 .row3{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px}
 figure{margin:0}figcaption{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);margin-top:9px}
 figcaption.said{font-family:var(--ui);font-size:12px;letter-spacing:0;text-transform:none;line-height:1.45;color:var(--ink-2);max-width:34ch}
+figcaption.said b{display:block;font-weight:600;color:var(--ink);margin-bottom:2px}
 .dia{width:100%;max-width:340px;height:auto;display:block;margin:0 auto;color:var(--ink-3)}
 .dl{font-family:var(--mono);font-size:8px;fill:currentColor}
 .chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(172px,1fr));gap:14px}

@@ -200,12 +200,11 @@
     "colourRationale": "Rye is the ink and Flour is the paper, which is warm because the mill's stock is. Field is for surfaces and maps. Ember marks one thing on a page and never more than six percent of it.",
     "typeRationale": "One grotesque for everything that shouts and one serif for everything that is read sitting down. The poster is set at 96 and the ticket at 26, and there is nothing in between on purpose.",
     "misuse": [
-      "Do not set the poster in anything but the display size. It is a poster.",
-      "Do not stretch. Scale both axes together, always.",
-      "Do not recolour outside the approved colourways.",
-      "Do not put Ember behind text.",
-      "Do not redraw the sheaf with more ears. It is bound once for a reason.",
-      "Do not use the reversed lockup on Flour. It disappears."
+      { "do": "stretch", "why": "Scale both axes together, always." },
+      { "do": "recolour" },
+      { "do": "redraw", "part": "band", "why": "It is bound once for a reason." },
+      { "do": "crowd" },
+      { "do": "busy" }
     ],
     "constructionNotes": "The stalk is the full height of the box less eight units at each end. The ears leave the stalk at forty three percent of its height and reach the top of the box. The band sits at sixty two percent."
   }

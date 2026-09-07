@@ -342,9 +342,13 @@ function floorTable(ctx) {
 // its positioning, its rationale and the samples in its type scale carry the
 // brand's — which is what makes both claims true, and what stops an English
 // paragraph being laid out right to left because the brand is Hebrew.
-function own(ctx, text) {
+function own(ctx, text, use) {
   if (text == null || text === '') return '';
-  const L = ctx.L;
+  // `use` is the language of the document being written, where that is not the
+  // manual's: the deck is made of English literals, so a French project has a
+  // French manual and an English deck and each marks the brand's words against
+  // its own. See src/strings.js.
+  const L = use || ctx.L;
   if (!L || L.speaksBrand) return esc(text);
   return `<span lang="${esc(L.brandLang)}"${L.brandDir && L.brandDir !== L.dir
     ? ` dir="${esc(L.brandDir)}"` : ''}>${esc(text)}</span>`;
@@ -577,9 +581,19 @@ function lockups(ctx) {
     change it there and the name is redrawn with it.</p>`;
 }
 
-function misuse(ctx) {
-  const list = (ctx.project.content && ctx.project.content.misuse) || [];
-  const styles = ['transform:scaleX(1.5)', 'transform:rotate(16deg)', '', 'filter:drop-shadow(3px 4px 4px rgba(0,0,0,.45))', '', ''];
+// One rule, one picture, and the same fact in both.
+//
+// This grid used to be six fixed treatments captioned with whatever sentences
+// the project listed, matched by array position and nothing else. Across the
+// thirty packages built before that changed, 33 cells showed a picture that
+// contradicted its own caption. A rule now names the treatment; the engine
+// performs it on this identity's own artwork and writes the sentence from the
+// treatment it performed. The designer's reason follows in their own words,
+// which is the half a machine cannot supply. See src/misuse.js.
+function misuseCells(ctx, W) {
+  const list = ctx.misuse || [];
+  if (!list.length) return [];
+  const L = ctx.L;
 
   // These cells were painted in the colour in the primary role, on a stage
   // whose colour is the page's rather than the brand's — and the page's flips
@@ -592,44 +606,165 @@ function misuse(ctx) {
   const inks = Object.values(s.colourway.slots);
   const best = inks.slice().sort((a, b) =>
     contrast.ratio(b, s.ground.hex) - contrast.ratio(a, s.ground.hex))[0] || ctx.primary.hex;
-  // the busy cell paints its own stripes over the ground, so measure against
-  // the darker of them rather than against what is behind it
-  const BUSY = '#5E6B5B';
-  const onBusy = contrast.ratio(best, BUSY) >= SEEN ? best
-    : (inks.slice().sort((a, b) => contrast.ratio(b, BUSY) - contrast.ratio(a, BUSY))[0] || best);
-
-  // Six captions and four treatments: the fifth cell has the busy ground and
-  // the sixth had nothing at all, so one cell in every manual ever built showed
-  // a perfectly correct mark under a caption saying not to do it.
-  // the third cell is the mark in a colour that is plainly not the brand's,
-  // and a wrong colour nobody can see makes no point at all: Meridian's fixed
+  // The busy cell paints its own stripes, so the ink has to be measured against
+  // the darker of them rather than against what is behind it — and a fixed pair
+  // of stripes is a coin toss over whether the mark can be seen at all. Meridian
+  // lost it: its best ink sat at 2.68 to 1 on the green this used to be, which
+  // is a cell showing nothing under a caption about contrast. Offer a light pair
+  // and a dark one and take the combination that reads, all of it from the
+  // brand's own colours plus the two grounds.
+  const PAIRS = [['#7E8C7A', '#5E6B5B'], ['#3A463C', '#26302A']];
+  const inkPool = [...new Set(inks.concat([ctx.ground.hex, ctx.primary.hex]))];
+  const busy = PAIRS.map(([light, dark]) => {
+    const ink = inkPool.slice().sort((a, b) =>
+      Math.min(contrast.ratio(b, light), contrast.ratio(b, dark))
+      - Math.min(contrast.ratio(a, light), contrast.ratio(a, dark)))[0];
+    return { light, dark, ink,
+      worst: Math.min(contrast.ratio(ink, light), contrast.ratio(ink, dark)) };
+  }).sort((a, b) => b.worst - a.worst)[0];
+  const STRIPES = `background:repeating-linear-gradient(52deg,${busy.light} 0 12px,${busy.dark} 12px 24px);`;
+  const onBusy = busy.ink;
+  // a wrong colour nobody can see makes no point at all: Meridian's fixed
   // magenta sits at 2.96 to 1 on its own dark ground
   const WRONG = ['#B0439A', '#E86FD0', '#7CE04B', '#F2C230'];
   const wrong = WRONG.slice().sort((a, b) =>
     contrast.ratio(b, s.ground.hex) - contrast.ratio(a, s.ground.hex))
     .find((h) => contrast.ratio(h, s.ground.hex) >= SEEN) || WRONG[0];
-
   const outline = `filter:drop-shadow(1px 0 0 ${best}) drop-shadow(-1px 0 0 ${best})`
     + ` drop-shadow(0 1px 0 ${best}) drop-shadow(0 -1px 0 ${best})`;
 
-  // A misuse caption is a label in every fixture that has one — "do not stretch
-  // it" — and a sentence in a manual anybody actually writes. The label style is
-  // uppercase, letter-spaced and monospaced, which is right for three words and
-  // unreadable at fifteen. Take the style from the length: if any one of them is
-  // a sentence, all of them are set as sentences, so the row stays one thing.
-  const SAID = 34;                       // about a label's worth of characters
-  const asSentences = list.some((why) => String(why).length > SAID);
-  return `<div class="row3">` + list.slice(0, 6).map((why, i) => {
-    const busy = i === 4;
-    // the third cell is deliberately the wrong colour, which is its whole point,
-    // and the sixth is the mark hollowed out, which is what outlining it means
-    const ink = i === 2 ? wrong : i === 5 ? s.ground.hex : busy ? onBusy : best;
-    const style = i === 5 ? outline : styles[i];
-    const ground = busy ? '' : `background:${s.ground.hex};`;
-    return `<figure><div class="stage tight dont${busy ? ' busy' : ''}" style="${ground}"><span style="${style}">${scaled(inked(ctx, ink), 62)}</span></div>
-     <figcaption${asSentences ? ' class="said"' : ''}>${esc(why)}</figcaption></figure>`;
-  }).join('') + `</div>`;
+  // A cell is what was done, what to say about it, and how the stage it stands
+  // on has to change to show it. Both documents draw from this one list, so the
+  // deck and the manual cannot disagree about what a rule forbids.
+  const stage = (inner, ground) => ({ inner, ground: ground || `background:${s.ground.hex};` });
+  // inline-block because a transform does not apply to an inline box, and the
+  // deck's cells are not the flex container the manual's stages are
+  const treated = (style, ink, ground) =>
+    stage(`<span style="display:inline-block;${style}">${scaled(inked(ctx, ink), W)}</span>`, ground);
+
+  const cell = (r) => {
+    switch (r.do) {
+      case 'stretch':
+        return { says: L.t('sayStretch'), body: treated('transform:scaleX(1.5)', best) };
+      case 'rotate':
+        return { says: L.t('sayRotate'), body: treated('transform:rotate(16deg)', best) };
+      case 'recolour':
+        return { says: L.t('sayRecolour'), body: treated('', wrong) };
+      case 'shadow':
+        return { says: L.t('sayShadow'),
+          body: treated('filter:drop-shadow(3px 4px 4px rgba(0,0,0,.45))', best) };
+      case 'outline':
+        return { says: L.t('sayOutline'), body: treated(outline, s.ground.hex) };
+      case 'busy':
+        return { says: L.t('sayBusy'), body: treated('', onBusy, STRIPES) };
+      case 'crowd':
+        return { says: L.t('sayCrowd', { x: ctx.measured.clearSpace }),
+          body: stage(crowded(ctx, best)) };
+      case 'undersize':
+        // the floor is a width, and for a mark far from square the height that
+        // goes with it is the half somebody sets by mistake
+        return { says: L.t('sayUndersize', { px: geo.floorText(ctx.measured.minimumSize, 'px') }),
+          body: stage(undersized(ctx, best)) };
+      case 'redraw':
+        return { says: L.t('sayRedraw', { part: r.part }),
+          body: stage(scaled(withoutPart(ctx, r.part, best), W)) };
+      case 'retype':
+        return { says: L.t('sayRetype'), body: stage(retyped(ctx, best)) };
+      default:
+        return null;
+    }
+  };
+
+  return list.map((r) => {
+    const c = cell(r);
+    return c && Object.assign({ says: c.says, why: r.why || null }, c.body);
+  }).filter(Boolean);
 }
+
+// Eight of the thirty manuals carried a numbered heading, a "drawn by the
+// system" badge and an empty box, because a project with no misuse rules still
+// got the section. No rules, no section — see documents/index.js.
+function misuse(ctx) {
+  return `<div class="row3">` + misuseCells(ctx, 62).map((c) =>
+    // The sentence is the engine's, because it is a statement about the picture
+    // beside it. The reason is the project's, and it is the brand's own words,
+    // so it carries the brand's language where that is not the document's.
+    `<figure><div class="stage tight dont" style="${c.ground}">${c.inner}</div>
+     <figcaption class="said"><b>${esc(c.says)}</b>${c.why ? own(ctx, c.why) : ''}</figcaption></figure>`).join('')
+    + `</div>`;
+}
+
+// The rule with something inside it. Thirteen projects wrote "do not crowd it"
+// and got a mark on a striped ground, because crowding was the one thing on
+// this page the engine could not draw. The box is the clear space rule the
+// manual states two sections earlier, drawn from the same two numbers.
+function crowded(ctx, ink) {
+  const box = ctx.measured.markInk, x = ctx.measured.clearSpace;
+  const tw = box.w + x * 2, th = box.h + x * 2;
+  const W = 150, k = W / tw, H = svgu.round(th * k, 2);
+  const PAD = 12, VW = W + PAD * 2, VH = H + PAD * 2;
+  const bite = svgu.round(x * k * 0.85, 2);       // how far in the intruders come
+  const R = (v) => svgu.round(v, 2);
+  return `<svg viewBox="0 0 ${VW} ${R(VH)}" class="dia" role="img" aria-label="${esc(
+    `Type and rules set inside the clear space of ${x} units, which is what crowding the ${ctx.noun || 'mark'} looks like.`)}"
+    style="width:100%;max-width:${VW}px;height:auto;display:block">
+    <g fill="${ink}" opacity=".72">
+      <rect x="${R(PAD + W - bite)}" y="${PAD}" width="${R(bite + PAD)}" height="${R(H * 0.62)}"/>
+      <rect x="${PAD}" y="${R(PAD + H - bite)}" width="${R(W * 0.78)}" height="${R(bite * 0.42)}"/>
+      <rect x="${PAD}" y="${R(PAD + H - bite + bite * 0.72)}" width="${R(W * 0.52)}" height="${R(bite * 0.42)}"/>
+    </g>
+    <g transform="translate(${R(PAD + x * k)} ${R(PAD + x * k)}) scale(${svgu.round(k, 6)}) translate(${-box.x} ${-box.y})">${svgu.innerXML(svgu.parse(inked(ctx, ink)))}</g>
+    <rect x="${PAD}" y="${PAD}" width="${W}" height="${H}" fill="none" stroke="${ink}"
+      stroke-width="1" stroke-dasharray="4 3" opacity=".55"/>
+  </svg>`;
+}
+
+// Below the floor, against the floor. Both numbers are measured, and the third
+// step of the minimum size block is already the one that says "below".
+function undersized(ctx, ink) {
+  const m = ctx.measured.minimumSize;
+  const steps = m.steps || [];
+  const floorPx = (steps[1] && steps[1].px) || m.screenPx || 1;
+  const belowPx = (steps[2] && steps[2].px) || Math.round(floorPx * 0.6);
+  const vb = ctx.measured.markViewBox || svgu.viewBox(svgu.parse(artOf(ctx).source));
+  const W = 108, H = svgu.round(W * (vb.h / vb.w), 2);
+  const small = svgu.round(W * (belowPx / floorPx), 2), sh = svgu.round(H * (belowPx / floorPx), 2);
+  const R = (v) => svgu.round(v, 2);
+  return `<svg viewBox="0 0 ${W} ${H}" class="dia" role="img" aria-label="${esc(
+    `The ${ctx.noun || 'mark'} drawn at ${belowPx} px inside the ${floorPx} px box that is its floor.`)}"
+    style="width:100%;max-width:${W}px;height:auto;display:block">
+    <rect x="0.5" y="0.5" width="${R(W - 1)}" height="${R(H - 1)}" fill="none" stroke="${ink}"
+      stroke-width="1" stroke-dasharray="4 3" opacity=".55"/>
+    <g transform="translate(${R((W - small) / 2)} ${R((H - sh) / 2)}) scale(${svgu.round(small / vb.w, 6)}) translate(${-vb.x} ${-vb.y})">${svgu.innerXML(svgu.parse(inked(ctx, ink)))}</g>
+  </svg>`;
+}
+
+// The mark with one of its own named parts taken out of it. Only an artwork
+// that says what its parts are can have this rule written about it, which is
+// the point: you can forbid redrawing a thing the file has named, and nothing
+// else. See data-part in src/svg.js.
+function withoutPart(ctx, part, ink) {
+  const doc = svgu.parse(artOf(ctx).source);
+  const drop = [];
+  (function walk(el) {
+    if (!el || el.nodeType !== 1) return;
+    if (el.getAttribute && el.getAttribute('data-part') === part) { drop.push(el); return; }
+    for (let c = el.firstChild; c; c = c.nextSibling) walk(c);
+  })(doc.documentElement);
+  for (const el of drop) if (el.parentNode) el.parentNode.removeChild(el);
+  svgu.applyColourway(doc, Object.fromEntries(ctx.measured.slots.map((k) => [k, ink])));
+  return svgu.serialize(doc);
+}
+
+// The name as somebody types it when the artwork is not to hand: in whatever
+// face the machine already had. Marked as the brand's own words, because it is
+// the brand's name in a document that may not be in the brand's language.
+function retyped(ctx, ink) {
+  return `<div style="font-family:system-ui,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;`
+    + `font-size:21px;line-height:1.1;font-weight:600;color:${ink};text-align:center">`
+    + `${own(ctx, ctx.project.brand)}</div>`;
+}
+
 
 // ---------------------------------------------------------------- colour
 function palette(ctx) {
@@ -891,5 +1026,5 @@ function changes(ctx) {
     + `</p><div class="chgs">${breaking.map(row).join('')}${news.map(row).join('')}</div>`;
 }
 
-module.exports = { TXT, esc, own, changes, floorTable, partnerLockups, colourVision, ladderBlock, fabrication, familyBlock, motionBuild, inked, gradientSpec, inksOf, patternSpec, photographySpec, iconSpec, willWriteIcons, motionSpec, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, markSpecimen, lockupRow, construction, clearSpace,
+module.exports = { TXT, esc, own, changes, floorTable, partnerLockups, colourVision, ladderBlock, fabrication, familyBlock, motionBuild, inked, gradientSpec, inksOf, patternSpec, photographySpec, iconSpec, willWriteIcons, motionSpec, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, misuseCells, markSpecimen, lockupRow, construction, clearSpace,
   minimumSize, lockups, misuse, palette, contrastTable, typeSpecimen, typeScale, assetIndex, brandJsonBlock };

@@ -221,12 +221,12 @@
     "typeRationale": "The display face is a transitional serif, which is what the shop has set its catalogues in since the second world war, and the text face is a grotesque chosen because it stays legible at eight point on the cheap paper a catalogue is actually printed on. Nothing is set in the display face below eighteen point and nothing is set in the text face above twenty four; between those two sizes the two faces are interchangeable and the choice is yours.",
     "constructionNotes": "The device sits on a twelve unit grid and the ring is a constant eight units. The gap between the ring and the band is the same eight units, which is what keeps the counter open when the mark is blind embossed and there is no ink to help. Do not redraw the ring to a lighter weight to make a particular size work: move to the next size up instead, or use the wordmark on its own, which is what it is there for.",
     "misuse": [
-      "Do not stretch or condense the mark to fit a space. Use the stacked lockup instead, which was drawn for spaces that are narrower than they are tall.",
-      "Do not rotate the mark, including to run it up the spine of a catalogue, where the wordmark set vertically is the correct solution and the one the binder expects.",
-      "Do not recolour the mark into anything outside the palette, and never into the correction red, which means one thing in this identity and should go on meaning it.",
-      "Do not add a drop shadow, a bevel, an outer glow or any other effect that assumes the mark is sitting on top of the page rather than printed into it.",
-      "Do not crowd the mark. Clear space is a measured rule and it is in this manual because crowding a mark is the most common thing that happens to one.",
-      "Do not outline the mark to make it work on a busy background. Use the reverse colourway on a solid panel, which is exactly what that colourway is for."
+      { "do": "stretch", "why": "Use the stacked lockup instead. It was drawn for spaces that are narrower than they are tall, and it is in the package for exactly this reason." },
+      { "do": "rotate", "why": "Including up the spine of a catalogue: the wordmark set vertically is the correct solution, and the one the binder expects." },
+      { "do": "recolour", "why": "And never into the correction red, which means one thing in this identity and should go on meaning it." },
+      { "do": "shadow", "why": "A drop shadow, a bevel or an outer glow all assume the mark is sitting on top of the page rather than being printed into it, which is not what this house has ever done." },
+      { "do": "crowd", "why": "Crowding a mark is the most common thing that happens to one, which is why the rule is measured rather than described." },
+      { "do": "outline", "why": "Use the reverse colourway on a solid panel, which is exactly what that colourway was cut for. An outline is a way of avoiding the decision rather than making it." }
     ]
   }
 }

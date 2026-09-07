@@ -156,11 +156,16 @@ function context(project, measured, files, brandJson) {
     });
   })() : null;
 
+  // What the misuse page forbids, as treatments the engine can perform on this
+  // identity's own artwork rather than as sentences nothing is drawn from.
+  // See src/misuse.js.
+  const misuse = require('../misuse').load(project);
+
   const changes = project.previous && brandJson
     ? { since: project.previous.version.text,
         entries: require('../previous').compare(project.previous.data, brandJson) }
     : null;
-  return { project, sets: project.sets || null, measured, colours, roles, primary, ground, accent, primaryColourway, noun, system, pattern, hasSystem, changes, floors, pairs, ladder, fabrication, familyRule, family, L,
+  return { project, sets: project.sets || null, measured, colours, roles, primary, ground, accent, primaryColourway, noun, system, pattern, hasSystem, changes, floors, pairs, ladder, fabrication, familyRule, family, L, misuse,
     partnerRule: typeof partnerRule === 'undefined' ? null : partnerRule,
     variants, variantFor, files, brandJson, contrast: contrast.matrix(colours),
     content: project.content || {} };
@@ -207,7 +212,11 @@ function guidelines(ctx) {
       (() => { let n = ctx.ladder ? 6 : 5;
         return S(`1.${n++}`, T('secLockups'), 'system', b.lockups(ctx))
           + (ctx.pairs.length ? S(`1.${n++}`, T('secPartners'), 'once', b.partnerLockups(ctx)) : '')
-          + S(`1.${n}`, T('secMisuse'), 'system', b.misuse(ctx)); })())}
+          // Eight of the thirty manuals printed this heading, its badge and an
+          // empty box, because the section did not ask whether it had anything
+          // in it. A section describing what the reader has not been given is
+          // worse than no section — the same rule the icon grid learned.
+          + (ctx.misuse.length ? S(`1.${n}`, T('secMisuse'), 'once', b.misuse(ctx)) : ''); })())}
 
   ${chapter('02', T('chColour'),
       S('2.1', T('secPalette'), 'system', b.palette(ctx) + words(c.colourRationale, ctx)) +

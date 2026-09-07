@@ -236,12 +236,12 @@
   "content": {
     "positioning": "Saltmarsh is eleven rooms on a tidal creek, and the photography is the identity: the mark is only there to sign it.",
     "misuse": [
-      "Do not stretch it",
-      "Do not rotate it",
-      "Do not recolour it",
-      "Do not add a shadow",
-      "Do not crowd it",
-      "Do not outline it"
+      { "do": "stretch" },
+      { "do": "rotate" },
+      { "do": "recolour" },
+      { "do": "shadow" },
+      { "do": "crowd" },
+      { "do": "outline" }
     ]
   }
 }

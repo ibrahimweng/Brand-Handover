@@ -181,12 +181,11 @@
     "colourRationale": "Oak is the ink and Linen is the paper. Copper is for the still house and the cask ends. Seal is for the wax and appears once on anything.",
     "typeRationale": "A serif with enough weight to sit beside an engraving without looking apologetic, and a plain sans for everything a customer actually has to read.",
     "misuse": [
-      "Do not use the crest below its smallest size. The hatching closes and it becomes a dark shape.",
-      "Do not redraw the hatching at a different pitch to make it work small. Use the simplified mark.",
-      "Do not stretch. Scale both axes together, always.",
-      "Do not recolour outside the approved colourways.",
-      "Do not add a drop shadow to make it look engraved. It is engraved.",
-      "Do not place it on a photograph without the reversed lockup."
+      { "do": "undersize", "why": "The hatching closes and the crest becomes a dark shape. Use the simplified mark in 05-icons." },
+      { "do": "stretch", "why": "Scale both axes together, always." },
+      { "do": "recolour" },
+      { "do": "shadow", "why": "It is engraved already." },
+      { "do": "busy", "why": "Use the reversed lockup." }
     ],
     "constructionNotes": "The shield is 228 wide inside a 240 box, tapering below 58 percent of its height. The hatch is five units of ink to one and a fifth of paper, which is the pitch the original was cut at."
   }

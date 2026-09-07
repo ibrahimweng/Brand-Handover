@@ -64,6 +64,13 @@
   "content": {
     "positioning": "Ancroft has been cutting the same arms into things since 1614.",
     "markRationale": "The arms as granted: a chevron between three roundels, over a band of hatching that stands for the ford.",
-    "constructionNotes": "Twenty units square. Every point is on the module; the hatching is three units wide, which is the finest thing in the identity and the reason the other three drawings exist."
+    "constructionNotes": "Twenty units square. Every point is on the module; the hatching is three units wide, which is the finest thing in the identity and the reason the other three drawings exist.",
+    "misuse": [
+      { "do": "undersize", "why": "The ladder says which drawing to use below it. There is one for every band down to a 17 px monogram." },
+      { "do": "stretch" },
+      { "do": "rotate" },
+      { "do": "recolour" },
+      { "do": "crowd" }
+    ]
   }
 }

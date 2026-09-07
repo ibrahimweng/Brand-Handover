@@ -43,6 +43,13 @@
   },
   "content": {
     "positioning": "Hallward Press",
-    "misuse": ["Do not stretch it", "Do not rotate it", "Do not tint it", "Do not add a shadow", "Do not crowd it", "Do not redraw the seal"]
+    "misuse": [
+      { "do": "stretch" },
+      { "do": "rotate" },
+      { "do": "recolour", "why": "A tint is a recolour with a softer name." },
+      { "do": "shadow" },
+      { "do": "crowd" },
+      { "do": "undersize", "why": "Below the floor the lines close up and the seal prints as a dark disc." }
+    ]
   }
 }

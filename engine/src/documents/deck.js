@@ -45,6 +45,12 @@ p{margin:0}
 .six{display:grid;grid-template-columns:repeat(3,1fr);gap:1.6cqw}
 .cell{text-align:center}.cell svg{margin:0 auto}
 .cell .cap{margin-top:1cqw}
+/* A misuse cell stands on a ground of the brand's own, because half of these
+   treatments are about colour and none of them can be judged against the
+   slide. The caption stays outside it, on the slide, where it is legible. */
+.dont{display:flex;align-items:center;justify-content:center;height:13cqw;padding:1.6cqw}
+.dont svg{max-height:100%;width:auto;max-width:100%}
+.cap.said{font-family:var(--ft);font-size:1.4cqw;letter-spacing:0;text-transform:none;opacity:.8;line-height:1.35}
 .hero{display:flex;align-items:center;justify-content:center}
 .chips{display:grid;grid-template-columns:repeat(5,1fr);gap:1.6cqw;margin-top:3cqw}
 .chip .sw{height:9cqw}
@@ -124,6 +130,15 @@ function deck(ctx) {
   // caption and the margins take about 26 of that, so the two together have
   // about 30 to live in. Step both down until they do. "Beaumont & Whitcombe
   // Rare Books" is three lines of headline where "Meridian" is one.
+  // The deck is in the language it is written in, like the manual beside it —
+  // and that is asked of the deck rather than of the project, because the two
+  // documents are not written from the same words. Every slide below is an
+  // English literal, so a French project gets a French manual and an English
+  // deck, and each says which it is. The brand's own words carry the brand's
+  // language against whichever of the two they are printed in. See src/strings.js.
+  const L = require('../strings').resolve(p, 'deck');
+  const own = (t) => b.own(ctx, t, L);
+
   const HEAD_CH = 15, LEDE_CH = 44, BUDGET = 44, GAP = 2.2;
   const linesIn = (t, ch) => M.textLines(t, { size: 1, leading: 1 }, ch * M.CHAR_EM);
   const stated = c.positioning || '';
@@ -139,16 +154,21 @@ function deck(ctx) {
     if (L1 * h1Size * 1.02 + (L2 ? GAP + L2 * ledeSize * 1.5 : 0) <= BUDGET) break;
   }
   add('Title', `<div class="hero" style="justify-content:flex-start;margin-bottom:3.4cqw">${plate(b.scaled(ctx.variantFor('horizontal', markWay.name), 360))}</div>
-    <h1${h1Size === 7 ? '' : ` style="font-size:${h1Size}cqw"`}>${b.esc(headline)}</h1>${lede ? `\n    <p class="lede"${ledeSize === 2.2 ? '' : ` style="font-size:${ledeSize}cqw"`}>${b.esc(lede)}</p>` : ''}
-    <p class="cap" style="margin-top:3.4cqw">${b.esc(p.brand)} ${b.esc(p.version)} · built from one master file</p>`);
+    <h1${h1Size === 7 ? '' : ` style="font-size:${h1Size}cqw"`}>${own(headline)}</h1>${lede ? `\n    <p class="lede"${ledeSize === 2.2 ? '' : ` style="font-size:${ledeSize}cqw"`}>${own(lede)}</p>` : ''}
+    <p class="cap" style="margin-top:3.4cqw">${own(p.brand)} ${b.esc(p.version)} · built from one master file</p>`);
 
-  div('01', 'The mark', ['Construction', 'Clear space', 'Minimum size', 'The lockups', 'Misuse']);
+  // Worked out before the divider that lists the slides, because a project with
+  // no misuse rules has no misuse slide and a divider promising one is a
+  // contents page for a deck that does not exist.
+  const dont = b.misuseCells(ctx, 54);
+  div('01', 'The mark', ['Construction', 'Clear space', 'Minimum size', 'The lockups']
+    .concat(dont.length ? ['Misuse'] : []));
   add('The mark', `<div class="hero">${plate(b.scaled(b.asColourway(ctx, markWay), 260))}</div>
-    <p class="cap" style="text-align:center;margin-top:4cqw">${b.esc(p.brand)} · primary mark</p>`);
+    <p class="cap" style="text-align:center;margin-top:4cqw">${own(p.brand)} · primary mark</p>`);
   add('Construction', `<div class="two wide"><div><span class="bdg">The system</span>
     <h2 style="margin-top:2cqw">Measured, not decided</h2>
     <p class="lede">The box is ${m.markViewBox.w} units and the artwork fills ${m.markInk.w} of them. The ${m.minimumSize.from === 'stem' ? 'narrowest stem' : 'thinnest stroke'} is ${m.minimumSize.thinnestStroke}.</p>
-    <p class="sm">${b.esc(c.constructionNotes || 'Every number here was read off the artwork when this deck was built.')}</p></div>
+    <p class="sm">${c.constructionNotes ? own(c.constructionNotes) : 'Every number here was read off the artwork when this deck was built.'}</p></div>
     <div>${b.construction(ctx, { ink: ctx.ground.hex, line: ctx.ground.hex })}</div></div>`);
   add('Clear space', `<div class="two"><div><span class="bdg">The system</span>
     <h2 style="margin-top:2cqw">Keep x clear</h2>
@@ -175,16 +195,23 @@ function deck(ctx) {
         + `${b.scaled(pr.composed.svg, 300, '100%')}<p class="cap">${b.esc(pr.partner.name)} · ${pr.floor.screenPx} px</p></div>`).join('')}</div>
       <p class="sm">Half of each is not ours: not recoloured, not redrawn, and not made at all where they have not supplied a version. A pair is a third drawing, so its smallest use is neither brand's own figure.</p>`);
   }
-  const dontStyles = ['transform:scaleX(1.5)', 'transform:rotate(16deg)', '', 'filter:drop-shadow(3px 4px 4px rgba(0,0,0,.5))', '', ''];
-  add('Misuse', `<span class="bdg">The system</span><h2 style="margin-top:2cqw">Six ways it breaks</h2>
-    <div class="six" style="margin-top:2.6cqw">${(c.misuse || []).slice(0, 6).map((w, i) =>
-      `<div class="cell"><span style="display:inline-block;${dontStyles[i]}">${b.scaled(b.inked(ctx, i === 2 ? '#B0439A' : ctx.ground.hex), 54)}</span><p class="cap">${b.esc(w)}</p></div>`).join('')}</div>`);
+  // The same six treatments in a fixed order, captioned with the project's
+  // sentences in whatever order they were written, and every mark painted in
+  // the ground colour whatever the cell was standing on. Both documents draw
+  // this from one list now, so the deck and the manual cannot disagree about
+  // what a rule forbids. See src/misuse.js.
+  if (dont.length) {
+    add('Misuse', `<span class="bdg">Set once by you</span><h2 style="margin-top:2cqw">${dont.length} ${dont.length === 1 ? 'way' : 'ways'} it breaks</h2>
+      <div class="six" style="margin-top:2.6cqw">${dont.map((d) =>
+        `<div class="cell"><div class="dont" style="${d.ground}">${d.inner}</div>`
+        + `<p class="cap said">${b.esc(d.says)}</p></div>`).join('')}</div>`);
+  }
 
   div('02', 'Colour', ['The palette', 'Contrast']);
   add('The palette', `<span class="bdg">The system</span><h2 style="margin-top:2cqw">${Object.keys(ctx.colours).length} colours</h2>
     <div class="chips">${Object.entries(ctx.colours).map(([n, t]) =>
       `<div class="chip"><div class="sw" style="background:${t.hex}"></div><b>${b.esc(n)}</b><span>${t.hex}</span><span>${b.esc(t.role || '')}</span></div>`).join('')}</div>
-    <p class="sm">${b.esc(c.colourRationale || '')}</p>`, 'light');
+    <p class="sm">${own(c.colourRationale)}</p>`, 'light');
   const cls = { AAA: 'ok', AA: 'ok', 'AA-large': 'warn', fail: 'bad' };
   add('Contrast', `<span class="bdg">The system</span><h2 style="margin-top:2cqw">Checked, not assumed</h2>
     <div class="ct">${ctx.contrast.slice(0, 6).map((x) =>
@@ -197,11 +224,11 @@ function deck(ctx) {
   add('The typefaces', `<span class="bdg">The system</span><h2 style="margin-top:2cqw">${fams.length} faces, ${fams.length} jobs</h2>
     ${fams.map(([role, f]) => `<div style="margin-top:2.6cqw"><p class="cap" style="margin:0">${b.esc(f.family)} · ${b.esc(role)}</p>
       <p class="alpha" style="font-family:'${b.esc(f.family)}',${b.esc(f.fallback || 'sans-serif')};font-weight:${(f.weights || [400])[0]}">ABCDEFGHIJKLM abcdefghijklm 0123456789</p></div>`).join('')}
-    <p class="sm">${b.esc(c.typeRationale || '')}</p>`, 'light');
+    <p class="sm">${own(c.typeRationale)}</p>`, 'light');
   add('The scale', `<span class="bdg">The system</span><h2 style="margin-top:2cqw">${((p.tokens.type || {}).scale || []).length} steps</h2>
     <div style="margin-top:2.4cqw">${((p.tokens.type || {}).scale || []).slice(0, 4).map((s) => {
       const f = ((p.tokens.type || {}).families || {})[s.family] || {};
-      return `<p style="font-family:'${b.esc(f.family)}',${b.esc(f.fallback || 'sans-serif')};font-weight:${s.weight};font-size:${Math.min(s.size / 12, 4.4)}cqw;line-height:1.15;margin-top:1.4cqw">${b.esc(s.sample)}</p>`;
+      return `<p style="font-family:'${b.esc(f.family)}',${b.esc(f.fallback || 'sans-serif')};font-weight:${s.weight};font-size:${Math.min(s.size / 12, 4.4)}cqw;line-height:1.15;margin-top:1.4cqw">${own(s.sample)}</p>`;
     }).join('')}</div>
     <p class="sm">Every size, weight and line height is read from the token file, so this deck and the running website cannot drift apart.</p>`, 'light');
 
@@ -269,14 +296,12 @@ function deck(ctx) {
     text: `'${((p.tokens.type || {}).families || {}).text?.family || 'Georgia'}',Georgia,serif`,
   };
   const { fontLink } = require('./chrome');
-  // The deck is in the language it is written in, like the manual beside it.
-  const L = require('../strings').resolve(p);
   return `<!doctype html><html lang="${b.esc(L.lang)}" dir="${b.esc(L.dir)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${b.esc(p.brand)} Brand Deck</title>
 ${fontLink(p.tokens.type, p.fonts)}
 <style>${CSS(t)}</style></head><body>
 <div class="wrap">
-  <div class="topbar"><span>${b.esc(p.brand)} · brand deck</span><span><b id="ttl"></b></span></div>
+  <div class="topbar"><span>${own(p.brand)} · brand deck</span><span><b id="ttl"></b></span></div>
   <main class="stage" id="stage" role="region" aria-roledescription="carousel" aria-label="${b.esc(p.brand)} brand deck">${S.join('')}</main>
   <div class="ctrl"><button class="btn" id="prev" type="button">← Prev</button>
   <div class="dots" id="dots" role="tablist" aria-label="Slides"></div>

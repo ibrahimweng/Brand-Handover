@@ -50,7 +50,14 @@
   },
   "content": {
     "positioning": "Halyard",
-    "misuse": ["Do not stretch it", "Do not rotate it", "Do not recolour the pin", "Do not add a shadow", "Do not crowd it", "Do not outline it"]
+    "misuse": [
+      { "do": "stretch" },
+      { "do": "rotate" },
+      { "do": "recolour", "why": "Not even the pin." },
+      { "do": "shadow" },
+      { "do": "crowd" },
+      { "do": "outline" }
+    ]
   },
   "system": {
     "photography": {

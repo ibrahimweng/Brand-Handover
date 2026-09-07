@@ -256,6 +256,13 @@
   },
   "content": {
     "positioning": "Farne broadcasts from a rock in the North Sea.",
-    "markRationale": "The transmitter and three arcs off it. The ident is the mark arriving: the transmitter, then each arc in turn."
+    "markRationale": "The transmitter and three arcs off it. The ident is the mark arriving: the transmitter, then each arc in turn.",
+    "misuse": [
+      { "do": "redraw", "part": "hub", "why": "The rings are what the transmitter reaches. Without it they are weather." },
+      { "do": "stretch" },
+      { "do": "recolour" },
+      { "do": "shadow" },
+      { "do": "undersize" }
+    ]
   }
 }

@@ -207,12 +207,9 @@
     "colourRationale": "Channel is the hull colour and the ink. Shell is the paper and the superstructure. Wake is for surfaces and maps. Buoy is for the one thing on a page that has to be seen from the pier.",
     "typeRationale": "The name is not drawn. It is set in the network's own face at fifty eight percent of the mark's height, and that rule is the identity as much as the roundel is. A drawn logotype would go out of step with the signs the first time a sign was made.",
     "misuse": [
-      "Do not draw the name. It is set, in the network face, at the stated size.",
-      "Do not put anything inside the ring. It closes at ticket size.",
-      "Do not stretch. Scale both axes together, always.",
-      "Do not recolour outside the approved colourways.",
-      "Do not set the name in another face because the network face is not installed. Install it.",
-      "Do not use Buoy behind text."
+      { "do": "crowd", "why": "Nor inside the ring: it closes at ticket size." },
+      { "do": "stretch", "why": "Scale both axes together, always." },
+      { "do": "recolour" }
     ],
     "constructionNotes": "The ring is forty three units of a hundred and twenty box with an eleven unit stroke. The bar runs the full width of the box at the centre line, butt ended, so it meets the artboard edge and reads as a channel rather than a strike."
   }

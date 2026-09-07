@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Carrock: a disc read from the outside in. A twelve unit module, twenty
+     units square. Three grooves at eight, six and four units of radius, one
+     unit of stroke, each interrupted by fifty-six degrees; every gap sits
+     thirty-two degrees clockwise of the one outside it, so the three
+     interruptions read as one lead-out. The label is two and a half units.
+
+     data-slot says what a part is painted from; data-part says what it is when
+     the mark builds. The grooves turn, and that is the ident — which is why
+     this identity's manual has no rule against rotating the mark, and why the
+     engine refuses one. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" width="240" height="240">
+  <g data-slot="ink" fill="none" stroke="#241C1A" stroke-width="12" stroke-linecap="round">
+    <path data-part="outer" data-pattern="source" d="M189.06 53.31 A96 96 0 1 1 103.33 25.46"/>
+    <path data-part="middle" d="M190.43 105.03 A72 72 0 1 1 146.97 53.24"/>
+    <path data-part="inner" d="M165.11 136.42 A48 48 0 1 1 158.83 91.79"/>
+  </g>
+  <g data-slot="label" fill="#B4442C" stroke="none">
+    <circle data-part="label" cx="120" cy="120" r="30"/>
+  </g>
+</svg>

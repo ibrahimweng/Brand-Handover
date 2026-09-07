@@ -104,10 +104,12 @@ zip — the package, compressed, in one answer, about 300 KB for a plain identit
 not survive a reload, because they live in the page's memory. Run it yourself
 and they get real URLs.
 
-`/gallery/` is the sixteen identities the engine has already been through, each
-built to break it a different way. Nothing in it is committed: the repository
-holds sixteen master files and sixteen project files, and the site is what the
-engine makes of them, rebuilt from scratch on every deploy.
+`/gallery/` is every identity in `engine/projects/`, each built to break the
+engine a different way — thirty-one of them at the time of writing, and the count
+is deliberately not stated anywhere the engine does not read it. Nothing in the
+gallery is committed: the repository holds a master file and a project file per
+identity, and the site is what the engine makes of them, rebuilt from scratch on
+every deploy.
 
 The four links per identity are the four things worth opening. **Manual** and
 **Deck** are the two client-facing documents. **Cover** is a page published out
@@ -860,6 +862,48 @@ honest answer and the one a screen reader can act on.
 
 The check that would have caught it is now in the audit, and the seventh round's
 test is rewritten rather than deleted: it was half right and the wrong half.
+
+The thirty-first found the one page in every manual whose whole job is to be
+unambiguous saying the opposite of what it showed. A misuse page is a set of
+pairs — a picture of the mark treated badly, and a sentence naming the treatment
+— and nothing joined a sentence to the picture above it except the index of an
+array. Six fixed treatments in a fixed order, captioned with whatever sentences
+the project happened to list.
+
+Across the thirty packages built before this round: **132 misuse cells, of which
+33 showed a picture that contradicts its own caption.** Ravelston printed *"Do
+not add a drop shadow to make it look engraved"* over a mark with no shadow, and
+*"Do not place it on a photograph without the reversed lockup"* over an outlined
+one. Rookhope's *"Do not rotate it"* sat over a drop shadow. Eighteen more cells
+carried a caption about something the engine cannot draw at all, so the picture
+beside it was arbitrary — **fourteen projects had a rule about crowding and every
+one of them got a mark on a striped green ground**, because crowding was the one
+thing on that page the engine had never been able to draw. Eight of the thirty
+stated no rules and got a numbered heading, a badge and an empty box.
+
+So a misuse rule is not a sentence any more. It names one of ten treatments the
+engine performs on the identity's own artwork; the engine writes the sentence
+from the treatment it drew; the designer's reason follows in their own words,
+which is the half a machine cannot supply. Four of the ten are new and are the
+ones a real manual keeps asking for: the clear space rule with type set inside
+it, the mark below the floor measured for it, the mark with one of its named
+parts taken out, and the name set in whatever face the machine already had.
+
+Two things fall out of it. **A project can only forbid what the engine can
+draw** — so a rule about redrawing part of a mark requires the artwork to name
+that part. And a rule can be checked against the rest of the identity:
+**Carrock** is a sound archive whose mark is a disc, whose ident turns it, and
+whose manual therefore must not say never rotate it. The engine refuses the pair.
+Built with the code as it stood a round ago, all six of Carrock's cells showed
+the wrong picture — and the second of them showed the mark rotated, which is the
+one thing this identity does on purpose.
+
+The deck's version of the page had the same fault; both documents read one list
+now, so they cannot disagree about what a rule forbids. And the deck turned out
+to be carrying **the thirtieth round's own fault**: every slide in it is an
+English literal, so Verdon shipped a French manual and an English deck, both
+under `lang="fr"`. A language now says which documents it can write, and each
+document says which it is in.
 
 Still to do: a run on **your** identity job. Twenty identities the engine had
 not seen is worth a great deal more than twenty passes over one, but none of

@@ -225,6 +225,13 @@
   },
   "content": {
     "positioning": "Harbourne is three museums round one harbour.",
-    "markRationale": "The two arms of the harbour and the light on the end of one of them."
+    "markRationale": "The two arms of the harbour and the light on the end of one of them.",
+    "misuse": [
+      { "do": "stretch" },
+      { "do": "rotate" },
+      { "do": "recolour", "why": "A sub-brand brings its colour; nothing else brings one. The colour is the only thing that tells them apart." },
+      { "do": "crowd" },
+      { "do": "retype" }
+    ]
   }
 }

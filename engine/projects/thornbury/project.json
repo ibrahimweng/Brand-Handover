@@ -45,6 +45,13 @@
   },
   "content": {
     "positioning": "Thornbury Mills",
-    "misuse": ["Do not stretch it", "Do not rotate it", "Do not recolour it", "Do not add a shadow", "Do not crowd it", "Do not outline it"]
+    "misuse": [
+      { "do": "stretch" },
+      { "do": "rotate" },
+      { "do": "recolour" },
+      { "do": "shadow" },
+      { "do": "crowd" },
+      { "do": "outline" }
+    ]
   }
 }

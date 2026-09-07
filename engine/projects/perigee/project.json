@@ -227,12 +227,12 @@
   "content": {
     "positioning": "Perigee",
     "misuse": [
-      "Do not stretch it",
-      "Do not rotate it",
-      "Do not recolour the perigee",
-      "Do not add a shadow",
-      "Do not crowd it",
-      "Do not outline it"
+      { "do": "stretch" },
+      { "do": "rotate" },
+      { "do": "recolour", "why": "Not even the perigee." },
+      { "do": "shadow" },
+      { "do": "crowd" },
+      { "do": "outline" }
     ]
   }
 }

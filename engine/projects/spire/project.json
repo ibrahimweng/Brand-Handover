@@ -221,12 +221,12 @@
   "content": {
     "positioning": "Spire",
     "misuse": [
-      "Do not stretch it",
-      "Do not rotate it",
-      "Do not recolour the finial",
-      "Do not add a shadow",
-      "Do not crowd it",
-      "Do not outline it"
+      { "do": "stretch" },
+      { "do": "rotate" },
+      { "do": "recolour", "why": "Not even the finial." },
+      { "do": "shadow" },
+      { "do": "crowd" },
+      { "do": "outline" }
     ]
   }
 }

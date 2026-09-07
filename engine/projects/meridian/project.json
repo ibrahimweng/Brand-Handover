@@ -257,12 +257,13 @@
     "colourRationale": "Deep grounds everything and Chalk carries the page. Tide is for surfaces and charts. Beacon marks the single most important thing on a page and never more than three percent of it.",
     "typeRationale": "Archivo sets headings, the wordmark and any number a reader has to compare, because its figures are why it was chosen. Literata sets anything read for more than a line, and it prints well on the uncoated stock the annual review uses.",
     "misuse": [
-      "Do not stretch. Scale both axes together, always.",
-      "Do not rotate. The tide line is level or it is nothing.",
-      "Do not recolour outside the approved colourways.",
-      "Do not add a shadow, a glow, a bevel or an outline.",
-      "Do not place it on low contrast. Use the reversed mark.",
-      "Do not retype the wordmark. It is artwork, not live text."
+      { "do": "stretch", "why": "Scale both axes together, always." },
+      { "do": "rotate", "why": "The tide line is level or it is nothing." },
+      { "do": "recolour" },
+      { "do": "shadow" },
+      { "do": "outline" },
+      { "do": "busy", "why": "Use the reversed mark." },
+      { "do": "retype" }
     ],
     "constructionNotes": "The ring is five units in a twelve unit square, with a stroke of nine tenths of a unit. The tide line is an arc of three times the ring radius, crossing a quarter of a radius below centre. Everything is a whole fraction of r, so the mark rebuilds from one number."
   },

@@ -187,7 +187,14 @@
     "naming": "{brand}-{lockup}-{colourway}"
   },
   "content": {
-    "positioning": "Tarnbrook has been a mutual since 1861."
+    "positioning": "Tarnbrook has been a mutual since 1861.",
+    "misuse": [
+      { "do": "stretch" },
+      { "do": "rotate" },
+      { "do": "recolour" },
+      { "do": "shadow" },
+      { "do": "crowd" }
+    ]
   },
   "previous": "previous/brand.json"
 }

@@ -467,6 +467,34 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     }
   }
 
+  // ---- the page that says what not to do ----
+  //
+  // Read before anything is written, because a rule the engine cannot draw is a
+  // caption over the wrong picture and that is what this whole module exists to
+  // stop. Thirty-three of the 132 misuse cells in the thirty packages built
+  // before it contradicted their own captions. See src/misuse.js.
+  const MIS = require('./misuse');
+  const misuseRules = MIS.load(project);
+  // the same sentence the manual prints under the picture, from the same place
+  const MIS_L = require('./strings').resolve(project, 'manual');
+  const MIS_SAY = (r) => MIS_L.t(`say${r.do[0].toUpperCase()}${r.do.slice(1)}`, {
+    part: r.part, px: geo.floorText(measured.minimumSize, 'px'), x: measured.clearSpace });
+  for (const f of MIS.contradictions(misuseRules, project, measured)) {
+    if (f.level === 'blocker') { const e = new Error(f.what); e.findings = [f]; throw e; }
+    warnings.push(`${f.what} ${f.why} ${f.how}`);
+  }
+  if (!misuseRules.length) {
+    warnings.push('this identity states no misuse rules, so its manual has no misuse page. Every other '
+      + 'section of that manual says what the identity is; this is the only one that says what it is not, '
+      + 'and it is the page people actually look at before they do something to the mark. Add rules to '
+      + `content.misuse, each naming one of ${MIS.NAMES.join(', ')} and saying why it matters here.`);
+  } else {
+    notes.push(`the misuse page shows ${misuseRules.length} ${misuseRules.length === 1 ? 'rule' : 'rules'} `
+      + `— ${misuseRules.map((r) => r.do).join(', ')} — and each picture is this identity's own artwork with `
+      + 'that one thing done to it. The sentence under it is written from the treatment rather than typed '
+      + 'beside it, so the caption and the picture cannot disagree.');
+  }
+
   // Asked before anything is written, because it can stop the build.
   const vision = {};
   const visionBlockers = visionFindings(project, rules, warnings, notes, vision);
@@ -1045,6 +1073,14 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
           : `${naming.folderFor(b.name)}/`,
         note: ladder.rungs[i].note || null,
       })) : null,
+      // What must not be done to it. Prose until the thirty-first round, so a
+      // client's tools could read every measurement in this file and not one of
+      // the rules: a treatment the engine can name is a treatment somebody
+      // else's software can check for. See src/misuse.js.
+      misuse: misuseRules.length ? misuseRules.map((r) => ({
+        do: r.do, part: r.part, why: r.why,
+        draws: MIS.TREATMENTS[r.do].draws,
+      })) : null,
       // What it is made as, which drawing goes to each maker, and what the
       // process does to it that a screen does not show. See src/fabrication.js.
       fabrication: made ? made.map((m) => ({
@@ -1222,6 +1258,13 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       '                  A pair with a partner holds at neither brand\'s figure.',
       '                  11-partners and the manual state each one.'] : []),
     `  Colourways      ${rules.colourways.map((c) => c.name).join(', ')}.`,
+    // The one rule anybody reads before doing something to a mark, and it was in
+    // the manual only. Each line is the sentence the manual prints under the
+    // picture of that treatment, so the two cannot say different things.
+    ...(misuseRules.length ? [
+      `  Never           ${MIS_SAY(misuseRules[0])}`,
+      ...misuseRules.slice(1).map((r) => `                  ${MIS_SAY(r)}`),
+      '                  The manual shows each of these done to this mark.'] : []),
     // Every read me has printed one smallest size and stopped. Where an
     // identity says what happens below it, that is the useful half.
     ...(ladder ? [
@@ -1330,15 +1373,28 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     }
     // A project in a language the engine cannot write gets an English document
     // that says so, rather than an English document pretending to be in theirs.
-    const L = require('./strings').resolve(project);
+    const L = require('./strings').resolve(project, 'manual');
+    const LD = require('./strings').resolve(project, 'deck');
     if (!L.speaksBrand) {
       warnings.push(`this identity is in ${L.brandLang} and its documents are written in ${L.name}. `
         + `They say so: the page carries lang="${L.lang}" and ${project.brand}'s own words carry `
         + `lang="${L.brandLang}"${L.brandDir !== L.dir ? ` dir="${L.brandDir}"` : ''}, which is what stops a `
         + 'reader being told the whole document is in a language it is not — and, before the thirtieth round, '
         + `stopped ${L.brandDir === 'rtl' ? 'an English manual being laid out right to left' : 'a page claiming a language it does not write'}. `
-        + `The engine writes ${L.available.join(' and ')}; adding ${L.brandLang} is a block of strings in `
+        + `The engine writes ${L.available.join(' and ')} manuals; adding ${L.brandLang} is a block of strings in `
         + 'src/strings.js and nothing else.');
+    }
+    // The two documents are not written from the same words, and until the
+    // thirty-first round only the manual's were in the dictionary: Verdon's
+    // deck was English prose under lang="fr", which is the fault the round
+    // before it had just finished fixing, one level down.
+    if (LD.lang !== L.lang) {
+      warnings.push(`the manual is in ${L.name} and the deck is in ${LD.name}, and each says which it is. `
+        + `Every slide in the deck is a literal in src/documents/deck.js rather than a string in the `
+        + `dictionary, so ${L.wantedName} can write a manual and cannot yet write a deck. A deck carrying `
+        + `lang="${L.lang}" over English prose would be the thirtieth round's fault again: a reader's software `
+        + 'was guessing right until the document overruled it. Move the deck\'s words into src/strings.js and '
+        + 'this goes away.');
     }
     write('ACCESSIBILITY.txt', ACC.statement(acc, { brand: project.brand,
       standard: (rules.accessibility || {}).standard || 'WCAG 2.2 AA' }));

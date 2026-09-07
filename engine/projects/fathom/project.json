@@ -45,7 +45,14 @@
   },
   "content": {
     "positioning": "Fathom",
-    "misuse": ["Do not stretch it", "Do not rotate it", "Do not recolour the tide", "Do not add a shadow", "Do not crowd it", "Do not outline it"]
+    "misuse": [
+      { "do": "stretch" },
+      { "do": "rotate" },
+      { "do": "recolour", "why": "Not even the tide." },
+      { "do": "shadow" },
+      { "do": "crowd" },
+      { "do": "outline" }
+    ]
   },
   "system": {
     "pattern": { "tile": 96, "rowSpacing": 0.26, "phase": 0.5, "weight": 5, "cap": "round",

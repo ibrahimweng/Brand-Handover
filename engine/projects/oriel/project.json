@@ -77,12 +77,11 @@
     "markRationale": "The bay itself, drawn in elevation on the building's own module: the light, the transom, the mullions and the corbel that carries it.",
     "constructionNotes": "Nothing in any tier is placed by eye. The box is sixteen units square, the bay is ten units across and eight deep, and the corbel falls three units below it.",
     "misuse": [
-      "Do not use the full mark below the size at which it stops holding; the ladder says which drawing to use instead.",
-      "Do not redraw a tier to sit between two of them.",
-      "Do not stretch the mark to fill a space.",
-      "Do not rotate it.",
-      "Do not put it on a photograph without a scrim.",
-      "Do not recolour it outside the colourways."
+      { "do": "undersize", "why": "The ladder says which drawing to use instead." },
+      { "do": "stretch" },
+      { "do": "rotate" },
+      { "do": "busy", "why": "Not without a scrim." },
+      { "do": "recolour" }
     ]
   }
 }

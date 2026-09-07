@@ -1514,6 +1514,55 @@ guessing correctly was overruled by an authoritative error. Metadata is only an
 improvement on silence when it is true; the check that it is *present* is not the
 check that matters.
 
+**Two lists joined by position is a lie waiting for its second caller.** The
+misuse page drew six fixed treatments and captioned them with the project's six
+sentences, matched by array index. It was right for the first fixture, whose
+sentences happened to be in that order, and it stayed plausible for thirty
+because nobody compares a picture with the words under it — that is the reader's
+job, and the reader assumes the document did it. A quarter of the cells across
+the whole repository contradicted their own captions. Any time a caption and the
+thing it captions come from two different places, ask what actually joins them;
+if the answer is "the order they were written in", it is already wrong somewhere.
+
+**Write the caption from the picture, not beside it.** The fix is not a check
+that the pairs agree. It is to stop having pairs: the rule names the treatment,
+the engine performs it and then says what it did. A caption derived from the
+drawing cannot drift from the drawing, in the same way that a measurement read
+off the artwork cannot drift from the artwork. It is the same rule this engine
+has followed for numbers since the first week, applied to a sentence for the
+first time.
+
+**You can only forbid what you can draw.** Making a treatment a named thing the
+engine performs meant a rule about redrawing part of a mark now needs the artwork
+to name that part. That felt like a restriction and is the opposite: eleven rules
+across the fixtures turned out to be about something other than the mark, or
+about the drawing in a way no picture could show, and each of them had been
+printed for rounds under a picture of something else. A vocabulary you cannot
+draw from is a vocabulary that will be illustrated at random.
+
+**A rule can be wrong about the identity it belongs to.** Nothing had ever
+compared the misuse page with the rest of the project, so a manual could forbid
+what the ident does. Carrock's mark turns; a rule against rotating it would be a
+contradiction a reader can see in two clicks and the engine could not see at all.
+The rules a document states about a thing and the behaviour of the thing are two
+descriptions of one identity, and the moment there are two descriptions, they
+need comparing.
+
+**An unconditional section will one day be empty.** Eight of thirty manuals
+printed a numbered heading, a *Drawn by the system* badge and an empty box,
+because the misuse section was written as always-present and nothing asked
+whether it had anything in it. The icon chapter learned this two rounds earlier
+and the lesson did not travel. Worth doing once, properly: every section that
+renders a list should be gated on the list.
+
+**Fixing a claim in one document does not fix it in the one beside it.** The
+thirtieth round made the manual say what language it is in. The deck sat next to
+it, took the same language, and is made entirely of English literals — so the
+identity that proved the fix, Verdon, shipped the exact fault the fix was for.
+When a defect is a class rather than an instance, the question after fixing it is
+not "is it fixed" but "where else does this shape occur", and the nearest place is
+usually the file next door.
+
 ---
 
 Prior art checked September 2026: Logo Package Express, Standards, Brandpad,

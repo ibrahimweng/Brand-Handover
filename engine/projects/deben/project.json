@@ -213,6 +213,13 @@
   },
   "content": {
     "positioning": "Deben warns the estuary when the water is coming.",
-    "markRationale": "A gauge board: the staff, the high water mark, and the level now."
+    "markRationale": "A gauge board: the staff, the high water mark, and the level now.",
+    "misuse": [
+      { "do": "stretch" },
+      { "do": "rotate" },
+      { "do": "recolour", "why": "The palette was moved apart until it survives every kind of colour vision. A colour from outside it has not been." },
+      { "do": "busy" },
+      { "do": "crowd" }
+    ]
   }
 }

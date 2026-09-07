@@ -45,12 +45,11 @@
     "positioning": "Rookhope runs twelve libraries on one ticket.",
     "markRationale": "A book open on a table, seen from the side, with nothing in it that a photocopier cannot hold.",
     "misuse": [
-      "Do not set the smallest type in anything but the darkest ink.",
-      "Do not use the mark below the size in the read me.",
-      "Do not stretch it.",
-      "Do not rotate it.",
-      "Do not put it on a photograph without a scrim.",
-      "Do not recolour it outside the colourways."
+      { "do": "undersize", "why": "The figure is in the read me, and it is the one for the folder the file came out of." },
+      { "do": "stretch" },
+      { "do": "rotate" },
+      { "do": "busy", "why": "Not without a scrim." },
+      { "do": "recolour" }
     ]
   }
 }

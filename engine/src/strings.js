@@ -23,7 +23,11 @@
 // is the honest answer and the one a screen reader can act on.
 
 const EN = {
-  lang: 'en', dir: 'ltr', name: 'English',
+  // Which of the two documents this dictionary can write. The manual takes its
+  // chrome from here; the deck's prose is still literals in documents/deck.js,
+  // so only English can write one. A language that cannot write a document does
+  // not get to put its name on it — see resolve() below.
+  lang: 'en', dir: 'ltr', name: 'English', writes: ['manual', 'deck'],
   eyebrow: 'Brand manual · generated from one master file',
   manualTitle: '{brand} brand manual',
   deckTitle: '{brand} · brand deck',
@@ -38,6 +42,18 @@ const EN = {
   secConstruction: 'Construction', secClearSpace: 'Clear space',
   secMinimumSize: 'Minimum size', secEverySize: 'The mark at every size',
   secLockups: 'The lockup system', secPartners: 'Partner lockups', secMisuse: 'Misuse',
+  // One sentence per treatment the engine can draw, so the caption is written
+  // from the picture rather than sitting beside it hoping. See src/misuse.js.
+  sayStretch: 'Do not stretch or squash it.',
+  sayRotate: 'Do not rotate it.',
+  sayCrowd: 'Do not crowd it. Clear space is {x} units on every side.',
+  sayUndersize: 'Do not use it below {px}.',
+  sayRecolour: 'Do not recolour it outside the palette.',
+  sayShadow: 'Do not add a shadow, a glow or a bevel.',
+  sayOutline: 'Do not outline it.',
+  sayBusy: 'Do not put it on a busy ground without a scrim.',
+  sayRedraw: 'Do not redraw it. The {part} belongs to the drawing.',
+  sayRetype: 'Do not retype the name. It is artwork, not live text.',
   secPalette: 'The palette', secGradient: 'The gradient',
   secContrast: 'Contrast and accessibility', secColourVision: 'Colour vision',
   secTypefaces: 'The typefaces', secScale: 'The scale',
@@ -56,7 +72,7 @@ const EN = {
 // nobody has ever hung anything on. Verdon is a French regional park and its
 // manual is a French document.
 const FR = {
-  lang: 'fr', dir: 'ltr', name: 'français',
+  lang: 'fr', dir: 'ltr', name: 'français', writes: ['manual'],
   eyebrow: 'Charte graphique · générée à partir d’un seul fichier maître',
   manualTitle: 'Charte graphique {brand}',
   deckTitle: '{brand} · présentation de la marque',
@@ -71,6 +87,16 @@ const FR = {
   secConstruction: 'Construction', secClearSpace: 'Zone de protection',
   secMinimumSize: 'Taille minimale', secEverySize: 'Le symbole à chaque taille',
   secLockups: 'Les verrouillages', secPartners: 'Verrouillages partenaires', secMisuse: 'Usages interdits',
+  sayStretch: 'Ne pas l’étirer ni le comprimer.',
+  sayRotate: 'Ne pas le faire pivoter.',
+  sayCrowd: 'Ne pas l’enserrer : la zone de protection est de {x} unités sur chaque côté.',
+  sayUndersize: 'Ne pas l’utiliser en dessous de {px} px.',
+  sayRecolour: 'Ne pas le recolorer hors de la palette.',
+  sayShadow: 'Ne pas ajouter d’ombre portée, de halo ni de biseau.',
+  sayOutline: 'Ne pas le détourer.',
+  sayBusy: 'Ne pas le poser sur un fond chargé sans voile.',
+  sayRedraw: 'Ne pas le redessiner : {part} fait partie du dessin.',
+  sayRetype: 'Ne pas ressaisir le nom : c’est un tracé, pas du texte.',
   secPalette: 'La palette', secGradient: 'Le dégradé',
   secContrast: 'Contraste et accessibilité', secColourVision: 'Vision des couleurs',
   secTypefaces: 'Les caractères', secScale: 'L’échelle',
@@ -88,17 +114,27 @@ const FR = {
 const HAVE = { en: EN, fr: FR };
 
 // The language a document is written in, which is the engine's unless the
-// project's own is one the engine can write.
-function resolve(project) {
+// project's own is one the engine can write — and it is asked per document,
+// because the two are not written from the same words. Verdon shipped a French
+// manual and a deck of English prose under lang="fr", which is the thirtieth
+// round's fault repeated one level down: the check was that a language had been
+// declared, not that the document was in it.
+function resolve(project, which = 'manual') {
   const want = String((project && project.language) || 'en').toLowerCase().split(/[-_]/)[0];
-  const set = HAVE[want] || EN;
+  const asked = HAVE[want];
+  const set = asked && (asked.writes || ['manual']).indexOf(which) > -1 ? asked : EN;
   const t = (key, vars) => {
     let s = set[key] !== undefined ? set[key] : EN[key];
     if (s === undefined) return key;
     for (const [k, v] of Object.entries(vars || {})) s = s.split(`{${k}}`).join(String(v));
     return s;
   };
-  return { lang: set.lang, dir: set.dir, name: set.name, t,
+  return { lang: set.lang, dir: set.dir, name: set.name, t, document: which,
+    // what the project asked for, and whether this document could be written in
+    // it: the deck of a French project is English until deck.js takes its words
+    // from here, and saying so is the difference between a claim and a lie
+    wanted: want, wantedName: (asked && asked.name) || want,
+    writes: (asked && (asked.writes || ['manual'])) || [],
     // Whether the brand's own language is the one this document is written in.
     // Where it is not, the brand's words carry their own lang and dir and the
     // document carries the engine's, which is what makes both claims true.

@@ -2874,6 +2874,140 @@ The seventh round's test is rewritten rather than deleted. It was half right and
 the wrong half: it found four documents declaring English whatever was in them,
 and fixed it by declaring the brand's language on a document written in English.
 
+## A thirty-first identity
+
+The page that says what not to do.
+
+A misuse page is a set of pairs: a picture of the mark treated badly, and a
+sentence naming the treatment. The engine drew six pictures in a fixed order —
+stretched, rotated, recoloured, shadowed, on a busy ground, outlined — and
+captioned them with whatever sentences the project happened to list, in the order
+it happened to list them. **Nothing joined a sentence to the picture above it
+except the index of an array.**
+
+Measured across the thirty packages built before this round: **132 misuse cells,
+of which 33 showed a picture that contradicts its own caption**, and eighteen
+more carried a caption about something the engine cannot draw at all, so the
+picture beside it was arbitrary.
+
+    Ravelston  "Do not add a drop shadow to make it look engraved."
+               drawn: the mark on a striped green ground, no shadow on it
+    Ravelston  "Do not place it on a photograph without the reversed lockup."
+               drawn: the mark outlined
+    Rookhope   "Do not rotate it."          drawn: the mark with a drop shadow
+    Oriel      "Do not stretch the mark."   drawn: the mark in magenta
+    Lammas     "Do not put Ember behind text."  drawn: the mark with a shadow
+
+**Fourteen projects had a rule about crowding and every one of them got a mark on
+a striped green ground**, because crowding was the one thing on that page the
+engine had never been able to draw at all. Eight of the thirty stated no misuse rules and got a
+numbered heading, a *Drawn by the system* badge and an empty box.
+
+The only page in the manual whose whole job is to be unambiguous was the one page
+in it that could not be trusted.
+
+So a misuse rule is not a sentence any more. `src/misuse.js` holds ten treatments
+the engine can perform on the identity's own artwork; a rule names one, the
+engine writes the sentence from the treatment it drew, and the designer's reason
+follows underneath in their own words — the half a machine cannot supply.
+
+    "misuse": [
+      { "do": "redraw", "part": "label",
+        "why": "A disc with nothing in the middle is a target." },
+      { "do": "undersize", "why": "Below the floor the grooves close into one ring." },
+      { "do": "crowd",  "why": "Clear space here is the label itself." }
+    ]
+
+    stretch    the mark scaled on one axis only
+    rotate     the mark turned off its baseline
+    crowd      the clear space rule with type and rules set inside it
+    undersize  the mark below the floor measured for it
+    recolour   the mark in an ink that is not in the palette
+    shadow     the mark with a drop shadow under it
+    outline    the mark hollowed out and keylined
+    busy       the mark on a ground it has to compete with
+    redraw     the mark with one named part taken out of it
+    retype     the name set in a face that is not the identity's
+
+Four of the ten are new, and they are the ones a real manual keeps asking for.
+`crowd` draws the clear space rule from the same two numbers section 1.3 states,
+with a block and two rules set inside it. `undersize` draws the mark at the
+figure the third step of the minimum size block already calls *below the floor*,
+inside a dashed box the size of the floor. `redraw` takes a named part out of the
+master. `retype` sets the brand's name in whatever face the machine already had.
+
+Two things fall out of it, and both are worth having.
+
+**A project can only forbid what the engine can draw.** A rule about redrawing
+part of a mark requires the artwork to name that part, with the `data-part` the
+twenty-eighth round added — so Winterbourne, Yamabiko and Lammas name a stave, an
+echo and a band, and the rule and the drawing are about the same thing. Eleven
+rules across the fixtures survived the migration and are not on this page any
+more: seven were about something other than the mark — a poster's type size, a
+colour behind text, the face a name is set in — and four were about the drawing
+in a way that taking a part out of it cannot show, among them Oriel's *do not
+redraw a tier to sit between two of them*. A rule the engine cannot draw is a
+caption over the wrong picture, which is the whole of what this round is about.
+
+**A rule can be checked against the rest of the identity.** `contradictions()`
+compares the rules with what the identity actually does:
+
+    ✗ the manual says never rotate the mark, and the ident turns inner
+      and middle and outer.
+      One of the two is wrong, and a reader who watches the ident and then
+      reads the page cannot tell which. A rule the identity itself breaks is
+      worse than no rule, because it teaches the reader that the rules on
+      this page are decoration.
+      → If the mark turns, drop the rotate rule and say in the ident section
+        what the turn is for. If it does not, take the turn out of
+        system.motion.build.
+
+**Carrock** is a sound archive: a disc read from the outside in, three grooves
+each interrupted where the one outside it left off, and a label in the middle.
+The ident is the disc coming up to speed — the label arrives, then each groove
+turns into line behind it. **The mark turns**, so its manual has no rule against
+turning it, and the engine refuses one. Its six rules are `redraw`, `undersize`,
+`retype`, `crowd`, `recolour`, `busy`: four of them things the old page could not
+draw, and none of them in the old fixed order.
+
+Built with the code as it stood at the end of the thirtieth round, all six of
+Carrock's cells showed the wrong picture:
+
+    cell 0  the mark stretched     under "Do not redraw the label…"
+    cell 1  the mark ROTATED       under "Do not use the mark below its floor…"
+    cell 2  the mark in magenta    under "Do not retype the name…"
+    cell 3  the mark shadowed      under "Do not crowd it…"
+    cell 4  on a busy ground       under "Do not recolour it…"
+    cell 5  the mark outlined      under "Do not put it on a photograph…"
+
+The second cell is the one that matters: a manual forbidding, in a picture, the
+one thing this identity does on purpose.
+
+Carrock is also set out in radii and degrees rather than on a square module, so
+it states no `system.grid` — the engine checks every point against a declared
+module, and a polar drawing fails that check honestly. It said so, and the fixture
+took the note rather than the claim.
+
+The deck's misuse slide had the same fault and one of its own: a heading reading
+*Six ways it breaks* whatever the count, every mark painted in the ground colour
+whatever it stood on, and the same six treatments in the same fixed order. Both
+documents draw from one list now, so they cannot disagree about what a rule
+forbids, and a project with no rules gets no slide and no line about one on the
+divider.
+
+And the deck turned out to be carrying the thirtieth round's own fault. Every
+slide in `documents/deck.js` is an English literal, so **Verdon shipped a French
+manual and an English deck, both under `lang="fr"`** — a page claiming a language
+it is not written in, which is exactly what the round before had finished fixing.
+A dictionary now says which documents it can write:
+
+    const FR = { lang: 'fr', … writes: ['manual'] };
+    resolve(project, 'manual') → fr        resolve(project, 'deck') → en
+
+Each document says which language it is in, and the build says why they differ.
+Moving the deck's words into `src/strings.js` closes it; until then the claim on
+the page is true, which is the part that could not wait.
+
 ## A front door
 
 Sixteen rounds, and the only way into the engine was to hand-write a project
@@ -2967,6 +3101,7 @@ the mechanism. The name was the cause, and renaming the payload is the fix.
     src/surface.js    the mark mapped into a surface, and whether it reads there
     src/licence.js    plans, signed licences, and what the client owns
     src/pattern.js    seamless tiles cut from the shape you marked
+    src/misuse.js     what not to do, drawn from the artwork rather than described
     src/documents/    blocks.js, chrome.js, index.js (manual), deck.js
     projects/meridian/  the first identity: one stroked mark, one ink
     projects/halyard/   the second: filled artwork, two inks, four faults left in
@@ -2998,6 +3133,7 @@ the mechanism. The name was the cause, and renaming the payload is the fix.
     projects/farne/   the twenty-eighth: a mark that arrives, in a file that plays it
     projects/rookhope/ the twenty-ninth: the documents the engine writes, measured
     projects/verdon/  the thirtieth: a French document, because the brand is French
+    projects/carrock/ the thirty-first: a mark that turns, and a manual that knows it
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package
