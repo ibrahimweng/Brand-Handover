@@ -3583,6 +3583,159 @@ alphabet. The canvas is a third document a dictionary declares now, English
 writes it and français does not, and the build says which files its words are
 still literals in.
 
+## Five hundred exports the engine had never seen
+
+Thirty-one identities is thirty-one drawings that came to the engine already
+willing to be measured. The normaliser is the one part written for the opposite
+case — artwork out of somebody else's hand, on somebody else's layers, with
+whatever that program happened to write — and it had never met one at scale.
+
+What is on this machine is not identity artwork. It is 16,311 SVG files that are
+not the engine's own, of which 3,624 are signed by Inkscape and 32 by
+Illustrator: icon themes, mostly. A status icon is not a logo and this run is not
+the run the standing item asks for. But the normaliser's failures are failures
+about what an exporter writes — layers, transforms, clip paths, coordinate
+spaces — and about those a 22 px status icon out of Inkscape is exactly as real
+as a wordmark out of Inkscape.
+
+So: 508 of them, each dropped in as the mark of a complete package build. Not
+`check`, which is the front door and was already exercised — the whole house.
+Measurement, rasterising, the pattern, the PDFs, the zip.
+
+    508 builds     267 from Inkscape, 16 from Illustrator, 225 unsigned
+    332 built
+     41 refused
+    135 aborted the process outright
+
+The 41 are the engine working. They are live text and embedded images, refused at
+the door in words a designer can act on. A refusal is an answer.
+
+The 135 are not an answer. `resvg` does not throw on the input that beats it: it
+panics from Rust and takes the process with it — exit 134, SIGABRT, no exception,
+nothing any `try`/`catch` in this codebase can see. It also defeats the engine's
+own habit of reading back every file it writes, because the read back aborts too.
+One build in four ended with no findings, no report and no zip, and nothing in
+the engine had a way to notice.
+
+Five defects.
+
+### A tile mostly full of copies that drew nothing
+
+122 of the 508. The pattern emits a copy of the motif for every neighbouring tile
+it might cross into, and it decided how many from the cell size rather than from
+how much of the cell the drawing actually covers. A 16 unit shape in a 45 unit
+cell got ten copies, of which three could be seen. The tile is clipped to itself,
+and a clipped group whose contents all fall outside the clip is a shape resvg
+aborts on — so the seven that drew nothing were not merely weight in the file.
+
+Culling them took three tries, and the first two are the point. Comparing the
+instance's reach against the cell culled nothing. Deriving a bound from the
+motif's declared box, its scale and its stroke still left seven copies in ten
+outside the tile — because a motif's box is what the ranking measured and the
+markup around it draws further: lammas's measures 52 by 38 and paints 56 by 94.
+Only rendering the motif and reading its real ink was right. It is measured once
+per motif and remembered.
+
+### Three ways of reading geometry in the wrong space
+
+**The normaliser moved the artwork.** `placePass` works out where each shape
+lands, which means applying the shape's own transform — and then wrote those
+placed coordinates back into the `d` while leaving the transform on the element,
+so it was applied twice. A shape at (7, 4) came out at (-218, -993). It only did
+this when some *other* shape in the file was off the artboard, which is why it
+took five hundred real exports to find, and why no fixture had it: the pass has
+to have a reason to rewrite anything at all before it rewrites everything.
+
+**A shape lifted out of the drawing left its place behind.** `pattern.candidates`
+takes each shape out of the file on its own to rank it as a motif, and left the
+group transform above it behind. The drawing it is handed is the export as the
+client sent it — `masterOf().source` is read off disk, not put through the
+normaliser — so the layers are still there. An Inkscape layer is a group
+translated by the document height, and leaving that behind put a shape on one at
+y = 1004 in a 24 unit box: outside the drawing, and drawn at a fifth opacity,
+which is again a shape resvg does not survive.
+
+**The normaliser deleted artwork that was on the artboard.** `shapeExtents` read
+the shape's own transform and no ancestor's. On a file whose every shape sits on
+one offset layer, every shape is off the artboard by that reckoning, and the pass
+removed them — and then reported, in a designer's words, that it had tidied
+something up. This is the worst of them: the others end in a crash, which is
+at least loud. It is also why the refusals fell from 41 to 32. Nine
+files were being refused as having nothing left to measure, because the engine
+had just deleted all of it.
+
+All three are the same fault. Geometry read in one coordinate space and used in
+another — and each time, the coordinate space that was missing belonged to a
+layer, which is the thing every drawing program puts artwork on and no fixture in
+this repository had.
+
+### The fifth, which the measurement found in the other four
+
+Re-running all 508 against the four fixes took the aborts from 135 to 6. Four of
+those six had aborted before as well. **Two of them had built before and now did
+not** — a regression, in a run whose whole purpose was to prove the opposite.
+
+They were the last defect's own doing. Once the normaliser stopped deleting
+artwork on an offset layer, those two files kept shapes they had previously lost,
+and among the shapes was one carrying `opacity=".5"`.
+
+The rule, measured rather than guessed at — a clip, a group, a path, in and out
+of the tile, one shape at a time:
+
+    a plain group entirely outside the clip            renders
+    a group with opacity, entirely outside             ABORTS
+    a group with opacity, straddling the edge          renders
+    a path with opacity, entirely outside              ABORTS
+    a nested clip group, entirely outside              ABORTS
+
+Anything that makes resvg build an isolation layer — `clip-path`, `mask`,
+`filter`, `opacity` — aborts if what it applies to falls entirely outside the
+clip. It is the layer that unwraps a `None`, so it is exactly those four
+attributes and nothing else, and it applies to a `<path>` as much as to a `<g>`.
+The cull cannot reach this: it works on whole copies, and this is one path inside
+a copy that legitimately straddles the edge.
+
+`onlyShapes` already stripped three of the four, each added the last time one of
+them took a build down. `painted()` now strips the fourth — which it should have
+been doing anyway, because `painted()` exists to discard the artwork's own paint
+and repaint the motif in one ink at one weight, and `opacity` is paint. Zero is
+left alone: `opacity="0"` is the invisible bounding box Illustrator leaves
+behind, and stripping it would turn artwork that draws nothing into artwork that
+draws.
+
+With that, all six build, and so does everything else. The same 508, against the
+same engine, once the tree had stopped moving:
+
+    508 builds
+    476 built                     was 332
+     32 refused                   was 41 — live text and embedded images, all of it
+      0 aborted the process       was 135
+
+Nothing regressed: every file that built before builds now. The 135 that used to
+abort all build. The nine that moved out of the refusals are the ones the
+normaliser had been emptying — refused for having nothing left to measure, by the
+pass that had just deleted it.
+
+### What it cost the identities that already worked
+
+Every tile of every one of the 31, rendered before and after and compared pixel
+by pixel:
+
+    16 pixel-identical
+    15 differing at an edge — at most 94 pixels of 720,000, none of them
+       adjacent to another, worst channel 29 of 255
+
+A dropped copy that showed would be one contiguous patch of thousands of pixels
+at full contrast. These are single pixels, ninety-two separate spots in the worst
+file, biggest run of two — the rasteriser compositing a different number of
+layers. Nothing that could be seen was cut.
+
+Two fixtures now carry the shapes. `test/fixtures/off-tile-clip.svg` is the
+smallest file that aborts resvg, kept with a warning that nothing may render it,
+and `test/fixtures/layer-offset.svg` is a mark on a layer a thousand units away
+with one shape carrying a transform of its own and one shape off the artboard,
+which is the smallest thing that has three of the five at once.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.

@@ -1,0 +1,34 @@
+<!-- Nothing may render this file.
+
+     It is the smallest thing that makes resvg abort: a group clipped to the
+     tile whose whole contents fall outside the clip. resvg does not return an
+     error and does not throw — it panics from Rust and takes the process with
+     it, which no try/catch can catch and which defeats the engine's own habit
+     of reading back every file it writes, because the read back aborts too.
+
+     The rule, measured rather than guessed at: anything that makes resvg build
+     an isolation layer — clip-path, mask, filter, or opacity — aborts if what
+     it applies to falls entirely outside the clip. A plain group out there is
+     fine, and one straddling the edge is fine. It is the layer that unwraps a
+     None, so it is exactly the four attributes and nothing else. onlyShapes
+     drops the first three and painted() now drops the fourth.
+
+       thread '<unnamed>' panicked at crates/resvg/src/geom.rs:27:61:
+       called `Option::unwrap()` on a `None` value
+
+     The engine used to write this shape. src/pattern.js emits a copy of the
+     motif for every neighbouring tile it might cross into, and it decided that
+     from the cell size rather than from how much of the cell the drawing
+     actually covers — so a 16 unit shape in a 45 unit cell got ten copies, of
+     which three could be seen. Seven drew nothing, and on 122 real exports out
+     of 508 the ones that drew nothing were enough to abort the build.
+
+     It is kept here so the shape is written down. wrapped() now emits only the
+     copies whose own extent overlaps the tile, and the test beside this file
+     checks that every tile the engine writes holds only those. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 90" width="45" height="90">
+  <defs><clipPath id="c"><rect width="45" height="90"/></clipPath></defs>
+  <g clip-path="url(#c)">
+    <g transform="translate(500 500)"><path fill="#000" d="M0 0h10v10H0z"/></g>
+  </g>
+</svg>

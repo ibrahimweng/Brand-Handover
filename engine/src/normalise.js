@@ -292,18 +292,39 @@ function shapeExtents(doc) {
     if (!d) return;
     let segs;
     try { segs = paths.parse(d); } catch (_) { return; }
-    const t = el.getAttribute('transform');
-    if (t) { try { segs = paths.transformSegs(segs, paths.parseTransform(t)); } catch (_) { /* as written */ } }
+    // Where the shape lands is the path data with its own transform applied.
+    // What is written back is the path data as written, because the transform
+    // stays on the element: writing the placed coordinates back under a
+    // transform that is still there applies it twice, and one real Inkscape
+    // export had a shape moved from (7, 4) to (-218, -993) that way — off the
+    // artboard, invisible, and the shape resvg aborts on.
+    // Every transform between this shape and the root, outermost first. An
+    // Inkscape layer is a group translated by the document height, and reading
+    // only the shape's own transform put every shape on one at y = 1004 in a
+    // 24 unit box — off the artboard, by the engine's own reckoning, so it
+    // deleted the artwork and said it had tidied something up.
+    let matrix = paths.IDENTITY;
+    const above = [];
+    for (let up = el; up && up.nodeType === 1; up = up.parentNode) {
+      const t = up.getAttribute && up.getAttribute('transform');
+      if (t) above.unshift(t);
+    }
+    for (const t of above) {
+      try { matrix = paths.multiply(matrix, paths.parseTransform(t)); } catch (_) { /* as written */ }
+    }
+    let placed = segs;
+    if (above.length) { try { placed = paths.transformSegs(segs, matrix); } catch (_) { placed = segs; } }
     // Per subpath, not per path. The cleaner merges paths that share a style,
     // so an old shape sitting right off the artboard gets folded in with a
     // real one and stops looking like it is outside anything.
     let cur = null;
     const close = () => { if (cur && cur.minX !== Infinity) out.push(cur); cur = null; };
     const open = () => { cur = { el, segs: [], minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity }; };
-    for (const sg of segs) {
+    for (let i = 0; i < placed.length; i++) {
+      const sg = placed[i];
       if (sg.op === 'move') { close(); open(); }
       if (!cur) open();
-      cur.segs.push(sg);
+      cur.segs.push(segs[i]);
       for (const pt of [sg.to, sg.c1, sg.c2]) {
         if (!pt || !Number.isFinite(pt[0]) || !Number.isFinite(pt[1])) continue;
         cur.minX = Math.min(cur.minX, pt[0]); cur.maxX = Math.max(cur.maxX, pt[0]);
@@ -481,4 +502,4 @@ function normalise(source, { tokens } = {}) {
     slots: stopped ? [] : assigned.slots, bytes: { before, after } };
 }
 
-module.exports = { normalise, inspect, preClean, hex, distance, SNAP_DISTANCE };
+module.exports = { normalise, inspect, preClean, placePass, shapeExtents, hex, distance, SNAP_DISTANCE };

@@ -1090,11 +1090,65 @@ so once français wrote both documents, **Verdon's canvas declared `lang="fr"`
 over Undo, Pages and Add a block.** The check that catches Hebrew cannot catch
 this: French and English are the same alphabet.
 
-Still to do: a run on **your** identity job. Twenty identities the engine had
-not seen is worth a great deal more than twenty passes over one, but none of
-them came out of your exporter — and the normaliser is the part that most needs
-to meet one. And a third language: `en` and `fr` are two, and two is enough to
-prove the mechanism is a mechanism, but the first non-Latin one will find things
-neither of these could. The canvas is answerable for itself now, but a screen
-reader has still never been pointed at it: what it says is measured, how it
-sounds is not.
+The thirty-fifth took the engine to five hundred drawings it had never seen.
+
+Five hundred and eight exports the engine had never seen, each built as a
+complete package rather than passed through the front door. Not the identity job
+that item asks for — there is no identity artwork on this machine — but 16,311
+SVG files that are somebody else's output, 267 of the 508 signed by Inkscape and
+16 by Illustrator. A status icon is not a logo, and about layers, transforms and
+coordinate spaces it is exactly as real as one.
+
+    332 built     41 refused     135 aborted the process outright
+
+The 41 are the engine working: live text and embedded images, refused at the door
+in words a designer can act on. The 135 are not an answer at all. `resvg` does
+not throw on the input that beats it — it panics from Rust and takes the process
+with it, which no `try`/`catch` sees, and which defeats the engine's own habit of
+reading back every file it writes, because the read back aborts too. One build in
+four ended with no findings, no report and no zip.
+
+Five defects. **The pattern filled each tile with copies that drew nothing** — it
+decided how many neighbours to emit from the cell size rather than from how much
+of the cell the drawing covers, so a 16 unit shape in a 45 unit cell got ten
+copies of which three could be seen, and that ended 122 of the builds. Culling
+them took three tries: only rendering the motif and reading its real ink was
+right, because a motif's box is what the ranking measured and the markup around
+it draws further — lammas's measures 52 by 38 and paints 56 by 94.
+
+Three more are one mistake told three ways, and each time the missing coordinate
+space belonged to a layer — the thing every drawing program puts artwork on, and
+that no fixture here had. **The normaliser moved the artwork**, writing placed
+coordinates back under a transform that was still there, so it applied twice and
+a shape at (7, 4) came out at (-218, -993). **A shape lifted out to be ranked as
+a motif left its place behind**, landing at y = 1004 in a 24 unit box. And **the
+normaliser deleted artwork that was on the artboard**, because it read a shape's
+own transform and no ancestor's — then reported that it had tidied something up,
+which is the worst of them, the others being at least loud. It is also why nine
+files that had been refused as having nothing left to measure now build.
+
+The fifth was found by the re-run catching a regression of its own: two files
+that had built before the fixes now aborted, because artwork the normaliser had
+been deleting was back, and one shape in it carried `opacity=".5"`. Measured one
+shape at a time, the rule is that **anything making resvg build an isolation
+layer — `clip-path`, `mask`, `filter`, `opacity` — aborts if what it applies to
+falls entirely outside the clip**; a plain group out there is fine, and one
+straddling the edge is fine. `onlyShapes` already stripped three of the four,
+each added the last time one took a build down. `painted()` now strips the
+fourth, which it should have been doing anyway: it exists to discard the
+artwork's own paint and repaint the motif in one ink, and opacity is paint.
+
+The same 508 against the settled tree: **476 built, 32 refused, none aborted** —
+was 332, 41 and 135. Nothing regressed, every one of the 135 builds, and the nine
+that left the refusals are the ones the normaliser had been emptying.
+
+What it cost the identities that already worked, measured tile by tile: 16
+pixel-identical, and 15 differing by at most 94 pixels of 720,000, none of them
+adjacent to another, worst channel 29 of 255 — the rasteriser compositing a
+different number of layers, not a copy that showed being cut.
+
+Still to do: that run on **your** identity job, which this is not. A third
+language: `en` and `fr` are two, and two is enough to prove the mechanism is a
+mechanism, but the first non-Latin one will find things neither of these could.
+And the canvas is answerable for itself now, but a screen reader has still never
+been pointed at it: what it says is measured, how it sounds is not.

@@ -551,6 +551,137 @@ test('every construction makes a tile that repeats seamlessly', () => {
     geo.inkBox(t.svg);                     // throws if the renderer cannot read it
   }
 });
+test('cleaning an export does not move the artwork', () => {
+  // Two passes read geometry in one coordinate space and used it in another.
+  // placePass measured where a shape lands — which means applying its own
+  // transform — and then wrote those coordinates back into the `d` with the
+  // transform still on the element, so it was applied twice. And it read only
+  // the shape's own transform, so every shape on an Inkscape layer, which is a
+  // group translated by the document height, measured as lying off the
+  // artboard and was deleted. Both only bite when some other shape really is
+  // outside, which is why five hundred real exports were needed to find them.
+  const svgu2 = require('../src/svg');
+  const raw = fs.readFileSync(path.join(__dirname, 'fixtures', 'layer-offset.svg'), 'utf8');
+  const box = (d) => { const b = geo.inkBox(svgu2.serialize(d)); return [b.x, b.y, b.w, b.h].map(Math.round).join(','); };
+  const doc = svgu2.parse(NORM.preClean(raw).source);
+  const was = box(doc);
+  assert.strictEqual(was, '4,4,16,16', 'the fixture does not draw what it used to');
+  const r = NORM.placePass(doc);
+  assert.strictEqual(r.removed, 1, `${r.removed} shapes were taken out, and only one is outside`);
+  assert.strictEqual(box(doc), was, 'the artwork moved, or some of it was deleted');
+  // and through the whole normaliser, which is what a project actually calls
+  const done = NORM.normalise(raw, { tokens: {} });
+  assert.ok(done.ok, JSON.stringify(done.findings));
+  assert.strictEqual(box(svgu2.parse(done.svg)), was, 'the normalised artwork is not where it was drawn');
+});
+
+test('a shape lifted out to be a motif brings its place with it', () => {
+  // pattern.candidates takes each shape out of the drawing on its own to rank
+  // it, and the drawing it is handed is the export as the client sent it —
+  // masterOf().source is read off disk, not put through the normaliser. So the
+  // layers are still there. An Inkscape layer is a group translated by the
+  // document height, and leaving that behind put a shape on one at y=1004 in a
+  // 24 unit box: outside the drawing, and drawn at a fifth opacity, which is
+  // the one shape resvg aborts on rather than skips. See fixtures/off-tile-clip.svg.
+  const svgu2 = require('../src/svg');
+  const raw = fs.readFileSync(path.join(__dirname, 'fixtures', 'layer-offset.svg'), 'utf8');
+  const c = pat.candidates(raw);
+  const vb = c.viewBox;
+  const blank = [];
+  for (const m of c.list) {
+    let b;
+    try { b = geo.inkBox(`<svg xmlns="${svgu2.NS}" viewBox="${vb.x} ${vb.y} ${vb.w} ${vb.h}">${m.markup}</svg>`); }
+    catch (e) { blank.push(m.key); continue; }
+    assert.ok(b.y >= vb.y && b.y + b.h <= vb.y + vb.h,
+      `${m.key} was lifted out to y=${Math.round(b.y)}..${Math.round(b.y + b.h)}, and the drawing is ${vb.h} tall`);
+  }
+  // the fixture puts exactly one shape off the artboard, and that one draws
+  // nothing wherever it is put. Every other shape has to still be in the
+  // picture: without the transform above it, all of them draw nothing.
+  assert.deepEqual(blank, ['shape:3'],
+    `${blank.length} of ${c.list.length} candidates draw nothing inside the artboard: ${blank.join(', ')}`);
+});
+
+test('what a motif paints is measured, not read off its box', () => {
+  // Lammas's motif measures 52 by 38 and paints 56 by 94: the box is the shape
+  // the ranking measured and the markup around it draws further down. Deciding
+  // anything from the box alone cut a copy that shows, and a pattern with a
+  // copy missing has a seam in it.
+  const p2 = projectLoader.load(path.join(__dirname, '..', 'projects', 'lammas', 'project.json'));
+  const m2 = measure(p2);
+  const rules = require('../src/system').resolve(p2, m2).pattern;
+  const sp = pat.spec(require('../src/project').masterOf(p2).source, rules, m2);
+  const size = sp.cell * sp.fill, k = size * pat.normalised(sp.motif).k;
+  const painted = pat.paintedBox(sp.motif, sp.render, size * sp.strokeRatio / k);
+  assert.ok(painted.h > sp.motif.box.h * 2,
+    `the painted box (${painted.h}) is no deeper than the measured one (${sp.motif.box.h})`);
+});
+
+test('every copy in a tile is one that can be seen in it', () => {
+  // Measured rather than argued: render each copy on its own, in a viewBox big
+  // enough to hold it wherever it landed, and take the box of what it drew. The
+  // engine wrote seven copies in ten that drew nothing — weight in the file,
+  // and the one shape resvg does not survive: a clipped group whose contents
+  // all fall outside the clip aborts the process. 122 real exports out of 508
+  // ended a build that way. See test/fixtures/off-tile-clip.svg.
+  const only = (t, keep) => {
+    const [head, rest] = t.svg.split('<g clip-path');
+    const m = /(<g clip-path="[^"]*">)([\s\S]*)<\/g><\/svg>/.exec('<g clip-path' + rest);
+    const copies = m[2].match(/<g transform="[^"]*">[\s\S]*?<\/g>/g) || [];
+    void head;
+    return { n: copies.length,
+      svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-t.width} ${-t.height} `
+        + `${t.width * 3} ${t.height * 3}"><g>${copies[keep]}</g></svg>` };
+  };
+  for (const name of ['meridian', 'lammas', 'fathom', 'carrock']) {
+    const p2 = projectLoader.load(path.join(__dirname, '..', 'projects', name, 'project.json'));
+    const m2 = measure(p2);
+    const rules = require('../src/system').resolve(p2, m2).pattern;
+    const t = pat.tile(require('../src/project').masterOf(p2).source, rules, '#123456', m2);
+    assert.ok(t.ok, `${name}: ${t.why}`);
+    const { n } = only(t, 0);
+    assert.ok(n > 0, `${name} drew no copies at all`);
+    for (let i = 0; i < n; i++) {
+      let box;
+      try { box = geo.inkBox(only(t, i).svg); } catch (e) { continue; }  // too fine to measure here
+      const out = box.x + box.w < -0.5 || box.x > t.width + 0.5
+        || box.y + box.h < -0.5 || box.y > t.height + 0.5;
+      assert.ok(!out, `${name} copy ${i} draws at ${box.x},${box.y} ${box.w}×${box.h}, `
+        + `wholly outside a ${t.width}×${t.height} tile`);
+    }
+  }
+});
+
+test('nothing in a tile asks resvg for a layer it cannot place', () => {
+  // The rule, measured: anything that makes resvg build an isolation layer —
+  // clip-path, mask, filter, opacity — aborts the process if what it applies to
+  // falls entirely outside the clip. Not an exception; a panic from Rust. The
+  // tile is clipped to itself and its copies straddle the edge, so a single
+  // opacity="0.5" path inside the drawing is enough: it rides out past the edge
+  // with its copy and takes the build with it. onlyShapes drops three of the
+  // four; painted() drops the fourth, because paint is the pattern's to decide.
+  const iso = /\s(?:clip-path|mask|filter|opacity)="(?!0(?:\.0+)?")/;
+  // a drawing that has all four, and one shape that draws nothing
+  const src = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">`
+    + `<path d="M2 2h9v20H2z" fill="#333" opacity=".5"/>`
+    + `<path d="M13 2h9v20h-9z" fill="#333" clip-path="url(#nope)" mask="url(#nope)"/></svg>`;
+  for (const m of pat.candidates(src).list) {
+    const out = pat.painted(m, '#123456', 0.5, 'fill');
+    assert.ok(!iso.test(out), `${m.key} still asks for a layer: ${out.slice(0, 160)}`);
+  }
+  // and the whole of a real tile, which is what actually reaches the renderer
+  for (const name of ['lammas', 'carrock', 'thornbury']) {
+    const p2 = projectLoader.load(path.join(__dirname, '..', 'projects', name, 'project.json'));
+    const m2 = measure(p2);
+    const rules = require('../src/system').resolve(p2, m2).pattern;
+    const t = pat.tile(require('../src/project').masterOf(p2).source, rules, '#123456', m2);
+    assert.ok(t.ok, `${name}: ${t.why}`);
+    // the tile's own clip is the one layer that is meant to be there
+    const inner = t.raw;
+    assert.ok(!iso.test(inner), `${name}'s tile asks for a layer inside the clip`);
+  }
+});
+
 test('a motif is painted the way the drawing paints it', () => {
   // Every tile used to be drawn fill="none" stroke=…, whatever the shape was.
   // Meridian's marked source is the tide lens, a filled path, and it came out
@@ -6376,6 +6507,7 @@ test('the asset index counts the file, like every other file', () => {
 // ---------------------------------------------------------------------------
 console.log('\nwhat language the document is in');
 const STR = require('../src/strings');
+const NORM = require('../src/normalise');
 const VERD = path.join(__dirname, '..', 'projects', 'verdon', 'project.json');
 const verdon = projectLoader.load(VERD);
 let verdOut, maayOut;

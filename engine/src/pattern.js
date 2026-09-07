@@ -91,7 +91,20 @@ function candidates(markSource) {
     const isRoot = node === doc.documentElement
       || String(node.nodeName).replace(/^.*:/, '').toLowerCase() === 'svg';
     const inner = () => { let o = ''; for (let c = node.firstChild; c; c = c.nextSibling) o += svgu.serialize(c); return o; };
-    const markup = onlyShapes((isRoot ? `<g>${inner()}</g>` : svgu.serialize(node))
+    // A shape lifted out of the drawing has to bring its ancestors' transforms
+    // with it, or it is not where the drawing puts it. An Inkscape layer is a
+    // group translated by a thousand units, and a rect taken out of one landed
+    // at y=1035 in a 22 unit box: outside the drawing, drawn at a fifth
+    // opacity, which is the shape resvg aborts on rather than skips.
+    const above = [];
+    for (let up = isRoot ? null : node.parentNode; up && up.nodeType === 1; up = up.parentNode) {
+      const t = up.getAttribute && up.getAttribute('transform');
+      if (t) above.unshift(t);
+    }
+    const placed = above.length
+      ? `<g transform="${above.join(' ')}">${svgu.serialize(node)}</g>`
+      : svgu.serialize(node);
+    const markup = onlyShapes((isRoot ? `<g>${inner()}</g>` : placed)
       .replace(/\sxmlns(?::\w+)?="[^"]*"/g, ''));
     if (!/<(path|circle|rect|ellipse|polygon|polyline|line)\b/.test(markup)) return;
     if (seen.has(markup)) return;
@@ -368,6 +381,17 @@ function painted(m, colour, strokeInUnits, render) {
   const how = render === 'auto' || !render ? (m.stroked ? 'stroke' : 'fill') : render;
   const body = m.markup
     .replace(/\s(?:fill|stroke)(?:-[a-z-]+)?="[^"]*"/g, '')
+    // Paint is the pattern's to decide — that is what the two lines above are
+    // for — and `opacity` is paint. It is also the last attribute that makes
+    // resvg build an isolation layer, and a layer whose contents fall entirely
+    // outside the clip is the abort: `Option::unwrap()` on a `None`, from Rust,
+    // taking the process with it. onlyShapes already drops `clip-path`, `mask`
+    // and `filter` for the same reason; this is the fourth. A copy near the
+    // tile edge is enough — the copy straddles it, and one `opacity=".5"` path
+    // inside the drawing lands wholly beyond it. Zero is left alone: it is the
+    // invisible bounding box Illustrator leaves behind, and stripping it would
+    // turn artwork that draws nothing into artwork that draws.
+    .replace(/\sopacity="(?!0(?:\.0+)?")[^"]*"/g, '')
     .replace(/\sxmlns(?::\w+)?="[^"]*"/g, '')
     // Belt and braces: a nested viewport anywhere in a motif is a crash. Only
     // the svg tag's own attributes go — width and height on a <rect> are the
@@ -395,6 +419,50 @@ function wrapped(at, W, H, reach) {
     for (const dx of xs) for (const dy of ys) out.push(Object.assign({}, p, { x: p.x + dx, y: p.y + dy }));
   }
   return out;
+}
+
+// What the motif actually paints, in its own units.
+//
+// Not what its box says. Lammas's motif measures 52 by 38 and paints 56 by 94
+// once it is drawn at the pattern's weight: the box is the shape the ranking
+// measured, and the markup around it draws further. A bound that is too
+// generous only leaves weight in the file; one that is too tight cuts a copy
+// that shows, and a pattern with a copy missing has a seam in it. So this is
+// measured rather than derived — once per motif, and remembered.
+const PAINTED = new Map();
+function paintedBox(m, render, strokeInUnits) {
+  const key = `${m.key}|${render}|${strokeInUnits}`;
+  if (PAINTED.has(key)) return PAINTED.get(key);
+  const b = m.box;
+  const pad = Math.max(b.w, b.h, 1) * 2;
+  let out = b;
+  try {
+    out = geo.inkBox(`<svg xmlns="${svgu.NS}" viewBox="${R(b.x - pad)} ${R(b.y - pad)} `
+      + `${R(b.w + pad * 2)} ${R(b.h + pad * 2)}">${painted(m, '#000000', strokeInUnits, render)}</svg>`);
+  } catch (e) {
+    // A motif that renders empty keeps the box it was measured at, which is the
+    // safe direction. Anything else is a fault in this function and has to be
+    // seen: the first version of it called geo() instead of geo, threw a
+    // TypeError on every motif, and quietly went on using the declared box —
+    // which is exactly the bound this exists to stop trusting.
+    if (!/renders empty/.test(e.message)) throw e;
+  }
+  PAINTED.set(key, out);
+  return out;
+}
+
+// Where an instance's ink lands on the tile: the painted box, moved to where
+// the transform puts it. The instance's centre is the motif box's centre,
+// because that is what normalised() subtracts.
+function inkOf(p, paintBox, centre, k) {
+  const dx = [paintBox.x - centre.cx, paintBox.x + paintBox.w - centre.cx].map((v) => v * k);
+  const dy = [paintBox.y - centre.cy, paintBox.y + paintBox.h - centre.cy].map((v) => v * k);
+  if (p.rot) {
+    // a turned instance sweeps every corner about its own centre
+    const r = Math.max(...dx.map(Math.abs).flatMap((a) => dy.map((b) => Math.hypot(a, Math.abs(b)))));
+    return { x: p.x - r, y: p.y - r, w: r * 2, h: r * 2 };
+  }
+  return { x: p.x + dx[0], y: p.y + dy[0], w: dx[1] - dx[0], h: dy[1] - dy[0] };
 }
 
 // ---------------------------------------------------------------- the numbers
@@ -508,6 +576,18 @@ function tile(markSource, rules, colour, measured) {
       const flip = `${p.fx ? -1 : 1} ${p.fy ? -1 : 1}`;
       const k = size * s * norm.k;              // one scale, not two
       const stroke = strokeOnTile * s / k;
+      // A copy that lands wholly outside the tile draws nothing, and the tile
+      // is clipped to itself, so it was only ever weight in the file. It is
+      // also the one shape resvg does not survive: a clipped group whose
+      // contents all fall outside the clip panics from Rust and takes the
+      // process with it — not an exception, an abort, which no try/catch sees
+      // and which the engine's habit of reading back every file it writes
+      // cannot catch either, because the read back aborts too. Seven copies in
+      // ten were like this, and on 122 real exports out of 508 that was enough
+      // to end the build. See test/fixtures/off-tile-clip.svg.
+      const ink = inkOf(p, paintedBox(sp.motif, sp.render, stroke),
+        { cx: sp.motif.box.x + sp.motif.box.w / 2, cy: sp.motif.box.y + sp.motif.box.h / 2 }, k);
+      if (ink.x + ink.w < 0 || ink.x > W || ink.y + ink.h < 0 || ink.y > H) return '';
       return `<g transform="translate(${R(p.x)} ${R(p.y)})`
         + `${p.rot ? ` rotate(${R(p.rot)})` : ''}`
         + ` scale(${R(k, 8)})`
@@ -599,7 +679,7 @@ function drawsText(construction, L) {
   return L && c.drawsKey ? L.t(c.drawsKey) : c.draws;
 }
 
-module.exports = { candidates, rank, because, whyFacts, whyText, CONSTRUCTIONS, NAMES, normalised, painted, wrapped,
+module.exports = { candidates, rank, because, whyFacts, whyText, CONSTRUCTIONS, NAMES, normalised, painted, wrapped, inkOf, paintedBox,
   motifName, drawsText,
   spec, tile, everyTile, swatch, options, R,
   // kept so the twenty-two callers and tests written against the old shape do

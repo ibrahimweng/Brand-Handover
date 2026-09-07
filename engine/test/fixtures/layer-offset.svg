@@ -1,0 +1,29 @@
+<!-- An export drawn on a layer that is a thousand units away.
+
+     Inkscape writes its layers as groups translated by whatever the document
+     height happens to be, and the shapes inside carry the offset in their own
+     coordinates. Two of the engine's own passes forgot to bring the offset
+     with them.
+
+     placePass measured where each shape lands, which means applying the
+     shape's own transform — and then wrote those placed coordinates back into
+     the `d` while leaving the transform on the element, so it was applied
+     twice. It only did this when some other shape in the file was off the
+     artboard, which is why it took five hundred real exports to find: a shape
+     at (7, 4) came out at (-218, -993).
+
+     pattern.candidates lifted a shape out of the drawing to rank it as a motif
+     and left the group transform behind, so a rect on a layer offset by a
+     thousand was measured at y = 1035 in a 22 unit box.
+
+     Both are the same mistake: geometry read in one coordinate space and used
+     in another. This file is the smallest thing that has both — a shape on an
+     offset layer, a shape with its own transform, and a shape off the
+     artboard to make placePass rewrite anything at all. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">
+  <g transform="translate(0 -1000)">
+    <rect x="4" y="1004" width="7" height="16" fill="#1E4D4A"/>
+    <path d="M13 1004h7v16h-7z" fill="#1E4D4A" transform="translate(0 0)"/>
+  </g>
+  <path d="M900 900h10v10h-10z" fill="#1E4D4A"/>
+</svg>
