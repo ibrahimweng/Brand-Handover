@@ -121,6 +121,23 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
 .pick .m span{display:block;margin-top:7px;color:var(--ink-2);font-size:13.5px;line-height:1.55;
   display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
 
+/* ------------------------------------------------------------------ edit */
+.editing{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:22px;margin-top:28px;align-items:start}
+@media (max-width:980px){.editing{grid-template-columns:1fr}}
+.sheet{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff;height:74vh;min-height:520px}
+.sheet iframe{width:100%;height:100%;border:0;display:block}
+.side{position:sticky;top:82px;display:grid;gap:12px}
+.side h3{font-size:14px;font-weight:600}
+.side .hint{color:var(--ink-2);font-size:13.5px;line-height:1.55}
+.changed{display:grid;gap:8px;max-height:44vh;overflow:auto}
+.ch{padding:11px 13px;border:1px solid var(--line);border-radius:10px;background:var(--raised);font-size:13px}
+.ch b{display:block;font-weight:500;color:var(--ink-2);font-size:11.5px;font-family:var(--mono);
+  letter-spacing:.06em;margin-bottom:5px}
+.ch p{color:var(--ink);line-height:1.5;overflow-wrap:anywhere}
+.ch button{margin-top:8px;padding:5px 10px;font-size:12px;border-radius:7px;border:1px solid var(--line-2);
+  background:transparent;cursor:pointer}
+.none{color:var(--ink-3);font-size:13.5px;font-style:italic}
+
 /* ------------------------------------------------------------------ done */
 .out{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px;margin-top:30px}
 .card{display:block;padding:20px;border:1px solid var(--line);border-radius:13px;background:var(--raised);
@@ -199,6 +216,22 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
   </section>
 
   <!-- 4 ------------------------------------------------------------------ -->
+  <section class="panel" id="p-edit" aria-labelledby="h-edit">
+    <p class="eyebrow">Your words</p>
+    <h1 class="lede" id="h-edit">Change anything the engine could not know.</h1>
+    <p class="sub">Click a paragraph and type. Everything you do not touch stays derived from the
+      artwork, so redraw the mark and the rest follows on its own.</p>
+    <div class="editing">
+      <div class="sheet"><iframe id="sheet" title="The manual, as it stands"></iframe></div>
+      <aside class="side">
+        <h3>What you changed</h3>
+        <p class="hint" id="edit-hint">Nothing yet. Dashed outlines mark what can be changed.</p>
+        <div class="changed" id="changed"></div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- 5 ------------------------------------------------------------------ -->
   <section class="panel" id="p-done" aria-labelledby="h-done">
     <p class="eyebrow">Built</p>
     <h1 class="lede" id="h-done">It is yours.</h1>
@@ -218,8 +251,8 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
 <script>
 (function () {
   'use strict';
-  var S = { mark: null, wordmark: null, seen: null, qs: null, answers: {}, step: 0, built: null };
-  var STEPS = ['Artwork', 'Questions', 'Layout', 'Package'];
+  var S = { mark: null, wordmark: null, seen: null, qs: null, answers: {}, step: 0, built: null, overrides: [] };
+  var STEPS = ['Artwork', 'Questions', 'Layout', 'Your words', 'Package'];
   var $ = function (id) { return document.getElementById(id); };
   var el = function (t, c, x) { var n = document.createElement(t); if (c) n.className = c;
     if (x != null) n.textContent = x; return n; };
@@ -233,11 +266,11 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
   }
   function show(i) {
     S.step = i; steps();
-    ['p-art', 'p-ask', 'p-style', 'p-done'].forEach(function (id, k) {
+    ['p-art', 'p-ask', 'p-style', 'p-edit', 'p-done'].forEach(function (id, k) {
       $(id).classList.toggle('on', k === i);
     });
-    $('back').hidden = i === 0 || i === 3;
-    $('go').hidden = i === 3;
+    $('back').hidden = i === 0 || i === 4;
+    $('go').hidden = i === 4;
     window.scrollTo({ top: 0, behavior: 'smooth' });
     gate();
   }
@@ -246,11 +279,12 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     $('go').disabled = on || !ready();
     $('go').innerHTML = on ? '<span class="spin"></span>' + (label || 'Working') : nextLabel();
   }
-  function nextLabel() { return S.step === 2 ? 'Build the package' : 'Continue'; }
+  function nextLabel() { return S.step === 3 ? 'Build the package' : 'Continue'; }
   function ready() {
     if (S.step === 0) return !!(S.mark || S.wordmark);
     if (S.step === 1) return !!(S.answers.brand && S.answers.brand.trim());
     if (S.step === 2) return !!S.answers.style;
+    if (S.step === 3) return true;
     return false;
   }
   function gate() { $('go').disabled = !ready(); $('go').textContent = nextLabel(); }
@@ -435,7 +469,7 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     post('/api/build', { brand: S.answers.brand, mark: S.mark, wordmark: S.wordmark,
       colours: S.answers.colours, lockups: S.seen.hasBoth
         ? ['horizontal', 'stacked', 'mark', 'wordmark'] : [S.seen.master],
-      slots: S.seen.slots, answers: S.answers }).then(function (j) {
+      slots: S.seen.slots, answers: S.answers, overrides: S.overrides }).then(function (j) {
       S.built = j;
       $('done-sub').textContent = j.files + ' files, ' + Math.round(j.bytes / 1024) + ' KB. '
         + 'Every one cut from your master at the moment it was built. Nothing here asks the network for anything.';
@@ -467,15 +501,85 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
         var d = el('div', 'n'); d.appendChild(el('b', null, 'What it did'));
         d.appendChild(document.createTextNode(n)); nb.appendChild(d);
       });
-      busy(false); say(''); show(3);
+      busy(false); say(''); show(4);
     }).catch(function (e) { busy(false); fail('picks', e); say(e.message, true); });
   }
 
   // --------------------------------------------------------------- driving
+  // ----------------------------------------------------------------- edit
+  // The manual is shown as it stands and edited in place. Every value a person
+  // may replace carries a data-edit key naming what it is, so an edit survives
+  // the identity changing underneath it: see src/overrides.js.
+  var EDIT_JS = [
+    '<style>',
+    '[data-edit]{outline:1px dashed rgba(120,120,120,.5);outline-offset:3px;border-radius:2px;cursor:text}',
+    '[data-edit]:hover{outline-color:#1B4D3E;background:rgba(27,77,62,.05)}',
+    '[data-edit]:focus{outline:2px solid #1B4D3E;background:rgba(27,77,62,.06)}',
+    '[data-empty]:empty::before{content:"Write something here";opacity:.4;font-style:italic}',
+    '[data-edited]{background:rgba(27,77,62,.07)}',
+    '</style>',
+    '<script>(function(){',
+    'var was={};',
+    'document.querySelectorAll("[data-edit]").forEach(function(n){',
+    '  was[n.getAttribute("data-edit")]=n.textContent.trim();',
+    '  n.setAttribute("tabindex","0");',
+    '  n.addEventListener("focus",function(){n.setAttribute("contenteditable","true");});',
+    '  n.addEventListener("keydown",function(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();n.blur();}});',
+    '  n.addEventListener("blur",function(){',
+    '    n.removeAttribute("contenteditable");',
+    '    var at=n.getAttribute("data-edit"), now=n.textContent.trim();',
+    '    if(now===was[at])return;',
+    '    parent.postMessage({handover:"edit",at:at,now:now,was:was[at]},"*");',
+    '    was[at]=now; n.setAttribute("data-edited","1");',
+    '  });',
+    '});',
+    '})();<\/script>',
+  ].join('\n');
+
+  window.addEventListener('message', function (e) {
+    var m = e.data;
+    if (!m || m.handover !== 'edit') return;
+    var k = -1;
+    S.overrides.forEach(function (o, i) { if (o.at === m.at) k = i; });
+    if (!m.now) { if (k > -1) S.overrides.splice(k, 1); }
+    else if (k > -1) S.overrides[k].now = m.now;
+    else S.overrides.push({ at: m.at, now: m.now, was: m.was || null });
+    drawChanged();
+  });
+
+  function drawChanged() {
+    var box = $('changed'); box.textContent = '';
+    $('edit-hint').textContent = S.overrides.length
+      ? 'These stay. Everything else is derived from the artwork every time it is built.'
+      : 'Nothing yet. Dashed outlines mark what can be changed.';
+    if (!S.overrides.length) { box.appendChild(el('p', 'none', 'No edits.')); return; }
+    S.overrides.forEach(function (o, i) {
+      var d = el('div', 'ch');
+      d.appendChild(el('b', null, o.at));
+      d.appendChild(el('p', null, o.now.length > 120 ? o.now.slice(0, 120) + '…' : o.now));
+      var u = el('button', null, 'Put it back');
+      u.addEventListener('click', function () { S.overrides.splice(i, 1); drawChanged(); drawEdit(); });
+      d.appendChild(u); box.appendChild(d);
+    });
+  }
+
+  function drawEdit() {
+    busy(true, 'Setting the manual');
+    post('/api/render', { mark: S.mark, wordmark: S.wordmark, brand: S.answers.brand,
+      colours: S.answers.colours, slots: S.seen.slots, answers: S.answers,
+      lockups: S.seen.hasBoth ? ['horizontal', 'stacked', 'mark', 'wordmark'] : [S.seen.master],
+      overrides: S.overrides }).then(function (j) {
+      $('sheet').srcdoc = j.html.replace('</body>', EDIT_JS + '</body>');
+      busy(false); gate(); drawChanged();
+      say('Click any paragraph with a dashed outline and type.');
+    }).catch(function (e) { busy(false); fail('changed', e); });
+  }
+
   $('go').addEventListener('click', function () {
     if (S.step === 0) { show(1); say('Six questions. Three are already answered.'); }
     else if (S.step === 1) { show(2); drawPicks(); }
-    else if (S.step === 2) buildIt();
+    else if (S.step === 2) { show(3); drawEdit(); }
+    else if (S.step === 3) buildIt();
   });
   $('back').addEventListener('click', function () { show(Math.max(0, S.step - 1)); say(''); });
 

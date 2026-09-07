@@ -467,6 +467,48 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     }
   }
 
+  // ---- the edits somebody made by hand ----
+  //
+  // Everything else in this package is derived, so it follows the master. These
+  // do not, which is the point of them and also the risk: an edit made against
+  // one version of the identity can end up sitting on top of another. The
+  // package carries them, and the build says which of them the ground has moved
+  // under. See src/overrides.js.
+  const OVR = require('./overrides');
+  const overrides = OVR.load(project);
+  const derivedFor = (key) => {
+    if (key === 'brand') return project.brand;
+    if (key === 'style') return project.style;
+    const c = /^content\/(\w+)$/.exec(key);
+    if (c) return (project.content || {})[c[1]];
+    const m = /^misuse\/([a-z]+)\/why$/.exec(key);
+    if (m) {
+      const rule = ((project.content || {}).misuse || []).find((r) => r && r.do === m[1]);
+      return rule ? rule.why : null;
+    }
+    if (key === 'pattern/motif' || key === 'pattern/construction') {
+      const bare = require('./pattern').spec(masterOf(project).source, { tile: 100 }, measured);
+      if (!bare.ok) return null;
+      return key === 'pattern/motif' ? bare.motif.key : bare.construction;
+    }
+    return null;
+  };
+  const moved = OVR.stale(overrides, derivedFor);
+  for (const st of moved) {
+    warnings.push(`"${st.what}" was changed by hand, and the value underneath it has moved since. `
+      + `It was "${String(st.was).slice(0, 60)}" when you edited it and the engine now works out `
+      + `"${String(st.becomes).slice(0, 60)}". Your words are still on the page — that is what an override `
+      + 'is for — but nothing else in the package can tell you they are describing the identity as it was. '
+      + `Reword it, or drop the override from overrides.json and take the engine's answer.`);
+  }
+  if (overrides.length) {
+    notes.push(`${overrides.length} value${overrides.length === 1 ? '' : 's'} in this package `
+      + `${overrides.length === 1 ? 'was' : 'were'} changed by hand: `
+      + `${overrides.map((o) => o.what).join(', ')}. Everything else is derived from the master every time `
+      + 'this is built, so redraw the mark and the rest follows. overrides.json holds these, and putting it '
+      + 'back beside the artwork brings them back.');
+  }
+
   // ---- the page that says what not to do ----
   //
   // Read before anything is written, because a rule the engine cannot draw is a
@@ -1069,7 +1111,8 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // whoever read it that it holds eight or ten fewer files than it does —
   // Tarnbrook said 34 of 43 — and the one file whose job is to be read by
   // software was wrong about the size of the thing it describes.
-  const pending = ['README.txt', 'brand.json'].concat(project.previous ? ['CHANGES.txt'] : [])
+  const pending = ['README.txt', 'brand.json'].concat(overrides.length ? ['overrides.json'] : [])
+    .concat(project.previous ? ['CHANGES.txt'] : [])
     .concat(rules.documents === false ? [] : ['guidelines.html', 'deck.html', 'editor.html', 'document.json',
       'published.html', 'usage.json', 'LICENCE.txt', 'ACCESSIBILITY.txt',
       `${naming.slug(project.latinName)}-brand-package.zip`]
@@ -1469,6 +1512,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
         + 'was guessing right until the document overruled it. Move the deck\'s words into src/strings.js and '
         + 'this goes away.');
     }
+    if (overrides.length) write('overrides.json', OVR.file(overrides, project));
     write('ACCESSIBILITY.txt', ACC.statement(acc, { brand: project.brand,
       standard: (rules.accessibility || {}).standard || 'WCAG 2.2 AA' }));
     if (!acc.findings.length) {

@@ -972,6 +972,25 @@ be asked, choose a layout by looking at four of them drawn with your own logo,
 take the package. Driven end to end in a browser: two SVGs in, seventy-three
 files out, **no request leaving the application**.
 
+And then the last of it: the edits somebody makes by hand. Everything this
+engine writes is derived, which is the point of it and also the problem — no
+engine writes a sentence about a mark as well as the person who drew it. So an
+edit is not a change to a document, it is a **replacement for one derived
+value**, stored against a key that names the value rather than its place on the
+page: `content/markRationale`, `misuse/redraw/why`, `pattern/construction`.
+Sections can move under it and the edit still lands.
+
+The contract is measured rather than claimed. Build the same project twice with
+the master swapped for a different mark in between: the floor moves 61 px to 60,
+the clear space 30.4 to 21, the pattern picks a different shape — and both
+hand-written paragraphs are still there. An override also records what it
+replaced, so when the ground moves under an edit the build says so instead of
+quietly keeping a sentence about an identity that has changed.
+
+`overrides.json` travels in the package. There is no account and no database:
+the thing that comes back is the thing that went out. And the front door gained
+a screen where the manual is edited in place — click a paragraph and type.
+
 Still to do: a run on **your** identity job. Twenty identities the engine had
 not seen is worth a great deal more than twenty passes over one, but none of
 them came out of your exporter — and the normaliser is the part that most needs

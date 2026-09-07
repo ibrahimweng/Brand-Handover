@@ -143,6 +143,11 @@ function handler(req, res) {
     return readBody(req).then((body) => json(res, 200, H.preview(body))).catch((e) => fail(res, e));
   }
 
+  // The manual with the edits applied, for the screen where they are made.
+  if (req.method === 'POST' && p === '/api/render') {
+    return readBody(req).then((body) => json(res, 200, H.render(body))).catch((e) => fail(res, e));
+  }
+
   if (req.method === 'POST' && p === '/api/inspect') {
     return readBody(req).then((body) => json(res, 200, H.inspect(body))).catch((e) => fail(res, e));
   }

@@ -3216,6 +3216,80 @@ Driven end to end in a browser: two SVGs in, four parts and two colours measured
 six questions, four layouts rendered, seventy-three files out, **no request
 leaving the application and no error in the console**.
 
+## The edits somebody makes by hand
+
+This engine's whole architecture is that nothing is typed twice. Every value in
+every document is measured off the master or worked out from the project, so
+changing the master changes all of it. Editing a document by hand breaks that,
+and it is also the thing anybody actually needs: no engine writes a sentence
+about a mark as well as the person who drew it.
+
+So an edit is not a change to a document. It is a **replacement for one derived
+value**, stored against a key, and re-applied every time the documents are
+built.
+
+**The whole design is in what the key is.** A key of "the third paragraph in
+section 2" is the misuse page's mistake again — two things joined by position,
+right until anything moves. A key names the value:
+
+    content/markRationale        why the mark is what it is
+    misuse/redraw/why            the reason under a misuse rule
+    pattern/construction         how the pattern repeats
+    colour/<name>/name           what a colour is called
+    section/1.4/title            the title of a section
+
+Sections can be added, removed and renumbered under it and the edit still lands
+on the thing it was about. A key that matches nothing is **refused**, not
+ignored: an edit that silently does nothing is worse than one turned away,
+because whoever made it goes on believing it took.
+
+Two of these change what is *built* rather than only what is written —
+`pattern/motif` and `pattern/construction` are applied where the rules resolve,
+so choosing a different repeat by hand cuts different tiles.
+
+### What it is worth, measured
+
+The same project, built twice, with the master swapped for a different mark
+between the two and the same two edits in place both times:
+
+                              the disc      a different mark
+      floor      derived      61 px         60 px
+      clear space derived     30.4          21
+      pattern    derived      the marked shape   the first shape
+      my paragraph  by hand   kept          kept
+      my reason     by hand   kept          kept
+
+That is the contract, and it is a test rather than a claim.
+
+### An override has to keep facing the engine
+
+An override records **what it replaced**. When the engine derives that value
+again and gets something different, the edit is sitting on top of a changed
+identity — the mark was redrawn, so the sentence about its construction now
+describes the old one. That is not an error; the person may still mean it. But
+it is the one thing nobody can see by looking at the document, so the build says
+it every time, and the words stay on the page while it does.
+
+`overrides.json` travels in the package. There is no account and no database:
+the thing that comes back is the thing that went out, and this is the half of it
+that is not the drawing. Delete a line from it and that value goes back to what
+the engine works out.
+
+### Editing them
+
+The front door gained a screen. The manual is shown as it stands and edited in
+place: every value a person may replace carries its key in a `data-edit`
+attribute, the app makes those elements editable, and a change is recorded
+against the key rather than against the markup. A value nobody has written yet
+is shown as an empty line to put the cursor in, because otherwise the only
+paragraphs that could be changed are the ones that already exist and nothing
+could ever be added.
+
+The first version put the key on the whole caption of a misuse cell, which
+contains the engine's sentence *and* the designer's reason — so editing the
+reason replaced the rule with it. The rule is a statement about the picture
+beside it and is not anybody's to rewrite; the key is on the reason alone.
+
 ## A front door
 
 Sixteen rounds, and the only way into the engine was to hand-write a project

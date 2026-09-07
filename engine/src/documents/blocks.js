@@ -677,7 +677,7 @@ function misuseCells(ctx, W) {
 
   return list.map((r) => {
     const c = cell(r);
-    return c && Object.assign({ says: c.says, why: r.why || null }, c.body);
+    return c && Object.assign({ says: c.says, why: r.why || null, rule: r.do }, c.body);
   }).filter(Boolean);
 }
 
@@ -689,8 +689,23 @@ function misuse(ctx) {
     // The sentence is the engine's, because it is a statement about the picture
     // beside it. The reason is the project's, and it is the brand's own words,
     // so it carries the brand's language where that is not the document's.
-    `<figure><div class="stage tight dont" style="${c.ground}">${c.inner}</div>
-     <figcaption class="said"><b>${esc(c.says)}</b>${c.why ? own(ctx, c.why) : ''}</figcaption></figure>`).join('')
+    (() => {
+      // the rule is the engine's and cannot be edited: it is a statement about
+      // the picture beside it. The reason is the designer's, and is theirs to
+      // change. See src/overrides.js.
+      const key = `misuse/${c.rule}/why`;
+      const v = require('../overrides').value(ctx.ov, key, c.why);
+      // The key goes on the reason alone. Put it on the whole caption and
+      // editing the reason replaces the rule with it: the engine's sentence is
+      // a statement about the picture and is not anybody's to rewrite.
+      const why = v.value || (ctx.editing ? '' : null);
+      return `<figure><div class="stage tight dont" style="${c.ground}">${c.inner}</div>
+     <figcaption class="said"><b>${esc(c.says)}</b>`
+        + (why === null ? ''
+          : `<span data-edit="${esc(key)}"${v.edited ? ' data-edited="1"' : ''}`
+            + `${v.value ? '' : ' data-empty="1"'}>${v.value ? own(ctx, v.value) : ''}</span>`)
+        + `</figcaption></figure>`;
+    })()).join('')
     + `</div>`;
 }
 

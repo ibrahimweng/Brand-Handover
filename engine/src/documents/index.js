@@ -129,7 +129,11 @@ function context(project, measured, files, brandJson) {
   // the language the brand is in. See src/strings.js.
   const L = require('../strings').resolve(project);
   // Which of the four layout systems this book is built in. See src/directions.js.
-  const style = require('../directions').resolve(project);
+  // A layout chosen by hand on the canvas is an override like any other.
+  const OV = require('../overrides');
+  const ov = OV.load(project);
+  const style = require('../directions').resolve(
+    Object.assign({}, project, { style: OV.value(ov, 'style', project.style).value }));
   const family = (project.family || []).length ? (() => {
     const FAM = require('../family');
     const SN = require('../setname');
@@ -167,7 +171,7 @@ function context(project, measured, files, brandJson) {
     ? { since: project.previous.version.text,
         entries: require('../previous').compare(project.previous.data, brandJson) }
     : null;
-  return { project, sets: project.sets || null, measured, colours, roles, primary, ground, accent, primaryColourway, noun, system, pattern, hasSystem, changes, floors, pairs, ladder, fabrication, familyRule, family, L, style, misuse,
+  return { project, sets: project.sets || null, measured, colours, roles, primary, ground, accent, primaryColourway, noun, system, pattern, hasSystem, changes, floors, pairs, ladder, fabrication, familyRule, family, L, style, ov, misuse,
     partnerRule: typeof partnerRule === 'undefined' ? null : partnerRule,
     variants, variantFor, files, brandJson, contrast: contrast.matrix(colours),
     content: project.content || {} };
@@ -185,7 +189,22 @@ const sec = (n, title, who, body, L) =>
   + `${(L ? badges(L) : BADGE)[who]}</div>${body}</div>`;
 const chapter = (n, title, body) =>
   `<section class="chapter"><p class="chno">${n}</p><h2>${b.esc(title)}</h2>${body}</section>`;
-const words = (t, ctx) => (t ? `<p class="note">${ctx ? b.own(ctx, t) : b.esc(t)}</p>` : '');
+// A paragraph the project wrote, which a person may replace by hand. The key
+// names the value rather than its position, so the edit still lands after
+// sections move. See src/overrides.js.
+const words = (t, ctx, key) => {
+  const v = key && ctx ? require('../overrides').value(ctx.ov, key, t) : { value: t, edited: false };
+  // A value nobody has written yet prints nothing in the delivered document,
+  // and on the screen where the document is edited it has to be somewhere to
+  // put the cursor — otherwise the only paragraphs that can be changed are the
+  // ones that already exist, and nothing can ever be added.
+  if (!v.value) {
+    return (ctx && ctx.editing && key)
+      ? `<p class="note empty" data-edit="${b.esc(key)}" data-empty="1"></p>` : '';
+  }
+  return `<p class="note"${key ? ` data-edit="${b.esc(key)}"` : ''}${v.edited ? ' data-edited="1"' : ''}>`
+    + `${ctx ? b.own(ctx, v.value) : b.esc(v.value)}</p>`;
+};
 
 // ------------------------------------------------------------------ manual
 function guidelines(ctx) {
@@ -195,16 +214,19 @@ function guidelines(ctx) {
   const body = `
   <header class="mast">
     <p class="eyebrow">${b.esc(ctx.L.t('eyebrow'))}</p>
-    <h1>${ctx.L.t('manualTitle', { brand: '\u0000' }).split('\u0000').map(b.esc).join(b.own(ctx, p.brand))}</h1>
-    <p class="sub">${b.own(ctx, `${c.positioning || ''} ${c.introduction || ''}`.trim())}</p>
+    <h1 data-edit="brand">${ctx.L.t('manualTitle', { brand: '\u0000' }).split('\u0000').map(b.esc)
+      .join(b.own(ctx, require('../overrides').value(ctx.ov, 'brand', p.brand).value))}</h1>
+    <p class="sub" data-edit="content/positioning">${b.own(ctx,
+      `${require('../overrides').value(ctx.ov, 'content/positioning', c.positioning || '').value} `
+      + `${require('../overrides').value(ctx.ov, 'content/introduction', c.introduction || '').value}`.trim())}</p>
   </header>
 
   ${ctx.changes ? chapter('00', T('chChanges', { version: ctx.changes.since }),
       S('0.1', T('secReadFirst'), 'system', b.changes(ctx))) : ''}
 
   ${chapter('01', T(ctx.noun === 'mark' ? 'chMark' : 'chLogotype'),
-      S('1.1', T(ctx.noun === 'mark' ? 'secPrimaryMark' : 'secPrimaryLogotype'), 'system', b.markSpecimen(ctx) + words(c.markRationale, ctx)) +
-      S('1.2', T('secConstruction'), 'system', b.construction(ctx) + words(c.constructionNotes, ctx)) +
+      S('1.1', T(ctx.noun === 'mark' ? 'secPrimaryMark' : 'secPrimaryLogotype'), 'system', b.markSpecimen(ctx) + words(c.markRationale, ctx, 'content/markRationale')) +
+      S('1.2', T('secConstruction'), 'system', b.construction(ctx) + words(c.constructionNotes, ctx, 'content/constructionNotes')) +
       S('1.3', T('secClearSpace'), 'system', b.clearSpace(ctx)) +
       S('1.4', T('secMinimumSize'), 'system', b.minimumSize(ctx)) +
       // A floor says how small one drawing goes. Where an identity has said what
@@ -221,7 +243,7 @@ function guidelines(ctx) {
           + (ctx.misuse.length ? S(`1.${n}`, T('secMisuse'), 'once', b.misuse(ctx)) : ''); })())}
 
   ${chapter('02', T('chColour'),
-      S('2.1', T('secPalette'), 'system', b.palette(ctx) + words(c.colourRationale, ctx)) +
+      S('2.1', T('secPalette'), 'system', b.palette(ctx) + words(c.colourRationale, ctx, 'content/colourRationale')) +
       // only where the artwork has one, so ten projects without a gradient get
       // no empty section and the numbering does not shift under them
       (b.gradientSpec(ctx) ? S('2.2', T('secGradient'), 'system', b.gradientSpec(ctx)) : '') +
@@ -232,7 +254,7 @@ function guidelines(ctx) {
       sec(b.gradientSpec(ctx) ? '2.4' : '2.3', T('secColourVision'), 'system', b.colourVision(ctx)))}
 
   ${chapter('03', T('chType'),
-      S('3.1', T('secTypefaces'), 'system', b.typeSpecimen(ctx) + words(c.typeRationale, ctx)) +
+      S('3.1', T('secTypefaces'), 'system', b.typeSpecimen(ctx) + words(c.typeRationale, ctx, 'content/typeRationale')) +
       S('3.2', T('secScale'), 'system', b.typeScale(ctx)))}
 
   ${(() => {

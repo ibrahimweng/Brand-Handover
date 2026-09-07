@@ -345,6 +345,9 @@ function load(file) {
   const RTL = ['he', 'iw', 'ar', 'fa', 'ur', 'yi', 'ps', 'dv', 'ckb', 'sd', 'ug'];
   const language = raw.language || 'en';
   const style = raw.style ? String(raw.style) : null;
+  // The edits made by hand, each replacing one value the engine derived. Read
+  // here so a bad key is refused with everything else. See src/overrides.js.
+  const overrides = raw.overrides || [];
   const direction = raw.direction
     || (RTL.indexOf(String(language).toLowerCase().split('-')[0]) > -1 ? 'rtl' : 'ltr');
 
@@ -566,7 +569,7 @@ function load(file) {
   // here, which meant every rule override in a project file was read as absent
   // and the defaults quietly won. Nothing complained, because a default is a
   // perfectly good answer right up until somebody wanted a different one.
-  return { brand: raw.brand, latinName, language, direction, style, version: raw.version || '0.0.0', dir, tokens, sets: (raw.tokens || {}).sets || null, assets, photography, fonts, documents, nameSetting, rules, master, previous, partners, tiers, family,
+  return { brand: raw.brand, latinName, language, direction, style, overrides, version: raw.version || '0.0.0', dir, tokens, sets: (raw.tokens || {}).sets || null, assets, photography, fonts, documents, nameSetting, rules, master, previous, partners, tiers, family,
     system: raw.system || {}, content: raw.content || {}, report };
 }
 

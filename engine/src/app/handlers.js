@@ -106,6 +106,7 @@ function stage(opts) {
       brand: opts.brand,
       colours: (opts.colours && opts.colours.length ? opts.colours : opts.answers.colours),
     }), seen);
+    if (opts.overrides && opts.overrides.length) json.overrides = opts.overrides;
     if (opts.latinName) json.latinName = opts.latinName;
     if (opts.language) json.language = opts.language;
     if (opts.type) json.tokens.type = opts.type;
@@ -255,6 +256,8 @@ async function make(input, outDir) {
     // as, what must never be done to it — is worked out in src/intake.js, so
     // this hands them over rather than having a second opinion about them.
     answers: input.answers || null,
+    // the edits made by hand on the screen before this one
+    overrides: input.overrides || null,
   };
   const { dir, file } = stage(opts);
   try {
@@ -327,4 +330,39 @@ function preview(input) {
   }) };
 }
 
-module.exports = { inspect, ask, preview, make, paletteFrom, projectJson, MAX_SVG };
+// The manual as it stands, with the edits applied, for the screen where a
+// person edits it. Only the documents are made: a text edit does not need every
+// PNG cut again, and a round trip that takes eight seconds is a round trip
+// nobody makes twice.
+function render(input) {
+  const mark = input.mark ? asSvg(input.mark, 'the mark') : null;
+  const wordmark = input.wordmark ? asSvg(input.wordmark, 'the wordmark') : null;
+  if (!mark && !wordmark) throw bad('No artwork was given.', 'Drop an SVG first.');
+  const answers = input.answers || {};
+  const { dir, file } = stage({
+    brand: input.brand || answers.brand || 'Untitled', mark, wordmark,
+    colours: (input.colours && input.colours.length ? input.colours : answers.colours) || [],
+    lockups: input.lockups && input.lockups.length ? input.lockups : undefined,
+    slots: input.slots, answers,
+  });
+  try {
+    const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
+    raw.overrides = input.overrides || [];
+    fs.writeFileSync(file, JSON.stringify(raw, null, 2));
+    const project = projectLoader.load(file);
+    const measured = measure(project);
+    const docs = require('../documents');
+    const ctx = docs.context(project, measured, [], {});
+    ctx.editing = true;                    // show the values nobody has written yet
+    return { ok: true, html: docs.guidelines(ctx) };
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+}
+
+// Everything a person may replace, so the screen can list what it is offering
+// rather than discovering it from the markup.
+function editable() {
+  const O = require('../overrides');
+  return { ok: true, values: O.ALLOWED, keyed: O.PATTERNS.map((p) => ({ what: p.what, kind: p.kind })) };
+}
+
+module.exports = { inspect, ask, preview, render, editable, make, paletteFrom, projectJson, MAX_SVG };

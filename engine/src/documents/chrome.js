@@ -42,6 +42,7 @@ h1,h2,h3,h4{font-family:var(--display);margin:0;text-wrap:balance}
 .badge::before{content:"";width:9px;height:9px;border:1.5px solid var(--ink);background:var(--ink)}
 .badge.once::before{background:linear-gradient(90deg,var(--ink) 0 50%,transparent 50% 100%)}
 .badge.yours::before{background:none}.badge.yours{color:var(--ink-3)}
+.note.empty{min-height:1.5em}
 .note{font-size:calc(var(--body) * .94);line-height:1.6;color:var(--ink-2);max-width:var(--measure);margin-top:14px}.note b{color:var(--ink);font-weight:600}
 .chgs{margin-top:22px;border-top:1px solid var(--rule-2)}
 .chg{padding:15px 4px 15px 20px;border-bottom:1px solid var(--rule);position:relative}

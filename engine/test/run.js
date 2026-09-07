@@ -6807,6 +6807,118 @@ test('the six answers reach the package through the front door', async () => {
 });
 
 
+// ---------------------------------------------------------------------------
+console.log('\nthe edits somebody makes by hand');
+const OVR = require('../src/overrides');
+
+// carrock, with two values replaced by hand and the ident dropped so the mark
+// underneath it can be swapped for one that names no parts
+function withOverrides(markFile, overrides) {
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-ov-'));
+  for (const f of fs.readdirSync(path.join(__dirname, '..', 'projects', 'carrock'))) {
+    fs.copyFileSync(path.join(__dirname, '..', 'projects', 'carrock', f), path.join(d, f));
+  }
+  if (markFile) fs.copyFileSync(markFile, path.join(d, 'mark.svg'));
+  const j = JSON.parse(fs.readFileSync(path.join(d, 'project.json'), 'utf8'));
+  j.overrides = overrides;
+  j.content.misuse = [{ do: 'stretch', why: 'Scale both axes together.' }, { do: 'crowd' }];
+  delete j.system.motion;
+  fs.writeFileSync(path.join(d, 'project.json'), JSON.stringify(j));
+  return d;
+}
+
+test('an override replaces a named value, not a place on the page', () => {
+  // A key of "the third paragraph in section 2" is the misuse page's mistake
+  // again: two things joined by position, right until anything moves.
+  for (const k of ['content/markRationale', 'misuse/redraw/why', 'colour/ink/name', 'section/1.4/title']) {
+    assert.ok(OVR.known(k), `${k} cannot be overridden`);
+  }
+  let said = null;
+  try { OVR.load({ overrides: [{ at: 'section 2, paragraph 3', now: 'x' }] }); }
+  catch (e) { said = e.findings[0]; }
+  assert.ok(said && said.level === 'blocker', 'a key that matches nothing was accepted');
+  assert.ok(/nowhere to land/.test(said.what), said.what);
+  assert.ok(said.how.indexOf('content/markRationale') > -1, 'the refusal does not say what can be replaced');
+  // and the same value replaced twice is an accident of order, not a choice
+  let twice = null;
+  try { OVR.load({ overrides: [{ at: 'brand', now: 'a' }, { at: 'brand', now: 'b' }] }); }
+  catch (e) { twice = e.findings[0]; }
+  assert.ok(twice && /overridden twice/.test(twice.what));
+});
+
+test('an edit survives the artwork changing, and nothing else does', async () => {
+  // This is the whole contract: your words stay, the measurements move.
+  const overrides = [
+    { at: 'content/markRationale', now: 'A sentence I wrote myself.' },
+    { at: 'misuse/stretch/why', now: 'Because the proportions are the identity.' },
+  ];
+  const seen = [];
+  for (const mark of [null, path.join(__dirname, '..', 'projects', 'thornbury', 'mark.svg')]) {
+    const d = withOverrides(mark, overrides);
+    const r = await build(projectLoader.load(path.join(d, 'project.json')), path.join(d, 'out'));
+    const html = fs.readFileSync(path.join(d, 'out', 'guidelines.html'), 'utf8');
+    const bj = JSON.parse(fs.readFileSync(path.join(d, 'out', 'brand.json'), 'utf8'));
+    seen.push({ floor: bj.logo.minSize.screenPx, clear: bj.logo.clearSpaceUnits,
+      motif: bj.system.pattern.motif,
+      mine: html.indexOf('A sentence I wrote myself.') > -1,
+      reason: html.indexOf('Because the proportions are the identity.') > -1,
+      shipped: fs.existsSync(path.join(d, 'out', 'overrides.json')), notes: r.notes });
+    fs.rmSync(d, { recursive: true, force: true });
+  }
+  const [a, b] = seen;
+  // what the engine derives moved with the artwork
+  assert.notStrictEqual(a.floor, b.floor, 'the floor did not follow the artwork');
+  assert.notStrictEqual(a.clear, b.clear, 'the clear space did not follow the artwork');
+  assert.notStrictEqual(a.motif, b.motif, 'the pattern did not follow the artwork');
+  // what a person wrote did not
+  for (const x of seen) {
+    assert.ok(x.mine, 'a hand written paragraph was lost when the artwork changed');
+    assert.ok(x.reason, 'a hand written reason was lost when the artwork changed');
+    assert.ok(x.shipped, 'the edits did not travel with the package');
+    assert.ok(x.notes.some((n) => /changed by hand/.test(n)), 'the package does not say what was edited');
+  }
+});
+
+test('an edit sitting on a value that has moved is said so', async () => {
+  const d = withOverrides(null, [{ at: 'content/markRationale',
+    now: 'Still what I meant.', was: 'something the project has never said' }]);
+  const r = await build(projectLoader.load(path.join(d, 'project.json')), path.join(d, 'out'));
+  const w = r.warnings.join(' ');
+  assert.ok(/changed by hand, and the value underneath it has moved/.test(w),
+    'a stale edit was kept silently');
+  assert.ok(fs.readFileSync(path.join(d, 'out', 'guidelines.html'), 'utf8')
+    .indexOf('Still what I meant.') > -1, 'the words were dropped rather than flagged');
+  fs.rmSync(d, { recursive: true, force: true });
+
+  // and an edit whose ground has not moved says nothing at all
+  const quiet = withOverrides(null, [{ at: 'content/markRationale', now: 'Mine.',
+    was: JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'projects', 'carrock', 'project.json'),
+      'utf8')).content.markRationale }]);
+  const q = await build(projectLoader.load(path.join(quiet, 'project.json')), path.join(quiet, 'out'));
+  assert.ok(!/has moved since/.test(q.warnings.join(' ')), 'a current edit was reported as stale');
+  fs.rmSync(quiet, { recursive: true, force: true });
+});
+
+test('the engine keeps the sentence and the person keeps the reason', () => {
+  // The rule under a misuse picture is a statement about that picture and is
+  // not anybody's to rewrite; the reason beside it is.
+  const APP2 = require('../src/app/handlers');
+  const mark = fs.readFileSync(path.join(__dirname, '..', 'projects', 'carrock', 'mark.svg'), 'utf8');
+  const seen = APP2.ask({ mark }).seen;
+  const r = APP2.render({ mark, brand: 'Carrock', colours: seen.colours, slots: seen.slots,
+    answers: { brand: 'Carrock', style: 'quiet', places: ['screen'], colours: seen.colours,
+      never: ['stretch', 'crowd'] },
+    overrides: [{ at: 'misuse/stretch/why', now: 'Mine.' }] });
+  const m = /<figcaption class="said"><b>([^<]*)<\/b><span data-edit="misuse\/stretch\/why"[^>]*>([^<]*)</.exec(r.html);
+  assert.ok(m, 'the rule and the reason are not separate');
+  assert.strictEqual(m[1], 'Do not stretch or squash it.');
+  assert.strictEqual(m[2], 'Mine.');
+  // and a value nobody has written yet is somewhere to put the cursor
+  assert.ok(/data-empty="1"/.test(r.html), 'nothing can be added, only changed');
+  assert.ok(r.html.indexOf('data-edit="content/markRationale"') > -1);
+});
+
+
 drain().then(() => {
 
   for (const d of [out, out2, tbOut, kilnOut, orielOut, ancOut, harbOut, farneOut, rookOut, verdOut, maayOut, carrOut, cuspOut]) if (d) fs.rmSync(d, { recursive: true, force: true });

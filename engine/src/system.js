@@ -297,7 +297,17 @@ function resolve(project, measured) {
     // written beside system.pattern and system.photography, the natural
     // spelling is the singular, so both are accepted
     icons: iconRules(forIcons, sys.icons || sys.icon),
-    pattern: patternRules(sys.pattern),
+    // A pattern chosen by hand is an override like any other, and this one
+    // changes the files rather than only the words about them, so it is applied
+    // where the rules are resolved rather than in the documents.
+    pattern: (() => {
+      const OV = require('./overrides');
+      const list = OV.load(project);
+      const r = patternRules(sys.pattern);
+      r.motif = OV.value(list, 'pattern/motif', r.motif).value;
+      r.construction = OV.value(list, 'pattern/construction', r.construction).value;
+      return r;
+    })(),
     motion: motionRules(sys.motion),
     photography: require('./photography').rules(sys.photography),
     grid: gridRules(sys.grid, measured),
