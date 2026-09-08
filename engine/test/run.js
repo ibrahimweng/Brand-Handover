@@ -1432,8 +1432,12 @@ test('a chip from a book of cloth is not an ink, where it is printed as one', ()
   // and a colourway that keeps the artwork's own paint names no colour at all
   assert.deepStrictEqual([...K.inked(K.table(colours), [{ name: 'x', slots: { ink: 'keep' } }])], []);
 
-  // every identity in the repository passes, hallward included, and hallward
-  // is the one that still carries a chip
+  // every identity in the repository passes. hallward was the one that still
+  // carried a chip in `pantone`, because nothing prints it and the field had to
+  // serve for both an ink and a material. It has a `material` field now, so no
+  // identity keeps a cloth chip in the ink field and this count is zero — which
+  // is the check going quiet because the schema grew the right place, not
+  // because it stopped looking.
   const names = fs.readdirSync(path.join(__dirname, '..', 'projects'))
     .filter((d) => fs.existsSync(path.join(__dirname, '..', 'projects', d, 'project.json')));
   const off = [];
@@ -1447,7 +1451,62 @@ test('a chip from a book of cloth is not an ink, where it is printed as one', ()
       if (/^spot/.test(x.code || '')) off.push(`${n}: ${x.what}`);
   }
   assert.deepStrictEqual(off, [], off.join('\n'));
-  assert.strictEqual(chips, 1, 'the one chip left should be the paper nothing prints');
+  assert.strictEqual(chips, 0, 'a cloth chip is still sitting in the ink field');
+});
+
+test('a colour can say what it is made of as well as what it prints in', () => {
+  // The gap the round before this one named and could not fill. Removing the
+  // FHI chips was right — a press cannot mix from that book — but it threw away
+  // a real fact, that the stock had been matched to a chip, because there was
+  // nowhere to put it.
+  //
+  // A near-white brand colour has two lives. It is the paper the job is printed
+  // on, and it is the ink the mark reverses out in. One field could only ever
+  // hold one of them, so an ink reference and a material reference collided in
+  // `pantone` and the wrong one had to go.
+  const t = K.table({
+    chalk: { hex: '#F5F3EC', cmyk: [4, 3, 8, 0], pantone: '7527 C', material: '11-0601' },
+    ink: { hex: '#123B2E', cmyk: [80, 40, 70, 40] },
+  });
+  assert.strictEqual(t[0].material, '11-0601', 'the material is not carried');
+  assert.strictEqual(t[0].pantone, '7527 C', 'the ink is still there beside it');
+  assert.strictEqual(t[1].material, null);
+  // both fields right: nothing to say
+  assert.deepStrictEqual(K.check(t, { colourways: [{ name: 'r', on: 'ink', slots: { ink: '#F5F3EC' } }] })
+    .filter((x) => /^spot|^material/.test(x.code || '')), []);
+
+  // the mirror of spotBook: an ink in the material field
+  const swapped = K.check(K.table({ a: { hex: '#F5F3EC', material: '7527 C' } }), {});
+  const m = swapped.find((x) => x.code === 'materialBook');
+  assert.ok(m, 'a printing ink given as a material is not reported');
+  assert.ok(/pantone field/.test(m.how), `it does not say where the ink goes: ${m.how}`);
+  for (const k of ['what', 'why', 'how']) assert.ok(m[k].length > 20);
+  // and a chip there is exactly what the field is for
+  assert.deepStrictEqual(K.check(K.table({ a: { hex: '#F5F3EC', material: '11-0601' } }), {})
+    .filter((x) => x.code === 'materialBook'), []);
+
+  // it is a document, not just a record: the label is written in the language
+  // the document is written in, like everything else on the page
+  const S2 = require('../src/strings');
+  for (const l of ['en', 'fr', 'he', 'ja']) assert.ok(S2.HAVE[l].palMaterial, `${l} has no palMaterial`);
+  assert.strictEqual(S2.HAVE.en.palMaterial, 'MATERIAL');
+  assert.notStrictEqual(S2.HAVE.he.palMaterial, S2.HAVE.en.palMaterial, 'the Hebrew label is English');
+  assert.notStrictEqual(S2.HAVE.ja.palMaterial, S2.HAVE.en.palMaterial, 'the Japanese label is English');
+
+  // fifteen identities record one, and every project still sets only what is read
+  const names = fs.readdirSync(path.join(__dirname, '..', 'projects'))
+    .filter((d) => fs.existsSync(path.join(__dirname, '..', 'projects', d, 'project.json')));
+  const { unreadKeys } = require('../src/build');
+  let carrying = 0;
+  for (const n of names) {
+    const pr = projectLoader.load(path.join(__dirname, '..', 'projects', n, 'project.json'));
+    for (const c of Object.values(pr.tokens.colour || {})) if (c.material) carrying++;
+    assert.deepStrictEqual(unreadKeys(pr), [], `${n} sets something nothing reads`);
+    for (const x of K.check(K.table(pr.tokens.colour || {}),
+      { stock: pr.rules.stock, colourways: pr.rules.colourways }))
+      assert.ok(!/^material/.test(x.code || ''), `${n}: ${x.what}`);
+  }
+  assert.strictEqual(carrying, 15, 'the fifteen chips did not come back');
 });
 
 test('a missing build is a blocker for press and a warning otherwise', () => {

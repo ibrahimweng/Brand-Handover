@@ -4694,10 +4694,69 @@ derivable from the hex, and this file's whole position is that an absent print
 value beats one nobody chose. They print from their builds.
 
 What is lost by removing them is the record that the stock was matched to a
-chip, and there is nowhere in the schema to put that — `rules.fabrication` is
-about engraving and foil, not paper. That is a gap, and it is named here rather
-than papered over by leaving a wrong reference in a field that means something
-else.
+chip, and there was nowhere in the schema to put that — `rules.fabrication` is
+about engraving and foil, not paper. That gap is closed in the section below.
+
+## A colour has two lives
+
+The gap the round before this one named and could not fill.
+
+A near-white brand colour is two things at once. It is the paper the job is
+printed on — `ancroft/chalk` is the ground the whole manual sits on — and it is
+the ink the mark reverses out in, because `reverse` names it as the ink of a
+slot. Those want different references. Paper is ordered from a mill by a
+material chip; ink is mixed on a press from a formula. One `pantone` field could
+hold one of them, so the two collided in it and the FHI chip lost.
+
+`tokens.colour.<name>.material` is the other field. `cmyk.table()` carries it,
+`brand.json` records it, and the palette chip prints it beside HEX, RGB, CMYK
+and PMS. The fifteen chips are back where they belong and `pantone` now holds
+nothing but printing inks.
+
+The two checks are mirrors of each other, and worth reading together:
+
+- `spotBook` — a Fashion, Home + Interiors chip in `pantone`, on a colour that
+  is printed. There is no ink formula behind it.
+- `materialBook` — a Pantone solid number in `material`. That is a formula for
+  putting ink on something, so it answers a different question, and nobody can
+  order a paper by it.
+
+Neither fires on anything here now. That is not the checks going quiet: it is
+what a schema with the right two fields in it looks like, and each still has
+teeth against the case it is for.
+
+### The label broke a font
+
+`MATERIAL` has to be written in the language the document is written in, like
+every other word on the page — `MATIÈRE`, `חומר`, `素材`. And 材 was not among
+the 726 characters yamabiko's subsetted IPAGothic was cut for, so the Japanese
+manual asked for a character its own shipped face could not draw.
+
+`typeface.cannotDraw` caught it at build time, which is the whole reason that
+check exists. Nothing would have looked wrong in a browser here: Chromium falls
+back to the system's full IPAGothic, which this machine has. Two of the three
+ways of checking were quietly useless for the same reason and had to be thrown
+away — a resvg render, because resvg ignores an `@font-face` data URI
+altogether and was drawing both fonts with a system face; and a first browser
+comparison written without a charset, which rendered both in mojibake and
+matched perfectly.
+
+What settled it was metrics. Against the subset it replaces, the re-cut keeps
+the same advance width and the same bounding box for all 726 shared characters,
+worst difference 0 units of 2048, with the vertical metrics unchanged. It is
+727 characters now and 133 KB rather than 209, because the cut drops hinting
+that nothing in these documents was using.
+
+### And the method is in the repository now
+
+This font has been re-cut twice — once when the Japanese dictionary arrived and
+the type specimen's own sample turned out to use a character the font lacked,
+and once for a single word — and both times the method was worked out again from
+nothing, because it lived in a terminal history. `engine/tools/subset-font.py`
+does it now, reads the characters out of whatever files it is pointed at, and
+says what it could not find. Nothing in the build runs it; fonts are cut rarely
+and by hand. It is there so the next person does not start from zero, which is
+the same argument the whole engine makes about a value nobody can regenerate.
 
 ## What it does not do yet
 

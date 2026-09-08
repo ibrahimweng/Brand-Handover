@@ -20,6 +20,7 @@
       },
       "paper": {
         "hex": "#F2F1EE",
+        "material": "11-0601",
         "role": "ground",
         "cmyk": [
           4,

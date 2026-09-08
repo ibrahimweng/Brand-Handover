@@ -5,7 +5,7 @@
   "tokens": {
     "colour": {
       "board":  { "hex": "#243B33", "role": "primary",   "cmyk": [82, 52, 70, 52], "pantone": "3435 C" },
-      "leaf":   { "hex": "#F5F4EF", "role": "ground",    "cmyk": [4, 3, 8, 0] },
+      "leaf":   { "hex": "#F5F4EF", "material": "11-0601", "role": "ground",    "cmyk": [4, 3, 8, 0] },
       "ticket": { "hex": "#A8442F", "role": "accent",    "cmyk": [22, 84, 88, 12], "pantone": "7599 C" },
       "shelf":  { "hex": "#5C6266", "role": "neutral",   "cmyk": [58, 45, 42, 12], "pantone": "431 C" },
       "linen":  { "hex": "#4C6B7A", "role": "secondary", "cmyk": [76, 48, 38, 14], "pantone": "5415 C" }

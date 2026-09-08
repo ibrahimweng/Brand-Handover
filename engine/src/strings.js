@@ -570,6 +570,7 @@ Object.assign(EN, {
   diaCrowd: 'Type and rules set inside the clear space of {x} units, which is what crowding the {noun} looks like.',
   diaUndersize: 'The {noun} drawn at {small} px inside the {floor} px box that is its floor.',
   // the palette
+  palMaterial: 'MATERIAL',
   palNoteA: 'RGB is converted from the hex.',
   palTypedLead: 'CMYK and Pantone are typed in by you',
   palNoteB: ', because what a colour becomes in ink depends on the press and the paper, and no formula knows which paper.',
@@ -647,6 +648,7 @@ Object.assign(EN, {
 Object.assign(FR, {
   diaCrowd: 'Du texte et des filets posés dans la zone de protection de {x} unités : voilà à quoi ressemble un {noun} enserré.',
   diaUndersize: 'Le {noun} dessiné à {small} px dans la boîte de {floor} px qui est son plancher.',
+  palMaterial: 'MATIÈRE',
   palNoteA: 'Le RVB est converti depuis l’hexadécimal.',
   palTypedLead: 'Le CMJN et le Pantone sont saisis par vous',
   palNoteB: ', parce que ce qu’une couleur devient en encre dépend de la presse et du papier, et qu’aucune formule ne sait quel papier.',
@@ -1507,6 +1509,7 @@ const HE = {
   ptFloor: "צמד הוא שרטוט שלישי, רחב משלנו ומכיל את מה שעדין ביותר בשלהם, ולכן יש לו רצפה משלו. המדריך שלהם קובע את הסמל שלהם לבדו וזה קובע את שלנו; המספר שמתחת לכל צמד למעלה הוא המקום היחיד שבו השניים נמדדים יחד.",
   diaCrowd: "טקסט וקווים מסודרים בתוך מרחב הנשימה של {x} יחידות, וכך נראה מצב שבו ה{noun} צפוף.",
   diaUndersize: "ה{noun} משורטט ב־{small} px בתוך תיבת {floor} px שהיא הרצפה שלו.",
+  palMaterial: "חומר",
   palNoteA: "ה־RGB מומר מהקוד ההקסדצימלי.",
   palTypedLead: "CMYK ו־Pantone מוקלדים על ידיכם",
   palNoteB: ", משום שמה שצבע נעשה בדיו תלוי במכונת הדפוס ובנייר, ואין נוסחה שיודעת איזה נייר.",
@@ -2093,6 +2096,7 @@ const JA = {
   ptFloor: "組は三つ目の図です。当方より広く、先方の中で最も細いものを含みますから、それ自身の下限を持ちます。先方のマニュアルは先方のマーク単体を、こちらは当方のマークを述べています。上の各組の下にある数値が、二つを一緒に測った唯一の場所です。",
   diaCrowd: "{x} 単位の余白の内側に文字や線を置いた状態。{noun}を詰め込むとこう見えます。",
   diaUndersize: "下限である {floor} px の枠の中に、{small} px で描いた{noun}。",
+  palMaterial: "素材",
   palNoteA: "RGB は十六進数から変換した値です。",
   palTypedLead: "CMYK と Pantone はお客さまが入力する値です",
   palNoteB: "。色がインキになったときどうなるかは印刷機と紙によって決まり、どの紙かを知っている計算式はないからです。",

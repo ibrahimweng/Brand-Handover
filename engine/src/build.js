@@ -1133,7 +1133,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       stock: rules.stock || 'coated',
       totalInkLimit: cmyk.TAC[rules.stock] || cmyk.TAC.coated,
       colour: inkTable.map((c) => ({ name: c.name, hex: c.hex, cmyk: c.values, coverage: c.coverage,
-        pantone: c.pantone, declared: c.declared, source: c.source })),
+        pantone: c.pantone, material: c.material, declared: c.declared, source: c.source })),
       // Measured from what was written, not from what the palette declares. A
       // gradient never goes through the colour setters — jsPDF writes it as a
       // shading dictionary whose colour space it hardcodes to DeviceRGB — so a

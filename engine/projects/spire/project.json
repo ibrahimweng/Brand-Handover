@@ -20,6 +20,7 @@
       },
       "lime": {
         "hex": "#F2EFE6",
+        "material": "11-0601",
         "role": "primary",
 "cmyk": [
           4,

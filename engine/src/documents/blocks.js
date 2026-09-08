@@ -840,7 +840,8 @@ function palette(ctx) {
       <b>${esc(name)}</b><span class="role">${esc(t.role && ROLE_KEY[t.role] ? L.t(ROLE_KEY[t.role]) : (t.role || ''))}</span>
       <dl><dt>HEX</dt><dd>${t.hex}</dd><dt>RGB</dt><dd>${rgbv}</dd>
       <dt>CMYK</dt><dd class="${k.declared ? 'typed' : 'guess'}">${k.values.join(' ')}${k.declared ? '' : ' ?'}</dd>
-      ${t.pantone ? `<dt>PMS</dt><dd class="typed">${esc(t.pantone)}</dd>` : ''}</dl></div>`;
+      ${t.pantone ? `<dt>PMS</dt><dd class="typed">${esc(t.pantone)}</dd>` : ''}
+      ${t.material ? `<dt>${esc(L.t('palMaterial'))}</dt><dd class="typed">${esc(t.material)}</dd>` : ''}</dl></div>`;
   }).join('') + `</div>`
     + `<p class="note">${esc(L.t('palNoteA'))} <b>${esc(L.t('palTypedLead'))}</b>${esc(L.t('palNoteB'))}`
     + (guessed.length

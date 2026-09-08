@@ -7,7 +7,7 @@
   "tokens": {
     "colour": {
       "gorge":   { "hex": "#1E4D4A", "role": "primary",   "cmyk": [88, 52, 60, 40], "pantone": "5473 C" },
-      "calcaire":{ "hex": "#F3F1EA", "role": "ground",    "cmyk": [5, 3, 9, 0] },
+      "calcaire":{ "hex": "#F3F1EA", "material": "11-0601", "role": "ground",    "cmyk": [5, 3, 9, 0] },
       "riviere": { "hex": "#2E8C9E", "role": "secondary", "cmyk": [76, 26, 30, 2],  "pantone": "7710 C" },
       "genet":   { "hex": "#C58A1C", "role": "accent",    "cmyk": [18, 45, 100, 2], "pantone": "1245 C" },
       "roche":   { "hex": "#6A6560", "role": "neutral",   "cmyk": [52, 47, 52, 16], "pantone": "417 C" }

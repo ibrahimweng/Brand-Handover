@@ -1524,4 +1524,31 @@ hallward is the one that keeps its chip. The fourteen are removed rather than
 replaced, for the same reason northline's were: the right printing reference is
 not something that can be worked out from a hex.
 
+The forty-sixth filled the gap the round before it named. Removing the FHI chips
+was right — a press cannot mix from that book — but it threw away a true fact,
+that the stock had been matched to a chip, because there was nowhere to put it.
+
+**A near-white brand colour has two lives.** It is the paper the job is printed
+on, and it is the ink the mark reverses out in. One `pantone` field could only
+ever hold one of them, so an ink reference and a material reference collided in
+it and the wrong one had to go. Colours have a `material` field now. The fifteen
+chips are back, in the field that fits them, and `pantone` holds only inks.
+
+The two checks are mirrors: a cloth chip in `pantone` is wrong where the colour
+is printed, and a printing ink in `material` is wrong because nobody can order a
+paper by a Pantone number. Neither fires on anything in the repository, which is
+what having the right two fields looks like.
+
+**And adding one word to the dictionary broke a font.** `MATERIAL` is `素材` in
+Japanese, and 材 was not among the 726 characters yamabiko's subsetted IPAGothic
+was cut for. Nothing about the page would have looked wrong on a machine that
+happens to have the full face installed — which is exactly what that check is
+for. The font is re-cut: same design, 727 characters, every shared one keeping
+its advance width and bounding box **to the unit**, and 209 KB down to 133 KB
+because the new cut drops hinting the documents never used.
+
+The method is in the repository this time, as `engine/tools/subset-font.py`.
+It had been worked out from scratch twice and lost twice, which is the same
+failure as a colour value nobody can regenerate.
+
 Still to do: nothing named. The next one is whatever the next real export breaks.

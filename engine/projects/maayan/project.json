@@ -22,6 +22,7 @@
       },
       "chalk": {
         "hex": "#F7F5F0",
+        "material": "11-0601",
         "role": "primary",
 "cmyk": [
           2,

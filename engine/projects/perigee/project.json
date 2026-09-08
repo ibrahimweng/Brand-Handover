@@ -20,6 +20,7 @@
       },
       "paper": {
         "hex": "rgb(247, 246, 243)",
+        "material": "11-0602",
         "role": "primary",
 "cmyk": [
           2,

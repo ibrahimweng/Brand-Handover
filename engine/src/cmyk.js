@@ -52,6 +52,11 @@
       out.push({
         name, hex: c.hex, values, declared: !!declared,
         pantone: c.pantone || null,
+        // What the colour is when it is a thing rather than an ink. A
+        // near-white brand colour has two lives — it is the paper a job is
+        // printed on, and it is the ink the mark reverses out in — and one
+        // field could only ever hold one of them. See the material check below.
+        material: c.material || null,
         coverage: sum(values),
         label: values.join('/'),
         // said this way in every document, because "C0 M0 Y0 K100" printed from
@@ -236,6 +241,24 @@
           how: `Name ${sp.body} ${WANTS[stock]} for the stock this is printed on, or give both and say which `
             + 'is which, the way a manual that covers two kinds of job has to.' });
       }
+    }
+
+    // and the mirror of it. `material` is where a chip from a book of cloth,
+    // paint and paper belongs, so an FHI code there is right and needs no
+    // comment. A printing ink in that field is the same mistake the other way
+    // round: PMS numbers an ink, and an ink is not a material you can hold.
+    for (const c of table) {
+      if (!c.material) continue;
+      const mt = spot(c.material);
+      if (mt.book !== 'pms') continue;
+      found.push({ level: 'warning', code: 'materialBook',
+        what: `${c.name} gives ${mt.raw} as its material, and that is a printing ink.`,
+        why: 'The material field is what this colour is when it is a thing rather than an ink — the stock '
+          + 'a job is printed on, or the cloth or paint a made object is finished in. A Pantone solid '
+          + 'number is a formula for putting ink on something, so it answers a different question, and '
+          + 'nobody can order a paper by it.',
+        how: `Move ${mt.raw} to the pantone field, which is where the ink goes, and give the material `
+          + 'reference here — a Fashion, Home + Interiors chip, or the mill and the name of the stock.' });
     }
 
     for (const c of table) {

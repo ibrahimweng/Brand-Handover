@@ -5,7 +5,7 @@
   "tokens": {
     "colour": {
       "ink":   { "hex": "#14110E", "role": "primary", "pantone": "Black 4 C", "cmyk": [60, 55, 60, 90] },
-      "paper": { "hex": "#FBFAF7", "role": "ground",  "pantone": "11-0601",   "cmyk": [1, 1, 3, 0] }
+      "paper": { "hex": "#FBFAF7", "role": "ground",  "material": "11-0601",   "cmyk": [1, 1, 3, 0] }
     },
     "type": {
       "families": {
