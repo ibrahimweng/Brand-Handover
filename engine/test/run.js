@@ -5226,6 +5226,74 @@ test('the door reads the artwork the engine will use, not the one that arrived',
   assert.deepStrictEqual(APP.ask({ mark }).seen.slots, ['ink']);
 });
 
+test('a refusal reaches the person, on the screen they are on', () => {
+  // Reported from use: clicking Build the package said "That did not work."
+  // and nothing else. Three faults, one on top of another.
+  const client = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'client.html'), 'utf8');
+
+  // 1. Both servers answer a refusal as { ok: false, findings: [{what, why, how}] }
+  //    and nothing else — there is no top-level `what`. The page read
+  //    j.what || j.error || 'That did not work.', so every refusal from every
+  //    route came out as the fallback with the engine's own sentence sitting
+  //    unread in the answer beside it.
+  const src = /function post\(path, body\) \{[\s\S]*?\n  \}/.exec(client);
+  assert.ok(src, 'post() is not where this test thinks it is');
+  const post = new Function(`return (${src[0]})`)();
+  global.fetch = () => Promise.resolve({ ok: false, status: 400,
+    text: () => Promise.resolve(JSON.stringify({ ok: false, findings: [{ level: 'blocker',
+      code: 'input', what: 'No lockups were chosen.', why: 'The engine has nothing it can work from.',
+      how: 'Pick at least one — the mark on its own is enough to start.' }] })) });
+  return post('/api/build', {}).then(() => { throw new Error('a refusal resolved'); }, (e) => {
+    assert.strictEqual(e.message, 'No lockups were chosen.',
+      'a refusal still arrives as a sentence the engine did not write');
+    assert.ok(/Pick at least one/.test(e.how), `the how was dropped: ${e.how}`);
+    assert.strictEqual((e.findings || []).length, 1);
+
+    // 2. And it was painted onto whichever box the caller named — two of which
+    //    are not error boxes at all. #picks is the layout chooser and #changed
+    //    is the list of your edits, and fail() empties what it is handed: a
+    //    build that refused wrote its reason onto the screen before, and
+    //    destroyed the four layout choices doing it.
+    assert.ok(/function fail\(e\)/.test(client), 'fail is still told which box to use');
+    const named = client.match(/fail\(['"][a-z-]+['"]/g) || [];
+    assert.deepStrictEqual(named, [], `fail is still called with a box name: ${named.join(', ')}`);
+    assert.ok(/\.panel\.on/.test(client), 'nothing finds the screen the person is on');
+    const panels = (client.match(/<section class="panel[^"]*" id="p-/g) || []).length;
+    const slots = (client.match(/class="errbox"/g) || []).length;
+    assert.strictEqual(slots, panels, `${panels} screens and ${slots} places to put a refusal`);
+    // and it brings itself into view, because a panel can be taller than the
+    // window and the editing screen is a whole manual
+    assert.ok(/scrollIntoView/.test(client), 'a refusal below the fold is a refusal nobody reads');
+  });
+});
+
+test('what the artwork can be locked up as is read off it, not asked for', async () => {
+  // The third fault under the same report. make refused "No lockups were
+  // chosen." when the caller sent none, and the page sends seen.lockups — which
+  // a page one commit older than its server does not have. So a build died on a
+  // choice nobody had been asked to make. The drawing knows the answer, the way
+  // it knows the slots and the paint.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-lk-'));
+  const r = await APP.make({ brand: 'Tokkenly', mark: markSrc(), wordmark: wordSrc(),
+    colours: [{ name: 'ink', hex: '#0A2A33', role: 'primary' },
+      { name: 'paper', hex: '#FFFFFF', role: 'ground' }] }, dir);
+  assert.ok(r.files > 20, `only ${r.files} files came out of artwork with no lockups named`);
+  const folders = fs.readdirSync(dir).filter((f) => /^\d\d-/.test(f));
+  for (const want of ['01-horizontal', '02-stacked', '03-mark', '04-wordmark']) {
+    assert.ok(folders.includes(want), `a mark and a logotype made ${folders.join(', ')}`);
+  }
+  fs.rmSync(dir, { recursive: true, force: true });
+
+  // and a mark on its own is still only a mark
+  const only = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-lk2-'));
+  await APP.make({ brand: 'Tokkenly', mark: markSrc(),
+    colours: [{ name: 'ink', hex: '#0A2A33', role: 'primary' },
+      { name: 'paper', hex: '#FFFFFF', role: 'ground' }] }, only);
+  const alone = fs.readdirSync(only).filter((f) => /^\d\d-/.test(f));
+  assert.ok(!alone.includes('01-horizontal') && alone.includes('03-mark'), `it wrote ${alone.join(', ')}`);
+  fs.rmSync(only, { recursive: true, force: true });
+});
+
 test('the door offers every language the engine writes, and only what it can set', () => {
   // src/strings.js holds four dictionaries under a key-parity test and there is
   // a fixture for each — verdon in French, maayan in Hebrew, yamabiko in

@@ -2033,4 +2033,36 @@ the language second, so a caller naming `language` on its own — which is what
 `/api/render` accepts — got a Hebrew manual set in Archivo. It goes in with the
 answers now.
 
+---
+
+**A bug report, from use: "Build the package" answered**
+
+    That did not work.
+
+and nothing else. Three faults, stacked.
+
+**The refusal never reached the person.** Both servers answer a refusal as
+`{ ok: false, findings: [{ what, why, how }] }` — there is no top-level `what`.
+The page read `j.what || j.error || 'That did not work.'`, so *every* refusal
+from *every* route came out as the fallback, with the engine's own sentence
+sitting unread in the answer beside it. In this case:
+
+> **No lockups were chosen.** The engine has nothing it can work from. *Pick at
+> least one — the mark on its own is enough to start.*
+
+**And it was painted onto a screen nobody was looking at.** `fail()` was told
+which box to use, and two of the four it was told are not error boxes: `#picks`
+is the layout chooser and `#changed` is the list of your edits — and `fail()`
+empties what it is handed. So a build that refused wrote its reason onto the
+previous screen and destroyed the four layout choices doing it. Every screen has
+an `.errbox` now, `fail()` finds the one on the screen you are on, and it scrolls
+itself into view — a panel can be taller than the window, and the editing screen
+is a whole manual.
+
+**And the refusal should not have happened at all.** `make` demanded the caller
+name the lockups; the page sends `seen.lockups`, which a page one commit older
+than its server does not have. The drawing knows what can be locked up — the
+engine reads the slots, the paint and the scale off it already — so it reads
+this too, and a build with nothing named still writes all four.
+
 Still to do: nothing named. The next one is whatever the next real export breaks.

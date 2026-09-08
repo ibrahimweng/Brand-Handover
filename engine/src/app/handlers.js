@@ -194,10 +194,13 @@ function stage(opts) {
     if (opts.latinName) json.latinName = opts.latinName;
     if (opts.type) json.tokens.type = opts.type;
   } else {
-    // the slots and the paint are read off the artwork rather than taken from
-    // the caller, for the same reason
-    json = projectJson(Object.assign({}, opts,
-      { slots: read.seen.slots, flatten: read.seen.flatten }));
+    // the slots, the paint and what can be locked up are read off the artwork
+    // rather than taken from the caller, for the same reason
+    json = projectJson(Object.assign({}, opts, {
+      slots: read.seen.slots,
+      flatten: read.seen.flatten,
+      lockups: opts.lockups && opts.lockups.length ? opts.lockups : read.seen.lockups,
+    }));
   }
   fs.writeFileSync(file, JSON.stringify(json, null, 2));
   return { dir, file };
@@ -283,8 +286,13 @@ async function make(input, outDir) {
       throw bad(`"${c.hex}" is not a colour this can read.`, 'Use a hex value like #1B3A6B, or rgb(), or hsl().');
     }
   }
+  // What can be built from what was given, read off the artwork when the caller
+  // does not say — the way the slots, the paint and the scale already are. It
+  // used to refuse: "No lockups were chosen." The page sends seen.lockups, and
+  // a page one commit older than its server sends undefined, so a build died on
+  // a sentence about a choice nobody had been asked to make. The drawing knows
+  // the answer and there is no reason to ask the caller for it.
   const lockups = (input.lockups || []).filter(Boolean);
-  if (!lockups.length) throw bad('No lockups were chosen.', 'Pick at least one — the mark on its own is enough to start.');
   const noLatin = needsLatin(input.brand, input.latinName);
   if (noLatin) throw noLatin;
   const noFace = cannotSet(input.language || (input.answers || {}).language);

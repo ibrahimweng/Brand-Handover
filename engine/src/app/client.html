@@ -177,7 +177,12 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
 .err{margin-top:22px;padding:16px 18px;border-radius:12px;border:1px solid var(--bad);
   background:color-mix(in srgb,var(--bad) 8%,var(--paper))}
 .err b{display:block;font-weight:600;margin-bottom:6px}
-.err span{color:var(--ink-2);font-size:14.5px}
+/* what, why and how are three things, and ran together as one line of prose
+   the moment a refusal started carrying all three */
+.err span{display:block;color:var(--ink-2);font-size:14.5px;line-height:1.5}
+.err span.how{margin-top:8px;color:var(--ink);font-size:14px}
+/* every screen has one, and a refusal goes to the one you are looking at */
+.errbox:empty{display:none}
 /* what, why and how, in that order and looking like three different things */
 .finding{margin-top:14px;padding-top:14px;border-top:1px solid color-mix(in srgb,var(--bad) 25%,transparent)}
 .finding b{display:block;font-weight:600;margin-bottom:4px}
@@ -220,7 +225,7 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     </div>
 
     <div id="seen" hidden></div>
-    <div id="art-err"></div>
+    <div class="errbox"></div>
   </section>
 
   <!-- 2 ------------------------------------------------------------------ -->
@@ -229,6 +234,7 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     <h1 class="lede" id="h-ask">Only what the file cannot be asked.</h1>
     <p class="sub">Four of these are the engine showing its own answer. Change any of them.</p>
     <div id="qs"></div>
+    <div class="errbox"></div>
   </section>
 
   <!-- 3 ------------------------------------------------------------------ -->
@@ -238,6 +244,7 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     <p class="sub">These are not colour schemes. They change the scale the type is built on,
       the measure, how much air a specimen stands in, and how a chapter opens.</p>
     <div class="picks" id="picks"></div>
+    <div class="errbox"></div>
   </section>
 
   <!-- 4 ------------------------------------------------------------------ -->
@@ -254,6 +261,7 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
         <div class="changed" id="changed"></div>
       </aside>
     </div>
+    <div class="errbox"></div>
   </section>
 
   <!-- 5 ------------------------------------------------------------------ -->
@@ -262,6 +270,7 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     <h1 class="lede" id="h-done">It is yours.</h1>
     <p class="sub" id="done-sub"></p>
     <div class="out" id="out"></div>
+    <div class="errbox"></div>
     <div class="notes" id="notes"></div>
   </section>
 
@@ -356,23 +365,58 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
           throw page;
         }
         // A refusal the engine wrote has a what, a why and a how on every
-        // finding. Joining them into one line of whats threw away the two
-        // parts that tell a person what to do about it.
-        if (!r.ok || j.ok === false) { var e = new Error(j.what || j.error || 'That did not work.');
-          e.how = j.how || '';
+        // finding. Joining them into one line of whats threw away the two parts
+        // that tell a person what to do about it — and then reading only j.what
+        // threw away all three, because that is not where a refusal puts them:
+        // both servers answer { ok: false, findings: [{ what, why, how }] } and
+        // nothing else. So every refusal from every route read "That did not
+        // work.", with the engine's own sentence sitting unread in the answer.
+        if (!r.ok || j.ok === false) {
+          var one = (j.findings || [])[0] || {};
+          var e = new Error(j.what || one.what || j.error || 'That did not work.');
+          e.how = j.how || one.how || '';
           e.findings = j.findings || null;
-          throw e; }
+          throw e;
+        }
         return j;
       });
     });
   }
-  function fail(where, e) {
-    var box = $(where); box.textContent = '';
-    var d = el('div', 'err'); d.appendChild(el('b', null, e.message));
-    if (e.how) d.appendChild(el('span', null, e.how));
-    (e.findings || []).filter(function (f) { return f.level === 'blocker'; })
-      .forEach(function (f) { d.appendChild(finding(f)); });
+  // Where a refusal goes: the slot on the screen you are looking at. It used to
+  // be told which box, and two of the four it was told were not error boxes at
+  // all — #picks is the layout chooser and #changed is the list of your edits,
+  // and fail() empties what it is given. So a build that refused wrote its
+  // reason onto the previous screen and destroyed the four layout choices doing
+  // it, while the bar said "That did not work."
+  // the slot on the screen you are looking at, made if the markup has none
+  function errSlot() {
+    var panel = document.querySelector('.panel.on') || document.body;
+    var box = panel.querySelector('.errbox');
+    if (!box) { box = el('div', 'errbox'); panel.appendChild(box); }
+    return box;
+  }
+  function clearErr() { errSlot().textContent = ''; }
+
+  function fail(e) {
+    var box = errSlot();
+    box.textContent = '';
+    var blockers = (e.findings || []).filter(function (f) { return f.level === 'blocker'; });
+    // The message and the how are taken off the first blocker when the answer
+    // carried no top-level ones, so that finding is not printed again under
+    // itself — what is left of it is the why, and it goes where a why goes:
+    // between the two, in the order everything in this engine refuses in.
+    var first = blockers[0] && blockers[0].what === e.message ? blockers.shift() : null;
+    var d = el('div', 'err');
+    d.appendChild(el('b', null, e.message));
+    if (first && first.why) d.appendChild(el('span', null, first.why));
+    if (e.how) d.appendChild(el('span', 'how', e.how));
+    blockers.forEach(function (f) { d.appendChild(finding(f)); });
     box.appendChild(d);
+    // and it brings itself into view. A panel can be taller than the window —
+    // the editing screen is a whole manual — so a refusal written at the bottom
+    // of one is a refusal nobody sees, which is what the bar's "That did not
+    // work." was standing in for.
+    if (box.scrollIntoView) box.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
 
   // One finding, in the three parts everything in this engine refuses in: what
@@ -399,7 +443,7 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
 
   function take(files) {
     var list = [].slice.call(files || []).filter(function (f) { return /\.svg$/i.test(f.name); });
-    if (!list.length) { fail('art-err', { message: 'That is not an SVG.',
+    if (!list.length) { fail({ message: 'That is not an SVG.',
       how: 'Export the artwork as SVG. A PNG has no geometry in it to measure.' }); return; }
     var read = list.map(function (f) {
       return new Promise(function (res) {
@@ -415,7 +459,7 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
         if (got.length === 1) { S.mark = g.text; S.wordmark = null; }
         else if (w) S.wordmark = g.text; else S.mark = g.text;
       });
-      $('art-err').textContent = '';
+      clearErr();
       drop.classList.add('small');
       drop.querySelector('h3').textContent = 'Replace the artwork';
       busy(true, 'Measuring');
@@ -429,7 +473,7 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     }).catch(function (e) {
       busy(false); S.seen = null; S.clean = null; S.findings = null;
       $('seen').hidden = true; $('qs').textContent = '';
-      fail('art-err', e); say('', true); gate();
+      fail(e); say('', true); gate();
     });
   }
 
@@ -543,7 +587,7 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
           + 'do not survive a reload.'));
         out.appendChild(z);
       });
-    }).catch(function (e) { fail('art-err', e); });
+    }).catch(function (e) { fail(e); });
   }
 
   // ------------------------------------------------------------- questions
@@ -689,7 +733,7 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
         box.appendChild(card);
       });
       busy(false); gate();
-    }).catch(function (e) { busy(false); fail('picks', e); });
+    }).catch(function (e) { busy(false); fail(e); });
   }
 
   // ----------------------------------------------------------------- build
@@ -733,7 +777,7 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
         d.appendChild(document.createTextNode(n)); nb.appendChild(d);
       });
       busy(false); say(''); show(4);
-    }).catch(function (e) { busy(false); fail('picks', e); say(e.message, true); });
+    }).catch(function (e) { busy(false); fail(e); say('', true); });
   }
 
   // --------------------------------------------------------------- driving
@@ -806,7 +850,7 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
       $('sheet').srcdoc = j.html.replace('</body>', EDIT_JS + '</body>');
       busy(false); gate(); drawChanged();
       say('Click any paragraph with a dashed outline and type.');
-    }).catch(function (e) { busy(false); fail('changed', e); });
+    }).catch(function (e) { busy(false); fail(e); });
   }
 
   $('go').addEventListener('click', function () {

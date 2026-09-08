@@ -5448,6 +5448,60 @@ faces were picked for Latin and the language set to Hebrew afterwards. A Hebrew
 manual in Archivo. It goes in with the answers now, and the test builds it both
 ways.
 
+## "That did not work."
+
+Reported from use: clicking **Build the package** answered with that sentence
+and nothing else. Three faults, stacked.
+
+### The refusal never reached the person
+
+Both servers answer a refusal the same way, and neither sends a top-level
+`what`:
+
+    { ok: false, findings: [{ level, code, what, why, how }] }
+
+    j.what || j.error || 'That did not work.'
+
+So every refusal from every route came out as the fallback. What was in the
+answer, unread:
+
+    No lockups were chosen.
+    The engine has nothing it can work from.
+    Pick at least one — the mark on its own is enough to start.
+
+`post()` reads the first finding when the answer carries no top-level words, and
+`fail()` lays the three parts out in the order everything else refuses in — the
+`what` bold, the `why` under it, the `how` last and darker. They were running
+together as one line of prose, because `.err span` was inline from a time when
+there was only ever one of them.
+
+### It was painted onto a screen nobody was looking at
+
+`fail(where, e)` was told which box, and two of the four it was told are not
+error boxes:
+
+    #art-err   an error box
+    #picks     the layout chooser
+    #changed   the list of your edits
+    (#p-ask and #p-done had none at all)
+
+`fail()` starts with `box.textContent = ''`. So a build that refused wrote its
+reason onto the screen before and **destroyed the four layout choices** doing
+it. Every panel carries an `.errbox` now and `fail(e)` finds the one inside
+`.panel.on`; it also scrolls itself into view, because a panel can be taller
+than the window and the editing screen is a whole manual.
+
+### And the refusal should not have happened
+
+    const lockups = (input.lockups || []).filter(Boolean);
+    if (!lockups.length) throw bad('No lockups were chosen.', …);
+
+The page sends `seen.lockups`, which arrived in the round that moved the lockup
+rule into `intake.read` — so a page one commit older than its server sends
+nothing and the build refuses on a choice nobody was asked to make. `stage`
+already reads the slots, the paint and the scale off the artwork rather than
+taking them from the caller. It reads this too now, and `make` no longer asks.
+
 ## What it does not do yet
 
 - **The door cannot write in Japanese.** It offers the language and marks it
