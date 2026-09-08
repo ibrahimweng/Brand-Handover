@@ -657,6 +657,38 @@ test('no package tells the designer to look somewhere that cannot show it', () =
   });
 });
 
+test('a pattern block offers the inks there are tiles for, and says why not', () => {
+  // The block looked its tile up by `density:colourway` and fell back to
+  // whatever was first in the map when it missed. Meridian's ink menu offered
+  // ten entries — every role and every colour name — and three had tiles.
+  // The other seven silently drew fine:ground while the panel said otherwise.
+  //
+  // One of them was refused on purpose: accent measures 1.83:1 on its ground,
+  // so no tile is cut for it and the reason is recorded in patternRefused and
+  // shipped in the bundle. The fallback threw that away, which also meant
+  // cvPatternRefused could only appear for an identity with no pattern at all.
+  const mer = projectLoader.load(path.join(__dirname, '..', 'projects', 'meridian', 'project.json'));
+  const bu = bundleOf(mer, measure(mer));
+  const roles = [...new Set(Object.keys(bu.patternTiles).map((k) => k.slice(k.indexOf(':') + 1)))];
+  assert.ok(roles.length && roles.length < Object.keys(bu.roles).length + Object.keys(bu.colours).length,
+    'every menu entry has a tile, so this identity proves nothing');
+  assert.ok(!roles.includes('accent'), 'meridian cuts an accent tile now');
+  assert.ok((bu.patternRefused || []).some((r) => r.colourway === 'accent' && /1\.83/.test(r.why)),
+    'the refusal is not in the bundle');
+
+  // a role with a tile draws its own
+  const ER2 = require('../src/editor/render'), EM2 = require('../src/editor/model');
+  const at = (props) => ER2.block(EM2.makeBlock('pattern', { props }), bu);
+  assert.ok(/patternUnits/.test(at({ density: 'medium', colourway: 'primary' })), 'primary draws nothing');
+  // one that was refused says so, in the words the engine used
+  const refused = at({ density: 'medium', colourway: 'accent' });
+  assert.ok(/hb-missing/.test(refused), 'the refused colourway still draws a field');
+  assert.ok(/1\.83/.test(refused), `it does not say why: ${refused.slice(0, 160)}`);
+  // and one that was never a pattern role at all is not silently swapped
+  const bogus = at({ density: 'medium', colourway: 'slate' });
+  assert.ok(/hb-missing/.test(bogus), 'a colour with no tile still draws somebody else\'s');
+});
+
 test('every construction makes a tile that repeats seamlessly', () => {
   // Seamlessness is a property of the wrapping, not of nine pieces of careful
   // drawing: anything that crosses an edge is emitted again one tile away, and

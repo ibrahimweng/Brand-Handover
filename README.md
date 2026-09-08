@@ -1647,4 +1647,22 @@ than taking the sentence's word for it.
 call, "look at both on the canvas before you take it." Same false promise, one
 round old.
 
+The fiftieth: the pattern block's ink menu offered ten choices and three of them
+existed.
+
+The block looks its tile up by `density:colourway` and, when it missed, fell
+back to whatever was first in the map. Meridian's menu offers every role and
+every colour name; tiles are cut per role, and only for roles whose ink can be
+seen on its ground. So seven of the ten silently drew `fine:ground` while the
+panel said something else.
+
+One of the seven was refused on purpose. Meridian's accent measures **1.83:1**
+against its ground, so the engine cuts no tile for it and records why — and
+ships that reason in the bundle. The fallback threw it away. Which also means
+`cvPatternRefused`, the string written for exactly this, could only ever appear
+for an identity with no pattern at all.
+
+The menu offers the roles there are tiles for, and a request with no tile says
+why in the words the engine already wrote.
+
 Still to do: nothing named. The next one is whatever the next real export breaks.

@@ -493,6 +493,15 @@
   const COLOURS = () => [...Object.keys(BUNDLE.roles), ...Object.keys(BUNDLE.colours)];
   // a block laid over a photograph needs no ground of its own
   const GROUNDS = () => [['none', 'cvNone'], ...COLOURS()];
+  // the roles a pattern tile was actually cut for
+  const PATTERN_INKS = () => {
+    const seen = [];
+    for (const k of Object.keys(BUNDLE.patternTiles || {})) {
+      const role = k.slice(k.indexOf(':') + 1);
+      if (seen.indexOf(role) < 0) seen.push(role);
+    }
+    return seen.length ? seen : COLOURS();
+  };
   const STYLES = () => ((BUNDLE.type || {}).scale || []).map((s) => s.name);
 
   // A photograph follows the brand's treatment unless this one has a reason not
@@ -553,8 +562,12 @@
       + field(T('cvOn'), sel('on', COLOURS(), b.props.on || 'ground')) + field(T('cvLines'), sel('line', COLOURS(), b.props.line || 'neutral')),
     minimumSize: (b) => field(T('cvInk'), sel('colourway', COLOURS(), b.props.colourway || 'primary')),
     contrast: (b) => field(T('cvRows'), `<input type="number" data-prop="limit" value="${b.props.limit || 6}" min="1" max="${BUNDLE.contrast.length}">`),
+    // The ink menu offers what there is a tile for, not the whole palette.
+    // Tiles are cut per role and only where the ink can be seen on its ground,
+    // so seven of meridian's ten menu entries had no tile behind them and the
+    // block quietly drew a different colourway.
     pattern: (b) => field(T('cvDensity'), sel('density', Object.keys((BUNDLE.system.pattern || {}).densities || { medium: 1 }), b.props.density))
-      + field(T('cvInk'), sel('colourway', COLOURS(), b.props.colourway)) + field(T('cvOn'), sel('on', COLOURS(), b.props.on))
+      + field(T('cvInk'), sel('colourway', PATTERN_INKS(), b.props.colourway)) + field(T('cvOn'), sel('on', COLOURS(), b.props.on))
       + field(T('cvStateRule'), chk('caption', b.props.caption)),
     iconGrid: (b) => field(T('cvInk'), sel('colourway', COLOURS(), b.props.colourway))
       + field(T('cvOn'), sel('on', COLOURS(), b.props.on)) + field(T('cvLines'), sel('line', COLOURS(), b.props.line))

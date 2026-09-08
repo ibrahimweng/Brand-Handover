@@ -4937,6 +4937,35 @@ The close-call advice added one round earlier — "look at both on the canvas
 before you take it" — was the same false promise, one round old. It says where
 they actually are now.
 
+## Seven of ten inks were not there
+
+`editor/render.js` drew a pattern block by looking up `density:colourway` in the
+tiles the bundle carries, and falling back when it missed:
+
+    const tile = bu.patternTiles[key] || bu.patternTiles[Object.keys(bu.patternTiles)[0]];
+
+Two things make that miss. Tiles are cut per **role** — ground, primary,
+secondary, accent — and `COLOURS()`, which fills the menu, is every role *and*
+every colour name. And a role whose ink fails contrast on its ground gets no
+tile at all, on purpose.
+
+Measured on meridian:
+
+    the ink menu offers   primary ground accent secondary neutral
+                          deep tide beacon chalk slate      (10)
+    tiles exist for       ground primary secondary           (3)
+
+The other seven drew `fine:ground` and said nothing. `accent` was refused
+because it measures 1.83:1 on its ground, and `gen.refused` carries that
+sentence into the bundle as `patternRefused`, where the block could have read
+it. The fallback meant `cvPatternRefused` — a string that exists in four
+languages for this exact case — could only appear when an identity had no
+pattern whatsoever.
+
+The menu is built from the tiles now, and a block whose tile is missing prints
+the refusal in the engine's own words rather than drawing somebody else's
+colourway.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.

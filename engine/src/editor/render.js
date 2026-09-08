@@ -297,8 +297,20 @@
       // tiles are already keyed by role, so this must not go through cwName,
       // which would turn "primary" into the colourway name and miss every time
       const key = `${b.props.density || 'medium'}:${b.props.colourway || 'ground'}`;
-      const tile = bu.patternTiles[key] || bu.patternTiles[Object.keys(bu.patternTiles)[0]];
-      if (!tile) return `<div class="hb-missing">${esc(t(bu, 'cvPatternRefused'))}</div>`;
+      // No falling back to whatever tile happens to be first.
+      //
+      // It used to, and that swallowed the one thing the engine had gone to the
+      // trouble of working out. A colourway whose ink fails contrast on its
+      // ground gets no tile on purpose — meridian's accent measures 1.83:1 —
+      // and the reason is recorded in patternRefused and shipped in the bundle.
+      // The fallback drew fine:ground instead and said nothing, so the block
+      // showed one colourway while the panel said another, and cvPatternRefused
+      // could only ever appear if the identity had no pattern at all.
+      const tile = bu.patternTiles[key];
+      if (!tile) {
+        const why = (bu.patternRefused || []).find((r) => `${r.density}:${r.colourway}` === key);
+        return `<div class="hb-missing">${esc(why ? why.why : t(bu, 'cvPatternRefused'))}</div>`;
+      }
       const pid = 'p' + esc(b.id);
       const field = `<svg viewBox="0 0 ${b.w} ${b.h}" preserveAspectRatio="none" style="width:100%;height:100%;display:block" role="img" aria-label="${esc(t(bu, 'cvArtPattern', { density: tile.density, colourway: tile.colourway }))}">
         <defs><pattern id="${pid}" width="${tile.width}" height="${tile.height}" patternUnits="userSpaceOnUse">${tile.body}</pattern></defs>
