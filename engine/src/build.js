@@ -18,6 +18,11 @@ const { masterOf } = require('./project');
 // looks like and the icon grid inheriting it is a reading rather than a choice.
 const ICON_WEIGHT_CLEAR = 2 / 3;
 
+// Below this the two best motifs are inside the precision of the thing that
+// ranked them. Measured: reading the coverage at four times the resolution
+// moves a score by up to 0.09, and the closest calls here are decided by 0.007.
+const PATTERN_CLEAR = 0.02;
+
 const KEYS_READ = {
   rules: ['clearSpaceRatio', 'minStrokePx', 'minStrokeMm', 'lockupGapRatio', 'wordmarkHeightRatio',
     'naming', 'lockups', 'formats', 'pngWidths', 'stock', 'colourways', 'iconInk', 'iconBg',
@@ -1115,11 +1120,23 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     // from a shape carrying data-pattern="source" — an attribute no exported
     // file has. It measures the drawing and picks now, and says what it picked.
     if (!(rules.pattern || {}).motif && !(rules.pattern || {}).construction) {
+      // "Ranked first of four" is a claim about a comparison, and the note used
+      // to make it without saying by how much. Three of the identities here are
+      // decided by under a hundredth of a score whose own inputs move by more
+      // than that when they are read at a finer resolution, so the margin is
+      // part of the finding rather than a detail behind it.
+      const close = gen.margin != null && gen.margin < PATTERN_CLEAR;
       notes.push(`the pattern is built from ${gen.motifName} — ${gen.why} It is drawn as `
         + `"${gen.construction}": ${require('./pattern').CONSTRUCTIONS[gen.construction].draws}. `
         + `${gen.choices.length} shape${gen.choices.length === 1 ? '' : 's'} in the drawing and `
-        + `${require('./pattern').NAMES.length} constructions were measured; the canvas shows every one of `
-        + `them and system.pattern.motif and system.pattern.construction pin whichever you want.`);
+        + `${require('./pattern').NAMES.length} constructions were measured`
+        + (gen.runnerUp
+          ? `; it scored ${gen.score} against ${gen.runnerUp.score} for ${gen.runnerUp.name}`
+            + `${close ? ', which is close enough that this is a decision rather than a reading — '
+              + 'look at both on the canvas before you take it' : ''}`
+          : '')
+        + `. The canvas shows every one of them and system.pattern.motif and `
+        + `system.pattern.construction pin whichever you want.`);
     }
   } else {
     warnings.push(`no pattern was written. ${gen.why} ${gen.how}`);

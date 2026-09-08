@@ -533,6 +533,77 @@ test('the tile is cut from the marked shape alone, not the whole mark', () => {
   assert.ok(g.ok, g.why);
   assert.ok(g.box.w < m.markInk.w, 'the tile was measured off the whole mark');
 });
+test('a drawing with one shape in it offers one shape, not the same one twice', () => {
+  // "the whole mark" and "the only shape" are the same drawing when there is
+  // only one shape: the same element, once inside a wrapper that carries
+  // nothing. They scored identically because they were identical, and five
+  // identities here reported "ranked first of 2 shapes" about a drawing with
+  // one shape in it, offering the canvas a choice between two of the same.
+  const one = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    + '<path fill="#123B2E" d="M4 4h16v16H4z"/></svg>';
+  assert.strictEqual(pat.candidates(one).list.length, 1, 'the same shape is offered twice');
+  // two shapes and the wrapper means something again: it holds both
+  const two = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    + '<path fill="#123B2E" d="M2 2h8v8H2z"/><path fill="#123B2E" d="M14 14h8v8h-8z"/></svg>';
+  assert.strictEqual(pat.candidates(two).list.length, 3, 'the whole mark is no longer offered');
+  // and the five in the repository each rank one candidate now
+  for (const n of ['pagrin', 'deben', 'skerry', 'kilnsey', 'rookhope']) {
+    const pr2 = projectLoader.load(path.join(__dirname, '..', 'projects', n, 'project.json'));
+    assert.strictEqual(pat.rank(projectLoader.masterOf(pr2).source).length, 1,
+      `${n} still offers a duplicate`);
+  }
+  // the note stops claiming a competition that did not happen
+  const only = pat.spec(one, { tile: 100 }, { clearSpaceRatio: 0.25 });
+  assert.ok(/only shape/i.test(only.why), only.why);
+  assert.ok(!/Ranked first of 1/.test(only.why), only.why);
+});
+
+test('the shape that wins is not one the raster made look solid', () => {
+  // `ink` is a coverage read off a square raster, and that square was 44 pixels
+  // across. Too coarse: a hairline lights whole pixels, so a thin shape read as
+  // far more solid than it is, and `solid` — the term that exists to stop a
+  // wash winning — rewarded it.
+  //
+  // Measured, recomputing every score at 176 moved one by 0.09, a tenth of the
+  // whole score, and changed which shape won on two identities. Both moved from
+  // a near-line to a squarish shape. Going on to 352 moves nothing's winner.
+  const tb = pat.rank(projectLoader.masterOf(projectLoader.load(
+    path.join(__dirname, '..', 'projects', 'tarnbrook', 'project.json'))).source);
+  assert.strictEqual(tb[0].key, 'mark', 'tarnbrook tiles a shape rather than its mark');
+  const beaten = tb.find((m) => m.key === 'shape:2');
+  assert.ok(beaten && beaten.compact < 0.2,
+    'the shape the coarse read preferred is no longer a near-line, so this proves nothing');
+  assert.ok(tb[0].compact > beaten.compact, 'the winner is no rounder than the shape it beat');
+  const rv = pat.rank(projectLoader.masterOf(projectLoader.load(
+    path.join(__dirname, '..', 'projects', 'ravelston', 'project.json'))).source);
+  assert.strictEqual(rv[0].key, 'shape:2');
+  assert.ok(rv[0].compact > 0.8, `ravelston tiles something ${rv[0].compact} compact`);
+});
+
+test('the note says how far ahead the shape it chose came', () => {
+  // "Ranked first of three" is a claim about a comparison, made without saying
+  // by how much. marlow's first and second are 0.018 apart on a score whose own
+  // inputs move further than that when they are read more closely.
+  const spec = (n) => {
+    const pr2 = projectLoader.load(path.join(__dirname, '..', 'projects', n, 'project.json'));
+    return pat.everyTile(projectLoader.masterOf(pr2).source, sysOf(pr2).pattern,
+      [{ name: 'a', ink: '#123B2E', on: '#FFFFFF' }], []);
+  };
+  const sysOf = (pr2) => require('../src/system').resolve(pr2, measure(pr2));
+  const ml = spec('marlow');
+  assert.ok(ml.ok, 'marlow writes no pattern');
+  assert.ok(typeof ml.margin === 'number' && ml.margin > 0, `no margin: ${ml.margin}`);
+  assert.ok(ml.margin < 0.02, `marlow is ${ml.margin} ahead, so it is not the close case any more`);
+  assert.ok(ml.runnerUp && ml.runnerUp.name, 'the runner-up is not named');
+  assert.ok(ml.score > ml.runnerUp.score, 'the winner does not lead');
+  // a drawing with one candidate has nobody to be ahead of
+  const one = pat.everyTile('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    + '<path fill="#123B2E" d="M4 4h16v16H4z"/></svg>', { tile: 100, densities: { fine: 1 } },
+  [{ name: 'a', ink: '#123B2E', on: '#FFFFFF' }], []);
+  assert.strictEqual(one.margin, null);
+  assert.strictEqual(one.runnerUp, null);
+});
+
 test('every construction makes a tile that repeats seamlessly', () => {
   // Seamlessness is a property of the wrapping, not of nine pieces of careful
   // drawing: anything that crosses an edge is emitted again one tile away, and

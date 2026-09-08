@@ -4819,6 +4819,65 @@ every other, which is all a share needs. It does not reuse `system.pathPoints`,
 which is more careful about arcs and would be a dependency pointing the wrong
 way: `system.js` reads `svg.js`, not the other way round.
 
+## Ranked first of one
+
+The pattern note explains which shape the field was built from and why. It ends:
+
+    Ranked first of 2 shapes in the drawing; the others are offered beside it.
+
+Five identities said that about a drawing with one shape in it. `candidates()`
+offers the whole mark and each shape separately, and where a drawing holds a
+single element those are the same element — once bare, once inside a `<g>` that
+carries nothing. The dedupe compared markup strings, so it saw two. They scored
+identically, to four decimal places, because they were identical, and the winner
+was decided by which was added first. The canvas offered a choice between two of
+the same drawing.
+
+`bare()` is deliberately narrow: a group with no attributes holding exactly one
+element draws what that element draws, and anything else is left alone because
+the wrapper may be doing something. vesper's `mark` holds two paths and stays.
+
+### How good is the number?
+
+The other half of the note is the ranking, and it never said by how much. Three
+identities are decided by under a hundredth. That is only worth reporting if the
+score is precise to better than a hundredth, so the next question was whether it
+is.
+
+`ink` is a coverage read off a square raster. The square was 44 pixels across.
+Recomputing every score with it at 176:
+
+    worst score shift                    0.0912
+    winner changes                       ravelston, tarnbrook
+
+A tenth of the whole score, and two identities tiling a different shape. The
+margins the note was presenting as a ranking are 0.007 to 0.03, so the ranking
+was being settled inside its own quantisation.
+
+The mechanism is the one `solid` exists to prevent. A hairline lights whole
+pixels at 44 across, so a thin shape reads as far more solid than it is:
+
+    tarnbrook  shape:2  compact 0.18   won at 44, and it is very nearly a line
+               mark     compact 0.64   wins at 176
+
+Ravelston's field was a set of plain rules; it is the hatched shield panels now.
+Tarnbrook's was three heavy bars; it is the arch and the waves. Both moved from
+an elongated shape to a squarish one, which is the direction the coarse read was
+biased in.
+
+176 is where it settles: 352 moves the worst score by 0.025 and changes no
+winner. The finer read costs about a tenth of a second on a build that takes six.
+
+### And then the note
+
+With a number worth quoting, the note quotes it — the winner's score, the
+runner-up's, and by name. Under 0.02 apart it says so plainly, because two
+motifs that close are inside the precision of the thing that ranked them and the
+designer should look at both rather than take the engine's word.
+
+`whyOnly` is the fourth string this needed: "Ranked first of 1 shape" is a
+sentence about a competition that did not happen.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.

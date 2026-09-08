@@ -131,6 +131,17 @@ function carryPaint(doc, markup) {
   return out.length ? `<defs>${out.join('')}</defs>` : '';
 }
 
+// A group that wraps a single element and carries nothing of its own draws
+// exactly what that element draws. Used only to tell two candidates apart, so
+// it is deliberately narrow: any attribute on the group, or more than one child
+// element, and the wrapper is left alone because it may be doing something.
+function bare(markup) {
+  const m = /^<g>([\s\S]*)<\/g>$/.exec(String(markup).trim());
+  if (!m) return markup;
+  const inner = m[1].trim();
+  return (inner.match(/<[a-zA-Z]/g) || []).length === 1 ? inner : markup;
+}
+
 function candidates(markSource) {
   const doc = svgu.parse(markSource);
   const vb = svgu.viewBox(doc);
@@ -163,8 +174,14 @@ function candidates(markSource) {
     if (!/<(path|circle|rect|ellipse|polygon|polyline|line)\b/.test(markup)) return;
     // the paint it is drawn in, kept beside the shape rather than in front of it
     const defs = carryPaint(doc, markup);
-    if (seen.has(defs + markup)) return;
-    seen.add(defs + markup);
+    // A drawing with one shape in it offers that shape twice: once as itself,
+    // and once as "the whole mark", which is the same element inside a wrapper
+    // that adds nothing. The two score identically because they are identical,
+    // and five identities here ranked a field of two and reported "ranked first
+    // of 2 shapes" about a drawing with one shape in it. The wrapper only means
+    // something when it holds more than one element.
+    if (seen.has(defs + bare(markup))) return;
+    seen.add(defs + bare(markup));
     out.push(Object.assign({ key, name, markup, defs, why }, say || null));
   };
 
@@ -255,7 +272,16 @@ function strokedIn(markup) {
 function coverage(alone, box, vb) {
   const side = Math.max(box.w, box.h);
   if (!(side > 0) || !isFinite(side)) return 0;
-  const N = 44;
+  // The square this is read off. It was 44, which is small enough that the
+  // answer moved when it was looked at more closely: recomputing every score at
+  // 176 shifted one by 0.09 — a tenth of the whole score — and changed which
+  // shape won on two identities. The margins the note was calling a ranking are
+  // 0.007 to 0.03, so the ranking was being decided inside its own quantisation.
+  //
+  // 176 is where it settles. Going on to 352 moves the worst score by 0.025 and
+  // changes no winner at all, and the cost of the finer read is about a tenth of
+  // a second on a build that takes six.
+  const N = 176;
   try {
     const cx = box.x + box.w / 2, cy = box.y + box.h / 2;
     const square = `<svg xmlns="${svgu.NS}" viewBox="${R(cx - side / 2, 3)} ${R(cy - side / 2, 3)} `
@@ -352,9 +378,15 @@ function whyText(f, L) {
   if (!f) return '';
   if (f.marked) return L.t('whyMarked');
   const bits = f.bits.map((k) => L.t(k));
+  // "Ranked first of 1 shape" is a sentence about a competition that did not
+  // happen. Five identities here have one candidate, and used to have two: the
+  // same drawing offered as itself and as the whole mark.
   return `${bits.join(', ')}${bits.length ? '. ' : ''}`
-    + L.t('whyRanked', { n: f.all, shapes: L.t(f.all === 1 ? 'patShape' : 'patShapes') })
-    + `${f.others > 0 ? L.t('whyOthers') : ''}.`;
+    + (f.all === 1
+      ? L.t('whyOnly')
+      : L.t('whyRanked', { n: f.all, shapes: L.t(f.all === 1 ? 'patShape' : 'patShapes') })
+        + `${f.others > 0 ? L.t('whyOthers') : ''}`)
+    + '.';
 }
 
 function because(m, all) {
@@ -684,8 +716,14 @@ function everyTile(markSource, rules, colourways, contrastPairs, measured) {
         width: t.width, height: t.height });
     }
   }
+  // How far ahead it came, so the note can say whether the ranking was a
+  // reading or a decision. `all` is sorted, so the runner-up is the next one.
+  const runner = base.all.length > 1 && base.motif.key === base.all[0].key ? base.all[1] : null;
   return { ok: true, tiles: out, refused, motif: base.motif.key, motifName: base.motif.name,
-    construction: base.construction, why: base.why, choices: base.all.map((m) => m.key) };
+    construction: base.construction, why: base.why, choices: base.all.map((m) => m.key),
+    margin: runner ? R(base.all[0].score - runner.score, 4) : null,
+    runnerUp: runner ? { key: runner.key, name: runner.name, score: runner.score } : null,
+    score: base.motif.score };
 }
 
 // A patch of pattern for a document or the editor, using the tile as a fill.

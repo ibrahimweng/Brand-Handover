@@ -1584,4 +1584,33 @@ cut at the finer one is a different set. Every threshold from about 0.55 to 0.7
 separates these the same way, so the number is a gap in the data rather than one
 fitted to the case that prompted it.
 
+The forty-eighth started on a note and found what was under it.
+
+    Ranked first of 2 shapes in the drawing; the others are offered beside it.
+
+**Five identities said that about a drawing with one shape in it.** "The whole
+mark" and "the only shape" are the same element — once bare, once inside a
+wrapper that carries nothing — and the dedupe compared markup strings, so it saw
+two. They scored identically because they were identical, and the canvas offered
+a choice between two of the same thing.
+
+Then the margin, which the note never gave. Three identities are decided by under
+a hundredth. So: how precise is the score? `ink` is a coverage read off a square
+raster, and that square was **44 pixels**. Recomputing every score at 176 moved
+one by **0.09** — a tenth of the whole score — and **changed which shape won on
+two identities**. The ranking was being decided inside its own quantisation.
+
+A hairline lights whole pixels at 44 across, so a thin shape read as far more
+solid than it is, and `solid` — the term that exists to stop a wash winning —
+rewarded it. tarnbrook was tiling a shape 0.18 compact, which is very nearly a
+line. Ravelston's field was a set of plain rules. At 176 both move to a squarish
+shape: ravelston to its hatched shield panels, tarnbrook to its own arch and
+waves. Going on to 352 changes no winner at all, and the finer read costs about a
+tenth of a second on a build that takes six.
+
+So the note says the margin now, and where the two are inside that precision it
+says the choice is a decision rather than a reading and to look at both. What
+made the round worth doing was asking how good the number was before reporting
+it.
+
 Still to do: nothing named. The next one is whatever the next real export breaks.
