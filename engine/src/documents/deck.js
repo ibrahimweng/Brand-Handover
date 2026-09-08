@@ -247,13 +247,18 @@ function deck(ctx) {
        <span>${b.esc(say('deckOn', { fg: x.fg, bg: x.bg }))}</span><em>${x.ratio}:1</em><i class="v-${cls[x.level]}">${b.esc(x.useKey ? say(x.useKey) : x.use)}</i></div>`).join('')}</div>
     <p class="sm">${b.esc(say('deckContrastNote'))}</p>`, 'light');
 
-  div('03', say('chType'), [say('secTypefaces'), say('secScale')]);
+  // A scale is a decision, not a measurement. A project that states none — the
+  // front door decides one for nobody — gets no scale slide and is not promised
+  // one on the divider, the same way a deck with no misuse rules has no misuse
+  // slide. It used to say "0 steps" over an empty box.
+  const steps = ((p.tokens.type || {}).scale || []).length;
+  div('03', say('chType'), [say('secTypefaces')].concat(steps ? [say('secScale')] : []));
   const fams = Object.entries((p.tokens.type || {}).families || {});
   add(say('secTypefaces'), `<span class="bdg">${b.esc(say('bdgSystem'))}</span><h2 style="margin-top:2cqw">${b.esc(say('deckFaces', { n: fams.length }))}</h2>
     ${fams.map(([role, f]) => `<div style="margin-top:2.6cqw"><p class="cap" style="margin:0">${b.esc(f.family)} · ${b.esc(role)}</p>
       <p class="alpha" style="font-family:'${b.esc(f.family)}',${b.esc(f.fallback || 'sans-serif')};font-weight:${(f.weights || [400])[0]}">${b.esc(say('alphabet'))}</p></div>`).join('')}
     <p class="sm">${own(c.typeRationale)}</p>`, 'light');
-  add(say('secScale'), `<span class="bdg">${b.esc(say('bdgSystem'))}</span><h2 style="margin-top:2cqw">${b.esc(say('deckSteps', { n: ((p.tokens.type || {}).scale || []).length }))}</h2>
+  if (steps) add(say('secScale'), `<span class="bdg">${b.esc(say('bdgSystem'))}</span><h2 style="margin-top:2cqw">${b.esc(say('deckSteps', { n: steps }))}</h2>
     <div style="margin-top:2.4cqw">${((p.tokens.type || {}).scale || []).slice(0, 4).map((s) => {
       const f = ((p.tokens.type || {}).families || {})[s.family] || {};
       return `<p style="font-family:'${b.esc(f.family)}',${b.esc(f.fallback || 'sans-serif')};font-weight:${s.weight};font-size:${Math.min(s.size / 12, 4.4)}cqw;line-height:1.15;margin-top:1.4cqw">${own(s.sample)}</p>`;

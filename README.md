@@ -1928,13 +1928,69 @@ site build, so the page you get on your own machine and the page you get hosted
 cannot be different pages — and the test reads the markers out of the template
 rather than naming them, so the next one added cannot be forgotten.
 
+---
+
+The fifty-fourth: every package the front door has built came out with no
+typefaces in it.
+
+Going to answer the language question — the one thing named as still to do —
+meant asking first what type a door-built package is set in. The answer is none.
+`projectJson` wrote this:
+
+    tokens: { type: { heading: 'Archivo', body: 'Literata' } }
+
+`heading` and `body` are words nothing in this engine reads. Everything else —
+the loader, the three documents, the canvas, both checks written about type —
+speaks `families: { display, text }`. So `tokens.type.families` was `undefined`
+in every package the door has ever made:
+
+| the same artwork | through the door | from its project file |
+|---|---|---|
+| `09-type` | **0 files** | 9 |
+| `@font-face` in the manual | **0** | 4 |
+| the manual | 63 KB | 248 KB |
+
+The typefaces page named Archivo and Literata over specimens set in whatever
+the reader happened to have. Which is the exact defect `src/typeface.js` exists
+to end, in the comment at the top of it: *"A specimen showing the wrong face is
+worse than no specimen, because it is offered as proof."*
+
+Both checks written for this stayed quiet, and had to. `unreachable` asks which
+named families cannot arrive — none were named. `cannotDraw` asks what the
+shipped fonts cannot draw — none were shipped. A silence that means "nothing is
+wrong" and a silence that means "there is nothing here" look identical from the
+outside.
+
+The door writes the engine's shape now: Archivo at 600 and 700, Literata at 400,
+both faces the engine already holds, with fallbacks. A door-built package
+carries `09-type` with six woff2 files and the OFL, every document has the faces
+inlined, and the package says so — *"Archivo and Literata are in 09-type as 6
+web font files, under the SIL Open Font License, and inlined in every document
+so nothing is fetched to read one."*
+
+**And a scale nobody wrote is not a heading over nothing.** A type scale is a
+decision, not a measurement, and the door decides one for nobody — so the manual
+printed "The scale" over an empty div and the deck a slide reading "0 steps"
+over an empty box. Neither does now, the same way a manual with no misuse rules
+has had no misuse page since the round that noticed it.
+
 One thing measured and left alone: `site/out/contrast.js` and the `/contrast.js`
 route are served to nobody — the page that fetched them was the one replaced.
 The same was true of jszip an hour ago, and the right answer there was to use it
 rather than delete it, so this is recorded rather than removed.
 
-Still to do: **the door cannot choose a language.** The engine writes in four —
-English, French, Hebrew and Japanese, with a fixture for each — and the front
-door asks nothing about it, so a Hebrew identity gets an English manual laid out
-left to right. That is a preference the door does not offer rather than a
-failure, which is why it is not this round.
+Still to do, and now for a better reason: **the door cannot choose a language.**
+The engine writes in four — English, French, Hebrew and Japanese, with a fixture
+for each — and the front door asks nothing about it, so a Hebrew identity gets
+an English manual laid out left to right. One flag away:
+
+    language: undefined   <html lang="en" dir="ltr">   The mark | Colour | …
+    language: "he"        <html lang="he" dir="rtl">   הסמל | צבע | …
+
+What stopped it being this round is that the words have to be settable. Hebrew's
+chrome is 38 characters Archivo and Literata cannot draw, and Japanese's is 596
+of which the engine holds no face at all — maayan ships Heebo and Frank Ruhl
+Libre, yamabiko a subsetted IPAGothic of its own. Offering a language whose
+script the type cannot set would have produced a manual in tofu, which is worse
+than one in English. Now that the door writes type at all, choosing faces to
+match the script is a thing it can do.

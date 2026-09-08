@@ -5347,14 +5347,66 @@ releases since.
 test reads the markers out of the template with a regex rather than naming them,
 so a marker added later cannot be forgotten in the same way.
 
+## Every package the front door built had no type in it
+
+Going to answer the language question meant asking first what type a door-built
+package is set in. None.
+
+    projectJson:  tokens: { type: { heading: 'Archivo', body: 'Literata' } }
+    everything else: tokens.type.families = { display: {…}, text: {…} }
+
+`heading` and `body` are words nothing in this engine reads. The loader, the
+three documents, the canvas and both checks written about type all speak
+`families`, so `tokens.type.families` was `undefined` in every package the door
+has ever made. The same artwork, built the two ways:
+
+    through the door       09-type  0 files | @font-face  0 | manual   63 KB
+    from its project file  09-type  9 files | @font-face  4 | manual  248 KB
+
+The 185 KB is the type. The typefaces page named Archivo and Literata over
+specimens set in whatever the reader had, which is the defect at the top of
+`src/typeface.js`:
+
+    // A specimen showing the wrong face is worse than no specimen, because it
+    // is offered as proof.
+
+Two checks exist for exactly this and both had to stay quiet. `unreachable`
+asks which named families cannot arrive, and none were named. `cannotDraw` asks
+what the shipped fonts cannot draw, and none were shipped. A silence meaning
+"nothing wrong" and a silence meaning "nothing here" are the same silence.
+
+    display  Archivo   600 700   Helvetica,Arial,sans-serif
+    text     Literata  400       Georgia,serif
+
+Both held by the engine — the test asserts that rather than trusting the names —
+and the weights are the ones the specimen sets, because the fonts round's own
+warning is about a weight carried in every document for nothing.
+
+### A scale nobody wrote is not a heading over nothing
+
+A type scale is a decision, not a measurement, and the door decides one for
+nobody. The manual printed `secScale` over `<div class="scale"></div>` and the
+deck a slide reading "0 steps" over an empty box, and listed it on the chapter
+divider as something to come. Both are conditional now, the way `secMisuse`
+already was:
+
+    + (((ctx.project.tokens.type || {}).scale || []).length
+      ? S('3.2', T('secScale'), 'system', b.typeScale(ctx)) : '')
+
 ## What it does not do yet
 
 - **The door cannot choose a language.** The engine writes in English, French,
   Hebrew and Japanese, with `strings.js` holding four dictionaries under a
   key-parity test and a fixture for each, and `stage` already carries a
   `language`. The front door asks nothing about it, so a Hebrew identity built
-  through it gets an English manual laid out left to right. A preference the
-  door does not offer rather than a failure.
+  through it gets an English manual laid out left to right — one flag from
+  `<html lang="he" dir="rtl">` and a manual whose chapters read הסמל, צבע,
+  טיפוגרפיה. What it needs first is type that can set the words: Hebrew's chrome
+  is 38 characters Archivo and Literata cannot draw and Japanese's is 596, of
+  which the engine holds no face at all — maayan ships Heebo and Frank Ruhl
+  Libre, yamabiko a subsetted IPAGothic of its own. A language whose script the
+  type cannot set produces a manual in tofu, which is worse than one in English.
+  Now that the door writes type, choosing it to match the script is tractable.
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.
 - **Open path detection.** A path that is filled but never closed renders
   differently in some tools, and that is not checked.

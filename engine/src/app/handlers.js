@@ -95,7 +95,19 @@ function projectJson(opts) {
       opts.wordmark ? { wordmark: 'wordmark.svg' } : {}),
     tokens: {
       colour: colours,
-      type: opts.type || { heading: 'Archivo', body: 'Literata' },
+      // The engine's shape, not a second vocabulary for it. This was
+      // { heading, body } — words nothing in the engine reads — so
+      // tokens.type.families was undefined in every package the door has ever
+      // built: no 09-type folder, no @font-face in any document, and three
+      // specimen pages naming a face the package does not carry. Both checks
+      // written for exactly that stayed quiet, because a family you never name
+      // cannot be reported as unreachable.
+      type: opts.type || {
+        families: {
+          display: { family: 'Archivo', weights: [600, 700], fallback: 'Helvetica,Arial,sans-serif' },
+          text: { family: 'Literata', weights: [400], fallback: 'Georgia,serif' },
+        },
+      },
     },
     rules: {
       lockups: opts.lockups,

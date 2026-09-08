@@ -259,8 +259,13 @@ function guidelines(ctx) {
       S(b.gradientSpec(ctx) ? '2.4' : '2.3', T('secColourVision'), 'system', b.colourVision(ctx)))}
 
   ${chapter('03', T('chType'),
-      S('3.1', T('secTypefaces'), 'system', b.typeSpecimen(ctx) + words(c.typeRationale, ctx, 'content/typeRationale')) +
-      S('3.2', T('secScale'), 'system', b.typeScale(ctx)))}
+      S('3.1', T('secTypefaces'), 'system', b.typeSpecimen(ctx) + words(c.typeRationale, ctx, 'content/typeRationale'))
+      // A scale is a decision, not a measurement, so a project that states none
+      // has none — and a heading over an empty div is the same defect as a
+      // misuse page with no rules on it, which this document already knows not
+      // to print. The front door does not decide a scale for anybody.
+      + (((ctx.project.tokens.type || {}).scale || []).length
+        ? S('3.2', T('secScale'), 'system', b.typeScale(ctx)) : ''))}
 
   ${(() => {
     // One chapter for the rule blocks, numbered around whichever of them this

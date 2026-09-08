@@ -5159,9 +5159,11 @@ test('a lone logotype is built as a logotype, not as a mark called one', async (
     lockups: ['wordmark'] }, dir);
   // 05-icons comes too, now that the sizes have a default: a logotype identity
   // still needs a favicon, and it is cut from the logotype for want of anything
-  // else. What it must NOT do is call the logotype a mark.
+  // else. 09-type came later still, when the door started writing tokens.type
+  // in the shape the engine reads rather than in one of its own. What it must
+  // NOT do is call the logotype a mark.
   const folders = fs.readdirSync(dir).filter((f) => /^\d\d-/.test(f));
-  assert.deepStrictEqual(folders, ['04-wordmark', '05-icons', '07-pattern'], `it wrote ${folders.join(', ')}`);
+  assert.deepStrictEqual(folders, ['04-wordmark', '05-icons', '07-pattern', '09-type'], `it wrote ${folders.join(', ')}`);
   fs.rmSync(dir, { recursive: true, force: true });
 
   // and a symbol on its own is still a symbol
@@ -5222,6 +5224,77 @@ test('the door reads the artwork the engine will use, not the one that arrived',
   // so a colourway would have left it one colour whatever the rules said.
   assert.deepStrictEqual(INT.read({ mark }).slots, ['all']);
   assert.deepStrictEqual(APP.ask({ mark }).seen.slots, ['ink']);
+});
+
+test('a package built through the door carries its own type', async () => {
+  // projectJson wrote tokens.type as { heading: 'Archivo', body: 'Literata' } —
+  // words nothing in this engine reads. The shape everything else uses is
+  // { families: { display, text } }, so tokens.type.families was undefined in
+  // every package the front door has ever built: no 09-type folder, no
+  // @font-face in any of the three documents, and a typefaces page naming two
+  // faces above specimens set in whatever the reader happened to have. Which is
+  // the defect src/typeface.js was written to end — "a specimen showing the
+  // wrong face is worse than no specimen, because it is offered as proof".
+  //
+  // Both checks written for it stayed quiet. `unreachable` asks which named
+  // families cannot arrive and nothing was named; `cannotDraw` asks what the
+  // shipped fonts cannot draw and nothing was shipped.
+  const t = APP.projectJson({ brand: 'x', mark: 'x', lockups: ['mark'],
+    colours: [{ name: 'ink', hex: '#111111', role: 'primary' }] }).tokens.type;
+  assert.ok(t.families && t.families.display && t.families.text, 'the door names no families');
+  const TF = require('../src/typefaces');
+  for (const [role, f] of Object.entries(t.families)) {
+    assert.ok(TF.has(f.family), `the door asks for ${f.family} as the ${role}, which the engine does not hold`);
+    assert.ok(f.fallback, `${role} names no fallback`);
+  }
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-type-'));
+  const a = APP.ask({ mark: markSrc(), wordmark: wordSrc() });
+  const answers = { brand: 'Typed', positioning: 'x', style: 'quiet', places: ['screen'] };
+  a.questions.forEach((q) => { if (q.suggested !== undefined) answers[q.key] = q.suggested; });
+  const r = await APP.make({ brand: 'Typed', mark: markSrc(), wordmark: wordSrc(),
+    colours: answers.colours, lockups: a.seen.lockups, slots: a.seen.slots, answers }, dir);
+
+  // the faces are in the package, under their licence
+  const fonts = fs.readdirSync(path.join(dir, '09-type'));
+  assert.ok(fonts.filter((f) => /\.woff2$/.test(f)).length >= 3, `09-type holds ${fonts.join(', ')}`);
+  assert.ok(fonts.some((f) => /licen[cs]e|OFL/i.test(f)), 'the faces ship without their licence');
+
+  // and in every document, inlined, so one opens with no network at all
+  for (const doc of r.documents.filter((d) => /\.html$/.test(d))) {
+    const html = fs.readFileSync(path.join(dir, doc), 'utf8');
+    assert.ok(/@font-face/.test(html), `${doc} sets no type of its own`);
+    assert.ok(/src:url\(data:font\/woff2/.test(html), `${doc} names a face it does not carry`);
+  }
+  // which the package says, rather than leaving it to be discovered
+  assert.ok((r.notes || []).some((n) => /09-type/.test(n)), 'the package does not say where its type is');
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('a scale nobody wrote is not a heading over nothing', async () => {
+  // A type scale is a decision, not a measurement, and the front door decides
+  // one for nobody. The manual printed "The scale" over an empty div and the
+  // deck a slide reading "0 steps" over an empty box — which is the same defect
+  // as a misuse page with no rules on it, and this document already knows not
+  // to print that one.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-scale-'));
+  const a = APP.ask({ mark: markSrc() });
+  const answers = { brand: 'Unscaled', positioning: 'x', style: 'quiet', places: ['screen'] };
+  a.questions.forEach((q) => { if (q.suggested !== undefined) answers[q.key] = q.suggested; });
+  await APP.make({ brand: 'Unscaled', mark: markSrc(), colours: answers.colours,
+    lockups: a.seen.lockups, slots: a.seen.slots, answers }, dir);
+  const S = require('../src/strings');
+  const scale = S.HAVE.en.secScale;
+  for (const doc of ['guidelines.html', 'deck.html']) {
+    const html = prose(fs.readFileSync(path.join(dir, doc), 'utf8'));
+    assert.ok(html.indexOf(scale) < 0, `${doc} promises a scale this project does not state`);
+    assert.ok(html.indexOf(S.HAVE.en.secTypefaces) > -1, `${doc} lost the typefaces with the scale`);
+  }
+  fs.rmSync(dir, { recursive: true, force: true });
+
+  // and a project that does state one still shows it
+  const has = docs.guidelines(docs.context(KV, kvM, [], {}));
+  assert.ok(prose(has).indexOf(scale) > -1, 'a stated scale stopped being shown');
 });
 
 test('a name the files cannot carry is asked about at the door, not at the fourth screen', async () => {
