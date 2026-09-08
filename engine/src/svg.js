@@ -250,6 +250,88 @@ function strokeWidths(doc) {
   return [...found].sort((a, b) => a - b);
 }
 
+// How much of the drawing each weight actually draws.
+//
+// strokeWidths answers "which weights is this drawn in" and says nothing about
+// how much is at each, so the icon grid picked the heaviest by ordering rather
+// than by measurement — which is the one thing this engine is not supposed to
+// do. It happens to be right on every identity here, and that could only be
+// found out by measuring it.
+//
+// The unit is ink: a length times the width it is drawn at. Length alone is the
+// wrong answer and looks like the right one — tarnbrook's three fine waves are
+// two thirds of its drawn length and just under half of its ink, because the
+// arch above them is twice as wide.
+//
+// Curves are counted by the straight line between the points they run through,
+// so every weight is under-counted by about as much as every other, which is
+// all a share needs. It does not reuse system.pathPoints, which is more careful
+// than this and would be a dependency pointing the wrong way.
+const SEG = { m: 2, l: 2, h: 1, v: 1, c: 6, s: 4, q: 4, t: 2, a: 7, z: 0 };
+function pathLength(d) {
+  const tok = String(d).match(/[a-df-zA-DF-Z]|-?\d*\.?\d+(?:e[-+]?\d+)?/gi) || [];
+  let i = 0, cmd = '', x = 0, y = 0, sx = 0, sy = 0, total = 0;
+  const to = (nx, ny) => { total += Math.hypot(nx - x, ny - y); x = nx; y = ny; };
+  while (i < tok.length) {
+    if (/[a-z]/i.test(tok[i])) cmd = tok[i++];
+    const low = cmd.toLowerCase(), n = SEG[low];
+    if (n === undefined) { i++; continue; }
+    const rel = cmd === low;
+    const a = tok.slice(i, i + n).map(Number);
+    if (a.length < n) break;
+    i += n;
+    if (low === 'm') { x = rel ? x + a[0] : a[0]; y = rel ? y + a[1] : a[1]; sx = x; sy = y; cmd = rel ? 'l' : 'L'; }
+    else if (low === 'l') to(rel ? x + a[0] : a[0], rel ? y + a[1] : a[1]);
+    else if (low === 'h') to(rel ? x + a[0] : a[0], y);
+    else if (low === 'v') to(x, rel ? y + a[0] : a[0]);
+    else if (low === 'c') to(rel ? x + a[4] : a[4], rel ? y + a[5] : a[5]);
+    else if (low === 's' || low === 'q') to(rel ? x + a[2] : a[2], rel ? y + a[3] : a[3]);
+    else if (low === 't') to(rel ? x + a[0] : a[0], rel ? y + a[1] : a[1]);
+    else if (low === 'a') to(rel ? x + a[5] : a[5], rel ? y + a[6] : a[6]);
+    else if (low === 'z') to(sx, sy);
+  }
+  return total;
+}
+const num = (el, a) => Number(el.getAttribute(a)) || 0;
+function drawnLength(el) {
+  const t = String(el.nodeName).replace(/^.*:/, '').toLowerCase();
+  if (t === 'path') return pathLength(el.getAttribute('d') || '');
+  if (t === 'line') return Math.hypot(num(el, 'x2') - num(el, 'x1'), num(el, 'y2') - num(el, 'y1'));
+  if (t === 'circle') return 2 * Math.PI * num(el, 'r');
+  if (t === 'ellipse') return Math.PI * (num(el, 'rx') + num(el, 'ry'));
+  if (t === 'rect') return 2 * (num(el, 'width') + num(el, 'height'));
+  if (t === 'polyline' || t === 'polygon') {
+    const p = (el.getAttribute('points') || '').trim().split(/[\s,]+/).map(Number);
+    let n = 0;
+    for (let i = 2; i + 1 < p.length; i += 2) n += Math.hypot(p[i] - p[i - 2], p[i + 1] - p[i - 1]);
+    if (t === 'polygon' && p.length >= 4) n += Math.hypot(p[0] - p[p.length - 2], p[1] - p[p.length - 1]);
+    return n;
+  }
+  return 0;
+}
+function strokeInk(doc) {
+  const by = new Map();
+  const tag = (el) => String(el.nodeName).replace(/^.*:/, '').toLowerCase();
+  const step = (el, stroke, width) => {
+    if (el.nodeType !== 1 || !drawn(el)) return;
+    const s = el.getAttribute('stroke') || stroke;
+    const own = parseFloat(el.getAttribute('stroke-width'));
+    const w = Number.isFinite(own) && own >= 0 ? own : width;
+    const container = tag(el) === 'g' || tag(el) === 'svg';
+    if (s && s !== 'none' && w > 0 && !container) {
+      const len = drawnLength(el);
+      if (len > 0) by.set(w, (by.get(w) || 0) + len * w);
+    }
+    for (let c = el.firstChild; c; c = c.nextSibling) step(c, s, w);
+  };
+  step(doc.documentElement, null, 1);
+  const total = [...by.values()].reduce((a, b) => a + b, 0);
+  if (!total) return [];
+  return [...by.entries()]
+    .map(([width, ink]) => ({ width, share: Math.round((ink / total) * 1000) / 1000 }))
+    .sort((a, b) => b.share - a.share);
+}
+
 // The parts a drawing names. data-slot says what a part is painted from;
 // data-part says what it is when the mark moves. Twenty-seven identities
 // carried a motion specification naming an "outline" and a "fill", and no
@@ -329,4 +411,4 @@ function compose(parts, width, height) {
 const round = (n, dp = 3) => Number(n.toFixed(dp));
 
 module.exports = { KEEP, dropUnusedPaint, gradientSlots, gradients, paintBySlot, parse, serialize, viewBox, applyColourway, slotsUsed, thinnestStroke,
-  strokeWidths, inkParts, partsUsed, partIsStroked, innerXML, compose, round, NS, eachPainted, NEVER_DRAWN };
+  strokeWidths, strokeInk, inkParts, partsUsed, partIsStroked, innerXML, compose, round, NS, eachPainted, NEVER_DRAWN };

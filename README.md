@@ -1551,4 +1551,37 @@ The method is in the repository this time, as `engine/tools/subset-font.py`.
 It had been worked out from scratch twice and lost twice, which is the same
 failure as a colour value nobody can regenerate.
 
+The forty-seventh went after a warning that had been telling the truth and not
+much else. A mark drawn in two weights hands the icon grid one of them, and the
+build said so:
+
+    the master is drawn in 2 weights (5, 9), and an icon grid has one.
+
+Two numbers, a statement that a decision was made on the designer's behalf, and
+nothing to check it with. It fired in the same voice for a mark drawn 89 per
+cent in its heavy weight and one split 51 to 49.
+
+**The first measurement said the rule was broken, and it was the measurement
+that was wrong.** Summing the drawn length at each weight, tarnbrook is 66 per
+cent at 4.5 and 34 per cent at 9 — so the engine, which takes the heaviest,
+looked like it was picking the minority weight. But weight is not carried by
+length, it is carried by ink: a 4.5 stroke drawn twice as far lays down the same
+ink as a 9. Measured that way tarnbrook is 51 to 49 the other way, and the
+heaviest weight turns out to be the largest share on **every** identity here.
+The rule was right. It had just never been checked.
+
+So nothing about which weight the icons inherit changes. What changes is that
+the engine now measures the share and says it, and only raises its voice where
+the choice is real:
+
+    tarnbrook   9 draws 51% and 4.5 draws 49%      warning
+    yamabiko    9 draws 70% and 5 draws 30%        note
+    ancroft     8 draws 89% and 3 draws 11%        note
+
+Above two thirds the heavy weight is simply what the mark looks like and nobody
+would pick the other. Below it, two weights share the drawing and an icon set
+cut at the finer one is a different set. Every threshold from about 0.55 to 0.7
+separates these the same way, so the number is a gap in the data rather than one
+fitted to the case that prompted it.
+
 Still to do: nothing named. The next one is whatever the next real export breaks.

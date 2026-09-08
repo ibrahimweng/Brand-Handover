@@ -5615,6 +5615,68 @@ test('icons take the weight the mark carries its shape in, not its finest detail
   assert.strictEqual(r.derivedFrom.markStroke, 9, 'the icon grid took the hairline');
   assert.strictEqual(r.stroke, 1.8);
 });
+test('how much of the mark each weight draws is measured, not ordered', () => {
+  // The grid takes the heaviest weight, and the test above says so. What
+  // nothing said was how much of the mark that weight actually draws, so the
+  // build warned in the same voice for a mark 89 per cent drawn in its heavy
+  // weight and one split 51 to 49.
+  //
+  // The unit has to be ink — length times width. Length alone gives the wrong
+  // answer and looks right: tarnbrook's three fine waves are 66 per cent of its
+  // drawn length and 49 per cent of its ink, because the arch above them is
+  // twice as wide. Measured by length the engine's rule looks broken on
+  // tarnbrook; measured by ink it is correct, and on all four.
+  const svgu5 = require('../src/svg');
+  const ink = (n) => svgu5.strokeInk(svgu5.parse(
+    projectLoader.load(path.join(__dirname, '..', 'projects', n, 'project.json'))
+      .assets.mark.source));
+  const tb = ink('tarnbrook');
+  assert.deepStrictEqual(tb.map((x) => x.width), [9, 4.5], 'the heavier weight is not the larger share');
+  assert.ok(tb[0].share > 0.5 && tb[0].share < 0.55, `tarnbrook leads by ${tb[0].share}`);
+  assert.ok(Math.abs(tb.reduce((a, b) => a + b.share, 0) - 1) < 0.002, 'the shares do not sum to one');
+  // and the heaviest weight is the largest share on every identity that has
+  // more than one, which is the thing the rule was assuming without checking
+  const names = fs.readdirSync(path.join(__dirname, '..', 'projects'))
+    .filter((d) => fs.existsSync(path.join(__dirname, '..', 'projects', d, 'project.json')));
+  let multi = 0;
+  for (const n of names) {
+    const pr2 = projectLoader.load(path.join(__dirname, '..', 'projects', n, 'project.json'));
+    const src = (pr2.assets.mark || pr2.assets.wordmark).source;
+    const parsed = svgu5.parse(src);
+    const w = svgu5.strokeWidths(parsed).filter((x) => x > 0);
+    if (w.length < 2) continue;
+    multi++;
+    const share = svgu5.strokeInk(parsed);
+    assert.strictEqual(share[0].width, w[w.length - 1],
+      `${n}: the grid takes ${w[w.length - 1]} and most of the ink is at ${share[0].width}`);
+  }
+  assert.ok(multi >= 3, `only ${multi} identities are drawn in more than one weight`);
+
+  // a single weight is the whole of the drawing and there is nothing to choose
+  assert.deepStrictEqual(svgu5.strokeInk(svgu5.parse(
+    '<svg xmlns="http://www.w3.org/2000/svg"><path stroke="#000" stroke-width="4" d="M0 0h10"/></svg>')),
+  [{ width: 4, share: 1 }]);
+  // a fill draws no stroke ink at all
+  assert.deepStrictEqual(svgu5.strokeInk(svgu5.parse(
+    '<svg xmlns="http://www.w3.org/2000/svg"><path fill="#000" d="M0 0h10v10H0z"/></svg>')), []);
+});
+
+test('the build only argues about the weight where the choice is real', () => {
+  const sys2 = require('../src/system');
+  const load2 = (n) => projectLoader.load(path.join(__dirname, '..', 'projects', n, 'project.json'));
+  const lead = (n) => {
+    const pr2 = load2(n);
+    return sys2.resolve(pr2, measure(pr2)).icons.derivedFrom.leadingInk;
+  };
+  // tarnbrook is a coin toss and yamabiko is not, and the build has to tell
+  // them apart. Every threshold from about 0.55 to 0.7 separates these two, so
+  // the two thirds the build uses is a gap in the data rather than a number
+  // fitted to one of them.
+  assert.ok(lead('tarnbrook') < 2 / 3, `tarnbrook leads by ${lead('tarnbrook')}`);
+  assert.ok(lead('yamabiko') >= 2 / 3, `yamabiko leads by ${lead('yamabiko')}`);
+  assert.ok(lead('ancroft') >= 2 / 3, `ancroft leads by ${lead('ancroft')}`);
+});
+
 test('a mark with one weight says nothing about the choice', () => {
   const sys = require('../src/system');
   assert.strictEqual(sys.resolve(project, m).icons.derivedFrom.markWeights, undefined);

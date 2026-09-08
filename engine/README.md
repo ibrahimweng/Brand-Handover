@@ -4758,6 +4758,67 @@ says what it could not find. Nothing in the build runs it; fonts are cut rarely
 and by hand. It is there so the next person does not start from zero, which is
 the same argument the whole engine makes about a value nobody can regenerate.
 
+## A warning that was true and useless
+
+    warning: the master is drawn in 2 weights (5, 9), and an icon grid has one.
+    The icons are cut at 1.8 on a 24 box, from the 9 the mark carries its shape
+    in, not the 5 of its finest detail.
+
+Every word of that is correct. It is also the whole of what the designer is
+given: two numbers, and the news that the engine has chosen between them. There
+is no way to tell from it whether the choice was obvious or a coin toss, and it
+fired identically for both.
+
+### The measurement that was wrong
+
+`svgu.strokeWidths` answers "which weights is this drawn in" and nothing else,
+so the grid took the last one — the heaviest — by ordering. Ordering is exactly
+what this engine is not supposed to do, so the first move was to measure which
+weight actually draws most of the mark.
+
+Summed by drawn length, that produced a disagreement:
+
+    tarnbrook   widths [4.5, 9]   engine picks 9   most length at 4.5  (66%)
+
+Which would mean the icon grid was inheriting the minority weight. It is the
+wrong measurement. Weight is not carried by length but by ink, and a 4.5 stroke
+drawn twice as far lays down the same ink as a 9. Length times width:
+
+    ancroft     8: 89%   3: 11%
+    ravelston   6: 88%   4: 12%     (its icons come off its own icon drawing)
+    yamabiko    9: 70%   5: 30%
+    tarnbrook   9: 51%   4.5: 49%
+
+The heaviest weight is the largest share on all of them. The rule was right and
+had never been checked, and the check nearly broke it. That is worth writing
+down: a measurement that contradicts a working rule is a reason to look at the
+measurement first.
+
+### What changed
+
+`svgu.strokeInk` walks the drawing the same way `strokeWidths` does — the same
+inheritance, the same treatment of containers and of `stroke-width: 0` — and
+returns each width with the share of the ink drawn at it. `variants.measure`
+takes it, `iconRules` records it in `derivedFrom` beside the weights, and
+`brand.json` carries it, so a developer reading the file sees the basis and not
+just the answer.
+
+The build says the share, and only warns where the two weights genuinely share
+the mark: above two thirds of the ink it is a note, below it a warning. That
+threshold separates tarnbrook from yamabiko anywhere between about 0.55 and 0.7,
+which is a gap in the data rather than a number fitted to the one case.
+
+Nothing about which weight the icons inherit changed. The point of the round is
+that the sentence saying so is now evidence.
+
+### Curves, and what this does not claim
+
+`strokeInk` counts a curve as the straight line between the points it runs
+through, so it under-counts — and under-counts every weight by about as much as
+every other, which is all a share needs. It does not reuse `system.pathPoints`,
+which is more careful about arcs and would be a dependency pointing the wrong
+way: `system.js` reads `svg.js`, not the other way round.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.

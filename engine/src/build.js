@@ -14,6 +14,10 @@ const { masterOf } = require('./project');
 // was missing there, and the audit failed on a project that was correct. Two
 // lists of one thing is the defect this engine keeps finding in other people's
 // code; it was in the check itself.
+// Above this share of the ink, the heavier weight is simply what the mark
+// looks like and the icon grid inheriting it is a reading rather than a choice.
+const ICON_WEIGHT_CLEAR = 2 / 3;
+
 const KEYS_READ = {
   rules: ['clearSpaceRatio', 'minStrokePx', 'minStrokeMm', 'lockupGapRatio', 'wordmarkHeightRatio',
     'naming', 'lockups', 'formats', 'pngWidths', 'stock', 'colourways', 'iconInk', 'iconBg',
@@ -872,13 +876,37 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // A mark drawn in one weight hands the icon grid that weight and there is
   // nothing to say. A mark drawn in several hands it one of them, and which one
   // is a decision the engine has just made on the designer's behalf.
+  //
+  // It used to say only that. Two numbers and no way to tell whether the choice
+  // was obvious or a coin toss, on a warning that fired identically for a mark
+  // 89 per cent drawn in its heavy weight and one split 51 to 49. So it says
+  // how much of the drawing is at each now, measured as ink rather than length,
+  // and it only raises its voice where the two weights genuinely share the
+  // mark. Below two thirds the designer has a real decision to make; above it
+  // the heavy weight is what the mark looks like and nobody would pick the
+  // other. Every threshold from about 0.55 to 0.7 says the same thing about the
+  // four identities here, so the number is a gap in the data rather than a
+  // number fitted to one of them.
   const mw = sys.icons.derivedFrom.markWeights;
+  const lead = sys.icons.derivedFrom.leadingInk;
+  const share = sys.icons.derivedFrom.weightInk;
   if (mw && !((project.system || {}).icons || (project.system || {}).icon || {}).stroke) {
-    warnings.push(`the master is drawn in ${mw.length} weights (${mw.join(', ')}), and an icon grid has one. `
+    const drawn = share
+      ? share.map((x) => `${x.width} draws ${Math.round(x.share * 100)}% of it`).join(' and ')
+      : null;
+    const head = `the master is drawn in ${mw.length} weights (${mw.join(', ')}), and an icon grid has one. `
       + `The icons are cut at ${sys.icons.stroke} on a ${sys.icons.box} box, from the ${mw[mw.length - 1]} the `
-      + `mark carries its shape in, not the ${mw[0]} of its finest detail — an icon set at the finer one comes `
-      + `out at half the weight of the mark it belongs to. If the fine weight is the one you want the icons to `
-      + `look like, set system.icons.stroke and the grid follows it.`);
+      + `mark carries its shape in`;
+    if (lead != null && lead < ICON_WEIGHT_CLEAR) {
+      warnings.push(`${head} — but only just: ${drawn}. `
+        + `The two share the drawing, so which one the icons inherit is a decision rather than a reading, and `
+        + `an icon set cut at ${mw[0]} would be a different set. Set system.icons.stroke if the finer one is `
+        + `the one you want, and the grid follows it.`);
+    } else {
+      notes.push(`${head}${drawn ? `, and it is most of what the mark is: ${drawn}` : ''}. `
+        + `An icon set cut at ${mw[0]} would come out lighter than the mark it belongs to. `
+        + `system.icons.stroke overrides it.`);
+    }
   }
   const icons = exp.iconFloor(iconMeasured, rules) || { thinIcons: [], thinFavicons: [], clears: [] };
   if (icons.thinIcons.length) {

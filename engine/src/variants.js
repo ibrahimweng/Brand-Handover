@@ -66,6 +66,7 @@ function measureIcon(project) {
     markViewBox: svgu.viewBox(svgu.parse(src)),
     minimumSize: geo.minimumSize(src, project.rules),
     strokeWidths: svgu.strokeWidths(svgu.parse(src)),
+    strokeInk: svgu.strokeInk(svgu.parse(src)),
   };
 }
 
@@ -90,6 +91,9 @@ function measure(project) {
     // every weight the master is drawn in, thinnest first. One entry is the
     // usual case; more than one makes the icon weight a decision.
     strokeWidths: svgu.strokeWidths(svgu.parse(markSrc)),
+    // and how much of the drawing is at each of them, which is what makes the
+    // icon weight a measurement rather than an ordering
+    strokeInk: svgu.strokeInk(svgu.parse(markSrc)),
   };
   if (project.assets.wordmark) {
     out.wordInk = geo.inkBox(project.assets.wordmark.source);

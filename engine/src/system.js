@@ -67,7 +67,18 @@ function iconRules(measured, override) {
   r.curveRadius = round(r.box * r.curveRatio, 2);
   r.derivedFrom = { viewBox: vb.w, ink: ink.w, markStroke: stroke, markMargin: round(margin, 2) };
   // the build reads this to tell the designer a choice was made on their behalf
-  if (weights.length > 1) r.derivedFrom.markWeights = weights;
+  if (weights.length > 1) {
+    r.derivedFrom.markWeights = weights;
+    // Which of them the mark is mostly drawn in, so the build can say whether
+    // the choice it just made was obvious or a coin toss. Measured as ink —
+    // length times width — because length alone says a fine line drawn twice as
+    // far carries more of the mark than the heavy one above it, and it does not.
+    const ink = measured.strokeInk || [];
+    if (ink.length) {
+      r.derivedFrom.weightInk = ink;
+      r.derivedFrom.leadingInk = ink[0].share;
+    }
+  }
   return r;
 }
 
