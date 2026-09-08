@@ -1,0 +1,36 @@
+<!-- A mark whose only colour is a gradient.
+
+     This is the shape of Pagrin's own export, cut down to the smallest thing
+     that has the fault. One path, filled url(#a), and a <defs> that names `a`.
+
+     pattern.candidates lifts a shape out of the drawing to rank it as a motif.
+     It brought the ancestors' transforms with it — that was the last round's
+     fix — and it left the paint behind. onlyShapes drops everything that draws
+     nothing, and a gradient is on that list beside the clip paths and the
+     metadata, which is true and is the wrong reason: a paint server draws
+     nothing by itself and is the only reason the shape it fills has any colour.
+
+     Lifted out without its defs, `fill="url(#a)"` refers to a name that is no
+     longer there, resvg paints nothing, and geo.inkBox throws "the artwork
+     renders empty". measureRank catches that and drops the candidate. Every
+     candidate was dropped, so rank() returned nothing, and the engine said:
+
+       no pattern was written. nothing in this drawing can carry a repeat:
+       every shape in it measured as empty.
+
+     It went on to offer an explanation — "if the mark is a single hairline, a
+     pattern built from it would be a grey wash" — which was wrong here. The
+     mark is a solid fan that inks 93 per cent of its own box. It is not thin.
+     It is not there, because the file it was measured in did not hold its
+     paint. onlyShapes still drops the gradient; carryPaint puts it back beside
+     the shape, with the id left on, because a reference is only a reference
+     while the name it points at survives. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+  <path d="M2 2h20v20H2z" fill="url(#a)"/>
+  <defs>
+    <linearGradient id="a" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF5715"/>
+      <stop offset="1" stop-color="#2409FF"/>
+    </linearGradient>
+  </defs>
+</svg>

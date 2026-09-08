@@ -77,6 +77,60 @@ function onlyShapes(markup) {
     .replace(/<!--[\s\S]*?-->/g, '');
 }
 
+// The paint a lifted shape is drawn in.
+//
+// onlyShapes drops everything that draws nothing — metadata, a clip path, a
+// filter — and a paint server is on that list because by itself it draws
+// nothing either. That is true and it is the wrong reason: a gradient is not
+// decoration around the shape, it is the only reason the shape has any colour.
+// Pagrin's mark is one path filled url(#a), and lifted out of the drawing
+// without the <defs> that names `a` it painted nothing at all. Every candidate
+// measured empty, so a mark that is nothing but gradient was reported as unable
+// to carry a repeat — the same mistake as leaving an ancestor's transform
+// behind, one attribute over: geometry read in one document and drawn in
+// another that no longer holds what it refers to.
+//
+// So a shape comes out with its paint. Transitively, because a gradient can
+// take its stops from another one, and with the ids left on, because a
+// reference is only a reference for as long as the name it points at is there.
+// It is kept apart from the shape markup rather than glued in front of it:
+// painted() puts the pattern's own flat ink on the first element it sees, and
+// the first element must be the shape.
+const PAINT_SERVERS = ['lineargradient', 'radialgradient', 'pattern'];
+function carryPaint(doc, markup) {
+  const refs = (s) => {
+    const ids = [];
+    for (const m of String(s).matchAll(/url\(#([^)"']+)\)/g)) ids.push(m[1]);
+    for (const m of String(s).matchAll(/(?:xlink:)?href="#([^"]+)"/g)) ids.push(m[1]);
+    return ids;
+  };
+  const queue = refs(markup);
+  if (!queue.length) return '';
+  const byId = new Map();
+  (function index(n) {
+    if (n.nodeType === 1 && n.getAttribute) {
+      const id = n.getAttribute('id');
+      if (id && !byId.has(id)) byId.set(id, n);
+    }
+    for (let c = n.firstChild; c; c = c.nextSibling) index(c);
+  }(doc.documentElement));
+  const out = [];
+  const done = new Set();
+  // bounded: a paint server that refers to itself is a file, not a theory
+  while (queue.length && done.size < 32) {
+    const id = queue.shift();
+    if (done.has(id)) continue;
+    done.add(id);
+    const el = byId.get(id);
+    if (!el || !el.nodeName) continue;
+    if (!PAINT_SERVERS.includes(String(el.nodeName).replace(/^.*:/, '').toLowerCase())) continue;
+    const xml = svgu.serialize(el).replace(/\sxmlns(?::\w+)?="[^"]*"/g, '');
+    out.push(xml);
+    for (const r of refs(xml)) queue.push(r);
+  }
+  return out.length ? `<defs>${out.join('')}</defs>` : '';
+}
+
 function candidates(markSource) {
   const doc = svgu.parse(markSource);
   const vb = svgu.viewBox(doc);
@@ -107,9 +161,11 @@ function candidates(markSource) {
     const markup = onlyShapes((isRoot ? `<g>${inner()}</g>` : placed)
       .replace(/\sxmlns(?::\w+)?="[^"]*"/g, ''));
     if (!/<(path|circle|rect|ellipse|polygon|polyline|line)\b/.test(markup)) return;
-    if (seen.has(markup)) return;
-    seen.add(markup);
-    out.push(Object.assign({ key, name, markup, why }, say || null));
+    // the paint it is drawn in, kept beside the shape rather than in front of it
+    const defs = carryPaint(doc, markup);
+    if (seen.has(defs + markup)) return;
+    seen.add(defs + markup);
+    out.push(Object.assign({ key, name, markup, defs, why }, say || null));
   };
 
   // An explicit decision still beats a measurement. Where the master says which
@@ -242,7 +298,9 @@ function measureRank(markSource) {
   const wholeArea = Math.max(1, whole.w * whole.h);
   const scored = [];
   for (const c of list) {
-    const alone = `<svg xmlns="${svgu.NS}" viewBox="${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}">${c.markup}</svg>`;
+    // with its paint: a shape whose only fill is url(#a) renders empty without
+    // the <defs> that names `a`, and an empty render is dropped two lines down
+    const alone = `<svg xmlns="${svgu.NS}" viewBox="${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}">${c.defs || ''}${c.markup}</svg>`;
     let box;
     try { box = geo.inkBox(alone); } catch (e) { continue; }
     if (!box || !(box.w > 0) || !(box.h > 0)) continue;

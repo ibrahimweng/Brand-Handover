@@ -602,6 +602,87 @@ test('a shape lifted out to be a motif brings its place with it', () => {
     `${blank.length} of ${c.list.length} candidates draw nothing inside the artboard: ${blank.join(', ')}`);
 });
 
+test('a colourway repaints a shape whose only fill is a gradient', () => {
+  // The engine's own report has always promised this: "a colourway names one
+  // colour for a slot, and a gradient is not one colour. Any colourway that
+  // names a colour for this slot replaces the gradient with it." It did not.
+  //
+  // colourPass skips a url() fill deliberately — a paint server is not a hex
+  // and must not be snapped to the palette — so the shape arrived at
+  // assignSlots uncounted and was tagged with nothing. applyColourway works
+  // entirely off data-slot, so there was nothing to repaint: Pagrin's mark came
+  // out of all six of its colourways as the same file, byte for byte, the white
+  // one for a dark ground and the black one for a one-colour job included.
+  //
+  // Every shipped identity with a gradient carries a hand-written data-slot,
+  // which is why nothing caught it. An export nobody prepared has none.
+  const N2 = require('../src/normalise');
+  const svgu4 = require('../src/svg');
+  const raw = fs.readFileSync(path.join(__dirname, 'fixtures', 'gradient-fill.svg'), 'utf8');
+  const tokens = { colour: { brand: { hex: '#6F45F3', role: 'primary' } } };
+  const clean = N2.normalise(raw, { tokens });
+  assert.ok(clean.ok, 'the fixture does not normalise');
+  const doc = svgu4.parse(clean.svg);
+  assert.deepStrictEqual(svgu4.slotsUsed(doc), ['ink'],
+    'the only painted shape in the drawing carries no slot, so nothing can repaint it');
+
+  // named a colour: the gradient goes, and the defs it orphaned go with it
+  const flat = svgu4.parse(clean.svg);
+  svgu4.applyColourway(flat, { ink: '#6F45F3' });
+  const flatXml = svgu4.serialize(flat);
+  assert.ok(/fill="#6F45F3"/.test(flatXml), 'a named colourway left the gradient in place');
+  assert.ok(!/url\(#/.test(flatXml) && !/linearGradient/.test(flatXml),
+    'the gradient it replaced is still in the file, unreferenced');
+
+  // asked to keep it: it stays, stops included
+  const kept = svgu4.parse(clean.svg);
+  const r = svgu4.applyColourway(kept, { ink: svgu4.KEEP });
+  const keptXml = svgu4.serialize(kept);
+  assert.deepStrictEqual(r.kept, ['ink']);
+  assert.ok(/url\(#/.test(keptXml) && /#FF5715/.test(keptXml), 'keep did not keep the gradient');
+
+  // teeth: the two are not the same file, which is the whole of the bug
+  assert.notStrictEqual(flatXml, keptXml);
+});
+
+test('a shape lifted out to be a motif brings its paint with it', () => {
+  // The sibling of the test above, one attribute over. That one was geometry
+  // read in one coordinate space and drawn in another; this is a reference read
+  // in one document and drawn in another that no longer holds what it names.
+  //
+  // onlyShapes drops every element that draws nothing, and a paint server is on
+  // that list beside the clip paths and the metadata. True, and the wrong
+  // reason: a gradient draws nothing by itself and is the only reason the shape
+  // it fills has any colour. Lifted out without its <defs>, fill="url(#a)"
+  // points at a name that is gone, resvg paints nothing, and the candidate is
+  // dropped as empty. Pagrin's real Figma export is one path and one gradient,
+  // so every candidate was dropped and the engine reported that nothing in the
+  // drawing could carry a repeat — of a solid fan that inks 93 per cent of its
+  // own box. See fixtures/gradient-fill.svg.
+  const svgu3 = require('../src/svg');
+  const raw = fs.readFileSync(path.join(__dirname, 'fixtures', 'gradient-fill.svg'), 'utf8');
+  const c = pat.candidates(raw);
+  const vb = c.viewBox;
+  assert.ok(c.list.length, 'a gradient-filled drawing offers no candidates at all');
+  for (const m of c.list) {
+    assert.ok(/url\(#/.test(m.markup), `${m.key} was expected to be painted by reference`);
+    assert.ok(/<linearGradient[^>]*\sid="a"/.test(m.defs || ''),
+      `${m.key} carries ${(m.defs || '').length} characters of paint, and its fill names #a`);
+    // and it draws, which is the whole point: without the defs this throws
+    const box = geo.inkBox(`<svg xmlns="${svgu3.NS}" viewBox="${vb.x} ${vb.y} ${vb.w} ${vb.h}">`
+      + `${m.defs || ''}${m.markup}</svg>`);
+    assert.ok(box.w > 0 && box.h > 0, `${m.key} renders empty`);
+  }
+  // teeth: the same markup without its paint is exactly the failure this fixes
+  const bare = c.list[0].markup;
+  assert.throws(() => geo.inkBox(`<svg xmlns="${svgu3.NS}" viewBox="${vb.x} ${vb.y} ${vb.w} ${vb.h}">${bare}</svg>`),
+    /renders empty/, 'the shape draws without its gradient, so this fixture proves nothing');
+  // and the engine gets a pattern out of it rather than refusing
+  const spec = pat.spec(raw, { tile: 100 }, { clearSpaceRatio: 0.25 });
+  assert.ok(spec.ok, `a gradient-filled master still refuses: ${spec.why}`);
+  assert.ok(pat.rank(raw).length >= 1);
+});
+
 test('what a motif paints is measured, not read off its box', () => {
   // Lammas's motif measures 52 by 38 and paints 56 by 94: the box is the shape
   // the ranking measured and the markup around it draws further down. Deciding

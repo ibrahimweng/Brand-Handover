@@ -194,10 +194,37 @@ function colourPass(doc, tokens) {
 }
 
 // Give every distinct colour a slot, so colourways have something to target.
+//
+// A gradient is one of those colours. colourPass skips a url() fill on purpose
+// — a paint server is not a hex and must not be snapped to the palette — and
+// the consequence was that the shape it fills reached here uncounted, was
+// tagged with no slot, and so could not be repainted by anything. Everything
+// downstream is already right about this: applyColourway writes the flat colour
+// straight over fill="url(#a)", dropUnusedPaint clears the gradient it just
+// orphaned, and KEEP leaves it alone where a colourway asks it to. Only the
+// tagging was missing, and the engine's own report promised the behaviour:
+// "any colourway that names a colour for this slot replaces the gradient".
+//
+// Pagrin's mark is one path filled url(#a), straight out of Figma. All six of
+// its colourways came out the same file, byte for byte — including the white
+// one meant for a dark ground and the black one meant for a one-colour job.
+// Every shipped identity that has a gradient carries a hand-written data-slot,
+// which is why no fixture caught this: it only shows up on an export nobody
+// prepared, which is every export a client actually sends.
 function assignSlots(doc, used, tokens) {
   const palette = Object.entries((tokens && tokens.colour) || {})
     .map(([name, t]) => ({ name, hex: hex(t.hex) })).filter((t) => t.hex);
-  const order = [...used.entries()].sort((a, b) => b[1] - a[1]).map(([h]) => h);
+  // paint servers, counted the same way the hexes were
+  const paints = new Map();
+  svgu.eachPainted(doc, (el) => {
+    if (el.getAttribute && el.getAttribute('data-slot')) return;
+    for (const prop of ['fill', 'stroke']) {
+      const raw = ((el.getAttribute && el.getAttribute(prop)) || '').trim();
+      if (/^url\(#/.test(raw)) { paints.set(raw, (paints.get(raw) || 0) + 1); return; }
+    }
+  });
+  const order = [...used.entries(), ...paints.entries()]
+    .sort((a, b) => b[1] - a[1]).map(([h]) => h);
   const slotFor = new Map();
   order.forEach((h, i) => {
     const token = palette.find((p) => p.hex === h);
@@ -208,8 +235,9 @@ function assignSlots(doc, used, tokens) {
   svgu.eachPainted(doc, (el) => {
     if (el.getAttribute('data-slot')) return;
     for (const prop of ['fill', 'stroke']) {
-      const h = hex(el.getAttribute(prop));
-      if (h && slotFor.has(h)) { el.setAttribute('data-slot', slotFor.get(h)); tagged++; return; }
+      const raw = (el.getAttribute(prop) || '').trim();
+      const key = /^url\(#/.test(raw) ? raw : hex(raw);
+      if (key && slotFor.has(key)) { el.setAttribute('data-slot', slotFor.get(key)); tagged++; return; }
     }
   });
   return { slots: [...new Set(slotFor.values())], tagged };

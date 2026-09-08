@@ -4269,6 +4269,159 @@ questions that make a page unusable by ear have been asked of it in four
 languages, and the sentence the engine has been repeating for ten rounds has
 been listened to and found to understate its own case.
 
+## An identity nobody made for the engine
+
+Every fixture in this repository was drawn, or chosen, by somebody who knew what
+the engine was going to do with it. Thirty-one identities, five hundred and eight
+scraped exports, and all of them either authored here or picked because they
+broke something. None of that is the same as a mark a designer made for their own
+company and exported without a thought for what would read it next.
+
+Pagrin's is. It came out of Figma's own SVG exporter — `exportAsync`, the same
+call the export dialog makes — and went in untouched.
+
+    <path d="M183.837 101.889V136.496…" fill="url(#paint0_linear_7_67)"/>
+    <linearGradient id="paint0_linear_7_67" gradientUnits="userSpaceOnUse"
+        x1="206.82" y1="-21.6646" x2="-15.9812" y2="188.933">
+      <stop stop-color="#FF5715"/><stop offset=".5" stop-color="#FFBADC"/>
+      <stop offset="1" stop-color="#2409FF"/>
+
+One path. One gradient. No flat colour anywhere in the file, and a gradient whose
+coordinates sit outside the viewBox on both ends. The package built — 118 files,
+exit zero — and six of the warnings were about the artwork and right:
+no CMYK for any colour, a wordmark drawn in `#000000` where the interface ink is
+`#0E0E0E`, app icons at 180 and 192 px painting at 0.73 and 0.78 px, a floor of
+335 px on screen and 100.4 mm in print because the rays taper to nothing where
+they converge. That last one is a real property of a converging fan and the
+advice it came with — draw a simplified icon mark, set it as `assets.icon`,
+check it with `check --icon` — is the right advice.
+
+### Empty is not the same as invisible
+
+    no pattern was written. nothing in this drawing can carry a repeat:
+    every shape in it measured as empty.
+
+It offered an explanation with it: *if the mark is a single hairline, a pattern
+built from it would be a grey wash rather than a field.* That is a good sentence
+about a different drawing. This one is a solid fan that inks 93 per cent of its
+own box.
+
+`pattern.candidates` lifts each shape out of the drawing on its own so the
+ranker can measure it, and `onlyShapes` strips everything that draws nothing on
+the way. `defs`, `linearGradient`, `radialGradient` and `pattern` are on that
+list, and the reason given is true: a paint server draws nothing by itself. It
+is still the wrong reason. It is the only reason the shape it fills has any
+colour at all. Lifted out without the `<defs>` that names it, `fill="url(#a)"`
+points at nothing, resvg paints nothing, `geo.inkBox` throws *the artwork
+renders empty*, and `measureRank` catches that and drops the candidate. Every
+candidate was dropped.
+
+Measured, before and after:
+
+    candidates: 2
+      [mark]     THREW: the artwork renders empty      defs:false  url(#):true
+      [shape:1]  THREW: the artwork renders empty      defs:false  url(#):true
+    rank() -> 0 shapes
+
+    candidates: 2
+      [mark]     inks 184 x 182     carried defs: 242 chars
+      [shape:1]  inks 184 x 182     carried defs: 242 chars
+    rank() -> 2 shapes
+
+This is the same mistake as `layer-offset.svg`, one attribute over. That one was
+geometry read in one coordinate space and drawn in another. This is a reference
+read in one document and drawn in another that no longer holds what it names.
+`carryPaint` walks the `url(#…)` and `href="#…"` references out of a candidate's
+markup, pulls the paint servers they name out of the source document
+transitively — a gradient can take its stops from another one — and hands them
+back with their ids intact, because a reference is only a reference for as long
+as the name it points at survives. It is kept beside the shape rather than glued
+in front of it: `painted()` puts the pattern's flat ink on the first element it
+sees, and the first element has to be the shape.
+
+`perigee` is the check that it is not too eager. Its `url(#clip0_1_2)` is a clip
+path, not a paint server, and clip paths are dropped on purpose — one wholly
+outside its clip is the resvg abort. It is not carried, and perigee's package
+does not move.
+
+### And a measurement that was quietly wrong for thirty rounds
+
+The missing pattern was the visible half. The half nothing reported: any mark
+with a gradient *in* it was being measured with that piece painting nothing.
+
+**vesper** has shipped since the ninth round. Its whole-mark candidate measured
+its own ink at 0.300. The mark actually inks 0.418 — the difference is a ring
+filled `url(#dusk)` that contributed nothing to the measurement. `solid` peaks
+at 0.3, so the wrong number sat exactly on the peak and scored 1.0000 where the
+true one scores 0.9202. Vesper ranked two shapes and chose between them; there
+are three, and the third now wins by 0.7454 to 0.7326.
+
+So one of the thirty-one changes, and it is the one that should. It is a close
+call between two real shapes from the same drawing — a star it used to pick and
+a ring it could not previously see — and vesper pins neither, so the engine
+chooses. `system.pattern.motif` is there for a designer who disagrees.
+
+### Six files with six names and one set of bytes
+
+With a pattern building, the next thing was visible. Pagrin's mark came out of
+all six of its colourways identical, byte for byte:
+
+    spectrum  f0f43617fe809a26   signal  f0f43617fe809a26
+    ink       f0f43617fe809a26   page    f0f43617fe809a26
+    black     f0f43617fe809a26   white   f0f43617fe809a26
+
+Including `white`, which a designer drops onto a dark ground, and `black`, which
+goes to a one-colour job. All six were the gradient.
+
+The engine's own report had been promising the opposite the whole time — *a
+colourway names one colour for a slot, and a gradient is not one colour; any
+colourway that names a colour for this slot replaces the gradient with it* —
+and everything downstream of the promise was already built to keep it.
+`applyColourway` writes the flat colour straight over a `url()` fill.
+`dropUnusedPaint` clears the definition it has just orphaned, which is a bug
+somebody already fixed once. `KEEP` leaves it alone where a colourway asks.
+
+Only the tagging was missing. `colourPass` skips a `url()` fill on purpose —
+
+    if (!raw || raw === 'none' || raw.startsWith('url(')) continue;
+
+— and that line is right: a paint server is not a hex and must not be snapped to
+the nearest brand colour. The consequence was not right. The shape reached
+`assignSlots` uncounted, was given no `data-slot`, and `applyColourway` works
+entirely off `data-slot`, so there was nothing to repaint. `assignSlots` now
+counts paint servers alongside the hexes and tags them the same way, which makes
+a drawing whose only paint is one gradient come out with the slot `ink` — the
+same rule a drawing with one flat colour already got.
+
+Every shipped identity that has a gradient carries a hand-written `data-slot`,
+which is exactly why nothing caught this in thirty rounds. vesper's ring is
+tagged `ring` and its `dusk` colourway says `ring: keep`. An export nobody
+prepared has no slots at all, and that is every export a client actually sends.
+Measured across all thirty-one: none has an untagged paint-server fill, so the
+tagging change moves nothing that ships.
+
+What it does to Pagrin's package:
+
+    package                14688 KB  ->  6334 KB
+    PDFs carrying a gradient     18  ->  3
+    mark colourways, distinct     1  ->  5
+
+The size is the gradient no longer being copied into every file that could not
+repaint it. And a check that had never been able to see the shape starts
+firing — the middle stop of the gradient is `#FFBADC`, and against the white it
+is cut for that measures **1.58:1**, which is not a mark anyone can make out.
+The engine could not have said that yesterday, because as far as it was
+concerned the shape had no colour to check.
+
+### What this run does not show
+
+One identity is one identity. It happens to be an unusually good one to have
+picked — a single path, a single gradient, no flat colour to fall back on — so it
+put weight on exactly the seam that had never been loaded. A different real
+export would find a different seam, and the honest claim is not that the engine
+now handles real exports. It is that it handles one more thing than it did, and
+that the thing was found the only way this kind of thing gets found.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.

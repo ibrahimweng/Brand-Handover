@@ -1341,4 +1341,52 @@ screen reader, and its Japanese voice announces kanji as "chinese letter"
 whichever language it is told — so for Japanese it understates a real reader
 rather than overstating it.
 
-Still to do: that run on **your** identity job.
+The fortieth did that run. Every round since the twenty-fourth has ended by
+saying it was still owed, and the reason it kept being owed is that the engine
+had never been pointed at an identity nobody made for it. Pagrin's own mark came
+out of Figma's SVG exporter, untouched, and was built as a package.
+
+It built. 118 files, and six warnings that were all true — no CMYK anywhere, a
+wordmark drawn in `#000000` against an interface ink of `#0E0E0E`, app icons at
+180 and 192 px that paint at 0.73 px and will read as a smudge, a floor of
+335 px because the rays taper to a hairline where they converge. Then one
+warning that was about the engine rather than the artwork:
+
+    no pattern was written. nothing in this drawing can carry a repeat:
+    every shape in it measured as empty.
+
+**It is not empty. It inks 93 per cent of its own box.** Pagrin's mark is one
+path filled `url(#a)`. `pattern.candidates` lifts each shape out of the drawing
+to rank it as a motif, and `onlyShapes` drops everything that draws nothing —
+metadata, clip paths, and paint servers, which are on that list because a
+gradient does indeed draw nothing by itself. True, and the wrong reason: it is
+the only reason the shape it fills has any colour. Lifted out without the
+`<defs>` that names `a`, the fill pointed at nothing, resvg painted nothing, and
+every candidate was dropped as blank. It is the same mistake as the last round's
+transform, one attribute over: read in one document, drawn in another that no
+longer holds what it refers to. A shape now comes out with its paint.
+
+That was the visible half. The measured half was worse: the whole-mark candidate
+for **vesper**, which has shipped for thirty rounds, was measuring its own ink at
+0.300 with the gradient piece painting nothing. It actually inks 0.418. One of
+the thirty-one identities changes as a result, and it is the one that should.
+
+**And then the thing the first fix uncovered.** With a pattern to build, the six
+colourways of the mark were still one file, byte for byte — the white one meant
+for a dark ground and the black one meant for a one-colour job included. The
+engine's own report has always promised otherwise: *"any colourway that names a
+colour for this slot replaces the gradient with it."* Everything downstream was
+right — `applyColourway` writes over a `url()` fill, `dropUnusedPaint` clears
+what it orphans, `keep` leaves it alone. Only the tagging was missing:
+`colourPass` skips a `url()` fill deliberately, because a paint server is not a
+hex and must not be snapped to the palette, so the shape arrived carrying no
+slot and nothing could repaint it. Every shipped identity with a gradient has a
+hand-written `data-slot`, which is why no fixture ever caught it. An export
+nobody prepared has none, and that is every export a client sends.
+
+Fixed, Pagrin's package goes from 14688 KB to 6334 KB — the gradient had been
+copied into every file — the PDFs carrying a gradient drop from 18 to 3, and a
+check that could never see the shape starts firing: the middle of the gradient
+is `#FFBADC`, which measures **1.58:1** against white.
+
+Still to do: nothing named. The next one is whatever the next real export breaks.
