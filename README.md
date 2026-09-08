@@ -105,7 +105,7 @@ not survive a reload, because they live in the page's memory. Run it yourself
 and they get real URLs.
 
 `/gallery/` is every identity in `engine/projects/`, each built to break the
-engine a different way — thirty-one of them at the time of writing, and the count
+engine a different way — thirty-two of them at the time of writing, and the count
 is deliberately not stated anywhere the engine does not read it. Nothing in the
 gallery is committed: the repository holds a master file and a project file per
 identity, and the site is what the engine makes of them, rebuilt from scratch on
@@ -1369,7 +1369,8 @@ longer holds what it refers to. A shape now comes out with its paint.
 That was the visible half. The measured half was worse: the whole-mark candidate
 for **vesper**, which has shipped for thirty rounds, was measuring its own ink at
 0.300 with the gradient piece painting nothing. It actually inks 0.418. One of
-the thirty-one identities changes as a result, and it is the one that should.
+the thirty-one identities that existed when this was measured changes as a
+result, and it is the one that should.
 
 **And then the thing the first fix uncovered.** With a pattern to build, the six
 colourways of the mark were still one file, byte for byte — the white one meant
@@ -1388,5 +1389,14 @@ Fixed, Pagrin's package goes from 14688 KB to 6334 KB — the gradient had been
 copied into every file — the PDFs carrying a gradient drop from 18 to 3, and a
 check that could never see the shape starts firing: the middle of the gradient
 is `#FFBADC`, which measures **1.58:1** against white.
+
+Pagrin is the thirty-second identity in `engine/projects/` now, kept as the
+export it arrived as. It is the only one whose mark has no flat colour in it at
+all, and the only one that came out of an exporter rather than out of somebody
+deciding what the engine should be made to face. It ships four warnings, and all
+four are true: no CMYK, two icon sizes that will read as a smudge, three PDFs
+that carry a gradient, and a middle stop of `#FFBADC` that measures 1.58:1
+against the white it is cut for. That last one is a finding this repository
+could not have made a day ago.
 
 Still to do: nothing named. The next one is whatever the next real export breaks.

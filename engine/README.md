@@ -4356,7 +4356,8 @@ at 0.3, so the wrong number sat exactly on the peak and scored 1.0000 where the
 true one scores 0.9202. Vesper ranked two shapes and chose between them; there
 are three, and the third now wins by 0.7454 to 0.7326.
 
-So one of the thirty-one changes, and it is the one that should. It is a close
+So one of the thirty-one then in the repository changes, and it is the one that
+should. It is a close
 call between two real shapes from the same drawing — a star it used to pick and
 a ring it could not previously see — and vesper pins neither, so the engine
 chooses. `system.pattern.motif` is there for a designer who disagrees.
@@ -4397,8 +4398,10 @@ Every shipped identity that has a gradient carries a hand-written `data-slot`,
 which is exactly why nothing caught this in thirty rounds. vesper's ring is
 tagged `ring` and its `dusk` colourway says `ring: keep`. An export nobody
 prepared has no slots at all, and that is every export a client actually sends.
-Measured across all thirty-one: none has an untagged paint-server fill, so the
-tagging change moves nothing that ships.
+Measured across the thirty-one that existed when this was measured: none has an
+untagged paint-server fill, so the tagging change moved nothing that shipped.
+Pagrin is the thirty-second, and it is the one that does — which is the whole
+reason it is now a fixture rather than a note about a run that happened once.
 
 What it does to Pagrin's package:
 
@@ -4492,6 +4495,7 @@ that the thing was found the only way this kind of thing gets found.
     projects/rookhope/ the twenty-ninth: the documents the engine writes, measured
     projects/verdon/  the thirtieth: a French document, because the brand is French
     projects/carrock/ the thirty-first: a mark that turns, and a manual that knows it
+    projects/pagrin/  the thirty-second: the first that came out of a real exporter
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package

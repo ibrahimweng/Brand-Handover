@@ -1,0 +1,240 @@
+{
+  "brand": "Pagrin",
+  "version": "0.1.0",
+  "assets": {
+    "mark": "mark.svg",
+    "wordmark": "wordmark.svg"
+  },
+  "tokens": {
+    "colour": {
+      "signal": {
+        "hex": "#6F45F3",
+        "role": "primary"
+      },
+      "haze": {
+        "hex": "#A78DE8",
+        "role": "secondary"
+      },
+      "ember": {
+        "hex": "#FF5715",
+        "role": "accent",
+        "textSafe": false,
+        "maxCoverage": 0.05
+      },
+      "ink": {
+        "hex": "#0E0E0E",
+        "role": "neutral"
+      },
+      "page": {
+        "hex": "#FFFFFF",
+        "role": "ground"
+      }
+    },
+    "type": {
+      "families": {
+        "display": {
+          "family": "Schibsted Grotesk",
+          "google": true,
+          "weights": [
+            400,
+            600,
+            700
+          ],
+          "fallback": "-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Helvetica,Arial,sans-serif",
+          "note": "The product interface is set in the system stack. Schibsted Grotesk is the nearest grotesque the engine can ship, so the package opens with no network at all. The wordmark itself is drawn in Helvetica Neue Bold and delivered as outlines, so no reader needs the face to see it."
+        }
+      },
+      "scale": [
+        {
+          "name": "Display",
+          "family": "display",
+          "size": 56,
+          "leading": 60,
+          "weight": 700,
+          "tracking": -0.03,
+          "sample": "One master file, every deliverable"
+        },
+        {
+          "name": "H1",
+          "family": "display",
+          "size": 36,
+          "leading": 42,
+          "weight": 700,
+          "tracking": -0.02,
+          "sample": "The agentic operating system"
+        },
+        {
+          "name": "H2",
+          "family": "display",
+          "size": 24,
+          "leading": 30,
+          "weight": 600,
+          "sample": "Four readers of the same project"
+        },
+        {
+          "name": "H3",
+          "family": "display",
+          "size": 18,
+          "leading": 24,
+          "weight": 600,
+          "sample": "Change the mark, change everything"
+        },
+        {
+          "name": "Body",
+          "family": "display",
+          "size": 16,
+          "leading": 26,
+          "weight": 400,
+          "sample": "A project cannot go stale, because there is only one copy of the truth in it."
+        },
+        {
+          "name": "Small",
+          "family": "display",
+          "size": 13,
+          "leading": 20,
+          "weight": 400,
+          "sample": "Derived on demand from the master, never stored."
+        },
+        {
+          "name": "Caption",
+          "family": "display",
+          "size": 11,
+          "leading": 16,
+          "weight": 600,
+          "tracking": 0.08,
+          "sample": "Pagrin identity 2026"
+        }
+      ]
+    }
+  },
+  "rules": {
+    "clearSpaceRatio": 0.25,
+    "minStrokePx": 2,
+    "minStrokeMm": 0.6,
+    "lockupGapRatio": 0.32,
+    "wordmarkHeightRatio": 0.4,
+    "naming": "{brand}-{lockup}-{colourway}",
+    "lockups": [
+      "horizontal",
+      "stacked",
+      "mark",
+      "wordmark"
+    ],
+    "formats": [
+      "svg",
+      "png",
+      "pdf"
+    ],
+    "pngWidths": [
+      512,
+      1024
+    ],
+    "colourways": [
+      {
+        "name": "spectrum",
+        "on": "page",
+        "slots": {
+          "ink": "keep"
+        }
+      },
+      {
+        "name": "signal",
+        "on": "page",
+        "slots": {
+          "ink": "#6F45F3"
+        }
+      },
+      {
+        "name": "ink",
+        "on": "page",
+        "slots": {
+          "ink": "#0E0E0E"
+        }
+      },
+      {
+        "name": "page",
+        "on": "ink",
+        "slots": {
+          "ink": "#FFFFFF"
+        }
+      },
+      {
+        "name": "black",
+        "on": "white",
+        "slots": {
+          "ink": "#000000"
+        }
+      },
+      {
+        "name": "white",
+        "on": "black",
+        "slots": {
+          "ink": "#FFFFFF"
+        }
+      }
+    ],
+    "iconInk": "#FFFFFF",
+    "iconBg": "#6F45F3",
+    "iconSizes": [
+      1024,
+      512,
+      180,
+      192
+    ],
+    "faviconSizes": [
+      16,
+      32,
+      48
+    ],
+    "social": {
+      "profile": {
+        "w": 400,
+        "h": 400
+      },
+      "profile round": {
+        "w": 400,
+        "h": 400,
+        "round": true
+      },
+      "og image": {
+        "w": 1200,
+        "h": 630
+      }
+    },
+    "stock": "coated"
+  },
+  "content": {
+    "positioning": "One master file, every deliverable.",
+    "introduction": "Pagrin derives a whole identity package from a single approved mark. Nothing downstream holds a copy, so nothing downstream can go out of date.",
+    "markRationale": "A fan of rays springing from a single point at the lower left, widening as they go, cut off square by the edge of the tile. It is one closed path rather than a set of separate shapes, and it takes its colour from a single linear gradient laid across the whole of it, so the mark carries the spectrum as one thing and has no flat colour in it anywhere. That is also why it wants room: the rays taper to a hairline where they meet, and below the floor stated here they close up into a solid block.",
+    "colourRationale": "Signal carries the product and the page. Ember is the warm end of the mark's own gradient and marks the single most important thing on a screen, never more than five percent of it. Ink and Page do the reading.",
+    "typeRationale": "The interface is set in the system stack, so the package specifies Schibsted Grotesk, the nearest grotesque it can ship, and inlines it. The wordmark is drawn in Helvetica Neue Bold and delivered as outlines, so it needs no font at all.",
+    "misuse": [
+      {
+        "do": "stretch",
+        "why": "Scale both axes together, always."
+      },
+      {
+        "do": "rotate",
+        "why": "The rays converge at the lower left. Turned, they point nowhere."
+      },
+      {
+        "do": "recolour",
+        "why": "Use a named colourway. The gradient is one of them."
+      },
+      {
+        "do": "shadow"
+      },
+      {
+        "do": "outline"
+      },
+      {
+        "do": "busy",
+        "why": "Use a flat colourway over a photograph, never the gradient."
+      },
+      {
+        "do": "retype"
+      }
+    ]
+  }
+}
