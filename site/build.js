@@ -140,9 +140,11 @@ somebody nudged stays where they put it.</p>
 // filesystem to serve them from. Everything else about it is the same file.
 function app() {
   const src = path.join(ENGINE, 'src', 'app');
-  // The same page the local server serves, byte for byte. What the local
-  // server answers as routes are files beside it here.
-  fs.copyFileSync(path.join(src, 'client.html'), path.join(OUT, 'index.html'));
+  // The same page the local server serves — through the same function, not by
+  // copying the file. "Byte for byte" was the defect: client.html is a template
+  // with markers in it that the server fills, so the copy went out with the
+  // literal /*FONTS*/ in it and none of the type.
+  fs.writeFileSync(path.join(OUT, 'index.html'), require(path.join(src, 'server.js')).page());
   fs.copyFileSync(path.join(ENGINE, 'src', 'contrast.js'), path.join(OUT, 'contrast.js'));
   fs.copyFileSync(require.resolve('jszip/dist/jszip.min.js'), path.join(OUT, 'jszip.min.js'));
   fs.writeFileSync(path.join(OUT, 'favicon.svg'), require(path.join(src, 'server.js')).FAVICON);

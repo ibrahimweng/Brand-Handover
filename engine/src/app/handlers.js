@@ -201,6 +201,24 @@ const asSvg = (v, what) => {
   return v;
 };
 
+// Every file in the package is named after the brand, and a name in kana or in
+// Hebrew has no letters a file name can carry. The loader has always refused
+// this — "Add latinName to the project" — which is the right sentence to a
+// person holding a project file and no help at all to a person holding a
+// browser: there is no file to add it to. It is asked for at the door now, and
+// this is what a caller that skipped the door is told.
+function needsLatin(brand, latinName) {
+  if (naming.slug(latinName || '') || naming.slug(brand || '')) return null;
+  const e = new Error(`The name "${String(brand).trim()}" has no letters a file name can carry.`);
+  e.expected = true;
+  e.finding = { level: 'blocker', code: 'latinName', what: e.message,
+    why: 'Every file in the package is named after the brand, and a zip, a URL and somebody\u2019s '
+      + 'Windows machine all need ASCII. There is nothing here to name them with.',
+    how: 'Give the roman spelling the files should use \u2014 it names files only, and the '
+      + 'documents keep the name you typed.' };
+  return e;
+}
+
 function bad(what, how) {
   const e = new Error(what);
   e.expected = true;
@@ -230,6 +248,8 @@ async function make(input, outDir) {
   }
   const lockups = (input.lockups || []).filter(Boolean);
   if (!lockups.length) throw bad('No lockups were chosen.', 'Pick at least one — the mark on its own is enough to start.');
+  const noLatin = needsLatin(input.brand, input.latinName);
+  if (noLatin) throw noLatin;
 
   const opts = {
     brand: String(input.brand).trim(),
@@ -349,8 +369,13 @@ function render(input) {
   const wordmark = input.wordmark ? asSvg(input.wordmark, 'the wordmark') : null;
   if (!mark && !wordmark) throw bad('No artwork was given.', 'Drop an SVG first.');
   const answers = input.answers || {};
+  const brand = input.brand || answers.brand || 'Untitled';
+  const latinName = input.latinName || answers.latinName || undefined;
+  const no = needsLatin(brand, latinName);
+  if (no) throw no;
   const { dir, file } = stage({
-    brand: input.brand || answers.brand || 'Untitled', mark, wordmark,
+    brand, latinName, language: input.language || answers.language || undefined,
+    mark, wordmark,
     colours: (input.colours && input.colours.length ? input.colours : answers.colours) || [],
     lockups: input.lockups && input.lockups.length ? input.lockups : undefined,
     slots: input.slots, answers,

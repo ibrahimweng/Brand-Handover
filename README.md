@@ -1855,4 +1855,86 @@ All seven go through one resolver now — `keep` means "as the master drew it",
 so it resolves to what the master actually paints that slot — and the check is
 that nothing anywhere in a package is painted with the word.
 
-Still to do: nothing named. The next one is whatever the next real export breaks.
+---
+
+The fifty-third: a name the files cannot carry, and a page that lost its type.
+
+**Type a Japanese or Hebrew brand name into the front door and it dies on the
+fourth screen.** Not with a refusal — with this:
+
+    the brand name "やまびこ" has no letters a file name can carry.
+    Add "latinName" to the project — the roman spelling the files should be
+    named after, for example "latinName": "Maayan".
+
+That sentence is correct, and it is the right thing to say to somebody holding a
+project file. It is no help at all to somebody holding a browser, because there
+is no file to add it to. The same defect this repository has now fixed three
+times: a `how` written for one place and shown in another.
+
+The engine has supported this since the seventh identity. `project.js` says so
+in as many words — *"Romanising a name is the designer's decision, not an
+algorithm's, so it is asked for and used, and asked for here rather than three
+quarters of the way through writing a package"* — and two of the thirty-two
+identities are exactly this case: maayan in Hebrew, yamabiko in Japanese. Both
+set `latinName` by hand. The door never asked, so it hit the person three
+quarters of the way through anyway: artwork, six questions, a layout chosen, and
+then a dead end.
+
+It asks where the name is typed now, and only when it has to. The test for
+"has to" is the engine's own `slug` — `naming.js` is UMD and served into the
+page the way `contrast.js` already is, because a second copy of that fold table
+in the browser is a second answer the first time somebody types an ø. With a
+roman spelling, やまびこ builds all fifty-five files as `yamabiko-mark-…` and the
+manual still says やまびこ on the cover.
+
+**And measuring that turned up two more, both about the app as hosted rather
+than as run.**
+
+**The package it builds cannot be opened.** Hosted, there is no filesystem
+between one request and the next, so the answer to `/api/build` carries the
+package as bytes rather than pointing at files — `api/build.js` has sent them
+since the app was first hosted, and both hosts have served jszip for the page
+to open them with. The page rewritten after it reads only `j.base`, which
+hosted is `undefined`, and builds every link as `j.base + name`:
+
+    The manual             undefinedguidelines.html
+    The deck               undefineddeck.html
+    The canvas             undefinededitor.html
+    A published page       undefinedpublished.html
+    Download the package   undefinedhosted-brand-package.zip?download
+
+Five cards on the last screen, after a full build, and not one of them opens
+anything. The bytes were in the answer the whole time. The page opens the
+documents out of them into blob URLs now, and says the one thing that genuinely
+differs rather than hiding it: they live in the page and do not survive a
+reload.
+
+**And the hosted front door has been shipping with no typefaces at all.**
+
+`client.html` is a template. The local server fills a `/*FONTS*/` marker with
+449 KB of inlined faces; `site/build.js` copied the file to `site/out` — the
+comment said *"the same page the local server serves, byte for byte"* — and byte
+for byte is exactly the bug, because the marker travels unfilled.
+
+    served     10 faces loaded
+    deployed    0
+
+Which makes it the round about fonts undone by the round about hosting. The
+fonts round existed because "the front door was the last thing in the product
+still reaching out for a stylesheet"; the hosted copy has been set in whatever
+Helvetica the visitor happened to have ever since, through twenty-three
+releases. There is one `page()` function now, called by the route and by the
+site build, so the page you get on your own machine and the page you get hosted
+cannot be different pages — and the test reads the markers out of the template
+rather than naming them, so the next one added cannot be forgotten.
+
+One thing measured and left alone: `site/out/contrast.js` and the `/contrast.js`
+route are served to nobody — the page that fetched them was the one replaced.
+The same was true of jszip an hour ago, and the right answer there was to use it
+rather than delete it, so this is recorded rather than removed.
+
+Still to do: **the door cannot choose a language.** The engine writes in four —
+English, French, Hebrew and Japanese, with a fixture for each — and the front
+door asks nothing about it, so a Hebrew identity gets an English manual laid out
+left to right. That is a preference the door does not offer rather than a
+failure, which is why it is not this round.

@@ -1,4 +1,12 @@
 'use strict';
+// UMD, for the same reason contrast.js is: the front door has to know whether a
+// name it has just been typed can carry a file, and the answer has to be this
+// one. A second copy of the fold table in the page would be a second answer,
+// and the two would disagree the first time somebody typed an ø.
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.HandoverNaming = factory();                                  // eslint-disable-line
+}(typeof self !== 'undefined' ? self : this, function () {
 // A file name has to be ASCII to survive a zip, a URL and somebody's Windows
 // machine, but throwing away the letters it cannot spell is not the way to get
 // there: "Kvist & Sønn" came out as kvist-s-nn, with a word split down the
@@ -47,4 +55,5 @@ function fileName(pattern, parts) {
 const FOLDERS = { horizontal: '01-horizontal', stacked: '02-stacked', mark: '03-mark', wordmark: '04-wordmark' };
 const folderFor = (lockup) => FOLDERS[lockup] || `99-${slug(lockup)}`;
 
-module.exports = { slug, fileName, folderFor };
+return { slug, fileName, folderFor };
+}));

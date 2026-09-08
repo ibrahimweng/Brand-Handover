@@ -83,6 +83,11 @@ button{font:inherit;color:inherit}
 input[type=text]{width:100%;max-width:620px;padding:13px 15px;border:1px solid var(--line-2);
   border-radius:10px;background:var(--raised);color:var(--ink);font:inherit;font-size:16px}
 input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:transparent}
+/* the roman spelling, asked for only when the typed name cannot carry a file */
+.latin{margin-top:18px;padding:16px 18px;max-width:620px;border-radius:12px;
+  border:1px solid var(--line-2);background:var(--sunk)}
+.latin b{display:block;font-weight:600;margin-bottom:6px;font-size:15px}
+.latin span{display:block;color:var(--ink-2);font-size:14.2px;line-height:1.55;margin-bottom:12px}
 .opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
 .opt{display:flex;gap:12px;padding:15px 16px;border:1px solid var(--line-2);border-radius:12px;
   background:var(--raised);cursor:pointer;transition:border-color .16s,background .16s}
@@ -263,6 +268,12 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
   <button class="go" id="go" disabled>Continue</button>
 </div>
 
+<!-- Hosted, a serverless function has no filesystem to serve a package from, so
+     the answer carries the zip and the page opens the documents out of it. Both
+     the local server and site/out have served this file since the app was first
+     hosted; the page it was served for stopped asking for it. -->
+<script src="/jszip.min.js"></script>
+<script>/*NAMING*/</script>
 <script>
 (function () {
   'use strict';
@@ -300,7 +311,12 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     // refusal used to leave Continue lit, and the next screen draws itself out
     // of a measurement that was never taken
     if (S.step === 0) return !!S.seen;
-    if (S.step === 1) return !!(S.answers.brand && S.answers.brand.trim());
+    if (S.step === 1) {
+      var named = (S.answers.brand || '').trim();
+      if (!named) return false;
+      // a name nothing can be filed under is not an answer yet
+      return !!(HandoverNaming.slug(named) || HandoverNaming.slug(S.answers.latinName || ''));
+    }
     if (S.step === 2) return !!S.answers.style;
     if (S.step === 3) return true;
     return false;
@@ -464,7 +480,100 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     }
   }
 
+  // ----------------------------------------------------------- the package
+  //
+  // Hosted, the answer carries the package rather than pointing at it: a
+  // serverless function has no filesystem it can share with the next request.
+  // api/build.js has sent the bytes since the app was first hosted — zipBase64,
+  // named that after a round where the name went over the bytes — and the page
+  // rewritten after it read only j.base, which hosted is undefined. Every card
+  // on the last screen pointed at "undefinedguidelines.html".
+  //
+  // The documents are opened out of the zip into blob URLs. They open in a tab
+  // and do not survive a reload, because they live in the page's memory; that
+  // is the one thing about the hosted app that genuinely differs, and it is
+  // said rather than hidden.
+
+  // The four documents a package holds, in the order the last screen offers
+  // them. Named once: the served path and the hosted path both draw this list.
+  var DOCS = [
+    ['guidelines.html', 'The manual', 'Every rule, every measurement, every specimen.'],
+    ['deck.html', 'The deck', 'The same identity as a presentation.'],
+    ['editor.html', 'The canvas', 'Lay out a page with the identity already in it.'],
+    ['published.html', 'A published page', 'What the canvas puts out.'],
+  ];
+
+  function openFromZip(j, out) {
+    if (!j.zipBase64 || typeof JSZip === 'undefined') {
+      out.textContent = '';
+      var d = el('div', 'err');
+      d.appendChild(el('b', null, 'The package was built and this page cannot open it.'));
+      d.appendChild(el('span', null, 'Run it yourself with `handover serve` — there the files are '
+        + 'written to disk and opened at real URLs, and nothing is uploaded.'));
+      out.appendChild(d);
+      return;
+    }
+    var bytes = Uint8Array.from(atob(j.zipBase64), function (c) { return c.charCodeAt(0); });
+    // the zip itself, from the bytes we already hold rather than from a URL
+    var whole = URL.createObjectURL(new Blob([bytes], { type: 'application/zip' }));
+    out.textContent = '';
+    JSZip.loadAsync(bytes).then(function (zip) {
+      var wait = DOCS.map(function (d) {
+        var f = zip.file(d[0]);
+        if (!f) return Promise.resolve(null);
+        return f.async('blob').then(function (b) {
+          return [d, URL.createObjectURL(new Blob([b], { type: 'text/html' }))];
+        });
+      });
+      return Promise.all(wait).then(function (made) {
+        made.filter(Boolean).forEach(function (m) {
+          var a = el('a', 'card'); a.href = m[1]; a.target = '_blank'; a.rel = 'noopener';
+          a.appendChild(el('b', null, m[0][1])); a.appendChild(el('span', null, m[0][2]));
+          out.appendChild(a);
+        });
+        var z = el('a', 'card'); z.href = whole; z.download = j.zipName || 'brand-package.zip';
+        z.appendChild(el('b', null, 'Download the package'));
+        z.appendChild(el('span', null, Math.round((j.zipBytes || bytes.length) / 1024)
+          + ' KB, zipped. It is yours to keep — the documents above are held in this page and '
+          + 'do not survive a reload.'));
+        out.appendChild(z);
+      });
+    }).catch(function (e) { fail('art-err', e); });
+  }
+
   // ------------------------------------------------------------- questions
+
+  // Every file in the package is named after the brand, and some names have no
+  // letters a file name can carry. The engine has always asked for a roman
+  // spelling — in the project file, which is not a thing anybody using this
+  // has — so a name in kana or in Hebrew went all the way to the fourth screen
+  // and died there on advice about a file that does not exist. It is asked for
+  // here, under the name, and only when it is needed: the test is the engine's
+  // own slug, served into this page rather than written again, because a second
+  // copy of the fold table is a second answer the first time somebody types ø.
+  function latinField(nameInput) {
+    var wrap = el('div', 'latin'); wrap.hidden = true;
+    wrap.appendChild(el('b', null, 'That name has no letters a file name can carry.'));
+    wrap.appendChild(el('span', null, 'A zip, a URL and somebody\u2019s Windows machine all need '
+      + 'ASCII. Type how it should be written in the Latin alphabet \u2014 it names files only, '
+      + 'and the documents keep the name you typed.'));
+    var i = el('input'); i.type = 'text'; i.placeholder = 'Yamabiko';
+    i.value = S.answers.latinName || '';
+    i.setAttribute('aria-label', 'The name in the Latin alphabet, for file names');
+    i.addEventListener('input', function () { S.answers.latinName = i.value; gate(); });
+    wrap.appendChild(i);
+    var look = function () {
+      var typed = (nameInput.value || '').trim();
+      var need = !!typed && !HandoverNaming.slug(typed);
+      wrap.hidden = !need;
+      if (!need) S.answers.latinName = '';
+      gate();
+    };
+    nameInput.addEventListener('input', look);
+    look();
+    return wrap;
+  }
+
   function drawQs() {
     var box = $('qs'); box.textContent = '';
     S.qs.forEach(function (q) {
@@ -479,6 +588,7 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
         i.setAttribute('aria-label', q.ask);
         i.addEventListener('input', function () { S.answers[q.key] = i.value; gate(); });
         b.appendChild(i);
+        if (q.key === 'brand') b.appendChild(latinField(i));
       } else if (q.kind === 'pick-many') {
         var g = el('div', 'opts');
         (q.options || []).forEach(function (o) {
@@ -559,30 +669,32 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
   function buildIt() {
     busy(true, 'Building');
     say('Measuring the artwork, cutting every file, writing the documents.');
-    post('/api/build', { brand: S.answers.brand, mark: S.mark, wordmark: S.wordmark,
+    post('/api/build', { brand: S.answers.brand, latinName: S.answers.latinName || undefined,
+      mark: S.mark, wordmark: S.wordmark,
       colours: S.answers.colours, lockups: S.seen.lockups,
       slots: S.seen.slots, answers: S.answers, overrides: S.overrides }).then(function (j) {
       S.built = j;
       $('done-sub').textContent = j.files + ' files, ' + Math.round(j.bytes / 1024) + ' KB. '
         + 'Every one cut from your master at the moment it was built. Nothing here asks the network for anything.';
       var out = $('out'); out.textContent = '';
-      var docs = [
-        ['guidelines.html', 'The manual', 'Every rule, every measurement, every specimen.'],
-        ['deck.html', 'The deck', 'The same identity as a presentation.'],
-        ['editor.html', 'The canvas', 'Lay out a page with the identity already in it.'],
-        ['published.html', 'A published page', 'What the canvas puts out.'],
-      ];
-      docs.forEach(function (d) {
-        if ((j.documents || []).indexOf(d[0]) < 0) return;
-        var a = el('a', 'card'); a.href = j.base + d[0]; a.target = '_blank'; a.rel = 'noopener';
-        a.appendChild(el('b', null, d[1])); a.appendChild(el('span', null, d[2]));
-        out.appendChild(a);
-      });
-      if (j.zip) {
-        var z = el('a', 'card'); z.href = j.base + j.zip + '?download';
-        z.appendChild(el('b', null, 'Download the package'));
-        z.appendChild(el('span', null, 'The whole thing, zipped. It is yours to keep.'));
-        out.appendChild(z);
+      // Hosted there is no base: a function has no filesystem the next request
+      // can read, so the package comes back as bytes in the answer rather than
+      // as files at URLs. The page built every href as j.base + name and handed
+      // out five cards that all pointed at "undefinedguidelines.html".
+      if (!j.base) { openFromZip(j, out); }
+      else {
+        DOCS.forEach(function (d) {
+          if ((j.documents || []).indexOf(d[0]) < 0) return;
+          var a = el('a', 'card'); a.href = j.base + d[0]; a.target = '_blank'; a.rel = 'noopener';
+          a.appendChild(el('b', null, d[1])); a.appendChild(el('span', null, d[2]));
+          out.appendChild(a);
+        });
+        if (j.zip) {
+          var z = el('a', 'card'); z.href = j.base + j.zip + '?download';
+          z.appendChild(el('b', null, 'Download the package'));
+          z.appendChild(el('span', null, 'The whole thing, zipped. It is yours to keep.'));
+          out.appendChild(z);
+        }
       }
       var nb = $('notes'); nb.textContent = '';
       (j.warnings || []).forEach(function (w) {
@@ -658,6 +770,7 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
   function drawEdit() {
     busy(true, 'Setting the manual');
     post('/api/render', { mark: S.mark, wordmark: S.wordmark, brand: S.answers.brand,
+      latinName: S.answers.latinName || undefined,
       colours: S.answers.colours, slots: S.seen.slots, answers: S.answers,
       // what the engine says can be built from this artwork, rather than this
       // page's own third copy of the rule

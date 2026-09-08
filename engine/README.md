@@ -5245,8 +5245,116 @@ sitting next to the resolver it needed: `inksOf` is two functions above
 The check is the flat one: no file in a package, of any kind, may be painted
 with the word.
 
+## A name the files cannot carry
+
+Type a Japanese or a Hebrew brand name into the front door and it dies on the
+fourth screen:
+
+    the brand name "やまびこ" has no letters a file name can carry.
+    Add "latinName" to the project — the roman spelling the files should be
+    named after, for example "latinName": "Maayan".
+
+Correct, and the right sentence to somebody holding a project file. No help at
+all to somebody holding a browser: there is no file to add it to. Third time
+this repository has found the same shape — the CMYK `how` written for a text
+editor and shown in a form, "add the slot to the colourway" shown to a door
+with no colourway editor, and now this.
+
+`project.js` states the intent the door was breaking:
+
+    // Romanising a name is the designer's decision, not an algorithm's, so it
+    // is asked for and used, and asked for here rather than three quarters of
+    // the way through writing a package.
+
+Asked for at load, which is early for a project file and late for a person: the
+door took the artwork, six answers and a layout choice first. Two of the
+thirty-two identities are this exact case — maayan and yamabiko — and both set
+`latinName` by hand, so the engine has always been able to build them.
+
+It is asked for under the name now, and only when it is needed. The test for
+"needed" is `naming.slug`, which is UMD as of this round for the same reason
+`contrast.js` is:
+
+    // UMD, for the same reason contrast.js is: the front door has to know
+    // whether a name it has just been typed can carry a file, and the answer
+    // has to be this one. A second copy of the fold table in the page would be
+    // a second answer, and the two would disagree the first time somebody
+    // typed an ø.
+
+`kvist-and-sønn` is the reason that table exists; a naive slug in the page would
+have written `kvist-s-nn` and the two screens would have disagreed about the
+same name.
+
+`render` and `make` both refuse a name nothing can be filed under, in the door's
+language, with a what, a why and a how that can be followed where it is read.
+With a roman spelling, やまびこ builds all 55 files as `yamabiko-mark-…` and
+`brand.json` still says `"brand": "やまびこ"` — it names files only.
+
+## The hosted front door handed back a package nobody could open
+
+Hosted, there is no filesystem between one request and the next, so the answer
+to `/api/build` carries the package rather than pointing at it. `api/build.js`
+has sent `zipBase64` since the app was first hosted, and both hosts have served
+`jszip.min.js` for the page to open it with — `server.js` says why in as many
+words: *"hosted, it opens the documents out of the zip because a function has no
+filesystem to serve them from"*.
+
+The page rewritten after it never asked for jszip and read only `j.base`:
+
+    a.href = j.base + d[0];
+
+    local    /b/8f2c1a9d/guidelines.html
+    hosted   undefinedguidelines.html
+
+Five cards on the last screen — the manual, the deck, the canvas, the published
+page and the zip — and hosted, not one of them opened anything. The bytes were
+in the answer the whole time.
+
+Two answer shapes with one reader and nothing comparing them, which is the
+route-list defect again a layer down. `npm test` now asserts the hosted answer
+has no `base` and does carry the bytes, and that the page has a branch for that
+shape; `test/hosted-check.mjs` stands up the actual deployment — `site/out` as
+static files, `api/*` as functions, no filesystem shared — and walks the door
+from an SVG to a package. Reverting the branch makes it name all five cards and
+open the manual as a 404 page.
+
+The documents become blob URLs, and the card says the one thing that genuinely
+differs: they live in the page and do not survive a reload.
+
+## The hosted front door had no type at all
+
+Found in the same measurement. `client.html` is a template with markers in it.
+The local server fills `/*FONTS*/` with 449 KB of inlined faces. `site/build.js`
+copied the file:
+
+    // The same page the local server serves, byte for byte.
+    fs.copyFileSync(path.join(src, 'client.html'), path.join(OUT, 'index.html'));
+
+Byte for byte is the defect. The marker travels unfilled, so the deployed page
+carries the literal `/*FONTS*/` and none of the faces:
+
+    served     document.fonts.size  10
+    deployed   document.fonts.size   0
+
+The page names `'Archivo','Helvetica Neue',Helvetica,Arial` and `'Literata',
+Georgia`, so it does not look broken — it looks like somebody else's page. Which
+undoes the round that put the fonts there: that one existed because "the front
+door was the last thing in the product still reaching out for a stylesheet", and
+the hosted copy has been set in the visitor's own Helvetica through twenty-three
+releases since.
+
+`server.page()` renders it; the route calls it and so does the site build. The
+test reads the markers out of the template with a regex rather than naming them,
+so a marker added later cannot be forgotten in the same way.
+
 ## What it does not do yet
 
+- **The door cannot choose a language.** The engine writes in English, French,
+  Hebrew and Japanese, with `strings.js` holding four dictionaries under a
+  key-parity test and a fixture for each, and `stage` already carries a
+  `language`. The front door asks nothing about it, so a Hebrew identity built
+  through it gets an English manual laid out left to right. A preference the
+  door does not offer rather than a failure.
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.
 - **Open path detection.** A path that is filled but never closed renders
   differently in some tools, and that is not checked.
@@ -5280,6 +5388,7 @@ with the word.
     src/previous.js   what moved since the last version, in both languages
     src/access.js     the documents measured, and the canvas asked different things
     test/canvas-check.mjs  the canvas driven by keyboard in a real browser
+    test/hosted-check.mjs  the app as deployed: static page, functions, no disk
     test/rtl-check.mjs     every value, drawn against the way it is written
     test/font-check.mjs    every character, against the face it is set in
     test/reader-check.mjs  the tree a screen reader reads, and what it says
@@ -5318,7 +5427,7 @@ with the word.
     projects/pagrin/  the thirty-second: the first that came out of a real exporter
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
-    src/naming.js     one naming rule for the whole package
+    src/naming.js     one naming rule for the whole package, UMD for the page
     src/build.js      write the package, brand.json and the read me
     src/cli.js        check, measure, build, edit and publish
     src/typeface.js   how a typeface reaches a document, decided once

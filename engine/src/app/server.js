@@ -89,15 +89,7 @@ function handler(req, res) {
   const p = decodeURIComponent(url.pathname);
 
   if (req.method === 'GET' && (p === '/' || p === '/index.html')) {
-    // The page sets its own type in faces the engine holds, inlined here rather
-    // than linked: everything the product shows you stays inside the product,
-    // and the front door was the last thing still reaching out for a stylesheet.
-    const html = fs.readFileSync(path.join(__dirname, 'client.html'), 'utf8')
-      .replace('/*FONTS*/', () => require('../typefaces').embed({ families: {
-        ui: { family: 'Archivo', weights: [400, 500, 600, 700] },
-        text: { family: 'Literata', weights: [400] },
-      } }, null).css);
-    return send(res, 200, html, { 'Content-Type': 'text/html; charset=utf-8' });
+    return send(res, 200, page(), { 'Content-Type': 'text/html; charset=utf-8' });
   }
 
   // The page asks for this whether it needs it or not: hosted, it opens the
@@ -169,6 +161,28 @@ function handler(req, res) {
   return send(res, 404, 'not found', { 'Content-Type': 'text/plain' });
 }
 
+// The page, finished. client.html is a template with two things left out of it,
+// and the local server filled them in while site/build.js copied the file
+// across "byte for byte" — which is exactly the defect, because byte for byte
+// means the markers travel unfilled. The hosted front door went out with the
+// literal /*FONTS*/ in it and none of the ten faces the local one loads. One
+// function now, called by the route and by the site build, so the page you get
+// on your own machine and the page you get hosted cannot be different pages.
+function page() {
+  return fs.readFileSync(path.join(__dirname, 'client.html'), 'utf8')
+    // Its own type, inlined rather than linked: everything the product shows
+    // you stays inside the product, and the front door was the last thing
+    // still reaching out for a stylesheet.
+    .replace('/*FONTS*/', () => require('../typefaces').embed({ families: {
+      ui: { family: 'Archivo', weights: [400, 500, 600, 700] },
+      text: { family: 'Literata', weights: [400] },
+    } }, null).css)
+    // and the engine's own naming rule, because the page has to know whether a
+    // name that has just been typed can carry a file, and a second copy of the
+    // fold table would be a second answer
+    .replace('/*NAMING*/', () => fs.readFileSync(path.join(__dirname, '..', 'naming.js'), 'utf8'));
+}
+
 function serve({ port = 3000, host = '127.0.0.1', log = console.log } = {}) {
   const server = http.createServer(handler);
   return new Promise((resolve, reject) => {
@@ -185,7 +199,7 @@ function serve({ port = 3000, host = '127.0.0.1', log = console.log } = {}) {
 for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, () => { sweep(); process.exit(0); });
 process.on('exit', sweep);
 
-module.exports = { serve, handler, builds, FAVICON };
+module.exports = { serve, handler, page, builds, FAVICON };
 
 if (require.main === module) {
   const i = process.argv.indexOf('--port');

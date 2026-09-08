@@ -5224,6 +5224,63 @@ test('the door reads the artwork the engine will use, not the one that arrived',
   assert.deepStrictEqual(APP.ask({ mark }).seen.slots, ['ink']);
 });
 
+test('a name the files cannot carry is asked about at the door, not at the fourth screen', async () => {
+  // Every file in the package is named after the brand, and a name in kana or
+  // in Hebrew has no letters a file name can carry. project.js has refused this
+  // since the seventh identity, and its advice — Add "latinName" to the
+  // project — is the right sentence to somebody holding a project file and no
+  // help at all to somebody holding a browser: there is no file to add it to.
+  // So a Japanese brand got through the artwork screen, the six questions and
+  // the layout screen, and died on the fourth. The engine ships two identities
+  // that are exactly this case.
+  const mark = fs.readFileSync(path.join(__dirname, '..', 'projects', 'yamabiko', 'mark.svg'), 'utf8');
+  const naming = require('../src/naming');
+  assert.strictEqual(naming.slug('やまびこ'), '', 'this test is about a name that cannot be slugged');
+
+  const answers = { brand: 'やまびこ', positioning: 'x', style: 'quiet', places: ['screen'] };
+  const colours = [{ name: 'ink', hex: '#1F3A34', role: 'primary' },
+    { name: 'paper', hex: '#FFFFFF', role: 'ground' }];
+  const refused = async (fn) => { try { await fn(); return null; } catch (e) { return e; } };
+
+  // the refusal reads in the door's language, wherever the package is written
+  for (const [where, fn] of [
+    ['render', () => APP.render({ mark, brand: 'やまびこ', colours, answers })],
+    ['build', () => APP.make({ brand: 'やまびこ', mark, colours, lockups: ['mark'], answers }, os.tmpdir())],
+  ]) {
+    const e = await refused(fn);
+    assert.ok(e, `${where} accepted a name nothing can be filed under`);
+    assert.ok(!/Add "latinName" to the project/.test(e.message + ((e.finding || {}).how || '')),
+      `${where} still tells a browser to edit a project file`);
+    assert.ok(e.finding, `${where} refuses without a finding`);
+    for (const k of ['what', 'why', 'how']) assert.ok(e.finding[k], `${where} has no ${k}`);
+    assert.ok(/roman spelling/.test(e.finding.how), `${where} does not say what to give it: ${e.finding.how}`);
+  }
+
+  // and with one, every screen after it works: the editor renders, and the
+  // package comes out named after it with the real name still on the documents
+  const rendered = APP.render({ mark, brand: 'やまびこ', latinName: 'Yamabiko',
+    colours, slots: ['ink'], answers });
+  assert.strictEqual(rendered.ok, true);
+  assert.ok(rendered.html.indexOf('やまびこ') > -1, 'the manual lost the name it is for');
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-latin-'));
+  const r = await APP.make({ brand: 'やまびこ', latinName: 'Yamabiko', mark, colours,
+    lockups: ['mark'], slots: ['ink'], answers }, dir);
+  assert.ok(r.files > 20, `only ${r.files} files came out`);
+  const files = fs.readdirSync(path.join(dir, '03-mark'));
+  assert.ok(files.every((f) => /^yamabiko-/.test(f)), `the files are named ${files[0]}`);
+  const brand = JSON.parse(fs.readFileSync(path.join(dir, 'brand.json'), 'utf8'));
+  assert.strictEqual(brand.brand, 'やまびこ', 'the roman spelling replaced the name instead of naming the files');
+  fs.rmSync(dir, { recursive: true, force: true });
+
+  // the page asks for it where the name is typed, and it asks the engine
+  // whether it needs to rather than carrying its own copy of the fold table
+  const client = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'client.html'), 'utf8');
+  assert.ok(/HandoverNaming\.slug/.test(client), 'the page decides this with its own rule');
+  assert.ok(!/\bø\b|\\u00f8/.test(client), 'the page carries a fold table of its own');
+  assert.ok(/latinName/.test(client), 'the page never sends a roman spelling');
+});
+
 test('the first colourway is the drawing, not a flattening of it', () => {
   // The door read the palette off the artwork, showed it, asked which colour
   // did what — and then wrote one colourway that painted every slot the
@@ -5471,6 +5528,24 @@ test('the hosted build sends the package back whole', async () => {
   assert.ok(r.body.zipBase64.length > 1000, 'the package came back as a name rather than as bytes');
   const bytes = Buffer.from(r.body.zipBase64, 'base64');
   assert.strictEqual(bytes.length, r.body.zipBytes, 'it reported a size it did not send');
+
+  // The local route answers with a base — /b/<id>/ — that the documents hang
+  // off; a function has no filesystem the next request can read, so hosted
+  // there is none and the bytes are the answer. The page read only j.base and
+  // built every href as j.base + name, so the last screen offered five cards
+  // that all pointed at "undefinedguidelines.html". Two answer shapes, one
+  // reader, and nothing comparing them — the same defect as two route lists.
+  assert.strictEqual(r.body.base, undefined, 'the hosted answer claims a base it cannot serve');
+  const client = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'client.html'), 'utf8');
+  assert.ok(/if \(!j\.base\)/.test(client), 'the page assumes a base it is not always given');
+  assert.ok(/j\.zipBase64/.test(client), 'the page never reads the bytes it is sent');
+  assert.ok(/jszip\.min\.js/.test(client), 'the page cannot open the zip it is sent');
+  // and both hosts serve what that needs
+  const server = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'server.js'), 'utf8');
+  const site = fs.readFileSync(path.join(__dirname, '..', '..', 'site', 'build.js'), 'utf8');
+  for (const [where, src] of [['the local server', server], ['the site build', site]]) {
+    assert.ok(/jszip\.min\.js/.test(src), `${where} does not serve jszip`);
+  }
   assert.strictEqual(bytes.slice(0, 2).toString('latin1'), 'PK', 'that is not a zip');
   assert.ok(/\.zip$/.test(r.body.zipName));
 
@@ -8286,6 +8361,29 @@ test('the page asks for nothing from outside the product', () => {
     assert.ok(/src:url\(data:font\/woff2/.test(page), 'the front door does not carry its own type');
     assert.deepStrictEqual(fetched(page), []);
   });
+});
+
+test('the page the site deploys is the page the server serves', () => {
+  // client.html is a template with markers in it, and site/build.js copied the
+  // file across "byte for byte" — which is the defect, because byte for byte
+  // means the markers travel unfilled. The hosted front door went out with the
+  // literal /*FONTS*/ in it and none of the ten faces the local one loads: the
+  // page that exists so the product's own type stays inside the product was
+  // set, hosted, in whatever the visitor happened to have.
+  const SRV = require('../src/app/server');
+  const built = fs.readFileSync(path.join(__dirname, '..', '..', 'site', 'build.js'), 'utf8');
+  assert.ok(!/copyFileSync\([^)]*client\.html/.test(built),
+    'the site build copies the page instead of rendering it');
+  assert.ok(/\.page\(\)/.test(built), 'the site build does not go through server.page()');
+
+  // and what it writes carries everything the template asked for
+  const page = SRV.page();
+  const markers = (fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'client.html'), 'utf8')
+    .match(/\/\*[A-Z]+\*\//g) || []);
+  assert.ok(markers.length >= 2, `the page has ${markers.length} markers, so this checks little`);
+  for (const m of markers) assert.ok(page.indexOf(m) < 0, `${m} was deployed unfilled`);
+  assert.ok((page.match(/@font-face/g) || []).length >= 10, 'the deployed page has no type of its own');
+  assert.deepStrictEqual(fetched(page), [], 'the deployed page reaches outside the product');
 });
 
 test('the artwork is measured before anything is asked', () => {
