@@ -671,7 +671,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     for (const sub of project.family) {
       const rows = [];
       for (const colourway of rules.colourways) {
-        const inkHex = Object.values(colourway.slots)[0] || '#000000';
+        const inkHex = svgu.inkOf(colourway, slotPaint) || '#000000';
         // the sub-brand's own colour where the colourway is the brand's own,
         // and the colourway's ink everywhere else: a reverse lockup is white,
         // not white-and-teal
@@ -787,7 +787,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
           lockup: prule.with, colourway, rules, measured,
         });
         const composed = PT.lockup({ hostSvg: host.svg, hostInk: host.box, partner,
-          way: colourway.name, rule: prule, ink: Object.values(colourway.slots)[0] || '#000000' });
+          way: colourway.name, rule: prule, ink: svgu.inkOf(colourway, slotPaint) || '#000000' });
         const fl = PT.floor(composed, host.svg, partner, colourway.name, project);
         const base = `${naming.slug(project.latinName)}-${naming.slug(partner.name)}-${naming.slug(colourway.name)}`;
         if (rules.formats.includes('svg')) write(`11-partners/${base}.svg`, composed.svg);
@@ -994,7 +994,10 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   };
   const ways = [];
   for (const cw of rules.colourways) {
-    const ink = Object.values(cw.slots)[0];
+    // svgu.inkOf rather than the first slot value, because the first slot value
+    // can be "keep" and a pattern tile cut in "keep" goes out with
+    // stroke="keep" in it, which paints nothing
+    const ink = svgu.inkOf(cw, slotPaint);
     ways.push({ name: cw.name, ink, on: cw.on && (project.tokens.colour[cw.on] || {}).hex || '#FFFFFF' });
   }
   // ---- the photographs the project ships, as given and as the rules treat them ----

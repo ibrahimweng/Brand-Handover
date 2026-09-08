@@ -57,8 +57,13 @@ function context(project, measured, files, brandJson) {
     if (e) roles[r] = { name: e[0], ...e[1] };
   }
   const master = project.assets[measured.master || (project.assets.mark ? 'mark' : 'wordmark')];
+  // the same reduction the build makes, through the same function: a colourway
+  // whose first slot says "keep" has no colour of its own to hand a tile
+  const svgu = require('../svg');
+  const slotPaint = svgu.paintBySlot([project.assets.mark, project.assets.wordmark]
+    .filter((a) => a && a.source).map((a) => svgu.parse(a.source)));
   const ways = project.rules.colourways.map((cw) => ({
-    name: cw.name, ink: Object.values(cw.slots)[0],
+    name: cw.name, ink: svgu.inkOf(cw, slotPaint),
     on: (cw.on && (colours[cw.on] || {}).hex) || '#FFFFFF',
   }));
   const pattern = require('../pattern').everyTile(master.source, system.pattern, ways, null);
@@ -100,7 +105,7 @@ function context(project, measured, files, brandJson) {
           lockup: prule.with, colourway: cw, rules: project.rules, measured,
         });
         const composed = PT.lockup({ hostSvg: host.svg, hostInk: host.box, partner, way: cw.name,
-          rule: prule, ink: Object.values(cw.slots)[0] || '#000000' });
+          rule: prule, ink: svgu.inkOf(cw, slotPaint) || '#000000' });
         pairs.push({ partner, colourway: cw, composed,
           floor: PT.floor(composed, host.svg, partner, cw.name, project) });
       }
@@ -139,7 +144,7 @@ function context(project, measured, files, brandJson) {
     const SN = require('../setname');
     const opentype = require('opentype.js');
     const cw = primaryColourway;
-    const inkHex = Object.values(cw.slots)[0] || '#000000';
+    const inkHex = svgu.inkOf(cw, slotPaint) || '#000000';
     const set = (text, hex, role) => SN.wordmark({ tokens: project.tokens, fonts: project.fonts },
       { text, family: role, weight: role === 'display' ? 700 : 400, tracking: role === 'display' ? 0.01 : 0.06 },
       opentype, hex);

@@ -1769,4 +1769,90 @@ that could only ever disagree with the first. The route test now runs **both
 directions**: a deployed function nothing calls is a list that has drifted,
 exactly like a call nothing serves.
 
+---
+
+The fifty-second: the front door could not recolour the artwork it was given.
+
+The audit reaches the door now, so the next thing to ask is what the door does
+with what it read. It reads the palette off the drawing, shows it, and asks
+which colour does what. Then it writes the colourways — and none of the three
+things it wrote were about this artwork.
+
+Measured by building all thirty-two identities through the door and reading the
+files that came out:
+
+| | |
+|---|---|
+| came out drawn in one colour, having been drawn in more | **9 of 32** |
+| wrote two colourways that are the same file | **2 of 32** |
+| had a slot no colourway named, so the logotype stayed dark in the reverse | **5 of 32** |
+
+**The first colourway painted every slot the same colour.** That is not a
+colourway of an identity, it is a flattening of one. Carrock is drawn in an ink
+and a shellac label; the door measured the shellac, put it on the screen, asked
+the designer to confirm it was the accent — and then wrote
+`{ink: #241C1A, label: #241C1A}`, and every file in the package came out in one
+colour. It is fixed with a word the engine already had: `keep` means "as the
+master drew it", and the master is already painted. The first colourway is
+`full-colour` and every slot in it is `keep`. The flat version is still cut,
+on purpose, under the name it deserves — `mono` — and only where there is
+something to flatten, which is measured as the number of distinct paints on the
+drawing's slots rather than the number of slots. Beaumont has four slots all
+painted `#1A1714`; counting slots would have cut it the same file twice.
+
+**The slots were read off the master alone.** A colourway repaints by slot and
+can only name the slots it was told about. Five identities draw a slot that
+lives only in the logotype, so no colourway ever named it — and in the reverse
+lockup the words stayed the colour of the ground they were standing on.
+All five measured **1.00 to 1** — the words painted in exactly the colour
+behind them. They measure between 9.77 and 21.00 now.
+
+**And the door read the upload again to decide what to name.** This is the
+last round's fault standing in the next function along: `ask` had been fixed to
+audit, and `stage` was still reading the raw file. Worse, the audit is not
+enough on its own here — a slot is *named after the palette colour it is
+painted in*, so the same drawing read without a palette and read with one comes
+back with different slot names. Perigee's are `colour-1, colour-2, colour-3,
+ink` without and `colour-2, ink, accent` with. Its colourways named slots that
+would not exist, nothing was ever repainted, and its "reverse" was byte-for-byte
+the same file as its default. Pagrin's too.
+
+The engine had been saying so the whole time, in two voices:
+
+> colourway "reverse" gives no colour for word, so every file in it keeps what
+> the master was painted: word (#1A1714). **Add the slot to the colourway**, or
+> remove it from the artwork.
+
+> the master paints a slot (ink) with a gradient, and every colourway names a
+> flat colour for it, so the gradient is in the master and in none of the files
+> this wrote. **Write "keep"** instead of a colour in the colourway that is
+> meant to carry it.
+
+Both correct, both arriving in a list of notes at the end of a package that had
+already been written, and both telling a person holding a browser to edit a
+colourway — which is not a thing the front door has. A `how` that cannot be
+followed where it is read is the same defect this repository fixed once before
+for the CMYK advice; the fix this time is not to word it better but to stop
+producing the package that needs it.
+
+**And making `keep` the common case found it already shipping.** Seven places
+in the engine reduced a colourway to the single colour something needs when it
+can only take one — a pattern tile, a partner lockup, a misuse diagram — and
+every one of them did it the same way: take the value of the first slot. That
+is a colour right up until the slot says `keep`, and then it is the word
+itself. The tiles went out with `stroke="keep"` in them, which paints nothing.
+
+This was not introduced by making the drawing the first colourway. Vesper and
+pagrin are the two identities in this repository whose own project files use
+`keep`, and both have been shipping it: three pattern tiles each, and for vesper
+the manual and the deck as well — their pattern specimen takes the colourway's
+value for the master's own first slot, and vesper's first slot is the gradient
+one that says `keep`. Eight files across two identities, in packages this
+repository builds and publishes. Nobody saw it because a tile that paints
+nothing looks like a tile you have not scrolled to.
+
+All seven go through one resolver now — `keep` means "as the master drew it",
+so it resolves to what the master actually paints that slot — and the check is
+that nothing anywhere in a package is painted with the word.
+
 Still to do: nothing named. The next one is whatever the next real export breaks.

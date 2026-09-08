@@ -125,6 +125,24 @@ function inksOf(ctx, cw) {
   return out.filter(Boolean);
 }
 
+// The one colour a colourway hands to something that can only take one: a
+// pattern tile, a partner lockup, a sub-brand row. Seven places took it as the
+// value of the first slot, which is a colour right until that value is the word
+// "keep" — and vesper's first slot is the gradient one its colourway says
+// "keep" for, so its manual and its deck drew their pattern specimen with
+// stroke="keep" in it, in every package this repository has published.
+function inkOn(ctx, cw) {
+  const paint = paintOf(ctx);
+  const master = ctx && ctx.measured && (ctx.measured.slots || [])[0];
+  const own = master && cw && (cw.slots || {})[master];
+  if (own && own !== svgu.KEEP) return own;
+  if (own === svgu.KEEP) {
+    const kept = paint.get(master) || [];
+    if (kept.length) return kept[0];
+  }
+  return svgu.inkOf(cw, paint);
+}
+
 function worstOn(cw, groundHex, ctx) {
   const inks = inksOf(ctx, cw);
   if (!inks.length) return 0;
@@ -647,7 +665,13 @@ function misuseCells(ctx, W, use) {
   // 1.01 to 1. Give the cells a ground of the brand's own and an ink that
   // reads on it, the way the specimen does.
   const s = showOn(ctx);
-  const inks = Object.values(s.colourway.slots);
+  // inksOf rather than the raw slot values — the resolver two functions up. A
+  // slot saying "keep" is not a colour, contrast.ratio of it is null, so the
+  // comparator below is NaN, the order survives untouched and [0] is the word.
+  // The `|| ctx.primary.hex` never fired, because "keep" is not falsy: with
+  // every slot kept, as the front door's full-colour keeps them, the misuse
+  // diagrams went out painted fill="keep".
+  const inks = inksOf(ctx, s.colourway);
   const best = inks.slice().sort((a, b) =>
     contrast.ratio(b, s.ground.hex) - contrast.ratio(a, s.ground.hex))[0] || ctx.primary.hex;
   // The busy cell paints its own stripes, so the ink has to be measured against
@@ -894,7 +918,7 @@ function patternSpec(ctx) {
   const on = showOn(ctx);
   const pat = require('../pattern');
   const master = ctx.project.assets[ctx.measured.master || 'mark'] || ctx.project.assets.mark;
-  const ink = on.colourway.slots[ctx.measured.slots[0]] || Object.values(on.colourway.slots)[0];
+  const ink = inkOn(ctx, on.colourway);
   const sp = pat.spec(master.source, r, ctx.measured);
   const order = Object.keys(r.densities);
 
@@ -1149,5 +1173,5 @@ function changes(ctx) {
     + `</p><div class="chgs">${breaking.map(row).join('')}${news.map(row).join('')}</div>`;
 }
 
-module.exports = { TXT, esc, own, changes, floorTable, partnerLockups, colourVision, ladderBlock, fabrication, familyBlock, motionBuild, inked, gradientSpec, inksOf, patternSpec, photographySpec, iconSpec, willWriteIcons, motionSpec, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, misuseCells, markSpecimen, lockupRow, construction, clearSpace,
+module.exports = { TXT, esc, own, changes, floorTable, partnerLockups, colourVision, ladderBlock, fabrication, familyBlock, motionBuild, inked, gradientSpec, inksOf, inkOn, patternSpec, photographySpec, iconSpec, willWriteIcons, motionSpec, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, misuseCells, markSpecimen, lockupRow, construction, clearSpace,
   minimumSize, lockups, misuse, palette, contrastTable, typeSpecimen, typeScale, assetIndex, brandJsonBlock };

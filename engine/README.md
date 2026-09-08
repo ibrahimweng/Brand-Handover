@@ -5093,6 +5093,158 @@ is `seen.lockups` now and the front door reads it instead of restating it twice.
 The route test runs both directions. A deployed function nothing calls is a list
 that has drifted, exactly like a call nothing serves.
 
+## The front door could not recolour the artwork it was given
+
+With the audit at the door, the next question is what the door does with what
+it read. It reads the palette off the drawing, shows it, asks which colour does
+what — and then writes the colourways, and none of them were about this artwork.
+
+Every identity dropped on the door, built the way `client.html` builds it, and
+the files measured:
+
+    came out drawn in one colour, having been drawn in more     9 of 32
+    wrote two colourways that are the same file                 2 of 32
+    had a slot no colourway named                               5 of 32
+
+### The first colourway was a flattening, not a colourway
+
+    colourways: [way(first.name, first.hex), way('reverse', ground.hex)]
+
+`way` maps every slot to one colour. Carrock is drawn in an ink and a shellac
+label; the door measured the shellac, put it on screen, asked the designer to
+confirm it was the accent, and then wrote:
+
+    door           ink #241C1A   label #241C1A
+    project file   ink #241C1A   label #B4442C
+
+The word for this was already in the engine. `keep` means "leave this slot as
+the master drew it" — `svg.js` has had it since the twelfth identity, for
+gradients. The master is already painted, so the drawing's own colourway is
+every slot set to `keep`. It is called `full-colour`, and the flat version is
+still cut, on purpose, as `mono`.
+
+`mono` is cut only where there is something to flatten, and that is the number
+of distinct paints on the drawing's slots — not the number of slots. Beaumont
+has four slots all painted `#1A1714`; counting slots cut it the same file under
+two names, which is the first thing the check caught after it was written.
+
+### A colourway can only name the slots it was told about
+
+`intake.read` took them off the master alone:
+
+    const slots = svgu.slotsUsed(doc);          // doc is mark || wordmark
+
+Five identities draw a slot that lives only in the logotype — beaumont's
+`word`, vesper's, yarrow's, perigee's, saltmarsh's. No colourway ever named it,
+so `applyColourway` left it painted as the master drew it, and in the reverse
+lockup the words stood on a ground of their own colour:
+
+    beaumont   word     #1A1714 on #1A1714   1.00   → #FFFFFF   17.85
+    vesper     word     #2E2A63 on #2E2A63   1.00   → #FFFFFF   12.90
+    yarrow     word     #2C4A3B on #2C4A3B   1.00   → #FFFFFF    9.77
+    saltmarsh  word     #25373C on #25373C   1.00   → #FFFFFF   12.42
+    perigee    ink      #000000 on #000000   1.00   → #FFFFFF   21.00
+
+### And the door read the upload again to decide what to name
+
+The last round's fault, in the next function along. `ask` had been fixed to
+audit; `stage` still called `intake.read` on the raw upload to work out what the
+colourways would name.
+
+Auditing is not sufficient on its own here, which is the part worth keeping.
+`assignSlots` names a slot **after the palette colour it is painted in**, and
+falls back to `colour-1`, `colour-2` when nothing matches. So the same drawing
+read without a palette and read with one comes back with different names:
+
+    perigee   without   colour-1  colour-2  colour-3  ink
+              with      colour-2  ink       accent
+
+The audit has to be the audit the loader will run, palette and all. `stage`
+passes the confirmed colours into it now. Before that, perigee and pagrin wrote
+colourways naming slots that would not exist, nothing was repainted in any of
+them, and their `reverse` was byte-for-byte the same file as their default.
+
+### One reader, again
+
+`ask` read the upload, `stage` read it again, `preview` read it a third time for
+a colour to draw in. Three readers of one drawing is three chances to disagree,
+and two of them were wrong. `readArtwork(mark, wordmark, colours)` is the only
+one now: audit, then measure, with the palette that will be used.
+
+### The advice was true and unfollowable
+
+The build had been saying all of this, into the notes at the end of a package it
+had already written:
+
+    colourway "reverse" gives no colour for word, so every file in it keeps what
+    the master was painted: word (#1A1714). Add the slot to the colourway, or
+    remove it from the artwork.
+
+    the master paints a slot (ink) with a gradient, and every colourway names a
+    flat colour for it, so the gradient is in the master and in none of the
+    files this wrote. Write "keep" instead of a colour in the colourway that is
+    meant to carry it.
+
+Both correct. Both telling somebody holding a browser to edit a colourway,
+which the front door does not offer — the same shape as the CMYK `how` that was
+written for a text editor and shown in a form. The fix is not better wording; it
+is not writing the project that needs it. A test asserts the door produces no
+package the build has to say `gives no colour for` about, which is also the only
+check with teeth on the palette: an audit run without it names slots the loader
+will not.
+
+One hand-written colourway of the 106 in this repository has the same fault —
+northline's `outline` names a colour for `route` and says nothing about `ticks`
+— and the build has been warning about it. It stays: that fixture exists to
+exercise this warning, and a test says so.
+
+## "keep" is not a colour, and seven places thought it was
+
+Making the drawing the first colourway made `keep` the common case, and that
+found a bug that was already shipping.
+
+Seven places reduce a colourway to the one colour something needs when it can
+only take one — a pattern tile, a partner lockup, a sub-brand row, a misuse
+diagram — and every one did it the same way:
+
+    const ink = Object.values(cw.slots)[0];
+
+A colour, right up until the slot says `keep`, and then it is the word. The
+tiles went out with `stroke="keep"` in them, which paints nothing.
+
+Vesper and pagrin are the two identities here whose own project files use
+`keep`, and both were shipping it:
+
+    vesper   07-pattern/pattern-{coarse,fine,medium}-dusk.svg
+             guidelines.html, deck.html
+    pagrin   07-pattern/pattern-{coarse,fine,medium}-spectrum.svg
+
+Vesper's documents got it a second way. The pattern specimen in the manual and
+in the deck takes the colourway's value for the master's own first slot, and
+vesper's first slot is `ring` — the gradient one, the whole reason its `dusk`
+colourway says `keep` at all. Eight files, in packages this repository builds
+and publishes, and nobody saw them: a tile that paints nothing looks like a tile
+you have not scrolled to.
+
+There is a third way in, which only appears once *every* slot says keep, as the
+door's `full-colour` does. `misuseCells` sorts the colourway's inks by contrast
+and paints the diagrams in the best; `contrast.ratio('keep', …)` is `null`, the
+comparator is `NaN`, the order survives untouched, and `[0]` is the word. Its
+`|| ctx.primary.hex` fallback never fired because `'keep'` is not falsy.
+
+`svg.js` has `inkOf(cw, paint)` now — the first slot with a colour anything can
+name, resolving `keep` through `paintBySlot` to what the master actually paints
+— and `blocks.js` has `inkOn(ctx, cw)`, which keeps its existing preference for
+the master's own slot and resolves the same way. The seventh site was already
+sitting next to the resolver it needed: `inksOf` is two functions above
+`misuseCells` and does exactly this.
+
+    vesper  pattern-coarse-dusk.svg      stroke="keep"  →  #C2620E
+    pagrin  pattern-coarse-spectrum.svg  stroke="keep"  →  #FF5715
+
+The check is the flat one: no file in a package, of any kind, may be painted
+with the word.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.

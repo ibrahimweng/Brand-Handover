@@ -5224,6 +5224,136 @@ test('the door reads the artwork the engine will use, not the one that arrived',
   assert.deepStrictEqual(APP.ask({ mark }).seen.slots, ['ink']);
 });
 
+test('the first colourway is the drawing, not a flattening of it', () => {
+  // The door read the palette off the artwork, showed it, asked which colour
+  // did what — and then wrote one colourway that painted every slot the
+  // primary. A mark drawn in two colours came out of the front door drawn in
+  // one, with the second measured, shown, confirmed on the way past and then
+  // painted over. Nine of the thirty-two here, counted off the files.
+  const INT = require('../src/intake');
+  const { normalise } = require('../src/normalise');
+  const read = (name) => {
+    const d = path.join(__dirname, '..', 'projects', name);
+    const mark = fs.readFileSync(path.join(d, 'mark.svg'), 'utf8');
+    const wf = path.join(d, 'wordmark.svg');
+    const wordmark = fs.existsSync(wf) ? fs.readFileSync(wf, 'utf8') : null;
+    const a = APP.ask({ mark, wordmark });
+    const colours = a.questions.find((q) => q.key === 'colours').suggested;
+    const tokens = { colour: Object.fromEntries(colours.map((c) => [c.name, { hex: c.hex }])) };
+    const seen = INT.read({ mark: normalise(mark, { tokens }).svg,
+      wordmark: wordmark ? normalise(wordmark, { tokens }).svg : null });
+    return { colours, seen, project: APP.projectJson({ brand: name, mark, wordmark,
+      lockups: seen.lockups, colours, slots: seen.slots, flatten: seen.flatten }) };
+  };
+
+  // carrock is drawn in two: an ink and a shellac label
+  const c = read('carrock');
+  const ways = c.project.rules.colourways;
+  assert.deepStrictEqual(ways.map((w) => w.name), ['full-colour', 'mono', 'reverse']);
+  assert.deepStrictEqual(ways[0].slots, { ink: 'keep', label: 'keep' },
+    'the first colourway repaints the drawing instead of keeping it');
+  // and the one-colour version is still cut, on purpose and under its own name
+  assert.strictEqual(new Set(Object.values(ways[1].slots)).size, 1);
+
+  // meridian is one flat ink, so a mono would be the same file under a second
+  // name. Counting slots rather than paints cut one for beaumont, whose four
+  // slots are all painted #1A1714.
+  assert.deepStrictEqual(read('meridian').project.rules.colourways.map((w) => w.name),
+    ['full-colour', 'reverse']);
+  assert.deepStrictEqual(read('beaumont').project.rules.colourways.map((w) => w.name),
+    ['full-colour', 'reverse']);
+
+  // pagrin's mark is a gradient, which is exactly what "keep" is for: a
+  // colourway naming a flat colour for it painted it over, and the build said
+  // so in a warning nobody was reading.
+  const pg = read('pagrin');
+  assert.strictEqual(pg.project.rules.colourways[0].slots.ink, 'keep');
+  assert.ok(pg.project.rules.colourways.some((w) => w.name === 'mono'),
+    'a gradient has no flat version to print from');
+
+  // whatever the identity, every slot the artwork draws is named by every
+  // colourway: a slot no colourway names is painted by nothing and checked by
+  // nothing
+  for (const name of ['carrock', 'beaumont', 'pagrin', 'spire', 'yarrow', 'vesper']) {
+    const r = read(name);
+    for (const w of r.project.rules.colourways) {
+      assert.deepStrictEqual(r.seen.slots.filter((sl) => !w.slots[sl]), [],
+        `${name}: colourway "${w.name}" names no colour for a slot the artwork draws`);
+    }
+  }
+});
+
+test('the logotype reverses with the mark, and no two colourways are one file', async () => {
+  // Two faults met here. intake.read took the slots off the master alone, so a
+  // slot that lives in the logotype was never named by any colourway — and the
+  // reverse lockup painted the words in the colour of the ground they stand
+  // on. Five identities, all five at 1.00 to 1. And stage() re-read the raw
+  // upload to decide what the colourways would name, so where the loader
+  // assigns different slots than the raw file has — perigee's depend on the
+  // palette, which stage did not have — the colourways named nothing that
+  // existed and every file came out identical.
+  const contrast = require('../src/contrast');
+  const svgu = require('../src/svg');
+  for (const name of ['beaumont', 'perigee']) {
+    const d = path.join(__dirname, '..', 'projects', name);
+    const mark = fs.readFileSync(path.join(d, 'mark.svg'), 'utf8');
+    const wordmark = fs.readFileSync(path.join(d, 'wordmark.svg'), 'utf8');
+    const a = APP.ask({ mark, wordmark });
+    const answers = { brand: name, positioning: '', style: 'quiet', places: ['screen'] };
+    a.questions.forEach((q) => { if (q.suggested !== undefined) answers[q.key] = q.suggested; });
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-cw-'));
+    // exactly what client.html posts to /api/build
+    const built = await APP.make({ brand: name, mark, wordmark, colours: answers.colours,
+      lockups: a.seen.lockups, slots: a.seen.slots, answers, overrides: [] }, dir);
+
+    // The build has said this all along, into a list of notes at the end, in a
+    // package already written, advising a person holding a browser to "add the
+    // slot to the colourway" — which is not a thing the front door can do. The
+    // door must not write a project the build has to say this about. It is also
+    // the only check with teeth on the palette: a slot is named after the
+    // palette colour it is painted in, so an audit run without the palette
+    // names slots the loader will not.
+    const unnamed = (built.warnings || []).filter((w) => /gives no colour for/.test(w));
+    assert.deepStrictEqual(unnamed, [], `${name}: ${unnamed[0] || ''}`);
+
+    // "keep" is an instruction to the engine, not a colour, and two places
+    // reduced a colourway to one ink by taking its first slot value — which is
+    // the word itself once the first colourway is the drawing. Nine pattern
+    // tiles per identity went out with stroke="keep" in them, which paints
+    // nothing. Nothing in a package may be painted with it.
+    const asColour = fs.readdirSync(dir, { recursive: true })
+      .map(String).filter((f) => /\.(?:svg|html)$/.test(f))
+      .filter((f) => /(?:fill|stroke)="keep"/i.test(fs.readFileSync(path.join(dir, f), 'utf8')));
+    assert.deepStrictEqual(asColour, [], `${name}: written with "keep" where a colour goes`);
+
+    const folder = path.join(dir, '01-horizontal');
+    const files = fs.readdirSync(folder).filter((f) => /\.svg$/.test(f)).sort();
+    const bytes = files.map((f) => fs.readFileSync(path.join(folder, f)));
+    for (let i = 0; i < bytes.length; i += 1) {
+      for (let j = i + 1; j < bytes.length; j += 1) {
+        assert.ok(!bytes[i].equals(bytes[j]),
+          `${name}: ${files[i]} and ${files[j]} are the same file under two colourway names`);
+      }
+    }
+
+    // and nothing in the reverse file is painted the colour of its own ground
+    const rev = files.find((f) => /reverse/.test(f));
+    assert.ok(rev, `${name} cut no reverse`);
+    const ground = (answers.colours.find((c) => c.role === 'primary') || {}).hex;
+    const doc = svgu.parse(fs.readFileSync(path.join(folder, rev), 'utf8'));
+    svgu.eachPainted(doc, (el) => {
+      if (!el.getAttribute) return;
+      for (const attr of ['fill', 'stroke']) {
+        const v = (el.getAttribute(attr) || '').trim();
+        if (!v || v === 'none' || /^url\(/.test(v)) continue;
+        assert.ok(contrast.ratio(v, ground) > 2,
+          `${name}: ${el.getAttribute('data-slot') || 'a shape'} is ${v} on a ${ground} ground`);
+      }
+    });
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('the door refuses what the build would refuse, before anybody answers a question', () => {
   // Three files the front door used to take. Live text was measured, described
   // and accepted — a mark that renders in whatever font the recipient happens

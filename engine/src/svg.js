@@ -89,6 +89,20 @@ function applyColourway(doc, slots) {
   return { missing: [...missing], kept: [...kept] };
 }
 
+// A colourway reduced to the one colour a pattern tile is cut in. It used to be
+// Object.values(cw.slots)[0], which is a colour right up until the slot says
+// "keep": the tile then went out with stroke="keep" in it, which is not a
+// colour and paints nothing. "keep" means "as the master drew it", so that is
+// what it resolves to — the first slot with a colour anything can name.
+function inkOf(cw, paint) {
+  for (const [slot, v] of Object.entries((cw && cw.slots) || {})) {
+    if (v !== KEEP) return v;
+    const kept = (paint && paint.get(slot)) || [];
+    if (kept.length) return kept[0];
+  }
+  return undefined;
+}
+
 // A <linearGradient>, <radialGradient> or <pattern> nothing points at any more.
 // Nine files shipped carrying a gradient definition that no shape referenced,
 // because repainting a slot rewrites the fill and leaves the defs alone.
@@ -410,5 +424,5 @@ function compose(parts, width, height) {
 
 const round = (n, dp = 3) => Number(n.toFixed(dp));
 
-module.exports = { KEEP, dropUnusedPaint, gradientSlots, gradients, paintBySlot, parse, serialize, viewBox, applyColourway, slotsUsed, thinnestStroke,
+module.exports = { KEEP, dropUnusedPaint, gradientSlots, gradients, paintBySlot, inkOf, parse, serialize, viewBox, applyColourway, slotsUsed, thinnestStroke,
   strokeWidths, strokeInk, inkParts, partsUsed, partIsStroked, innerXML, compose, round, NS, eachPainted, NEVER_DRAWN };

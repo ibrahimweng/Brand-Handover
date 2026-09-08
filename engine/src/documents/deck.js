@@ -270,7 +270,7 @@ function deck(ctx) {
   if (ctx.pattern && ctx.pattern.ok && ctx.pattern.tiles.length) sysSlides.push([say('secPattern'), () => {
     const r = ctx.system.pattern;
     const on = b.showOn(ctx);
-    const ink = Object.values(on.colourway.slots)[0];
+    const ink = b.inkOn(ctx, on.colourway);
     const pat = require('../pattern');
     const sp = pat.spec(master.source, r, ctx.measured);
     const cells = Object.entries(r.densities).map(([d, f]) => {

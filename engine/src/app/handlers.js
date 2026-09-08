@@ -69,6 +69,23 @@ function projectJson(opts) {
   const slots = opts.slots && opts.slots.length ? opts.slots : ['all'];
   const way = (name, colour) => ({ name, on: name === 'reverse' ? first.name : ground.name,
     slots: Object.fromEntries(slots.map((s) => [s, colour])) });
+
+  // The first colourway is the drawing. It used to be every slot painted the
+  // primary, which is not a colourway of this identity but a flattening of it:
+  // a mark drawn in two colours came out of the front door drawn in one, with
+  // the second colour measured, shown, confirmed on the way past and then
+  // painted over — eight of the thirty-two here — and a gradient came out flat
+  // with the build's own warning saying exactly that and nobody reading it.
+  // "keep" is this engine's word for "as the master drew it", and the master
+  // is already painted.
+  const ways = [way('full-colour', svgu.KEEP)];
+  // A one-colour version is a real thing to need — one ink, an embroidery, a
+  // stamp — and it is what the door used to cut by accident. It is cut on
+  // purpose now, and only where there is something to flatten: for artwork
+  // that is already one flat colour it would be the same file under a second
+  // name. opts.flatten is measured off the drawing in intake.read.
+  if (opts.flatten) ways.push(way('mono', first.hex));
+  ways.push(way('reverse', ground.hex));
   return {
     brand: opts.brand,
     latinName: opts.latinName || undefined,
@@ -82,13 +99,56 @@ function projectJson(opts) {
     },
     rules: {
       lockups: opts.lockups,
-      colourways: [way(first.name, first.hex), way('reverse', ground.hex)],
+      colourways: ways,
       formats: ['svg', 'png'],
       pngWidths: [512, 1024],
       naming: '{brand}-{lockup}-{colourway}',
     },
     content: opts.content || {},
   };
+}
+
+// ---- the artwork the engine will use, and what it measures -----------------
+// The audit first, always. Reading the upload instead is how the door came to
+// hold a different opinion from the build about one file, and it was not in one
+// place: ask read the upload, stage read the upload again to decide what the
+// colourways would name, and preview read it a third time for a colour to draw
+// in. Three readers of one drawing is three chances to disagree, and two of
+// them were wrong — the artwork the loader normalises has slots that the raw
+// file does not, so the colourways the door wrote named slots that were not
+// there and every file for them came out identical.
+//
+// The palette matters here, and it is the second half of the same fault. A slot
+// is named after the palette colour it is painted in, and falls back to
+// colour-1, colour-2 when no colour matches — so the same drawing read without
+// a palette and read with one comes back with different slot names. Perigee's
+// were colour-1, colour-2, colour-3, ink without and colour-2, ink, accent
+// with. Auditing was not enough: the audit has to be the one the loader will
+// run, palette and all, or the colourways name slots that will not exist.
+function readArtwork(mark, wordmark, colours) {
+  const { normalise } = require('../normalise');
+  const tokens = { colour: Object.fromEntries((colours || [])
+    .filter((c) => c && c.name && c.hex).map((c) => [c.name, { hex: c.hex }])) };
+  const findings = {};
+  const clean = {};
+  for (const [key, src] of [['mark', mark], ['wordmark', wordmark]]) {
+    if (!src) continue;
+    const n = normalise(src, { tokens });
+    findings[key] = n.findings;
+    if (!n.ok) return { ok: false, asset: key, findings: n.findings };
+    clean[key] = n.svg;
+  }
+  const seen = require('../intake').read({ mark: clean.mark || null, wordmark: clean.wordmark || null });
+  return { ok: true, clean, findings, seen };
+}
+
+// Refused the way the loader refuses it, because it is the loader's audit: the
+// caller that would have hit this a moment later already knows this shape.
+function refuse(read) {
+  const e = new Error(`the ${read.asset} artwork cannot be used yet`);
+  e.findings = read.findings;
+  e.asset = read.asset;
+  return e;
 }
 
 // A project on disk, because that is what the loader reads. It is thrown away
@@ -103,9 +163,13 @@ function stage(opts) {
   // be done to it are all worked out in one place rather than in two that would
   // disagree. See src/intake.js.
   let json;
+  const chosen = (opts.colours && opts.colours.length ? opts.colours
+    : (opts.answers && opts.answers.colours)) || [];
+  const read = readArtwork(opts.mark, opts.wordmark, chosen);
+  if (!read.ok) throw refuse(read);
   if (opts.answers) {
     const intake = require('../intake');
-    const seen = intake.read({ mark: opts.mark, wordmark: opts.wordmark });
+    const seen = read.seen;
     json = intake.toProject(Object.assign({}, opts.answers, {
       brand: opts.brand,
       colours: (opts.colours && opts.colours.length ? opts.colours : opts.answers.colours),
@@ -115,7 +179,10 @@ function stage(opts) {
     if (opts.language) json.language = opts.language;
     if (opts.type) json.tokens.type = opts.type;
   } else {
-    json = projectJson(opts);
+    // the slots and the paint are read off the artwork rather than taken from
+    // the caller, for the same reason
+    json = projectJson(Object.assign({}, opts,
+      { slots: read.seen.slots, flatten: read.seen.flatten }));
   }
   fs.writeFileSync(file, JSON.stringify(json, null, 2));
   return { dir, file };
@@ -227,33 +294,22 @@ function ask(input) {
       'Drop an SVG on the mark, the wordmark, or both. Either one on its own is a whole identity.');
   }
 
-  // The same function the loader puts every asset through, so the door and the
-  // build cannot hold two opinions about one file. A refusal here is the one
-  // the build would have made, in the same words, before any work is done on
-  // the strength of it.
-  const { normalise } = require('../normalise');
-  const findings = {};
-  const clean = {};
-  for (const [key, src] of [['mark', mark], ['wordmark', wordmark]]) {
-    if (!src) continue;
-    const n = normalise(src, { tokens: {} });
-    findings[key] = n.findings;
-    if (!n.ok) return { ok: false, asset: key, what: `The ${key} cannot be used as it is.`, findings: n.findings };
-    clean[key] = n.svg;
+  // The audit, and then the measuring, off what the audit returns rather than
+  // off the upload. They are not the same drawing: a transform that has not
+  // been flattened measures a stroke thinner than it prints, a shape lying off
+  // the artboard widens the box every size is worked out from, and a fill still
+  // sitting in a stylesheet is a colour the palette cannot see. Nine of the
+  // thirty-two identities named a different motif read the two ways, and three
+  // counted their colours differently — one of them, drawn in a gradient,
+  // counted none at all and was handed an empty palette to confirm.
+  const read = readArtwork(mark, wordmark);
+  if (!read.ok) {
+    return { ok: false, asset: read.asset,
+      what: `The ${read.asset} cannot be used as it is.`, findings: read.findings };
   }
-
-  // Measured off what came out of the audit rather than off the upload. They
-  // are not the same drawing: a transform that has not been flattened measures
-  // a stroke thinner than it prints, a shape lying off the artboard widens the
-  // box every size is worked out from, and a fill still sitting in a stylesheet
-  // is a colour the palette cannot see. Nine of the thirty-two identities named
-  // a different motif read the two ways, and three counted their colours
-  // differently — one of them, drawn in a gradient, counted none at all and
-  // was handed an empty palette to confirm.
-  const intake = require('../intake');
-  const seen = intake.read({ mark: clean.mark || null, wordmark: clean.wordmark || null });
+  const { seen, clean, findings } = read;
   if (!seen.ok) throw bad('That artwork could not be read.', seen.why);
-  return { ok: true, seen, questions: intake.questions(seen), findings, clean };
+  return { ok: true, seen, questions: require('../intake').questions(seen), findings, clean };
 }
 
 // The four layout systems, each drawn with this identity, so the choice is made
@@ -264,8 +320,10 @@ function preview(input) {
   const art = mark || wordmark;
   if (!art) throw bad('No artwork was given.', 'Drop an SVG first.');
   const svgu = require('../svg');
+  const read = input.colours && input.colours.length ? null : readArtwork(mark, wordmark);
+  if (read && !read.ok) throw refuse(read);
   const colours = (input.colours && input.colours.length ? input.colours
-    : require('../intake').read({ mark, wordmark }).colours) || [];
+    : read.seen.colours) || [];
   const ink = (colours.find((c) => c.role === 'primary') || colours[0] || {}).hex || '#111111';
   // painted in the identity's own ink, because a preview in black is a preview
   // of something else

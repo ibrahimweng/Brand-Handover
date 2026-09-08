@@ -94,7 +94,34 @@ function read({ mark, wordmark }) {
   const parts = svgu.partsUsed(doc);
   const widths = svgu.strokeWidths(doc);
   const cols = palette([mark, wordmark]);
-  const slots = svgu.slotsUsed(doc);
+
+  // Every slot in the identity, not only the ones in the master. A colourway
+  // repaints by slot and can only name the slots it was told about, so a slot
+  // that lives in the logotype alone was never named — and the reverse lockup
+  // painted the words in the colour of the ground they stand on. Five of the
+  // thirty-two identities here draw one, and all five measured 1.00 to 1
+  // against their own reverse ground.
+  const docs = [mark, wordmark].filter(Boolean).map((src) => svgu.parse(src));
+  const slots = [...new Set(docs.flatMap((d) => svgu.slotsUsed(d)))];
+
+  // Whether a one-colour version of this would differ from the drawing: more
+  // than one paint on its slots, or one that no colourway can name. Cutting a
+  // "mono" for artwork that is already one flat colour writes the same file
+  // under a second name — which counting slots rather than paints did, for
+  // beaumont, whose four slots are all painted #1A1714.
+  const kept = [...new Set(docs.flatMap((d) => svgu.gradientSlots(d)))];
+  const paints = new Set();
+  for (const d of docs) {
+    svgu.eachPainted(d, (el) => {
+      if (!el.getAttribute || !el.getAttribute('data-slot')) return;
+      for (const attr of ['fill', 'stroke']) {
+        const v = ((el.getAttribute(attr)) || '').trim();
+        if (!v || v === 'none') continue;
+        paints.add(/^url\(/.test(v) ? 'a paint server' : v.toUpperCase());
+        return;
+      }
+    });
+  }
   const pat = PAT.spec(master, { tile: 100 });
   return {
     ok: true,
@@ -109,6 +136,9 @@ function read({ mark, wordmark }) {
     foundColours: cols.length,
     parts,
     slots: slots.length ? slots : ['all'],
+    kept,
+    paints: paints.size,
+    flatten: paints.size > 1 || kept.length > 0,
     strokes: widths,
     aspect: Number((box.w / box.h).toFixed(2)),
     floor: geo.minimumSize(master, { minStrokePx: 3, minStrokeMm: 0.8 }),
@@ -219,6 +249,7 @@ function toProject(answers, seen) {
     colours: cols.map((c) => ({ name: c.name, hex: c.hex, role: c.role })),
     lockups: seen.lockups,
     slots: seen.slots,
+    flatten: seen.flatten,
     content: { positioning: a.positioning || undefined, misuse: never },
   });
 
