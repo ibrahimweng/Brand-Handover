@@ -1493,8 +1493,58 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       if (f.level === 'blocker') { const e = new Error(f.what); e.findings = [Object.assign({}, f, { what: line })]; throw e; }
       warnings.push(line);
     }
+    // A font can arrive and still have nothing to draw with.
+    //
+    // Yamabiko ships IPAGothic subsetted to the characters its own content sets,
+    // which is why the package opens with no network at all instead of carrying
+    // several megabytes. A subset is subset to what somebody knew about when it
+    // was cut, and one character was already outside it: 行, in the type scale's
+    // own sample sentence, on the page whose whole job is to prove what the face
+    // looks like.
+    //
+    // Nothing said so, because a missing glyph is not an error — a browser falls
+    // through to the next family and the page goes on claiming to be set in the
+    // face. What the reader sees depends on what the reader has installed, which
+    // is the one thing this package is built not to depend on.
+    //
+    // Asked about the words the engine knows go in the identity's own face: the
+    // brand's, the project's own prose, the samples in its type scale. The
+    // engine's furniture — captions, tables, the numbers down the side — is set
+    // in a system stack on purpose and is not this font's job. Which characters
+    // land in which face on a finished page is a fact about the page rather than
+    // about the project, and test/font-check.mjs asks a browser that.
+    {
+      const t = project.tokens.type || {};
+      const words = [project.brand, project.latinName]
+        .concat(Object.values(project.content || {}).filter((v) => typeof v === 'string'))
+        .concat(((project.content || {}).misuse || []).map((x) => x && x.why))
+        .concat((t.scale || []).map((x) => x.sample))
+        .concat(Object.values(t.families || {}).map((f) => f.note))
+        .concat((project.partners || []).map((x) => x.name))
+        .concat(Object.keys((project.tokens || {}).colour || {}))
+        .filter(Boolean).join(' ');
+      const gone = TF.cannotDraw(project.fonts, words);
+      if (gone.length) {
+        const where = () => {
+          for (const [k, v] of Object.entries(project.content || {})) {
+            if (typeof v === 'string' && v.includes(gone[0])) return `content.${k}`;
+          }
+          for (const x of t.scale || []) if (x.sample && x.sample.includes(gone[0])) return `the ${x.name} sample`;
+          return 'the project file';
+        };
+        warnings.push(`${gone.length === 1 ? 'one character' : `${gone.length} characters`} this identity sets `
+          + `${gone.length === 1 ? 'is' : 'are'} not in any font it ships: ${gone.slice(0, 24).join(' ')}`
+          + `${gone.length > 24 ? ` and ${gone.length - 24} more` : ''}. `
+          + `${gone[0]} is in ${where()}. A missing glyph is not an error — the browser falls through to the `
+          + `next family and the page goes on saying it is set in the face — so what a reader sees depends on `
+          + `what they happen to have installed, which is the one thing a package that fetches nothing is `
+          + `built not to depend on. Cut the subset against everything the documents set rather than against `
+          + `the project file, or ship the full face.`);
+      }
+    }
+
     // A project in a language the engine cannot write gets an English document
-    // that says so, rather than an English document pretending to be in theirs.
+    // that says so, rather than an English document pretending to be in theirs.""
     const L = require('./strings').resolve(project, 'manual');
     const LD = require('./strings').resolve(project, 'deck');
     // Which documents the project's language actually writes, asked per

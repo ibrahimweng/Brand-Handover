@@ -22,13 +22,20 @@ const CSS = `
 --label-case:uppercase;--label-track:.09em}
 @media (prefers-color-scheme:dark){:root:not([data-theme=light]){--paper:#0C0D0F;--surface:#141618;--sunk:#101214;--ink:#ECEEF0;--ink-2:#9BA1A7;--ink-3:#7E858B;--rule:#232629;--rule-2:#34383C;--on-ink:#0C0D0F;--on-ink-2:#4A4C4E}}
 :root[data-theme=dark]{--paper:#0C0D0F;--surface:#141618;--sunk:#101214;--ink:#ECEEF0;--ink-2:#9BA1A7;--ink-3:#7E858B;--rule:#232629;--rule-2:#34383C;--on-ink:#0C0D0F;--on-ink-2:#4A4C4E}
+/* A measure is counted in characters, and how wide a character is depends on
+   the script. One ch is the width of a zero, so a display measure counted in
+   ch comes out at half as many characters in a script written full width:
+   16ch is sixteen Latin characters and seven Japanese ones, and seven is one
+   word. The language says which unit counts its own characters, in
+   src/strings.js. */
+:root{--m:1ch}
 *{box-sizing:border-box}body{background:var(--paper);color:var(--ink);font-family:var(--ui);font-size:var(--body);line-height:var(--lead);margin:0;-webkit-font-smoothing:antialiased}
 main.page{display:block}
 .page{max-width:var(--page-max);margin:0 auto;padding:0 var(--page-pad) 90px}p{margin:0}
 h1,h2,h3,h4{font-family:var(--display);margin:0;text-wrap:balance}
 .mast{padding:44px 0 32px;border-bottom:var(--rule-heavy) solid var(--ink)}
 .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-3);margin-bottom:26px}
-.mast h1{font-weight:700;font-size:var(--h1);line-height:1.02;letter-spacing:var(--track);max-width:16ch}
+.mast h1{font-weight:700;font-size:var(--h1);line-height:1.02;letter-spacing:var(--track);max-width:calc(16 * var(--m))}
 .mast .sub{margin-top:16px;max-width:var(--measure);font-size:calc(var(--body) * 1.1);line-height:1.55;color:var(--ink-2)}
 .chapter{margin-top:var(--chapter-gap);padding-top:20px;border-top:var(--rule-heavy) solid var(--ink)}
 .chapter:first-of-type{border-top:none;padding-top:0}
@@ -133,6 +140,10 @@ figcaption.said b{display:block;font-weight:600;color:var(--ink);margin-bottom:2
 .ar{display:flex;justify-content:space-between;padding:9px 4px;border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:13px}
 .ar em{font-style:normal;color:var(--ink-3)}
 pre{background:var(--sunk);border:1px solid var(--rule);padding:18px 20px;overflow-x:auto;font-family:var(--mono);font-size:12px;line-height:1.65;margin:0;color:var(--ink-2)}
+/* The measures below stay in ch on purpose. A body measure of 64ch comes out
+   at about 36 full-width characters, which is what a Japanese text column
+   wants; it is the display measures, where the count is small enough that
+   halving it leaves one word on a line, that had to learn about scripts. */
 footer{margin-top:70px;padding-top:22px;border-top:2px solid var(--ink);font-family:var(--mono);font-size:11px;line-height:1.8;color:var(--ink-3);max-width:70ch}
 @media (max-width:700px){.page{padding:0 18px 60px}.ctr{grid-template-columns:56px 1fr 60px}.ctr i{grid-column:2/-1;text-align:left}.ctr.head{display:none}.sr{grid-template-columns:1fr;gap:6px}.sr em{text-align:left}}
 `;
@@ -168,10 +179,21 @@ function displayVar(style, type) {
   return `<style>:root{--display:${JSON.stringify(fam.family)}, ${fam.fallback || 'Helvetica, Arial, sans-serif'}}</style>`;
 }
 
-const shell = ({ title, type, fonts, body, favicon, language = 'en', direction = 'ltr', style }) => `<!doctype html>
+// What the script this document is written in asks of a line. Nothing, for the
+// three languages that came before Japanese: a script written with spaces and
+// half-width characters is what every measure in this stylesheet was counted in.
+function scriptVar(script) {
+  const bits = [];
+  if (script && script.measure && script.measure !== 'ch') bits.push(`--m:1${script.measure}`);
+  const wrap = script && script.wrap ? `body{word-break:${script.wrap}}` : '';
+  if (!bits.length && !wrap) return '';
+  return `<style>${bits.length ? `:root{${bits.join(';')}}` : ''}${wrap}</style>`;
+}
+
+const shell = ({ title, type, fonts, body, favicon, language = 'en', direction = 'ltr', style, script }) => `<!doctype html>
 <html lang="${escText(language)}" dir="${escText(direction)}" data-dir="${escText(style || require('../directions').DEFAULT)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${escText(title)}</title>${favicon ? `\n<link rel="icon" href="${favicon}">` : ''}
 ${fontLink(type, fonts, body)}
-<style>${css(style)}</style>${displayVar(style, type)}</head><body><main class="page">${body}</main></body></html>`;
+<style>${css(style)}</style>${displayVar(style, type)}${scriptVar(script)}</head><body><main class="page">${body}</main></body></html>`;
 
 module.exports = { shell, CSS, css, displayVar, fontLink, escText };

@@ -309,7 +309,8 @@ function guidelines(ctx) {
   // of the brand it is about. Maayan's manual was 988 English words under
   // lang="he" dir="rtl", so the whole of it was laid out right to left.
   return shell({ title: ctx.L.t('manualTitle', { brand: p.brand }), type: p.tokens.type,
-    fonts: p.fonts, body, language: ctx.L.lang, direction: ctx.L.dir, style: ctx.style.key });
+    fonts: p.fonts, body, language: ctx.L.lang, direction: ctx.L.dir, style: ctx.style.key,
+    script: { wrap: ctx.L.wrap, measure: ctx.L.measure } });
 }
 
 module.exports = { context, guidelines, sec, chapter, BADGE, words };

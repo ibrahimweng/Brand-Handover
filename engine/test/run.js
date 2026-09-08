@@ -2937,12 +2937,16 @@ test('a document says what language it is in and which way it reads', () => {
   // and the canvas too, since the thirty-seventh round moved its words in
   const cnv = (/<html[^>]*>/.exec(emit.editorHtml(MY, myM, [])) || [])[0];
   assert.ok(/lang="he"/.test(cnv) && /dir="rtl"/.test(cnv), `the canvas says ${cnv}`);
-  // an identity whose language the engine cannot write still gets English, and
-  // has its own name marked as its own inside it
+  // 山彦 is in ja and the engine writes ja now, so its canvas is Japanese too
   const YB = projectLoader.load(path.join(__dirname, '..', 'projects', 'yamabiko', 'project.json'));
-  const ycnv = emit.editorHtml(YB, measure(YB), []);
-  assert.ok(/<html[^>]*lang="en"/.test(ycnv), 'a canvas the engine cannot write says otherwise');
-  assert.ok(/lang="ja"/.test(ycnv), "the brand's own words are not marked as Japanese");
+  const ycnv = (/<html[^>]*>/.exec(emit.editorHtml(YB, measure(YB), [])) || [])[0];
+  assert.ok(/lang="ja"/.test(ycnv), `山彦's canvas says ${ycnv}`);
+  // and one whose language the engine cannot write still gets English, with its
+  // own name marked as its own inside it
+  const noDict = Object.assign({}, projectLoader.load(path.join(__dirname, '..', 'projects', 'yamabiko', 'project.json')), { language: 'ko' });
+  const nd = emit.editorHtml(noDict, measure(noDict), []);
+  assert.ok(/<html[^>]*lang="en"/.test(nd), 'a canvas the engine cannot write says otherwise');
+  assert.ok(/lang="ko"/.test(nd), "the brand's own words are not marked as its own language");
   // an identity in a language the engine writes gets a document in it — and
   // that is asked per document, because the two are not written from the same
   // words. Both come out of the dictionary end to end now, so français writes
@@ -6461,12 +6465,18 @@ test('the canvas says which language it is written in, like the pages beside it'
     'the canvas chrome is still English under a French declaration');
   assert.strictEqual(STR.resolve({ language: 'fr' }, 'canvas').lang, 'fr');
   assert.strictEqual(STR.resolve({ language: 'en' }, 'canvas').lang, 'en');
+  // 日本語 writes it too, since the thirty-eighth round
+  const ja = EMIT.editorHtml(projectLoader.load(path.join(__dirname, '..', 'projects', 'yamabiko', 'project.json')),
+    measure(projectLoader.load(path.join(__dirname, '..', 'projects', 'yamabiko', 'project.json'))), []);
+  assert.ok(/<html[^>]*lang="ja"/.test(ja), 'the canvas is not written in the language it can be');
+  assert.ok(ja.includes('ブロックを追加') && ja.includes('属性'),
+    'the canvas chrome is still English under a Japanese declaration');
   // a language the engine has no dictionary for still gets English, and marks
   // the brand's own name inside it
-  const YB = projectLoader.load(path.join(__dirname, '..', 'projects', 'yamabiko', 'project.json'));
-  const ja = EMIT.editorHtml(YB, measure(YB), []);
-  assert.ok(/<html[^>]*lang="en"/.test(ja), 'a canvas the engine cannot write says otherwise');
-  assert.ok(/<h1 class="brand"><span lang="ja"/.test(ja), "the brand's own name is not marked as its own");
+  const noDict = Object.assign({}, projectLoader.load(path.join(__dirname, '..', 'projects', 'yamabiko', 'project.json')), { language: 'ko' });
+  const nd = EMIT.editorHtml(noDict, measure(noDict), []);
+  assert.ok(/<html[^>]*lang="en"/.test(nd), 'a canvas the engine cannot write says otherwise');
+  assert.ok(/<h1 class="brand"><span lang="ko"/.test(nd), "the brand's own name is not marked as its own");
   // and an English identity's canvas has nothing to mark
   const en = EMIT.editorHtml(project, measure(project), []);
   assert.ok(/<html[^>]*lang="en"/.test(en));
@@ -6529,24 +6539,34 @@ const STR = require('../src/strings');
 const NORM = require('../src/normalise');
 const VERD = path.join(__dirname, '..', 'projects', 'verdon', 'project.json');
 const verdon = projectLoader.load(VERD);
-let verdOut, maayOut, yamaOut;
+let verdOut, maayOut, yamaOut, unwritable, unwritableOut;
 before(async () => {
   verdOut = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-verd-'));
   await build(verdon, verdOut);
   maayOut = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-maay-'));
   await build(projectLoader.load(path.join(__dirname, '..', 'projects', 'maayan', 'project.json')), maayOut);
-  // 山彦 is in ja and the engine has no ja, so it is what maayan used to be:
-  // the identity that proves a language the engine cannot write is said so
-  // rather than assumed. It moved here when Hebrew stopped being one.
   yamaOut = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-yama-'));
   await build(projectLoader.load(path.join(__dirname, '..', 'projects', 'yamabiko', 'project.json')), yamaOut);
+  // A language the engine cannot write, which for three rounds was whichever
+  // identity had not been written yet: maayan, then yamabiko, then nothing. All
+  // four fixtures are in a language the engine has now, so the case that still
+  // has to hold — that a language with no dictionary is said so rather than
+  // quietly swapped — needs a fixture of its own rather than a borrowed one.
+  // 山彦 in ko: a real language, genuinely not in the table, and no more likely
+  // to be added by accident than any other.
+  const noDict = Object.assign({},
+    projectLoader.load(path.join(__dirname, '..', 'projects', 'yamabiko', 'project.json')),
+    { language: 'ko' });
+  unwritable = noDict;
+  unwritableOut = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-ko-'));
+  await build(noDict, unwritableOut);
 });
 
 test('a document is in the language it is written in, not the one it is about', () => {
   const en = STR.resolve({ language: 'en' });
   const fr = STR.resolve({ language: 'fr' }, 'deck');
   const he = STR.resolve({ language: 'he', direction: 'rtl' });
-  const ja = STR.resolve({ language: 'ja' });
+  const ja = STR.resolve({ language: 'ko' });
   assert.strictEqual(fr.lang, 'fr');
   // français and עברית each write both documents; a language with no dictionary
   // writes neither, and the engine says which rather than assuming
@@ -6558,12 +6578,15 @@ test('a document is in the language it is written in, not the one it is about', 
   // and the canvas, since its words moved into this table too
   assert.strictEqual(STR.resolve({ language: 'he' }, 'canvas').lang, 'he');
   assert.strictEqual(STR.resolve({ language: 'fr' }, 'canvas').lang, 'fr');
-  assert.strictEqual(STR.resolve({ language: 'ja' }, 'canvas').lang, 'en');
+  assert.strictEqual(STR.resolve({ language: 'ja' }, 'canvas').lang, 'ja');
+  assert.strictEqual(STR.resolve({ language: 'ko' }, 'canvas').lang, 'en');
   // and a language the engine has no dictionary for gets English, and says so
-  assert.strictEqual(ja.lang, 'en', 'a Japanese brand got a document claiming to be in Japanese');
+  assert.strictEqual(ja.lang, 'en', 'a language with no dictionary got a document claiming to be in it');
   assert.strictEqual(ja.dir, 'ltr', 'an English document was laid out the other way');
-  assert.strictEqual(ja.brandLang, 'ja');
+  assert.strictEqual(ja.brandLang, 'ko');
   assert.ok(en.speaksBrand && fr.speaksBrand && he.speaksBrand && !ja.speaksBrand);
+  // 日本語 is the fourth the engine writes
+  assert.strictEqual(STR.resolve({ language: 'ja' }, 'manual').lang, 'ja');
 });
 test('a deck that reads the other way is driven the other way', () => {
   // An arrow is a direction and it was a character in the markup: "← Prev" and
@@ -6647,8 +6670,10 @@ test('the canvas is written in the language it says it is', () => {
   const said = (lang) => Object.entries(STR.resolve({ language: lang }, 'canvas').words())
     .filter(([k]) => k !== 'lang' && k !== 'dir').map(([, v]) => v).join(' \n ');
   const en = said('en');
-  const YB = projectLoader.load(path.join(__dirname, '..', 'projects', 'yamabiko', 'project.json'));
-  for (const [lang, proj, meas] of [['fr', verdon, measure(verdon)], ['he', MY, myM]]) {
+  const YB = Object.assign({}, projectLoader.load(path.join(__dirname, '..', 'projects', 'yamabiko', 'project.json')), { language: 'ko' });
+  const yb = projectLoader.load(path.join(__dirname, '..', 'projects', 'yamabiko', 'project.json'));
+  for (const [lang, proj, meas] of [['fr', verdon, measure(verdon)], ['he', MY, myM],
+    ['ja', yb, measure(yb)]]) {
     const got = EMIT.editorHtml(proj, meas, []);
     assert.ok(new RegExp(`<html[^>]*lang="${lang}"`).test(got), `the canvas does not say ${lang}`);
     const r = STR.residue(said(lang), en, proj);
@@ -6658,9 +6683,94 @@ test('the canvas is written in the language it says it is', () => {
   }
   // and the measurement has teeth: a language the engine cannot write scores
   // the whole way, because every word of it is the English one
-  const ja = STR.residue(said('ja'), en, YB);
-  assert.ok(ja.share > 0.95, `a canvas that is the English one measured ${Math.round(ja.share * 100)} per cent`);
+  const none = STR.residue(said('ko'), en, YB);
+  assert.ok(none.share > 0.95, `a canvas that is the English one measured ${Math.round(none.share * 100)} per cent`);
   assert.ok(/<html[^>]*lang="en"/.test(EMIT.editorHtml(YB, measure(YB), [])));
+});
+
+test('every string the English set has, the Japanese set has too', () => {
+  const missing = Object.keys(STR.EN).filter((k) => STR.HAVE.ja[k] === undefined);
+  assert.deepStrictEqual(missing, [], 'a Japanese document would fall back to English mid-sentence');
+  for (const k of Object.keys(STR.EN)) assert.notStrictEqual(STR.HAVE.ja[k], k);
+  const latin = Object.entries(STR.HAVE.ja).filter(([k, v]) => typeof v === 'string'
+    && !['lang', 'dir', 'alphabet', 'cvAlphabet', 'wrap', 'measure'].includes(k)
+    && !/[぀-ヿ一-鿿]/.test(v)
+    && /[A-Za-z]{3}/.test(v.replace(/\{\w+\}/g, ' ')));
+  assert.deepStrictEqual(latin.map(([k]) => k), [], 'Japanese keys still written in English');
+});
+
+test('a word is not a unit every language has', () => {
+  // splitWords split on spaces and punctuation, and Japanese is written without
+  // spaces — so a whole page came back as one token. `residue` scored a Japanese
+  // manual {words: 1, shared: 0}, which reads as a perfect score and is a sample
+  // of one: the measurement that gives `writes` its teeth was blind here, and
+  // would have been just as blind to a Japanese page that was secretly English.
+  const ja = '山彦は、山あいの村に建つ録音室です。母屋は大正十二年に建てられた蚕室で、床も梁も当時のままです。';
+  const en = 'Yamabiko is a recording room in a village in the mountains.';
+  assert.ok(STR.proseWords(ja).length > 30, `a Japanese page came back as ${STR.proseWords(ja).length} tokens`);
+  // a language that does have spaces is counted the way it always was
+  assert.strictEqual(STR.proseWords(en).length, 11);
+  // and a Latin word inside Japanese prose still comes out as itself
+  assert.deepStrictEqual(STR.proseWords('録音室 recording room です'),
+    ['録', '音', '室', 'recording', 'room', 'で', 'す']);
+  // the ratio means something in both directions now
+  assert.ok(STR.residue(ja, en, {}).words > 30);
+  assert.strictEqual(STR.residue(en, en, {}).share, 1);
+});
+
+test('a font can arrive and still have nothing to draw with', () => {
+  // 山彦 ships IPAGothic subsetted to the characters its own content sets, which
+  // is why the package opens with no network at all. A subset is subset to what
+  // somebody knew about when it was cut, and one character was already outside
+  // it before this round: 行, in the type scale's own sample sentence, on the
+  // page whose whole job is to prove what the face looks like.
+  const TF2 = require('../src/typeface');
+  const yb = projectLoader.load(path.join(__dirname, '..', 'projects', 'yamabiko', 'project.json'));
+  // what the identity sets is drawable, which is what the build asks
+  const own = [yb.brand].concat(Object.values(yb.content || {}).filter((v) => typeof v === 'string'))
+    .concat((yb.tokens.type.scale || []).map((x) => x.sample)).filter(Boolean).join(' ');
+  assert.deepStrictEqual(TF2.cannotDraw(yb.fonts, own), [],
+    'this identity sets characters its own font cannot draw');
+  // and so is every word the engine would set in it
+  const words = Object.values(STR.HAVE.ja).filter((v) => typeof v === 'string').join(' ');
+  assert.deepStrictEqual(TF2.cannotDraw(yb.fonts, words), [],
+    'the Japanese dictionary sets characters this identity cannot draw');
+  // the check has teeth: a character nothing has
+  assert.deepStrictEqual(TF2.cannotDraw(yb.fonts, 'ok \u{1F600} ok'), ['\u{1F600}']);
+  // a project that ships no font of its own is not judged on one
+  assert.deepStrictEqual(TF2.cannotDraw(project.fonts, '\u{1F600}'), []);
+});
+
+test('what a script asks of a line is a fact about the script', () => {
+  // A `ch` is the width of a zero, so a measure counted in `ch` is counted in
+  // half-width characters: 16ch is sixteen Latin characters and seven Japanese
+  // ones, and seven is one word — 山彦 ブランドマニュアル broke as ブラン /
+  // ドマニュアル. And Japanese has no spaces, so a browser may break between any
+  // two characters unless it is told to break at phrases instead.
+  const ja = STR.resolve({ language: 'ja' }, 'manual');
+  assert.strictEqual(ja.measure, 'em');
+  assert.strictEqual(ja.wrap, 'auto-phrase');
+  for (const l of ['en', 'fr', 'he']) {
+    const L = STR.resolve({ language: l }, 'manual');
+    assert.strictEqual(L.measure, 'ch', `${l} asks for a measure it does not need`);
+    assert.strictEqual(L.wrap, null, `${l} asks for a wrap it does not need`);
+  }
+  // the display measures are counted in whatever the script counts in, and the
+  // body measures are not: 64ch is already 36 full-width characters, which is
+  // what a Japanese column wants
+  const CH = require('../src/documents/chrome');
+  const D = fs.readFileSync(path.join(__dirname, '..', 'src', 'directions.js'), 'utf8');
+  assert.ok(!/\.mast h1\{[^}]*max-width:\d+ch/.test(D), 'a display measure is still counted in ch');
+  assert.ok(/max-width:calc\(\d+ \* var\(--m\)\)/.test(D), 'the display measures do not use the unit');
+  assert.ok(/--m:1ch/.test(CH.CSS), 'the stylesheet does not set a default unit');
+  // and a document says so once, or says nothing at all
+  const docs2 = require('../src/documents');
+  const yb = projectLoader.load(path.join(__dirname, '..', 'projects', 'yamabiko', 'project.json'));
+  const jaHtml = docs2.guidelines(docs2.context(yb, measure(yb), [], {}));
+  assert.ok(/--m:1em/.test(jaHtml) && /word-break:auto-phrase/.test(jaHtml));
+  const enHtml = docs2.guidelines(docs2.context(project, m, [], {}));
+  assert.ok(!/--m:1em/.test(enHtml) && !/word-break:auto-phrase/.test(enHtml),
+    'an English document pays for something it does not use');
 });
 
 test('every string the English set has, the Hebrew set has too', () => {
@@ -6770,16 +6880,16 @@ test('a French identity gets a French manual, body and all', () => {
   }
 });
 test('a language the engine cannot write gets an English document that says so', () => {
-  // 山彦 is in ja, the engine has no ja, and this is what that looks like. It
-  // used to be מעיין's job; the thirty-sixth round wrote the Hebrew, so the
-  // fixture moved rather than the rule.
+  // This used to be מעיין's job, then 山彦's. Each round wrote the language and
+  // the fixture moved; all four are written now, so the case has a fixture of
+  // its own — the same identity declaring a language the table does not have.
   for (const f of ['guidelines.html', 'deck.html', 'published.html']) {
-    const html = fs.readFileSync(path.join(yamaOut, f), 'utf8');
+    const html = fs.readFileSync(path.join(unwritableOut, f), 'utf8');
     assert.ok(/<html[^>]*lang="en"/.test(html), `${f} still claims a language it is not in`);
   }
   // the brand's own words carry the brand's language
-  const g = fs.readFileSync(path.join(yamaOut, 'guidelines.html'), 'utf8');
-  assert.ok(/lang="ja"/.test(g), "the brand's own name is not marked as Japanese");
+  const g = fs.readFileSync(path.join(unwritableOut, 'guidelines.html'), 'utf8');
+  assert.ok(/lang="ko"/.test(g), "the brand's own name is not marked as its own language");
 });
 
 test('a Hebrew identity gets a Hebrew manual and a Hebrew deck', () => {
@@ -6805,7 +6915,7 @@ test('a Hebrew identity gets a Hebrew manual and a Hebrew deck', () => {
 });
 test('the language check catches a page that claims what it is not', () => {
   const ACC2 = require('../src/access');
-  const real = fs.readFileSync(path.join(yamaOut, 'guidelines.html'), 'utf8');
+  const real = fs.readFileSync(path.join(unwritableOut, 'guidelines.html'), 'utf8');
   assert.strictEqual(ACC2.language(real).ok, true);
   // the page exactly as מעיין's shipped for twenty-nine rounds: English prose
   // under a declaration that it is not English
@@ -7023,8 +7133,10 @@ test('a deck says what language it is written in, not what the brand is in', () 
   // עברית writes both too, which is the thirty-sixth round
   assert.deepStrictEqual(STR.resolve({ language: 'he' }, 'deck').lang, 'he');
   assert.deepStrictEqual(STR.resolve({ language: 'he' }, 'manual').lang, 'he');
+  // 日本語 writes both as well
+  assert.deepStrictEqual(STR.resolve({ language: 'ja' }, 'deck').lang, 'ja');
   // and a language the engine has no dictionary for still gets English
-  assert.deepStrictEqual(STR.resolve({ language: 'ja' }, 'manual').lang, 'en');
+  assert.deepStrictEqual(STR.resolve({ language: 'ko' }, 'manual').lang, 'en');
 });
 
 test('what a language says it writes is measured off the finished page', () => {

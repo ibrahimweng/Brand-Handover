@@ -39,10 +39,10 @@ const DIRECTIONS = {
     css: `
 [data-dir=quiet] .mast{padding:110px 0 52px;border-bottom:none}
 [data-dir=quiet] .mast .eyebrow{margin-bottom:44px}
-[data-dir=quiet] .mast h1{font-weight:500;max-width:13ch}
+[data-dir=quiet] .mast h1{font-weight:500;max-width:calc(13 * var(--m))}
 [data-dir=quiet] .chapter{border-top:none;padding-top:0}
 [data-dir=quiet] .chapter>.chno{font-size:11px;letter-spacing:.22em}
-[data-dir=quiet] .chapter>h2{margin-top:10px;font-weight:500;max-width:18ch}
+[data-dir=quiet] .chapter>h2{margin-top:10px;font-weight:500;max-width:calc(18 * var(--m))}
 /* the editorial move: the heading sits in a column of its own and the work
    runs beside it, so the page reads as one measure with a margin rather than
    as a stack of full width blocks */
@@ -78,7 +78,7 @@ const DIRECTIONS = {
     },
     css: `
 [data-dir=technical] .mast{padding:34px 0 20px}
-[data-dir=technical] .mast h1{font-weight:600;max-width:22ch}
+[data-dir=technical] .mast h1{font-weight:600;max-width:calc(22 * var(--m))}
 [data-dir=technical] .chapter{border-top-color:var(--ink);padding-top:14px}
 [data-dir=technical] .chapter>.chno{font-size:11px}
 /* everything numbered lives in one rail down the left, so a reader looking for
@@ -120,7 +120,7 @@ const DIRECTIONS = {
     css: `
 [data-dir=warm] .page{max-width:840px}
 [data-dir=warm] .mast{border-bottom:none;padding:92px 0 26px;text-align:center}
-[data-dir=warm] .mast h1{margin:0 auto;max-width:14ch;font-weight:600}
+[data-dir=warm] .mast h1{margin:0 auto;max-width:calc(14 * var(--m));font-weight:600}
 [data-dir=warm] .mast .sub{margin:20px auto 0;text-align:center}
 [data-dir=warm] .chapter{border-top:none;text-align:center}
 [data-dir=warm] .chapter>.chno{font-family:var(--ui);font-size:13px;letter-spacing:.04em;color:var(--ink-3)}
@@ -154,7 +154,7 @@ const DIRECTIONS = {
     },
     css: `
 [data-dir=bold] .mast{padding:56px 0 34px;border-bottom:none}
-[data-dir=bold] .mast h1{line-height:.9;max-width:11ch;font-weight:800}
+[data-dir=bold] .mast h1{line-height:.9;max-width:calc(11 * var(--m));font-weight:800}
 /* a chapter opens as a band across the page rather than as a rule above a
    heading: the one move that makes this read as a different book rather than
    as the same book with heavier lines */

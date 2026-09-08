@@ -4016,6 +4016,127 @@ a block of strings, but the first language that was not written the way the
 engine is needed an agreement rule for its ordinals, an isolate round every
 measurement, and a specimen of its own script.
 
+## A fourth language, and the first written without spaces
+
+山彦 has declared `ja` since the ninth round. Three rounds in a row it was the
+identity that proves a language the engine cannot write is said so rather than
+quietly swapped — a useful job, and one it only had because nobody had written
+the Japanese. 日本語 is 666 keys now, and two of the things it found could not
+have come from any of the three before it.
+
+### A word is not a unit every language has
+
+`splitWords` split on spaces and punctuation. Japanese is written without
+spaces, so a whole page came back as one token:
+
+    residue(japanese manual, english manual) → { words: 1, shared: 0, share: 0 }
+
+Which reads as a perfect score and is a sample of one. `residue` is the
+measurement that turns `writes: [...]` from a claim into something with teeth —
+the thirty-first round built it because a hand-typed list is a claim — and here
+it was blind. Worse than blind: a Japanese page that was secretly English would
+have scored 1 out of 1 the other way, and passed just as quietly.
+
+The unit that works for both is the character where a script is written without
+spaces and the space-delimited run everywhere else. It is not a tokeniser and
+does not pretend to be one — 録音室 is one word and three tokens. For a ratio of
+how much of one page is word for word another that does not matter: what matters
+is that the denominator is the length of the text rather than one, and that a
+Latin word inside Japanese prose still comes out as itself.
+
+    録音室 recording room です  →  録 音 室 recording room で す
+
+Measured that way, the Japanese manual is 656 tokens and 11 per cent of it is
+the English one, which is about what français and עברית score. Before this
+round the same manual scored 1 token and 0 per cent, and 0 per cent is what
+success looks like.
+
+### A font can arrive and still have nothing to draw with
+
+This is the sharper one, because it was already wrong before this round started.
+
+山彦 ships IPAGothic subsetted to the characters its own content sets: 210 of
+them, 59 KB instead of several megabytes, which is why the package opens with no
+network at all. That is the right thing to do. But a subset is subset to what
+somebody knew about when it was cut, and one character in this repository was
+already outside it:
+
+    立ち会いは一枚ずつ行います。
+
+行 is not in the font. That sentence is `tokens.type.scale`'s own sample — it is
+on the type specimen page, whose entire job is to prove what the face looks
+like. `src/typeface.js` has carried a comment since the sixteenth round saying
+that a specimen showing the wrong face is worse than no specimen, because it is
+offered as proof. It was showing one character of somebody else's face.
+
+Nothing said so, and nothing could have: a missing glyph is not an error. The
+browser falls through to the next family, draws the character in whatever the
+reader happens to have installed, and the page goes on claiming to be set in the
+face. What a reader sees depends on their machine, which is the one thing a
+package that fetches nothing is built not to depend on.
+
+The engine asks now, in two places, because there are two different questions:
+
+- **At build time**, of the words it knows go in the identity's own face — the
+  brand's, the project's prose, the samples in its type scale. That is what
+  `typeface.cannotDraw` reads out of the shipped font's own cmap, and it is what
+  found 行.
+- **In a browser**, of the finished pages, because which characters land in
+  which face is a fact about the page and not about the project.
+  `test/font-check.mjs` walks every text node, takes the family the element
+  actually asks for, and checks each character against what that face holds. It
+  found `÷` in the deck — a character the engine's dictionary sets in the
+  identity's face, which the build check could not have known about.
+
+Then the dictionary arrived and the deck alone needed **111 characters the font
+did not have**. The subset was re-cut against the finished documents rather than
+against the project file: 726 glyphs, 210 KB. Cutting it is the project's
+business — a project ships a font — and what the engine does is notice, which is
+the warning and the check. The next time the dictionary grows they will say so
+again.
+
+One character in the new list is not in the source font either: `™`. IPAGothic
+does not have it, nothing in the documents sets it, and the check says which.
+
+And the check had a fault of its own, found by running it on the other three
+identities. It said `this package ships no font files, so there is nothing to
+check` about a package shipping twelve — they are woff2, which is Brotli
+compressed, and opentype.js does not decompress it. A check that reports "no
+fonts" when it means "twelve I could not read" is worse than no check. It says
+which now.
+
+### What a script asks of a line
+
+Two more, both visible on the first page the engine drew.
+
+**A measure is counted in characters, and how wide a character is depends on the
+script.** `max-width: 16ch` is sixteen Latin characters. A `ch` is the width of a
+zero, which is half-width in a Japanese face, so the same rule is seven Japanese
+characters — and seven characters is one word. The title broke as
+
+    山彦 ブラン
+    ドマニュアル
+
+which is ブランド across two lines. The display measures are counted in whatever
+unit counts the script's own characters now: `ch` for en, fr and he, `em` for ja.
+The body measures stay in `ch` on purpose — 64ch already comes out at 36
+full-width characters, which is what a Japanese text column wants.
+
+**And Japanese has no spaces, so a browser may break between any two
+characters.** `word-break: auto-phrase` breaks at phrase boundaries instead, and
+the paragraph goes from breaking inside words to breaking between them. A
+language declares what its script asks of a line; the three that ask nothing say
+nothing, and their documents carry no rule they do not use.
+
+### The fixture that ran out
+
+Each of the last three rounds took the identity that proved "a language the
+engine cannot write is said so" and wrote its language, and the job moved to the
+next one — מעיין, then 山彦, then nothing. All four fixtures are written now, so
+the case has a fixture of its own rather than a borrowed one: 山彦 declaring
+`ko`, a real language the table does not have and is no more likely to gain by
+accident than any other.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.
@@ -4052,6 +4173,7 @@ measurement, and a specimen of its own script.
     src/access.js     the documents measured, and the canvas asked different things
     test/canvas-check.mjs  the canvas driven by keyboard in a real browser
     test/rtl-check.mjs     every value, drawn against the way it is written
+    test/font-check.mjs    every character, against the face it is set in
     src/documents/    blocks.js, chrome.js, index.js (manual), deck.js
     projects/meridian/  the first identity: one stroked mark, one ink
     projects/halyard/   the second: filled artwork, two inks, four faults left in

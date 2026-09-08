@@ -1243,7 +1243,54 @@ whether a block says what it is with `/^[A-Z].*\d.*selected$/`, which is a
 sentence in English; Hebrew has no capitals and its word for selected is not
 "selected". It reads the page's own words now. All three canvases pass.
 
-Still to do: that run on **your** identity job. `ja`, which 山彦 has declared
-since the ninth round and which the engine still cannot write. And a screen
-reader has still never been pointed at any of it: what these pages say is
-measured, how they sound is not.
+The thirty-eighth wrote 日本語, and the first language here written without
+spaces between its words found two things the other three could not.
+
+**A word is not a unit every language has.** `splitWords` split on spaces, so a
+whole Japanese page came back as one token and `residue` scored a Japanese manual
+`{words: 1, shared: 0}` — which reads as a perfect score and is a sample of one.
+That is the measurement that turns `writes` from a claim into something with
+teeth, and here it was blind; a Japanese page that was secretly English would
+have scored 1 out of 1 the other way and passed just as quietly. The unit is the
+character where a script has no spaces and the space-delimited run everywhere
+else. Measured that way the Japanese manual is 656 tokens and 11 per cent the
+English one, which is about what français and עברית score.
+
+**And a font can arrive and still have nothing to draw with.** 山彦 ships
+IPAGothic subsetted to the 210 characters its own content sets, which is why the
+package opens with no network at all — and a subset is subset to what somebody
+knew about when it was cut. One character was already outside it before this
+round: 行, in 立ち会いは一枚ずつ行います。, which is the type scale's own sample,
+on the page whose whole job is to prove what the face looks like. Nothing said
+so, because a missing glyph is not an error: the browser falls through to the
+next family, draws the character in whatever the reader happens to have, and the
+page goes on claiming to be set in the face.
+
+The engine asks now in two places, because there are two questions: at build
+time, of the words it knows go in the identity's face, which is what found 行;
+and in a browser, of the finished pages, because which character lands in which
+face is a fact about the page — which is what found `÷` in the deck, set in the
+identity's face by the engine's own dictionary. Then the dictionary arrived and
+the deck alone needed 111 characters the font did not have. The subset was
+re-cut against the finished documents: 726 glyphs, 210 KB.
+
+The check had a fault of its own, found by running it on the other three
+identities: it reported `ships no font files` about a package shipping twelve.
+They are woff2, which opentype.js cannot decompress. It says so now.
+
+**Two more, visible on the first page the engine drew.** A `ch` is the width of
+a zero, so `max-width: 16ch` is sixteen Latin characters and seven Japanese
+ones — and seven is one word, so the title broke as ブラン / ドマニュアル. The
+display measures are counted in whatever counts the script's own characters now.
+And Japanese has no spaces, so a browser may break anywhere; `word-break:
+auto-phrase` breaks at phrases instead. A language declares what its script asks
+of a line, and the three that ask nothing carry nothing.
+
+Each of the last three rounds took the identity that proved "a language the
+engine cannot write is said so" and wrote its language, moving the job to the
+next one — מעיין, then 山彦, then nothing. The case has a fixture of its own now
+rather than a borrowed one.
+
+Still to do: that run on **your** identity job. And a screen reader has still
+never been pointed at any of it: what these pages say is measured, how they
+sound is not.
