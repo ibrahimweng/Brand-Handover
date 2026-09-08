@@ -657,6 +657,65 @@ test('no package tells the designer to look somewhere that cannot show it', () =
   });
 });
 
+test('every route the app posts to exists as a deployed function', () => {
+  // The hosted app broke at the first thing anybody does with it. client.html
+  // posts the artwork to /api/ask, vercel.json publishes api/*.js as the only
+  // routes, and there was no api/ask.js — so the host answered with its own
+  // 404 page and the upload failed with "Unexpected token 'T', "The page c"...
+  // is not valid JSON", which is JSON.parse complaining about the first letter
+  // of somebody else's error page.
+  //
+  // The local server had every route, which is exactly why nobody saw it: the
+  // two are different lists in different files and nothing compared them.
+  const client = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'client.html'), 'utf8');
+  const wanted = [...new Set([...client.matchAll(/post\('(\/api\/[a-z]+)'/g)].map((m) => m[1]))];
+  assert.ok(wanted.length >= 4, `the client posts to ${wanted.length} routes`);
+  const dir = path.join(__dirname, '..', '..', 'api');
+  const deployed = fs.readdirSync(dir).filter((f) => /\.js$/.test(f) && f[0] !== '_')
+    .map((f) => `/api/${f.replace(/\.js$/, '')}`);
+  const missing = wanted.filter((w) => !deployed.includes(w));
+  assert.deepStrictEqual(missing, [], `the client posts to routes nothing serves: ${missing.join(', ')}`);
+
+  // and the local server serves them too, so the two cannot answer differently
+  const server = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'server.js'), 'utf8');
+  for (const w of wanted) assert.ok(server.includes(`'${w}'`), `the local server has no ${w}`);
+});
+
+test('a page where an answer was expected is reported as a page', () => {
+  // Whatever sits in front of this app answers in HTML when it goes wrong, and
+  // the client called .json() on it before looking at the status. The person
+  // holding an SVG got a parser's complaint about a character.
+  const client = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'client.html'), 'utf8');
+  const src = /function post\(path, body\) \{[\s\S]*?\n  \}/.exec(client);
+  assert.ok(src, 'post() is not where this test thinks it is');
+  const post = new Function(`return (${src[0]})`)();
+  const page = '<!DOCTYPE html><html><head><title>404: NOT_FOUND</title></head>'
+    + '<body>The page could not be found</body></html>';
+  const answer = (status, text) => {
+    global.fetch = () => Promise.resolve({ ok: status >= 200 && status < 300, status,
+      text: () => Promise.resolve(text) });
+    return post('/api/ask', {}).then(() => null, (e) => e);
+  };
+  return answer(404, page).then((e) => {
+    assert.ok(e, 'a 404 page resolved as though it were an answer');
+    assert.ok(!/is not valid JSON/.test(e.message), `still a parser error: ${e.message}`);
+    assert.ok(/\/api\/ask/.test(e.message), `it does not say what was missing: ${e.message}`);
+    assert.ok(/handover serve/.test(e.how), `it does not say what to do: ${e.how}`);
+    return answer(413, page);
+  }).then((e) => {
+    assert.ok(/too large/.test(e.how), `a 413 does not mention the size: ${e.how}`);
+    // a refusal the engine itself wrote still reads as itself
+    return answer(400, JSON.stringify({ ok: false, what: 'That is not an SVG.', how: 'Export as SVG.' }));
+  }).then((e) => {
+    assert.strictEqual(e.message, 'That is not an SVG.');
+    assert.strictEqual(e.how, 'Export as SVG.');
+    // and a good answer still comes through
+    return answer(200, JSON.stringify({ ok: true, seen: {}, questions: [] }));
+  }).then((e) => {
+    assert.strictEqual(e, null, 'a good answer was treated as a failure');
+  });
+});
+
 test('a pattern block offers the inks there are tiles for, and says why not', () => {
   // The block looked its tile up by `density:colourway` and fell back to
   // whatever was first in the map when it missed. Meridian's ink menu offered

@@ -4966,6 +4966,51 @@ The menu is built from the tiles now, and a block whose tile is missing prints
 the refusal in the engine's own words rather than drawing somebody else's
 colourway.
 
+## The upload that failed with a parser error
+
+Reported from use: every SVG upload on the hosted app failed with
+
+    Unexpected token 'T', "The page c"... is not valid JSON
+
+The string is not in this repository. It is `JSON.parse` reading the first
+letter of a hosting 404 page — "The page could not be found".
+
+### The route was never deployed
+
+`client.html` posts the artwork to `/api/ask` as the first thing it does.
+`vercel.json` publishes `api/*.js` and nothing else, and `api/` held two files:
+
+    the client posts to    /api/ask  /api/preview  /api/build  /api/render
+    api/ held              build.js  inspect.js
+
+Three of the four had no function behind them, and the one function the client
+never calls is the one that was there. The local server in `src/app/server.js`
+routes all five, which is why this never showed up in development: the hosted
+route list and the local route list are different lists in different files and
+nothing compared them.
+
+`api/ask.js`, `api/preview.js` and `api/render.js` wrap the same handlers
+`server.js` calls, which is the point of `src/app/handlers.js` — the hosted app
+and the local one answer from the same code.
+
+### The client assumed every answer was JSON
+
+    fetch(path, …).then(function (r) { return r.json().then(function (j) {
+      if (!r.ok || j.ok === false) { … }
+
+`r.json()` before `r.ok`. Anything in front of the app that answers in HTML —
+a 404 where a route is missing, a 413 where an upload is too large, a proxy's
+own page — became a `SyntaxError` about a character, shown to somebody holding
+an SVG with nothing to do about it.
+
+It reads the body as text and tries JSON now. A 404 names the route that is
+missing; a 413 says the artwork is too large and that running it locally uploads
+nothing; a refusal the engine wrote still arrives as its own `what` and `how`.
+
+The test reads the route list out of `client.html` and checks it against the
+files in `api/` **and** the paths in `server.js`, because the defect was three
+lists drifting rather than any one of them being wrong.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.

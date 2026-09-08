@@ -1665,4 +1665,35 @@ for an identity with no pattern at all.
 The menu offers the roles there are tiles for, and a request with no tile says
 why in the words the engine already wrote.
 
+**A bug report, mid-round: uploading an SVG failed with**
+
+    Unexpected token 'T', "The page c"... is not valid JSON
+
+That string is not in this repository. It is `JSON.parse` complaining about the
+first letter of somebody else's error page — "The page could not be found" — and
+it was the wrong error about the wrong thing.
+
+Two faults, one on top of the other.
+
+**The route was never deployed.** `client.html` posts the artwork to `/api/ask`
+as the very first thing it does. `vercel.json` publishes `api/*.js` as the only
+routes, and `api/` held `build.js` and `inspect.js`. Of the four routes the
+client uses — `ask`, `preview`, `build`, `render` — **three had no function**,
+and the one deployed function the client never calls is `inspect`. The local
+server has all five, which is exactly why nobody saw it: two lists, in two
+files, that nothing compared. `api/ask.js`, `api/preview.js` and `api/render.js`
+are thin wrappers around the same handlers the local server calls, so the hosted
+app and the one on your own machine cannot answer differently.
+
+**And the client assumed every answer was JSON.** It called `r.json()` before
+looking at `r.ok`, so anything in front of the app answering in HTML — a 404
+where a route is missing, a 413 where the upload was too large — surfaced as a
+parser error. It reads the body as text and tries it as JSON now: a 404 says
+which route is missing, a 413 says the artwork is too large, and a refusal the
+engine itself wrote still reads as itself.
+
+A test now reads the routes out of `client.html` and compares them against the
+files in `api/` and the paths in `server.js`, so the three lists cannot drift
+apart again.
+
 Still to do: nothing named. The next one is whatever the next real export breaks.
