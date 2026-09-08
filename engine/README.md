@@ -4137,6 +4137,138 @@ the case has a fixture of its own rather than a borrowed one: 山彦 declaring
 `ko`, a real language the table does not have and is no more likely to gain by
 accident than any other.
 
+## Pointing a screen reader at it
+
+Every round since the twenty-ninth has ended with the same sentence: what these
+pages say is measured, how they sound is not. Ten rounds of accessibility work
+sat on an argument nobody had tested.
+
+A screen reader does two things. It reads the accessibility tree — which is not
+the markup and not the rendered page, but a third thing the browser computes
+from both, where a name is resolved through the whole labelling algorithm and a
+good deal of what is in the markup never arrives at all. And it speaks what it
+finds, in a voice chosen by the language each run declares.
+
+Both halves are measurable. `test/reader-check.mjs` reads the tree through
+Chrome DevTools Protocol and asks of it the things that make a page unusable by
+ear; with `SPEAK=1` it hands each run to espeak-ng in the voice its language
+asks for, and prints the phonemes. It is not NVDA, JAWS, VoiceOver or Orca and
+does not claim to be — it is the layer all four of them read, plus a
+synthesiser. Where the two disagree the real reader is right.
+
+### The argument this engine has been making since the twenty-ninth round
+
+    A speech synthesiser told the page is in one language and handed another
+    reads it with that language's sounds, which is worse than being told
+    nothing at all — it is said with confidence.
+
+That sentence is in `src/strings.js`, in `src/access.js`, and in the refusal the
+build prints. It is the whole justification for four rounds of language work.
+Spoken, it is wrong, and it understates the problem:
+
+    מדריך מותג   as he    mdQ"'iX mvtg
+                 as en    h'i:bru:m'em  h'i:bru:d'alet  h'i:bru:R'eS  h'i:bru:j'od …
+
+It is not read with English sounds. It is **spelled out**: "hebrew mem, hebrew
+dalet, hebrew resh, hebrew yod". Two words become nine letter names. The same
+thing in Japanese comes out as "japanese letter" nine times over.
+
+### A language inside a language
+
+The thirty-sixth round marked the machine readable file `lang="en"`, because
+`brand.json` is English whatever the brand is and a page carrying several
+thousand English characters under `lang="he"` is a page a synthesiser reads
+wrong. That was right about the block and wrong about what is inside it. The
+file holds the brand's own name. It holds the misuse rules the project wrote and
+its colour rationale — eight runs of Hebrew in מעיין's, five of Japanese in
+山彦's. So a screen reader said
+
+    מעיין  →  hebrew mem, hebrew ayin, hebrew yod, hebrew yod, hebrew nun
+
+which is the exact fault the whole mechanism exists to stop, one level further
+down, in the one place none of the checks could see it. `language()` measures
+the text that carries no language of its own — it drops every element that
+declares one, and that is precisely where this hides.
+
+`access.markScript` marks runs of the brand's own script wherever they land, and
+the machine file uses it. `access.foreignScript` catches it at build time, so it
+cannot come back between browser runs, and the finding says what, why and how
+like every other.
+
+The first version of that check could not see it. It scanned with a global
+regular expression, so the match on `<html lang="he">` ate the whole document
+and the `<pre lang="en">` inside it — the case the check exists for — was never
+looked at. It found the one Hebrew string in a comment inside `editor.html` and
+nothing else, and looked like it was working. The test caught it.
+
+### Chromium does not name a figure from its caption
+
+The first run reported nineteen figures announced as a bare "figure". The HTML
+accessibility mapping says a `<figure>` takes its name from its `<figcaption>`.
+Measured, of five ways of captioning one, only `aria-labelledby` produces a name:
+
+    img + figcaption          name=""
+    div + figcaption          name=""
+    aria-labelledby           name="Caption by labelledby"
+    named svg + figcaption    name=""
+
+So the check was asking the wrong question. The caption is still announced — it
+is text inside the figure and a reader reads it — it simply is not the figure's
+name. What a reader needs is that something inside the figure is said at all,
+which is what the check asks now, and which a silent drawing in a silent frame
+would fail.
+
+### A stylesheet is not a way of saying something
+
+`text-transform: uppercase` reaches the accessibility tree. The eyebrow is
+written `Brand manual · generated from one master file` and announced
+`BRAND MANUAL · GENERATED FROM ONE MASTER FILE`; 167 words of the manual and 120
+of the deck are capitalised on their way to a reader because a stylesheet said
+so.
+
+The received wisdom is that this makes a synthesiser spell them out. Measured,
+it does not:
+
+    Drawn by the system   dr'O:n baI D@ s'Ist@m
+    DRAWN BY THE SYSTEM   dr'O:n baI D@ s'Ist@m
+
+Identical. What does change is a reader who has capital indication turned on —
+a setting real readers expose and some people need:
+
+    -k 2   Drawn by the system   capital drawn by the system
+           DRAWN BY THE SYSTEM   capital drawn capital by capital the capital system
+
+One marker per phrase becomes one per word. And the only fix that keeps the
+written text in the tree is `font-variant-caps` — `aria-label` on a span is
+ignored, as ARIA in HTML says it should be — and small capitals are a smaller,
+lighter thing than the capitals this design sets. So this is reported and not
+changed: the check prints the count and what it costs, and the design stands.
+Measuring something and then declining to act on the measurement is a different
+thing from not measuring it.
+
+### What passed
+
+Names, on everything announced as a bare role. The heading outline, on every
+document in four languages. Every character of text inside a stated language,
+after the machine file was fixed. Nothing a reader cannot walk past — the one
+long block on the page, the machine file itself, is inside a section a reader
+can skip by heading. And every drawing says what it is.
+
+### What this is not
+
+espeak-ng is a synthesiser, not a screen reader: it has no notion of navigating
+by heading, no forms mode, no braille. Its Japanese voice reads kana and
+announces kanji as "chinese letter" whichever language it is told, so for
+Japanese it understates what a real reader does rather than overstating it. And
+the accessibility tree is Chromium's; Firefox and WebKit compute names slightly
+differently, and a real reader adds its own rules on top of all of them.
+
+What can now be said is narrower than "this works with a screen reader" and
+more than was true before: the tree these pages present has been read, the
+questions that make a page unusable by ear have been asked of it in four
+languages, and the sentence the engine has been repeating for ten rounds has
+been listened to and found to understate its own case.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.
@@ -4174,6 +4306,7 @@ accident than any other.
     test/canvas-check.mjs  the canvas driven by keyboard in a real browser
     test/rtl-check.mjs     every value, drawn against the way it is written
     test/font-check.mjs    every character, against the face it is set in
+    test/reader-check.mjs  the tree a screen reader reads, and what it says
     src/documents/    blocks.js, chrome.js, index.js (manual), deck.js
     projects/meridian/  the first identity: one stroked mark, one ink
     projects/halyard/   the second: filled artwork, two inks, four faults left in

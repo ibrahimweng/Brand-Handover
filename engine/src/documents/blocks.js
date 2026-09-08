@@ -1106,7 +1106,15 @@ function assetIndex(ctx) {
 // of the manual, enough that the engine refused to build it and was right to.
 // It says what it is now, which a speech synthesiser can act on and which
 // stops the braces and the indentation being laid out from the other side.
-const brandJsonBlock = (ctx) => `<pre lang="en" dir="ltr">${esc(JSON.stringify(ctx.brandJson, null, 2))}</pre>`;
+// and the brand's own words inside it carry the brand's, because the file holds
+// its name and the sentences the project wrote. Marking the block and not what
+// is in it had a screen reader saying מעיין in an English voice.
+const brandJsonBlock = (ctx) => {
+  const L = lang(ctx);
+  return `<pre lang="en" dir="ltr">`
+    + require('../access').markScript(esc(JSON.stringify(ctx.brandJson, null, 2)), L.brandLang, L.brandDir)
+    + `</pre>`;
+};
 
 // A manual for a second version is read by somebody who already built to the
 // first one. What they need before anything else is not the specification —

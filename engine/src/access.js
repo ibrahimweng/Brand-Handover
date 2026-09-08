@@ -135,6 +135,29 @@ const SCRIPTS = [
   { name: 'cjk', re: /[\u3040-\u30FF\u4E00-\u9FFF]/g, langs: /^(ja|zh|ko)$/ },
 ];
 
+// A run of the brand's own script inside a block that is not in the brand's
+// language.
+//
+// The thirty-sixth round marked the machine readable file `lang="en"`, because
+// brand.json is English whatever the brand is and a page carrying several
+// thousand English characters under lang="he" is a page a speech synthesiser
+// reads wrong. That was right about the block and wrong about what is inside
+// it: the file holds the brand's own name, and the misuse rules the project
+// wrote, and its colour rationale. So a screen reader said מעיין in an English
+// voice — the same fault the whole language mechanism exists to stop, one level
+// further down, and invisible to every check that reads markup or pixels.
+//
+// The text handed in is already escaped. A script's characters are never part
+// of an entity, so matching runs of them is safe.
+function markScript(escaped, lang, dir) {
+  const want = String(lang || '').toLowerCase().split(/[-_]/)[0];
+  const sc = SCRIPTS.find((x) => x.langs.test(want));
+  if (!sc || sc.name === 'latin') return escaped;
+  const re = new RegExp(`(?:${sc.re.source})+(?:[\\s\u3001\u3002\u30fb.,!?:;'\u2019-]*(?:${sc.re.source})+)*`, 'g');
+  return String(escaped).replace(re, (run) =>
+    `<span lang="${want}"${dir && dir !== 'ltr' ? ` dir="${dir}"` : ''}>${run}</span>`);
+}
+
 // Text that carries no lang of its own, so the document's claim applies to it.
 function unmarkedText(html) {
   let s = String(html)
@@ -178,9 +201,73 @@ const layout = (html) => String(html)
   .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
   .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '');
 
+// A run of one script inside an element that declares a language written in
+// another.
+//
+// `language` asks whether the page is written in what it says, and it cannot
+// see this: it strips every element that carries a lang of its own, which is
+// exactly where this hides. The machine readable file is marked lang="en" —
+// correctly, because brand.json is English whatever the brand is — and it holds
+// the brand's own name, so a screen reader said מעיין as five Hebrew letter
+// names in an English voice. A browser found it; this is so it cannot come back
+// between browser runs.
+function foreignScript(html) {
+  const src = String(html);
+  const out = [];
+  // Every element that declares a language, not only the outermost ones. The
+  // first version scanned with a global regex, so the <html lang> match ate the
+  // whole document and the <pre lang> inside it — which is the case this exists
+  // for — was never looked at.
+  const open = /<(\w+)((?:"[^"]*"|'[^']*'|[^>"'])*?)\slang="([^"]+)"((?:"[^"]*"|'[^']*'|[^>"'])*)>/gi;
+  for (const m of src.matchAll(open)) {
+    const tag = m[1].toLowerCase();
+    const want = m[3].toLowerCase().split(/[-_]/)[0];
+    // the element's own content, found by counting its own kind
+    let depth = 1, k = m.index + m[0].length;
+    const step = new RegExp(`<(/?)${tag}\\b`, 'gi');
+    step.lastIndex = k;
+    let end = src.length, hit;
+    while ((hit = step.exec(src))) {
+      depth += hit[1] ? -1 : 1;
+      if (depth === 0) { end = hit.index; break; }
+    }
+    let inner = src.slice(k, end);
+    // anything inside that declares its own language is that language's
+    // business, and is reached on its own pass through this loop
+    for (let n = 0; n < 8; n++) {
+      const next = inner.replace(/<(\w+)[^>]*\slang="[^"]*"[^>]*>[\s\S]*?<\/\1>/gi, ' ');
+      if (next === inner) break;
+      inner = next;
+    }
+    const text = inner.replace(/<[^>]+>/g, ' ');
+    for (const sc of SCRIPTS) {
+      if (sc.name === 'latin' || sc.langs.test(want)) continue;
+      const found = text.match(new RegExp(`(?:${sc.re.source})+`, 'g'));
+      if (!found) continue;
+      const run = found.sort((a, b) => b.length - a.length)[0];
+      if (run.length < 2) continue;
+      out.push({ tag, lang: want, script: sc.name, run: run.slice(0, 24) });
+      break;
+    }
+  }
+  return out;
+}
+
 function structure(source) {
   const html = layout(source);
   const found = [];
+  // `html` rather than `source`: layout() has taken the scripts and styles out,
+  // and the canvas inlines its own source, comments and all — one of which
+  // quotes Hebrew to explain why the cover page needed a name.
+  for (const f of foreignScript(html)) {
+    found.push({ code: 'langInside', level: 'warning',
+      what: `"${f.run}" is ${f.script} and sits inside an element that says it is in ${f.lang}.`,
+      why: 'A screen reader takes its voice from the nearest declaration, and a voice handed a script it '
+        + 'does not read spells the letters out one at a time rather than reading words. '
+        + 'The page-level check cannot see this: it drops every element that carries a language of its own, '
+        + 'which is where this hides.',
+      how: 'Mark the run with the language it is in, the way the brand\'s own words are marked everywhere else.' });
+  }
   const levels = [...html.matchAll(/<h([1-6])\b/g)].map((m) => Number(m[1]));
   const h1 = levels.filter((l) => l === 1).length;
   if (h1 !== 1) {
@@ -451,4 +538,4 @@ function statement(result, { brand, standard = 'WCAG 2.2 AA' } = {}) {
   return L.join('\n');
 }
 
-module.exports = { audit, chromeContrast, structure, application, layout, pageGround, language, unmarkedText, themes, textRules, statement, needs, isLarge };
+module.exports = { audit, markScript, foreignScript, chromeContrast, structure, application, layout, pageGround, language, unmarkedText, themes, textRules, statement, needs, isLarge };

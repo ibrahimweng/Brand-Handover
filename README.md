@@ -1291,6 +1291,54 @@ engine cannot write is said so" and wrote its language, moving the job to the
 next one — מעיין, then 山彦, then nothing. The case has a fixture of its own now
 rather than a borrowed one.
 
-Still to do: that run on **your** identity job. And a screen reader has still
-never been pointed at any of it: what these pages say is measured, how they
-sound is not.
+The thirty-ninth pointed one at it. Every round since the twenty-ninth ended
+with the same sentence — what these pages say is measured, how they sound is
+not — and ten rounds of accessibility work sat on an argument nobody had tested.
+
+A screen reader reads the accessibility tree, which is neither the markup nor
+the rendered page but a third thing the browser computes from both; then it
+speaks what it finds, in a voice chosen by the language each run declares. Both
+halves are measurable. `test/reader-check.mjs` reads the tree through Chrome
+DevTools Protocol and asks of it the things that make a page unusable by ear;
+with `SPEAK=1` it hands each run to espeak-ng in the voice its language asks for.
+
+**The argument the engine has been making since the twenty-ninth round is wrong,
+and understates the problem.** It says a synthesiser told the page is Hebrew and
+handed English "reads it with that language's sounds". It does not read it with
+the wrong sounds — it spells it out:
+
+    מדריך מותג   as he   mdQ"'iX mvtg
+                 as en   hebrew mem · hebrew dalet · hebrew resh · hebrew yod …
+
+**A language inside a language.** The thirty-sixth round marked the machine
+readable file `lang="en"` — correctly, because `brand.json` is English whatever
+the brand is. But the file holds the brand's own name, and the misuse rules the
+project wrote, and its colour rationale: eight runs of Hebrew in מעיין's, five of
+Japanese in 山彦's. So a reader said מעיין as five Hebrew letter names in an
+English voice. No check could see it: the page-level one drops every element
+that declares a language, and that is exactly where this hides. It is marked
+now, and caught at build time as well — and the first version of that build check
+scanned with a global regex, so the `<html lang>` match ate the document and the
+`<pre lang>` inside it was never looked at. The test caught that.
+
+**Chromium does not name a `<figure>` from its `<figcaption>`.** Measured across
+five ways of captioning one, only `aria-labelledby` does. The caption is still
+announced; it just is not the name — so the check asks whether anything inside a
+figure is said at all, which is what a reader needs.
+
+**And `text-transform` reaches the tree**: 167 words of the manual are announced
+in capitals because a stylesheet says so. The received wisdom is that a
+synthesiser then spells them out. Measured, it does not — the phonemes are
+identical — unless the reader has capital indication on, and then one marker per
+phrase becomes one per word. The only fix that keeps the written text in the
+tree changes full capitals to small ones. So it is reported and not changed:
+measuring something and then declining to act on it is a different thing from
+not measuring it.
+
+Names, heading outlines, stated languages, walls and drawings pass on every
+document in four languages. What this is not: espeak-ng is a synthesiser, not a
+screen reader, and its Japanese voice announces kanji as "chinese letter"
+whichever language it is told — so for Japanese it understates a real reader
+rather than overstating it.
+
+Still to do: that run on **your** identity job.

@@ -6688,6 +6688,40 @@ test('the canvas is written in the language it says it is', () => {
   assert.ok(/<html[^>]*lang="en"/.test(EMIT.editorHtml(YB, measure(YB), [])));
 });
 
+test('a language inside a language is marked too', () => {
+  // The thirty-sixth round marked the machine readable file lang="en", because
+  // brand.json is English whatever the brand is. That was right about the block
+  // and wrong about what is inside it: the file holds the brand's own name, and
+  // the misuse rules the project wrote, and its colour rationale. A screen
+  // reader takes its voice from the nearest declaration, so it said מעיין in an
+  // English voice — which does not mean "with English sounds". Spoken, it is
+  // five Hebrew letter names where the page says one word.
+  //
+  // Nothing at build time could see it. `language` drops every element that
+  // carries a lang of its own, and that is exactly where this hides.
+  const ACC2 = require('../src/access');
+  const bad = '<pre lang="en">{ "brand": "מעיין" }</pre>';
+  assert.deepStrictEqual(ACC2.foreignScript(bad).map((x) => x.script), ['hebrew']);
+  const good = `<pre lang="en">{ "brand": "${ACC2.markScript('מעיין', 'he', 'rtl')}" }</pre>`;
+  assert.deepStrictEqual(ACC2.foreignScript(good), [], 'a marked run is still counted against the block');
+  assert.deepStrictEqual(ACC2.foreignScript('<pre lang="en">{ "brand": "Meridian" }</pre>'), []);
+  // and the marking is the same rule wherever it is applied
+  assert.ok(/<span lang="he" dir="rtl">מעיין<\/span>/.test(ACC2.markScript('מעיין', 'he', 'rtl')));
+  assert.ok(/<span lang="ja">山彦<\/span>/.test(ACC2.markScript('山彦', 'ja', 'ltr')));
+  assert.strictEqual(ACC2.markScript('Meridian', 'en', 'ltr'), 'Meridian');
+  // it reaches the page it was written for
+  const docs3 = require('../src/documents');
+  const g = docs3.guidelines(docs3.context(MY, myM, [], { brand: 'מעיין', note: 'אל תמתחו' }));
+  assert.ok(/<pre lang="en"[^>]*>[\s\S]*<span lang="he"[^>]*>מעיין<\/span>/.test(g),
+    "the machine file does not mark the brand's own words");
+  assert.deepStrictEqual(ACC2.structure(g).filter((f) => f.code === 'langInside'), []);
+  // and the finding it raises says what, why and how
+  const f = ACC2.structure('<html lang="en"><body><h1>x</h1><pre lang="en">מעיין מעיין</pre></body></html>')
+    .find((x) => x.code === 'langInside');
+  assert.ok(f, 'a script inside the wrong language is not reported');
+  for (const k of ['what', 'why', 'how']) assert.ok(f[k].length > 20);
+});
+
 test('every string the English set has, the Japanese set has too', () => {
   const missing = Object.keys(STR.EN).filter((k) => STR.HAVE.ja[k] === undefined);
   assert.deepStrictEqual(missing, [], 'a Japanese document would fall back to English mid-sentence');
