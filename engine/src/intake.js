@@ -8,19 +8,32 @@
 // something the file can be asked is how a tool ends up with a fourteen step
 // wizard that people abandon.
 //
-// So there are six questions, and three of them are the engine showing its own
+// So there are seven questions, and four of them are the engine showing its own
 // answer and asking whether it is right. Everything else is measured.
 //
 //   1  what it is called                        cannot be measured
-//   2  what it does, in one line                cannot be measured
-//   3  how it should be laid out                shown, four ways, with your logo
-//   4  where it mostly lives                    cannot be measured, sets a lot
-//   5  the colours                              measured, confirm the roles
-//   6  what it must never do                    suggested from the drawing
+//   2  what language it is written in           shown, answered, changeable
+//   3  what it does, in one line                cannot be measured
+//   4  how it should be laid out                shown, four ways, with your logo
+//   5  where it mostly lives                    cannot be measured, sets a lot
+//   6  the colours                              measured, confirm the roles
+//   7  what it must never do                    suggested from the drawing
+//
+// The seventh is the language, and it is the one this door could not ask at all.
+// src/strings.js holds four dictionaries under a key-parity test and
+// there is a fixture for each — verdon in French, maayan in Hebrew, yamabiko in
+// Japanese — and every one of them was reachable only by writing a project file
+// by hand. A Hebrew identity built here got an English manual laid out left to
+// right, which is the thing project.js says was wrong in the first place: "A
+// Hebrew manual told a screen reader to say Hebrew in an English voice."
+//
+// It is asked rather than guessed. The script a name is written in is a signal
+// and not an answer: verdon is French with a Latin name, and a studio in Tel
+// Aviv may well want the book in English.
 //
 // The four layout directions are in src/directions.js and the ten misuse
-// treatments in src/misuse.js. This module's job is to turn six answers into a
-// project the rest of the engine already knows how to build.
+// treatments in src/misuse.js. This module's job is to turn seven answers into
+// a project the rest of the engine already knows how to build.
 const svgu = require('./svg');
 const geo = require('./geometry');
 const D = require('./directions');
@@ -165,12 +178,67 @@ const PLACES = {
       { process: 'embroidery', at: 70, note: 'the chest badge' }, { process: 'foil', at: 40, note: 'the spine' }] },
 };
 
+// Which script a language is written in, and therefore which faces can set it.
+// A document carries the identity's words and the engine's, and the engine's
+// are 38 characters of Hebrew or 596 of Japanese — so a language is only on
+// offer if something in fonts/ covers it. Nothing there has a CJK subset, which
+// is why Japanese is shown and not available: yamabiko sets it from a font its
+// own project ships, and the front door has no project to ship one in.
+const SCRIPTS = { en: 'latin', fr: 'latin-ext', he: 'hebrew', ja: 'cjk' };
+
+function covering(script) {
+  const cat = require('./typefaces').catalogue();
+  return Object.entries(cat)
+    .filter(([, v]) => (v.faces || []).some((f) => f.subset === script))
+    .map(([name]) => name);
+}
+
+// The faces this door sets each script in, said once. The language decides the
+// type or the manual comes out in tofu: Archivo and Literata cannot draw a word
+// of the Hebrew chrome, and Heebo and Frank Ruhl Libre are what maayan is set
+// in for that reason. Both pairs are held in fonts/, which the test checks
+// rather than trusting the names here.
+const FACES = {
+  hebrew: {
+    display: { family: 'Heebo', weights: [500, 700], fallback: "'Noto Sans Hebrew',Arial,sans-serif" },
+    text: { family: 'Frank Ruhl Libre', weights: [400], fallback: "'Noto Serif Hebrew',Georgia,serif" },
+  },
+  latin: {
+    display: { family: 'Archivo', weights: [600, 700], fallback: 'Helvetica,Arial,sans-serif' },
+    text: { family: 'Literata', weights: [400], fallback: 'Georgia,serif' },
+  },
+};
+const facesFor = (language) => FACES[SCRIPTS[language] === 'hebrew' ? 'hebrew' : 'latin'];
+
+// Every language strings.js writes, and whether this engine can set it.
+function languages() {
+  const HAVE = require('./strings').HAVE;
+  return Object.keys(HAVE).map((code) => {
+    const script = SCRIPTS[code] || 'latin';
+    return { code, name: HAVE[code].name, dir: HAVE[code].dir, script,
+      faces: covering(script), sets: facesFor(code) };
+  });
+}
+
 function questions(seen) {
   const parts = seen.parts || [];
+  const langs = languages();
   return [
     { key: 'brand', kind: 'text', ask: 'What is it called?',
       why: 'It goes on the cover, in every file name and in the machine readable file. Nothing else can supply it.',
       placeholder: 'Carrock' },
+
+    { key: 'language', kind: 'pick-one', ask: 'What language should the book be written in?',
+      why: 'Every word the engine writes — the chapter titles, the rules under the pictures, the '
+        + 'captions on every measurement — comes out in this, and it sets the direction the pages '
+        + 'read in. Your own words stay as you type them.',
+      suggested: 'en',
+      options: langs.map((l) => ({ value: l.code, label: l.name,
+        note: l.faces.length
+          ? `${l.dir === 'rtl' ? 'Right to left. ' : ''}Set in ${l.sets.display.family} and ${l.sets.text.family}.`
+          : 'This engine holds no typeface that can draw it, so a package in it has to ship one '
+            + 'of its own from a project file.',
+        available: l.faces.length > 0 })) },
 
     { key: 'positioning', kind: 'line', ask: 'What does it do, in one line?',
       why: 'One sentence under the title of the manual, and the opening slide of the deck. Write it the way you '
@@ -247,6 +315,7 @@ function toProject(answers, seen) {
     brand: a.brand || 'Untitled',
     mark: seen.master === 'mark' || seen.hasBoth, wordmark: seen.master === 'wordmark' || seen.hasBoth,
     colours: cols.map((c) => ({ name: c.name, hex: c.hex, role: c.role })),
+    language: a.language && require('./strings').HAVE[a.language] ? a.language : undefined,
     lockups: seen.lockups,
     slots: seen.slots,
     flatten: seen.flatten,
@@ -263,4 +332,4 @@ function toProject(answers, seen) {
   return base;
 }
 
-module.exports = { read, questions, toProject, palette, roles, PLACES, suggestMisuse };
+module.exports = { read, questions, toProject, palette, roles, languages, facesFor, PLACES, suggestMisuse };

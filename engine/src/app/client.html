@@ -83,6 +83,11 @@ button{font:inherit;color:inherit}
 input[type=text]{width:100%;max-width:620px;padding:13px 15px;border:1px solid var(--line-2);
   border-radius:10px;background:var(--raised);color:var(--ink);font:inherit;font-size:16px}
 input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:transparent}
+/* one of a list, where the answer is a word rather than a picture */
+.q .body>select{max-width:620px;width:100%;padding:13px 15px;font:inherit;font-size:16px;
+  border:1px solid var(--line-2);border-radius:10px;background:var(--raised);color:var(--ink)}
+.q .body>select:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:transparent}
+.q .body>.why{margin-top:10px}
 /* the roman spelling, asked for only when the typed name cannot carry a file */
 .latin{margin-top:18px;padding:16px 18px;max-width:620px;border-radius:12px;
   border:1px solid var(--line-2);background:var(--sunk)}
@@ -220,9 +225,9 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
 
   <!-- 2 ------------------------------------------------------------------ -->
   <section class="panel" id="p-ask" aria-labelledby="h-ask">
-    <p class="eyebrow">Six questions</p>
+    <p class="eyebrow">Seven questions</p>
     <h1 class="lede" id="h-ask">Only what the file cannot be asked.</h1>
-    <p class="sub">Three of these are the engine showing its own answer. Change any of them.</p>
+    <p class="sub">Four of these are the engine showing its own answer. Change any of them.</p>
     <div id="qs"></div>
   </section>
 
@@ -589,6 +594,28 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
         i.addEventListener('input', function () { S.answers[q.key] = i.value; gate(); });
         b.appendChild(i);
         if (q.key === 'brand') b.appendChild(latinField(i));
+      } else if (q.kind === 'pick-one') {
+        // One of a list, where the engine has already answered and the answer
+        // is a word rather than a picture. The layout question is pick-one too
+        // and is skipped above: it is asked by showing four, drawn with your
+        // own logo, which is a better question than a menu of four names.
+        var sel = el('select'); sel.setAttribute('aria-label', q.ask);
+        var note = el('p', 'why');
+        (q.options || []).forEach(function (o) {
+          var op = document.createElement('option');
+          op.value = o.value; op.textContent = o.label;
+          op.disabled = o.available === false;
+          if (o.available === false) op.textContent = o.label + ' — not available';
+          sel.appendChild(op);
+        });
+        sel.value = S.answers[q.key] || q.suggested || (q.options[0] || {}).value;
+        var tell = function () {
+          var o = (q.options || []).filter(function (x) { return x.value === sel.value; })[0];
+          note.textContent = o ? o.note || '' : '';
+        };
+        sel.addEventListener('change', function () { S.answers[q.key] = sel.value; tell(); gate(); });
+        tell();
+        b.appendChild(sel); b.appendChild(note);
       } else if (q.kind === 'pick-many') {
         var g = el('div', 'opts');
         (q.options || []).forEach(function (o) {
@@ -783,7 +810,7 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
   }
 
   $('go').addEventListener('click', function () {
-    if (S.step === 0) { show(1); say('Six questions. Three are already answered.'); }
+    if (S.step === 0) { show(1); say('Seven questions. Four are already answered.'); }
     else if (S.step === 1) { show(2); drawPicks(); }
     else if (S.step === 2) { show(3); drawEdit(); }
     else if (S.step === 3) buildIt();

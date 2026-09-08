@@ -102,12 +102,12 @@ function projectJson(opts) {
       // specimen pages naming a face the package does not carry. Both checks
       // written for exactly that stayed quiet, because a family you never name
       // cannot be reported as unreachable.
-      type: opts.type || {
-        families: {
-          display: { family: 'Archivo', weights: [600, 700], fallback: 'Helvetica,Arial,sans-serif' },
-          text: { family: 'Literata', weights: [400], fallback: 'Georgia,serif' },
-        },
-      },
+      //
+      // The language chooses the faces, because a document is written in the
+      // engine's words as well as the identity's and Archivo cannot draw one
+      // letter of the Hebrew ones. src/intake.js says which pair sets which
+      // script, once, and the question that asks for the language names them.
+      type: opts.type || { families: require('../intake').facesFor(opts.language) },
     },
     rules: {
       lockups: opts.lockups,
@@ -182,13 +182,16 @@ function stage(opts) {
   if (opts.answers) {
     const intake = require('../intake');
     const seen = read.seen;
+    // The language goes in with the answers rather than over the top of them:
+    // toProject picks the faces from it, and setting it afterwards would leave a
+    // Hebrew manual set in a face that cannot draw a letter of it.
     json = intake.toProject(Object.assign({}, opts.answers, {
       brand: opts.brand,
+      language: opts.language || opts.answers.language,
       colours: (opts.colours && opts.colours.length ? opts.colours : opts.answers.colours),
     }), seen);
     if (opts.overrides && opts.overrides.length) json.overrides = opts.overrides;
     if (opts.latinName) json.latinName = opts.latinName;
-    if (opts.language) json.language = opts.language;
     if (opts.type) json.tokens.type = opts.type;
   } else {
     // the slots and the paint are read off the artwork rather than taken from
@@ -231,6 +234,28 @@ function needsLatin(brand, latinName) {
   return e;
 }
 
+// A language whose script nothing in fonts/ covers. strings.js writes Japanese
+// and the engine holds no face with a CJK subset, so a package asked for in it
+// would come out with 596 characters of chrome drawn by whatever the reader
+// happened to have — tofu, under a manual claiming to be set in Archivo.
+// yamabiko does it properly by shipping a subsetted IPAGothic of its own, which
+// is a thing a project file can do and a front door cannot.
+function cannotSet(language) {
+  if (!language) return null;
+  const intake = require('../intake');
+  const l = intake.languages().find((x) => x.code === language);
+  if (!l || l.faces.length) return null;
+  const e = new Error(`This engine cannot set ${l.name}.`);
+  e.expected = true;
+  e.finding = { level: 'blocker', code: 'language', what: e.message,
+    why: `A document carries the engine's words as well as yours, and there are 596 characters of `
+      + `them in ${l.name}. No typeface this holds can draw one, so the manual would come out in `
+      + 'boxes under a page claiming which face it was set in.',
+    how: 'Pick a language this can set, or write a project file that ships a typeface for it — '
+      + 'projects/yamabiko does exactly that, with the font subsetted to the characters it uses.' };
+  return e;
+}
+
 function bad(what, how) {
   const e = new Error(what);
   e.expected = true;
@@ -262,6 +287,8 @@ async function make(input, outDir) {
   if (!lockups.length) throw bad('No lockups were chosen.', 'Pick at least one — the mark on its own is enough to start.');
   const noLatin = needsLatin(input.brand, input.latinName);
   if (noLatin) throw noLatin;
+  const noFace = cannotSet(input.language || (input.answers || {}).language);
+  if (noFace) throw noFace;
 
   const opts = {
     brand: String(input.brand).trim(),
@@ -385,6 +412,8 @@ function render(input) {
   const latinName = input.latinName || answers.latinName || undefined;
   const no = needsLatin(brand, latinName);
   if (no) throw no;
+  const noFace = cannotSet(input.language || answers.language);
+  if (noFace) throw noFace;
   const { dir, file } = stage({
     brand, latinName, language: input.language || answers.language || undefined,
     mark, wordmark,

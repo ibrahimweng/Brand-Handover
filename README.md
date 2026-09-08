@@ -1979,18 +1979,58 @@ route are served to nobody — the page that fetched them was the one replaced.
 The same was true of jszip an hour ago, and the right answer there was to use it
 rather than delete it, so this is recorded rather than removed.
 
-Still to do, and now for a better reason: **the door cannot choose a language.**
-The engine writes in four — English, French, Hebrew and Japanese, with a fixture
-for each — and the front door asks nothing about it, so a Hebrew identity gets
-an English manual laid out left to right. One flag away:
+Still to do: **the door cannot choose a language.** Fixed in the next round.
+
+---
+
+The fifty-fifth: the front door wrote every package in English.
+
+`src/strings.js` holds four dictionaries under a key-parity test — English,
+French, Hebrew, Japanese — with a fixture for each, and all four were reachable
+only by hand-writing a project file. The same identity, one flag apart:
 
     language: undefined   <html lang="en" dir="ltr">   The mark | Colour | …
     language: "he"        <html lang="he" dir="rtl">   הסמל | צבע | …
 
-What stopped it being this round is that the words have to be settable. Hebrew's
-chrome is 38 characters Archivo and Literata cannot draw, and Japanese's is 596
-of which the engine holds no face at all — maayan ships Heebo and Frank Ruhl
-Libre, yamabiko a subsetted IPAGothic of its own. Offering a language whose
-script the type cannot set would have produced a manual in tofu, which is worse
-than one in English. Now that the door writes type at all, choosing faces to
-match the script is a thing it can do.
+Which is the thing `project.js` says was wrong to begin with: *"A Hebrew manual
+told a screen reader to say Hebrew in an English voice."* The door reintroduced
+it for everybody who came through it.
+
+**So there are seven questions now, and four of them the engine answers for
+you.** The seventh is the language. It is asked rather than guessed: the script
+a name is written in is a signal and not an answer — verdon is French with a
+Latin name, and a studio in Tel Aviv may well want the book in English.
+
+**The language chooses the type, or the manual comes out in boxes.** A document
+carries the engine's words as well as the identity's, and the Hebrew ones are 38
+characters Archivo and Literata have no glyph for. So the options say what each
+is set in, and the answer decides it:
+
+| | | |
+|---|---|---|
+| English | latin | Archivo and Literata |
+| français | latin-ext | Archivo and Literata |
+| עברית | hebrew | Heebo and Frank Ruhl Libre, right to left |
+| 日本語 | cjk | **not available** |
+
+Japanese is shown and not available — the same idiom the misuse question already
+uses for a treatment a particular drawing cannot take. Its chrome is 596
+characters and nothing in `fonts/` has a CJK subset; yamabiko sets it from a
+subsetted IPAGothic its own project ships, which is a thing a project file can
+do and a front door cannot. Asking for it anyway is refused with that in the
+`how`, rather than delivered as a manual in tofu under a page naming the face it
+claims to be set in.
+
+A Hebrew identity now comes out of the door as a Hebrew manual: right to left,
+chapters reading הסמל, צבע, טיפוגרפיה, `heebo-500-hebrew.woff2` and
+`frank-ruhl-libre-400-hebrew.woff2` in `09-type`, the faces inlined in every
+document, and a specimen page showing the Hebrew alphabet in the face it says it
+is set in.
+
+One thing the reversion test caught that reading would not have: setting the
+language *over* the answers rather than *into* them picks the faces first and
+the language second, so a caller naming `language` on its own — which is what
+`/api/render` accepts — got a Hebrew manual set in Archivo. It goes in with the
+answers now.
+
+Still to do: nothing named. The next one is whatever the next real export breaks.

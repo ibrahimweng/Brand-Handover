@@ -5393,20 +5393,73 @@ already was:
     + (((ctx.project.tokens.type || {}).scale || []).length
       ? S('3.2', T('secScale'), 'system', b.typeScale(ctx)) : '')
 
+## The front door wrote every package in English
+
+`src/strings.js` holds four dictionaries under a key-parity test and there is a
+fixture for each — verdon in French, maayan in Hebrew, yamabiko in Japanese —
+and all four were reachable only by hand-writing a project file. The same
+identity, one flag apart:
+
+    language: undefined   <html lang="en" dir="ltr">   The mark | Colour | …
+    language: "he"        <html lang="he" dir="rtl">   הסמל | צבע | …
+
+Which is what `project.js` says was wrong to begin with:
+
+    // Every document declared itself English and laid itself out left to right,
+    // whatever was in it. A Hebrew manual told a screen reader to say Hebrew in
+    // an English voice.
+
+So there are seven questions, and four of them the engine answers for you. It is
+asked rather than guessed: the script a name is written in is a signal and not
+an answer — verdon is French with a Latin name, and a studio in Tel Aviv may
+well want the book in English.
+
+### The language chooses the type
+
+A document carries the engine's words as well as the identity's, and the Hebrew
+ones are 38 characters Archivo and Literata have no glyph for. Counted off the
+dictionaries, against what `fonts/` holds:
+
+    en   latin       8 chars   11 families cover it
+    fr   latin-ext  23 chars   11 families cover it
+    he   hebrew     38 chars   Heebo, Frank Ruhl Libre
+    ja   cjk       596 chars   none
+
+`intake.facesFor` says which pair sets which script, once, and the question's
+options are written from the same place — so what the menu promises and what the
+package is set in cannot drift.
+
+Japanese is shown and not available, which is the idiom the misuse question
+already uses for a treatment a drawing cannot take. yamabiko sets it from a
+subsetted IPAGothic its own project ships; a front door has no project to ship
+one in. Asking for it is refused with that in the `how` rather than delivered as
+a manual in tofu under a page naming the face it claims to be set in.
+
+    heebo-500-hebrew.woff2  frank-ruhl-libre-400-hebrew.woff2   in 09-type
+    <html lang="he" dir="rtl">                                  in every document
+    הסמל · צבע · טיפוגרפיה · המערכת · הקבצים                     as the chapters
+
+### And one the reversion caught that reading would not
+
+`stage` set the language *over* the answers, after `toProject` had already
+picked the faces from them. Where the language arrives in the answers the two
+agree; where a caller names it on its own — which `/api/render` accepts — the
+faces were picked for Latin and the language set to Hebrew afterwards. A Hebrew
+manual in Archivo. It goes in with the answers now, and the test builds it both
+ways.
+
 ## What it does not do yet
 
-- **The door cannot choose a language.** The engine writes in English, French,
-  Hebrew and Japanese, with `strings.js` holding four dictionaries under a
-  key-parity test and a fixture for each, and `stage` already carries a
-  `language`. The front door asks nothing about it, so a Hebrew identity built
-  through it gets an English manual laid out left to right — one flag from
-  `<html lang="he" dir="rtl">` and a manual whose chapters read הסמל, צבע,
-  טיפוגרפיה. What it needs first is type that can set the words: Hebrew's chrome
-  is 38 characters Archivo and Literata cannot draw and Japanese's is 596, of
-  which the engine holds no face at all — maayan ships Heebo and Frank Ruhl
-  Libre, yamabiko a subsetted IPAGothic of its own. A language whose script the
-  type cannot set produces a manual in tofu, which is worse than one in English.
-  Now that the door writes type, choosing it to match the script is tractable.
+- **The door cannot write in Japanese.** It offers the language and marks it
+  unavailable, because nothing in `fonts/` has a CJK subset — 596 characters of
+  chrome with no glyph for any of them. A face would have to be vendored and
+  subsetted against everything the documents set, the way `tools/subset-font.py`
+  cut yamabiko's; the difference is that a front door does not know the brand's
+  own words until somebody types them, so a subset cut in advance would not
+  carry the one name that matters most.
+- **No type scale.** A scale is a decision, not a measurement, so the door
+  writes none and the documents leave the section out. Every fixture states one
+  by hand.
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.
 - **Open path detection.** A path that is filled but never closed renders
   differently in some tools, and that is not checked.

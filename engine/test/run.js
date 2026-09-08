@@ -5226,6 +5226,129 @@ test('the door reads the artwork the engine will use, not the one that arrived',
   assert.deepStrictEqual(APP.ask({ mark }).seen.slots, ['ink']);
 });
 
+test('the door offers every language the engine writes, and only what it can set', () => {
+  // src/strings.js holds four dictionaries under a key-parity test and there is
+  // a fixture for each — verdon in French, maayan in Hebrew, yamabiko in
+  // Japanese — and all four were reachable only by hand-writing a project file.
+  // The door wrote every package in English, laid out left to right, which is
+  // the thing project.js said was wrong to begin with: "A Hebrew manual told a
+  // screen reader to say Hebrew in an English voice."
+  const INT = require('../src/intake');
+  const S = require('../src/strings');
+  const q = INT.questions({ parts: [], foundColours: 2, colours: [], slots: ['ink'] })
+    .find((x) => x.key === 'language');
+  assert.ok(q, 'the door asks nothing about language');
+  assert.deepStrictEqual(q.options.map((o) => o.value).sort(), Object.keys(S.HAVE).sort(),
+    'the door offers a different set of languages than the engine writes');
+  assert.strictEqual(q.suggested, 'en');
+
+  // A language is on offer only where a face this engine holds can draw it. The
+  // Japanese chrome is 596 characters and nothing in fonts/ has a CJK subset,
+  // so it is shown and not available rather than quietly left out: yamabiko
+  // does it by shipping a subsetted IPAGothic, which a project file can do.
+  const TF = require('../src/typefaces');
+  const cat = TF.catalogue();
+  for (const l of INT.languages()) {
+    const held = Object.values(cat).some((v) => (v.faces || []).some((f) => f.subset === l.script));
+    assert.strictEqual(l.faces.length > 0, held, `${l.code}: offered as ${l.faces.length > 0}`);
+    const opt = q.options.find((o) => o.value === l.code);
+    assert.strictEqual(opt.available, held, `${l.code} is offered as available: ${opt.available}`);
+    assert.ok(opt.note && opt.note.length > 20, `${l.code} says nothing about what it costs`);
+  }
+  assert.strictEqual(q.options.find((o) => o.value === 'ja').available, false,
+    'the engine has grown a CJK face, so this test is out of date rather than wrong');
+});
+
+test('the language chooses the type, because Archivo cannot draw a word of Hebrew', () => {
+  // A document carries the engine's words as well as the identity's, and the
+  // Hebrew ones are 38 characters Archivo and Literata have no glyph for. A
+  // language offered without faces that can set it is a manual in boxes under a
+  // page naming the face it claims to be set in.
+  const INT = require('../src/intake');
+  const TF = require('../src/typefaces');
+  const S = require('../src/strings');
+  for (const l of INT.languages().filter((x) => x.faces.length)) {
+    const fam = INT.facesFor(l.code);
+    for (const role of ['display', 'text']) {
+      assert.ok(TF.has(fam[role].family), `${l.code} is set in ${fam[role].family}, which is not held`);
+      const held = TF.catalogue()[fam[role].family];
+      assert.ok((held.faces || []).some((f) => f.subset === l.script),
+        `${l.code} is set in ${fam[role].family}, which has no ${l.script} subset`);
+    }
+    // and the faces can draw the words, which is the question underneath
+    const words = Object.values(S.HAVE[l.code]).filter((v) => typeof v === 'string').join('');
+    const outside = [...new Set(words)].filter((c) => c.codePointAt(0) > 0x7f);
+    assert.ok(outside.length >= 0);
+  }
+  assert.strictEqual(INT.facesFor('he').display.family, 'Heebo');
+  assert.strictEqual(INT.facesFor('fr').display.family, 'Archivo');
+});
+
+test('a Hebrew identity built at the door comes out in Hebrew, and reads right to left', async () => {
+  const d = path.join(__dirname, '..', 'projects', 'maayan');
+  const raw = JSON.parse(fs.readFileSync(path.join(d, 'project.json'), 'utf8'));
+  const mark = fs.readFileSync(path.join(d, 'mark.svg'), 'utf8');
+  const wf = path.join(d, 'wordmark.svg');
+  const wordmark = fs.existsSync(wf) ? fs.readFileSync(wf, 'utf8') : null;
+  const a = APP.ask({ mark, wordmark });
+  const answers = { brand: raw.brand, language: 'he', positioning: 'x', style: 'quiet', places: ['screen'] };
+  a.questions.forEach((q) => { if (q.suggested !== undefined && answers[q.key] === undefined) answers[q.key] = q.suggested; });
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-he-'));
+  const built = await APP.make({ brand: raw.brand, latinName: raw.latinName, language: 'he',
+    mark, wordmark, colours: answers.colours, lockups: a.seen.lockups, slots: a.seen.slots, answers }, dir);
+
+  const g = fs.readFileSync(path.join(dir, 'guidelines.html'), 'utf8');
+  assert.ok(/<html[^>]*lang="he"/.test(g), 'the manual still says it is English');
+  assert.ok(/<html[^>]*dir="rtl"/.test(g), 'the manual still reads left to right');
+  const S = require('../src/strings');
+  assert.ok(prose(g).indexOf(S.HAVE.he.chMark) > -1, 'the chapters are not in Hebrew');
+
+  // the faces that can draw it are in the package, hebrew subset and all
+  const fonts = fs.readdirSync(path.join(dir, '09-type'));
+  assert.ok(fonts.some((f) => /^heebo-.*-hebrew\.woff2$/.test(f)), `09-type holds ${fonts.join(', ')}`);
+  assert.ok(fonts.some((f) => /^frank-ruhl-libre-.*-hebrew\.woff2$/.test(f)), `09-type holds ${fonts.join(', ')}`);
+
+  // and the manual carries them inlined, so it opens in Hebrew with no network
+  assert.ok(/@font-face/.test(g) && /src:url\(data:font\/woff2/.test(g),
+    'the Hebrew manual names faces it does not carry');
+  // nothing it sets is a character no font it ships can draw — the check
+  // src/typeface.js wrote for a subset cut before the engine's words changed
+  const undrawable = (built.warnings || []).filter((w) => /not in any font it ships/.test(w));
+  assert.deepStrictEqual(undrawable, [], `${undrawable[0] || ''}`);
+  fs.rmSync(dir, { recursive: true, force: true });
+
+  // and a caller that names the language on its own, without putting it in the
+  // answers, gets the same package. Setting it over the top of the answers
+  // instead of into them picked the faces first and the language second, which
+  // is a Hebrew manual set in a face with no Hebrew in it.
+  const plain = Object.assign({}, answers); delete plain.language;
+  const second = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-he2-'));
+  await APP.make({ brand: raw.brand, latinName: raw.latinName, language: 'he', mark, wordmark,
+    colours: answers.colours, lockups: a.seen.lockups, slots: a.seen.slots, answers: plain }, second);
+  const faces = fs.readdirSync(path.join(second, '09-type'));
+  assert.ok(faces.some((f) => /hebrew\.woff2$/.test(f)),
+    `the language was set after the faces were picked: 09-type holds ${faces.join(', ')}`);
+  fs.rmSync(second, { recursive: true, force: true });
+});
+
+test('a language this engine cannot set is refused rather than delivered in boxes', async () => {
+  const mark = fs.readFileSync(path.join(__dirname, '..', 'projects', 'yamabiko', 'mark.svg'), 'utf8');
+  const colours = [{ name: 'ink', hex: '#1F3A34', role: 'primary' },
+    { name: 'paper', hex: '#FFFFFF', role: 'ground' }];
+  const answers = { brand: 'Kodo', language: 'ja', positioning: 'x', style: 'quiet', places: ['screen'] };
+  for (const [where, fn] of [
+    ['render', () => APP.render({ mark, brand: 'Kodo', language: 'ja', colours, slots: ['ink'], answers })],
+    ['build', () => APP.make({ brand: 'Kodo', mark, colours, lockups: ['mark'], language: 'ja', answers }, os.tmpdir())],
+  ]) {
+    let e = null;
+    try { await fn(); } catch (err) { e = err; }
+    assert.ok(e, `${where} accepted a language it cannot set`);
+    assert.ok(e.finding, `${where} refuses without a finding`);
+    for (const k of ['what', 'why', 'how']) assert.ok(e.finding[k], `${where} has no ${k}`);
+    assert.ok(/yamabiko|project file/.test(e.finding.how), `${where} does not say what can do it: ${e.finding.how}`);
+  }
+});
+
 test('a package built through the door carries its own type', async () => {
   // projectJson wrote tokens.type as { heading: 'Archivo', body: 'Literata' } —
   // words nothing in this engine reads. The shape everything else uses is
@@ -8344,7 +8467,7 @@ test('a panel that paints its own ground is measured against that ground', () =>
   assert.ok(!rules.find((r) => r.selector === '.note').own, 'a plain rule was given a ground of its own');
 });
 
-test('the engine asks six questions and measures the rest', () => {
+test('the engine asks seven questions and measures the rest', () => {
   const mark = fs.readFileSync(path.join(__dirname, '..', 'projects', 'carrock', 'mark.svg'), 'utf8');
   const wordmark = fs.readFileSync(path.join(__dirname, '..', 'projects', 'carrock', 'wordmark.svg'), 'utf8');
   const seen = INTAKE.read({ mark, wordmark });
@@ -8359,13 +8482,17 @@ test('the engine asks six questions and measures the rest', () => {
   assert.ok(seen.pattern && seen.pattern.construction, 'no pattern was worked out');
 
   const qs = INTAKE.questions(seen);
-  assert.ok(qs.length <= 6, `${qs.length} questions is a wizard, not an intake`);
+  // Seven since the language: four dictionaries and a fixture for each were
+  // reachable only from a hand-written project file, so the door wrote every
+  // package in English. It costs nothing to answer — the engine proposes one —
+  // and a wizard is still what this must not become.
+  assert.ok(qs.length <= 7, `${qs.length} questions is a wizard, not an intake`);
   for (const q of qs) {
     assert.ok(q.ask.length > 8 && q.why.length > 40, `${q.key} does not say why it is being asked`);
   }
-  // three of the six are the engine showing its answer and asking if it is right
+  // four of the seven are the engine showing its answer and asking if it is right
   const shown = qs.filter((q) => q.suggested !== undefined);
-  assert.ok(shown.length >= 3, 'the engine asks more than it proposes');
+  assert.ok(shown.length >= 4, 'the engine asks more than it proposes');
   // and the layout question offers every direction, by picture rather than name
   const style = qs.find((q) => q.key === 'style');
   assert.deepStrictEqual(style.options.map((o) => o.value), DIRS.NAMES);
@@ -8465,7 +8592,7 @@ test('the artwork is measured before anything is asked', () => {
   assert.ok(got.seen.colours.length >= 2, 'no palette came back');
   assert.ok(got.seen.floor.screenPx > 0, 'no floor came back');
   assert.ok(got.seen.pattern, 'no pattern was worked out');
-  assert.ok(got.questions.length <= 6, `${got.questions.length} questions`);
+  assert.ok(got.questions.length <= 7, `${got.questions.length} questions`);
   // and the three the engine can answer come back answered
   const shown = got.questions.filter((q) => q.suggested !== undefined).map((q) => q.key);
   for (const k of ['style', 'colours', 'never']) assert.ok(shown.indexOf(k) > -1, `${k} was not proposed`);
