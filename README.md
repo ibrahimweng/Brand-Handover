@@ -91,10 +91,12 @@ be the reason it leaves the building.
     npm run build            # the app, and every identity, into site/out
 
 The same app runs on Vercel. `vercel.json` wires it up: install, build, serve
-`site/out`, and put `api/inspect.js` and `api/build.js` on the two endpoints the
-page calls. They are wrappers — the work is the same `engine/src/app/handlers.js`
-the local server calls, so the hosted app and the one on your own machine cannot
-answer differently.
+`site/out`, and put `api/*.js` on the four endpoints the page calls — `ask`,
+`preview`, `render` and `build`, and nothing else. They are wrappers: the work
+is the same `engine/src/app/handlers.js` the local server calls, so the hosted
+app and the one on your own machine cannot answer differently. A test compares
+the three lists — what the page posts to, what is in `api/`, and what
+`server.js` routes — in both directions.
 
 One thing does differ, and the page says so rather than hiding it. A serverless
 function has no filesystem it can share with the next request, so a hosted build
@@ -1695,5 +1697,76 @@ engine itself wrote still reads as itself.
 A test now reads the routes out of `client.html` and compares them against the
 files in `api/` and the paths in `server.js`, so the three lists cannot drift
 apart again.
+
+---
+
+The fifty-first: the audit had been taken off the door it was written for.
+
+The last round found three routes the client posts to that nothing served. The
+same list, read the other way, says something worse. `/api/inspect` was
+deployed, tested, and **called by nothing**. It had been the first screen —
+drop the artwork, and before any question is asked, read back what the file
+actually contains. When the front door was rewritten into four screens that
+screen went, and the audit went with it.
+
+What replaced it was `/api/ask`, and `ask` read the artwork by a different path:
+`intake.read`, which measures, and never runs the audit at all. So the door and
+the build held two opinions about one file, and nobody had put them side by
+side. Three files the door used to take:
+
+| dropped on the door | what `ask` said | what the audit says |
+|---|---|---|
+| a mark set in live text | fine, 1 colour | **live text** — it renders in another font on any machine without your typeface |
+| a PNG in an SVG wrapper | fine, 0 colours | **a raster** — there is no geometry in it to measure |
+| a drawing with nothing painted | *the artwork renders empty, so it cannot be measured* | **nothing is painted** — check the layer has not been left switched off |
+
+The first is the one that matters. It was accepted, described, measured, and
+carried into the questions, and the package at the end of it contains a mark
+that needs Futura installed to look like itself. The third is the engine's own
+internal sentence, written for a caller rather than for a person holding an SVG
+— and the audit has had a proper refusal for it, in three parts, the whole time.
+
+**The audit runs at the door now.** `ask` puts each asset through `normalise`,
+the same function `project.load` puts every asset through, so a refusal at the
+door is the refusal the build would have made, in the same words, before any
+work is done on the strength of it.
+
+**And what it measures is what comes out of that**, not what came in. They are
+not the same drawing, which is easy to say and easy to under-rate, so it was
+measured across all thirty-two identities: read raw against read audited, **nine
+name a different pattern motif and three count their colours differently**. A
+fill still sitting in a `<style>` block is invisible to anything reading
+attributes; a transform that has not been flattened measures a stroke thinner
+than it prints; a shape lying off the artboard widens the box every size is
+worked out from.
+
+Pagrin is the sharpest case, because it is the identity that came out of a real
+exporter. Its mark is drawn in a gradient. Read raw, it has **no colour and one
+slot called `all`** — so the door offered an empty palette to confirm, and a
+colourway would have repainted nothing. Read audited, the slot is `ink`, and
+the engine has had the right thing to say about it all along:
+
+> **1 gradient.** A colourway names one colour for a slot, and a gradient is not
+> one colour. Any colourway that names a colour for this slot replaces the
+> gradient with it… A gradient also cannot be printed as a spot ink, so the flat
+> version is the one a two-colour job uses.
+
+That sentence existed, was generated on every upload, and was thrown away. It is
+on the screen now — under the facts, shut by default, saying what was cleaned up
+and what is worth looking at, because it is reassurance rather than a problem.
+
+Three smaller things fell out of it. A refusal was being flattened to one line
+of *whats*, dropping the why and the how, which is the half that tells somebody
+what to do; the client renders all three now. A refusal returned rather than
+thrown went out as **HTTP 200**, while the same finding thrown from `asSvg` went
+out as 400 — one answer, two status codes, for the next caller to get wrong.
+And `Continue` stayed lit after a refusal, so the next screen was one click from
+drawing itself out of a measurement that was never taken.
+
+`inspect` is gone — the handler, the route and the function. Everything it did
+that anything used, `ask` does; the rest was a second reader of the same artwork
+that could only ever disagree with the first. The route test now runs **both
+directions**: a deployed function nothing calls is a list that has drifted,
+exactly like a call nothing serves.
 
 Still to do: nothing named. The next one is whatever the next real export breaks.

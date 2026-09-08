@@ -135,7 +135,10 @@ function handler(req, res) {
 
   // What the engine can tell from the artwork, plus the six things it cannot.
   if (req.method === 'POST' && p === '/api/ask') {
-    return readBody(req).then((body) => json(res, 200, H.ask(body))).catch((e) => fail(res, e));
+    // a refusal goes out as a refusal here too, so the local server and the
+    // hosted function cannot answer the same artwork with two status codes
+    return readBody(req).then((body) => { const out = H.ask(body);
+      return json(res, out.ok === false ? 400 : 200, out); }).catch((e) => fail(res, e));
   }
 
   // The four layout systems, each drawn with this identity.
@@ -146,10 +149,6 @@ function handler(req, res) {
   // The manual with the edits applied, for the screen where they are made.
   if (req.method === 'POST' && p === '/api/render') {
     return readBody(req).then((body) => json(res, 200, H.render(body))).catch((e) => fail(res, e));
-  }
-
-  if (req.method === 'POST' && p === '/api/inspect') {
-    return readBody(req).then((body) => json(res, 200, H.inspect(body))).catch((e) => fail(res, e));
   }
 
   if (req.method === 'POST' && p === '/api/build') {

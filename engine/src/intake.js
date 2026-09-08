@@ -100,6 +100,11 @@ function read({ mark, wordmark }) {
     ok: true,
     master: mark ? 'mark' : 'wordmark',
     hasBoth: !!(mark && wordmark),
+    // What can be built from what was given: three of the four lockups need
+    // both drawings. Said once, here, because it was said in four places — the
+    // app handlers, this file, and the front door twice — and four copies of
+    // one rule is three chances to offer a lockup that cannot be composed.
+    lockups: mark && wordmark ? ['horizontal', 'stacked', 'mark', 'wordmark'] : [mark ? 'mark' : 'wordmark'],
     colours: roles(cols),
     foundColours: cols.length,
     parts,
@@ -212,7 +217,7 @@ function toProject(answers, seen) {
     brand: a.brand || 'Untitled',
     mark: seen.master === 'mark' || seen.hasBoth, wordmark: seen.master === 'wordmark' || seen.hasBoth,
     colours: cols.map((c) => ({ name: c.name, hex: c.hex, role: c.role })),
-    lockups: seen.hasBoth ? ['horizontal', 'stacked', 'mark', 'wordmark'] : [seen.master],
+    lockups: seen.lockups,
     slots: seen.slots,
     content: { positioning: a.positioning || undefined, misuse: never },
   });

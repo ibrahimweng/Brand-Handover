@@ -12,6 +12,10 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return only('POST', res);
   try {
     const body = await readBody(req);
-    return res.status(200).json(H.ask(body));
+    const out = H.ask(body);
+    // artwork the audit refuses is a refusal, not a success carrying bad news:
+    // the same finding thrown from asSvg already comes back as a 400, and two
+    // status codes for one answer is something for the next caller to get wrong
+    return res.status(out.ok === false ? 400 : 200).json(out);
   } catch (e) { return fail(res, e); }
 };

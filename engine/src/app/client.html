@@ -168,6 +168,21 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
   background:color-mix(in srgb,var(--bad) 8%,var(--paper))}
 .err b{display:block;font-weight:600;margin-bottom:6px}
 .err span{color:var(--ink-2);font-size:14.5px}
+/* what, why and how, in that order and looking like three different things */
+.finding{margin-top:14px;padding-top:14px;border-top:1px solid color-mix(in srgb,var(--bad) 25%,transparent)}
+.finding b{display:block;font-weight:600;margin-bottom:4px}
+.finding span{display:block;color:var(--ink-2);font-size:14.5px;line-height:1.5}
+.finding span.how{margin-top:6px;color:var(--ink);font-size:14px}
+.finding i{display:block;font-style:normal;font-family:var(--mono);font-size:11.5px;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin-bottom:3px}
+/* and the same three parts for what it did rather than what it refused, shut
+   by default: it is reassurance, not a problem */
+.audit{grid-column:2;margin-top:14px;border:1px solid var(--line);border-radius:12px;
+  background:var(--raised);padding:2px 16px 4px}
+@media (max-width:760px){.audit{grid-column:1}}
+.audit summary{cursor:pointer;padding:12px 0;font-size:14px;color:var(--ink-2)}
+.audit .finding{border-top-color:var(--line);padding-bottom:12px}
+.audit .finding:first-of-type{margin-top:0;padding-top:0;border-top:0}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 </style>
 </head>
@@ -251,7 +266,7 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
 <script>
 (function () {
   'use strict';
-  var S = { mark: null, wordmark: null, seen: null, qs: null, answers: {}, step: 0, built: null, overrides: [] };
+  var S = { mark: null, wordmark: null, clean: null, findings: null, seen: null, qs: null, answers: {}, step: 0, built: null, overrides: [] };
   var STEPS = ['Artwork', 'Questions', 'Layout', 'Your words', 'Package'];
   var $ = function (id) { return document.getElementById(id); };
   var el = function (t, c, x) { var n = document.createElement(t); if (c) n.className = c;
@@ -281,7 +296,10 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
   }
   function nextLabel() { return S.step === 3 ? 'Build the package' : 'Continue'; }
   function ready() {
-    if (S.step === 0) return !!(S.mark || S.wordmark);
+    // what the door accepted, rather than what the file input handed over: a
+    // refusal used to leave Continue lit, and the next screen draws itself out
+    // of a measurement that was never taken
+    if (S.step === 0) return !!S.seen;
     if (S.step === 1) return !!(S.answers.brand && S.answers.brand.trim());
     if (S.step === 2) return !!S.answers.style;
     if (S.step === 3) return true;
@@ -316,8 +334,12 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
               : 'Try it again, and if it keeps happening run it yourself with `handover serve`.');
           throw page;
         }
+        // A refusal the engine wrote has a what, a why and a how on every
+        // finding. Joining them into one line of whats threw away the two
+        // parts that tell a person what to do about it.
         if (!r.ok || j.ok === false) { var e = new Error(j.what || j.error || 'That did not work.');
-          e.how = j.how || (j.findings && j.findings.map(function (f) { return f.what; }).join(' ')) || '';
+          e.how = j.how || '';
+          e.findings = j.findings || null;
           throw e; }
         return j;
       });
@@ -327,7 +349,19 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     var box = $(where); box.textContent = '';
     var d = el('div', 'err'); d.appendChild(el('b', null, e.message));
     if (e.how) d.appendChild(el('span', null, e.how));
+    (e.findings || []).filter(function (f) { return f.level === 'blocker'; })
+      .forEach(function (f) { d.appendChild(finding(f)); });
     box.appendChild(d);
+  }
+
+  // One finding, in the three parts everything in this engine refuses in: what
+  // it found, why that matters, and what to do about it.
+  function finding(f) {
+    var g = el('div', 'finding ' + (f.level || ''));
+    g.appendChild(el('b', null, f.what));
+    if (f.why) g.appendChild(el('span', null, f.why));
+    if (f.how) g.appendChild(el('span', 'how', f.how));
+    return g;
   }
 
   // --------------------------------------------------------------- artwork
@@ -366,18 +400,25 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
       busy(true, 'Measuring');
       return post('/api/ask', { mark: S.mark, wordmark: S.wordmark });
     }).then(function (j) {
-      S.seen = j.seen; S.qs = j.questions;
+      S.seen = j.seen; S.qs = j.questions; S.clean = j.clean; S.findings = j.findings;
       j.questions.forEach(function (q) { if (q.suggested !== undefined) S.answers[q.key] = q.suggested; });
       drawSeen(); drawQs(); busy(false); gate();
       say('Measured. ' + (S.seen.parts.length ? S.seen.parts.length + ' named parts, ' : '')
         + S.seen.foundColours + ' colours, floor ' + S.seen.floor.screenPx + ' px.');
-    }).catch(function (e) { busy(false); fail('art-err', e); say('', true); });
+    }).catch(function (e) {
+      busy(false); S.seen = null; S.clean = null; S.findings = null;
+      $('seen').hidden = true; $('qs').textContent = '';
+      fail('art-err', e); say('', true); gate();
+    });
   }
 
   function drawSeen() {
     var box = $('seen'); box.hidden = false; box.textContent = ''; box.className = 'seen';
     var art = el('div', 'art');
-    art.innerHTML = (S.mark || S.wordmark).replace(/<\?xml[^>]*\?>/g, '').replace(/<!--[\s\S]*?-->/g, '');
+    // the artwork as the engine has it, not as it arrived. Every number beside
+    // it was measured off this, and this is what goes in the package.
+    var shown = (S.clean && (S.clean.mark || S.clean.wordmark)) || S.mark || S.wordmark;
+    art.innerHTML = shown.replace(/<\?xml[^>]*\?>/g, '').replace(/<!--[\s\S]*?-->/g, '');
     var f = el('div', 'facts');
     var rows = [
       ['What it is', S.seen.hasBoth ? 'a mark and a logotype' : (S.seen.master === 'mark' ? 'a symbol' : 'a logotype')],
@@ -392,6 +433,35 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
       f.appendChild(d);
     });
     box.appendChild(art); box.appendChild(f);
+
+    // What the audit did to the file. Nobody has ever been shown this: it is
+    // their own export, opened and read back to them — what was cleaned out of
+    // it, and anything left that will cost them later.
+    var notes = [];
+    Object.keys(S.findings || {}).forEach(function (k) {
+      (S.findings[k] || []).forEach(function (n) {
+        if (n.level === 'blocker') return;             // those refuse, and never reach here
+        notes.push({ asset: k, f: n });
+      });
+    });
+    if (notes.length) {
+      var a = el('details', 'audit');
+      // what it changed and what it is telling you about are not the same
+      // thing, and one summary line calling both "did" was wrong about half
+      // of them
+      var did = notes.filter(function (n) { return n.f.level === 'fixed'; }).length;
+      var look = notes.length - did;
+      var sum = el('summary', null, [did ? did + (did === 1 ? ' thing' : ' things') + ' cleaned up' : '',
+        look ? look + (look === 1 ? ' thing' : ' things') + ' to look at' : '']
+        .filter(Boolean).join(', ') + ' in your file');
+      a.appendChild(sum);
+      notes.forEach(function (n) {
+        var g = finding(n.f);
+        if (S.seen.hasBoth) g.insertBefore(el('i', null, n.asset), g.firstChild);
+        a.appendChild(g);
+      });
+      box.appendChild(a);
+    }
   }
 
   // ------------------------------------------------------------- questions
@@ -490,8 +560,7 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     busy(true, 'Building');
     say('Measuring the artwork, cutting every file, writing the documents.');
     post('/api/build', { brand: S.answers.brand, mark: S.mark, wordmark: S.wordmark,
-      colours: S.answers.colours, lockups: S.seen.hasBoth
-        ? ['horizontal', 'stacked', 'mark', 'wordmark'] : [S.seen.master],
+      colours: S.answers.colours, lockups: S.seen.lockups,
       slots: S.seen.slots, answers: S.answers, overrides: S.overrides }).then(function (j) {
       S.built = j;
       $('done-sub').textContent = j.files + ' files, ' + Math.round(j.bytes / 1024) + ' KB. '
@@ -590,7 +659,9 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     busy(true, 'Setting the manual');
     post('/api/render', { mark: S.mark, wordmark: S.wordmark, brand: S.answers.brand,
       colours: S.answers.colours, slots: S.seen.slots, answers: S.answers,
-      lockups: S.seen.hasBoth ? ['horizontal', 'stacked', 'mark', 'wordmark'] : [S.seen.master],
+      // what the engine says can be built from this artwork, rather than this
+      // page's own third copy of the rule
+      lockups: S.seen.lockups,
       overrides: S.overrides }).then(function (j) {
       $('sheet').srcdoc = j.html.replace('</body>', EDIT_JS + '</body>');
       busy(false); gate(); drawChanged();

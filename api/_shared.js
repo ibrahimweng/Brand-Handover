@@ -1,5 +1,5 @@
 'use strict';
-// What the two functions have in common. They are wrappers: the work is in
+// What the four functions have in common. They are wrappers: the work is in
 // engine/src/app/handlers.js, which is also what the local server calls, so the
 // hosted app and the one on your own machine cannot answer differently.
 const H = require('../engine/src/app/handlers');

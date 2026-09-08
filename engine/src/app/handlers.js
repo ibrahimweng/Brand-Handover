@@ -3,10 +3,14 @@
 // by hand. This is the same engine with a front door: artwork in, the audit
 // shown rather than printed, a few decisions taken, and a package out.
 //
-// Nothing here reimplements anything. Both handlers write a real project into a
-// temporary directory and go through project.load and build exactly as the CLI
-// does, so what the app reports is what the command line reports. A second
-// implementation of the loader would be a second set of rules to keep true.
+// Nothing here reimplements anything. Everything that builds writes a real
+// project into a temporary directory and goes through project.load and build
+// exactly as the CLI does, and the door that reads the artwork calls the same
+// normaliser project.load calls, so what the app reports is what the command
+// line reports. A second implementation of the loader, or of the audit, would
+// be a second set of rules to keep true — and for a while the audit was exactly
+// that: a route of its own that the front door had stopped calling, while the
+// door read the upload with a second set of eyes that had no audit in them.
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -117,11 +121,6 @@ function stage(opts) {
   return { dir, file };
 }
 
-// What can be built from what was given. Three of the four lockups need both.
-const lockupsFor = (mark, wordmark) => (mark && wordmark
-  ? ['horizontal', 'stacked', 'mark', 'wordmark']
-  : mark ? ['mark'] : ['wordmark']);
-
 const asSvg = (v, what) => {
   if (typeof v !== 'string' || !v.trim()) throw bad(`${what} is missing.`, `Drop an SVG file on ${what}.`);
   if (v.length > MAX_SVG) {
@@ -140,84 +139,6 @@ function bad(what, how) {
   e.expected = true;
   e.finding = { level: 'blocker', code: 'input', what, why: 'The engine has nothing it can work from.', how };
   return e;
-}
-
-// ---- read the artwork, before anything is decided -------------------------
-// The audit first, because it is the part a designer has never been shown: what
-// their own export actually contains, what was cleaned out of it, and what the
-// mark measures. Nothing is committed to at this point.
-function inspect(input) {
-  if (!input.mark && !input.wordmark) {
-    throw bad('No artwork was given.',
-      'Drop an SVG on the mark, the wordmark, or both. Either one on its own is a whole identity.');
-  }
-  const mark = input.mark ? asSvg(input.mark, 'the mark') : null;
-  const wordmark = input.wordmark ? asSvg(input.wordmark, 'the wordmark') : null;
-  const palette = [...new Set([...(mark ? paletteFrom(mark) : []), ...(wordmark ? paletteFrom(wordmark) : [])])];
-  const ink = palette[0] || '#1B1B1B';
-
-  // A palette the loader will accept, so the audit runs against a real project
-  // rather than a sketch of one. The designer changes it on the next screen.
-  const opts = {
-    brand: input.brand || 'Untitled',
-    latinName: naming.slug(input.brand || '') ? undefined : 'Untitled',
-    mark, wordmark,
-    colours: [{ name: 'primary', hex: ink, role: 'primary' }, { name: 'ground', hex: '#FFFFFF', role: 'ground' }],
-    lockups: lockupsFor(mark, wordmark),
-  };
-  const { dir, file } = stage(opts);
-  try {
-    let project;
-    try { project = projectLoader.load(file); }
-    catch (e) {
-      // the loader refuses artwork it cannot use, and says why in the same
-      // language as everything else. Hand that straight through.
-      if (e.findings) return { ok: false, asset: e.asset, findings: e.findings };
-      throw e;
-    }
-    const m = measure(project);
-    const geo = require('../geometry');
-
-    // Every lockup the artwork can make, composed by the engine and handed to
-    // the page with its colour slots still marked. The browser repaints those
-    // slots as a swatch is touched, so a designer sees the actual lockup in the
-    // actual colour without a round trip — and without a second implementation
-    // of lockup geometry to disagree with the one that writes the package.
-    const { buildVariant } = require('../variants');
-    const neutral = { name: 'preview', slots: Object.fromEntries(
-      (m.slots.length ? m.slots : ['all']).map((k) => [k, '#111111'])) };
-    const lockups = {};
-    for (const l of lockupsFor(mark, wordmark)) {
-      try {
-        const v = buildVariant({ markSrc: project.assets.mark && project.assets.mark.source,
-          wordmarkSrc: project.assets.wordmark && project.assets.wordmark.source,
-          lockup: l, colourway: neutral, rules: project.rules, measured: m });
-        lockups[l] = v.svg;
-      } catch (e) { /* a lockup that cannot be composed is simply not offered */ }
-    }
-    return {
-      ok: true,
-      findings: project.report,
-      palette,
-      slots: m.slots,
-      master: m.master,
-      hasWordmark: !!wordmark,
-      measured: {
-        ink: m.markInk, viewBox: m.markViewBox, clearSpace: m.clearSpace,
-        thinnest: m.minimumSize.thinnestStroke,
-        basis: m.minimumSize.basis,
-        floorPx: geo.floorText(m.minimumSize, 'px'),
-        floorMm: geo.floorText(m.minimumSize, 'mm'),
-      },
-      // the artwork as the engine will use it, for the preview
-      clean: { mark: project.assets.mark && project.assets.mark.source,
-        wordmark: project.assets.wordmark && project.assets.wordmark.source },
-      lockups: lockupsFor(mark, wordmark),
-      art: lockups,
-    };
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
-  }
 }
 
 // ---- build the package ----------------------------------------------------
@@ -291,6 +212,13 @@ async function make(input, outDir) {
 // What the engine can tell from the artwork, and the few things it cannot. The
 // screen that asks the questions gets both in one answer, so it never has to
 // guess what the engine already knows. See src/intake.js.
+//
+// The audit runs here, at the door, because this is the only round trip a
+// person makes before they start answering questions. It used to live behind
+// its own route, which the front door stopped calling and nothing has called
+// since; the door meanwhile read the upload with a second set of eyes that had
+// no audit in them, so a file the engine would refuse was measured, described
+// and accepted, and its answers reached the build before anybody was told.
 function ask(input) {
   const mark = input.mark ? asSvg(input.mark, 'the mark') : null;
   const wordmark = input.wordmark ? asSvg(input.wordmark, 'the wordmark') : null;
@@ -298,10 +226,34 @@ function ask(input) {
     throw bad('No artwork was given.',
       'Drop an SVG on the mark, the wordmark, or both. Either one on its own is a whole identity.');
   }
+
+  // The same function the loader puts every asset through, so the door and the
+  // build cannot hold two opinions about one file. A refusal here is the one
+  // the build would have made, in the same words, before any work is done on
+  // the strength of it.
+  const { normalise } = require('../normalise');
+  const findings = {};
+  const clean = {};
+  for (const [key, src] of [['mark', mark], ['wordmark', wordmark]]) {
+    if (!src) continue;
+    const n = normalise(src, { tokens: {} });
+    findings[key] = n.findings;
+    if (!n.ok) return { ok: false, asset: key, what: `The ${key} cannot be used as it is.`, findings: n.findings };
+    clean[key] = n.svg;
+  }
+
+  // Measured off what came out of the audit rather than off the upload. They
+  // are not the same drawing: a transform that has not been flattened measures
+  // a stroke thinner than it prints, a shape lying off the artboard widens the
+  // box every size is worked out from, and a fill still sitting in a stylesheet
+  // is a colour the palette cannot see. Nine of the thirty-two identities named
+  // a different motif read the two ways, and three counted their colours
+  // differently — one of them, drawn in a gradient, counted none at all and
+  // was handed an empty palette to confirm.
   const intake = require('../intake');
-  const seen = intake.read({ mark, wordmark });
+  const seen = intake.read({ mark: clean.mark || null, wordmark: clean.wordmark || null });
   if (!seen.ok) throw bad('That artwork could not be read.', seen.why);
-  return { ok: true, seen, questions: intake.questions(seen) };
+  return { ok: true, seen, questions: intake.questions(seen), findings, clean };
 }
 
 // The four layout systems, each drawn with this identity, so the choice is made
@@ -365,4 +317,4 @@ function editable() {
   return { ok: true, values: O.ALLOWED, keyed: O.PATTERNS.map((p) => ({ what: p.what, kind: p.kind })) };
 }
 
-module.exports = { inspect, ask, preview, render, editable, make, paletteFrom, projectJson, MAX_SVG };
+module.exports = { ask, preview, render, editable, make, paletteFrom, projectJson, MAX_SVG };

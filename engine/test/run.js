@@ -679,6 +679,20 @@ test('every route the app posts to exists as a deployed function', () => {
   // and the local server serves them too, so the two cannot answer differently
   const server = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'server.js'), 'utf8');
   for (const w of wanted) assert.ok(server.includes(`'${w}'`), `the local server has no ${w}`);
+
+  // The same defect stands the other way round, and it was here at the same
+  // time: /api/inspect was deployed, tested, and called by nothing. The front
+  // door stopped calling it when the client was rewritten into four screens,
+  // which left the audit — the one thing that reads a designer's export and
+  // says what is wrong with it — unreachable from the product, while the door
+  // it was taken off read the upload with a second set of eyes that had no
+  // audit in them. Checking one direction only is what let a list of four and a
+  // list of five sit side by side and look right.
+  const unused = deployed.filter((d) => !wanted.includes(d));
+  assert.deepStrictEqual(unused, [], `nothing calls ${unused.join(', ')}`);
+  const serves = [...new Set([...server.matchAll(/p === '(\/api\/[a-z]+)'/g)].map((m) => m[1]))];
+  assert.deepStrictEqual(serves.sort(), wanted.slice().sort(),
+    'the local server and the hosted app answer different lists of routes');
 });
 
 test('a page where an answer was expected is reported as a page', () => {
@@ -709,6 +723,18 @@ test('a page where an answer was expected is reported as a page', () => {
   }).then((e) => {
     assert.strictEqual(e.message, 'That is not an SVG.');
     assert.strictEqual(e.how, 'Export as SVG.');
+    // A refusal from the audit arrives as findings, and each of those is three
+    // parts. They were being flattened into one line of whats — the half that
+    // names the problem, with the half that says what to do about it dropped.
+    return answer(400, JSON.stringify({ ok: false, asset: 'mark',
+      what: 'The mark cannot be used as it is.',
+      findings: [{ level: 'blocker', code: 'live-text', what: '1 piece of live text.',
+        why: 'Live type renders in a different font on any machine without your typeface.',
+        how: 'Select the type and use Type > Create Outlines, then export again.' }] }));
+  }).then((e) => {
+    assert.strictEqual(e.message, 'The mark cannot be used as it is.');
+    assert.ok(e.findings && e.findings.length === 1, 'the findings did not survive the trip');
+    for (const k of ['what', 'why', 'how']) assert.ok(e.findings[0][k], `the ${k} was dropped`);
     // and a good answer still comes through
     return answer(200, JSON.stringify({ ok: true, seen: {}, questions: [] }));
   }).then((e) => {
@@ -5123,7 +5149,7 @@ test('a lone logotype is built as a logotype, not as a mark called one', async (
   // put a logotype in 03-mark and had the manual call it the mark — the exact
   // confusion the thirteenth round existed to remove, reintroduced by the app.
   const wm = wordSrc();
-  const seen = APP.inspect({ brand: 'Logotype', wordmark: wm });
+  const seen = APP.ask({ wordmark: wm }).seen;
   assert.strictEqual(seen.master, 'wordmark');
   assert.deepStrictEqual(seen.lockups, ['wordmark'], 'a lockup was offered that cannot be built');
 
@@ -5139,12 +5165,12 @@ test('a lone logotype is built as a logotype, not as a mark called one', async (
   fs.rmSync(dir, { recursive: true, force: true });
 
   // and a symbol on its own is still a symbol
-  assert.strictEqual(APP.inspect({ brand: 'Symbol', mark: markSrc() }).master, 'mark');
+  assert.strictEqual(APP.ask({ mark: markSrc() }).seen.master, 'mark');
 });
 
 test('the app refuses what is not artwork, in the language everything else uses', () => {
   const refused = (input) => {
-    try { APP.inspect(input); return null; }
+    try { APP.ask(input); return null; }
     catch (e) { return e.finding || null; }
   };
   const cases = [
@@ -5161,10 +5187,87 @@ test('the app refuses what is not artwork, in the language everything else uses'
     assert.ok(!/undefined|\[object|the the /.test(f.what + f.how), `${name} reads badly: ${f.how}`);
   }
   // artwork the normaliser refuses comes back as its own findings, not as a crash
-  const live = APP.inspect({ mark: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60">'
+  const live = APP.ask({ mark: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60">'
     + '<text x="10" y="40" font-size="30">Acme</text></svg>' });
   assert.strictEqual(live.ok, false);
   assert.ok(live.findings.some((f) => /outline|text/i.test(f.what + f.how)), 'it did not mention the live text');
+});
+
+test('the door reads the artwork the engine will use, not the one that arrived', () => {
+  // The audit lived behind /api/inspect and the door called /api/ask, and the
+  // two read the same file by two different paths. So the door described, and
+  // accepted, artwork the build would go on to refuse — and where it did not
+  // refuse it measured the upload rather than what comes out of the audit,
+  // which is not the same drawing.
+  const { normalise } = require('../src/normalise');
+  const INT = require('../src/intake');
+
+  // A fill sitting in a stylesheet is the smallest case of it. Nothing that
+  // reads attributes can see this colour; the audit resolves it onto the shape,
+  // and a stylesheet inside a mark stops the PDF writer outright, so it has to
+  // go before anything measures anything.
+  const styled = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">'
+    + '<style>.a{fill:#0A2A33}</style><circle class="a" cx="50" cy="50" r="40"/></svg>';
+  assert.strictEqual(INT.read({ mark: styled }).foundColours, 0, 'the raw file was readable after all');
+  assert.strictEqual(APP.ask({ mark: styled }).seen.foundColours, 1,
+    'the door is still reading the upload rather than the audited artwork');
+
+  // and on real artwork, every number the door reports is the one taken off
+  // what the audit returned
+  const mark = fs.readFileSync(path.join(__dirname, '..', 'projects', 'pagrin', 'mark.svg'), 'utf8');
+  const clean = normalise(mark, { tokens: {} });
+  assert.deepStrictEqual(APP.ask({ mark }).seen, INT.read({ mark: clean.svg, wordmark: null }));
+
+  // Pagrin's mark is drawn in a gradient. Read raw it has no slot to repaint,
+  // so a colourway would have left it one colour whatever the rules said.
+  assert.deepStrictEqual(INT.read({ mark }).slots, ['all']);
+  assert.deepStrictEqual(APP.ask({ mark }).seen.slots, ['ink']);
+});
+
+test('the door refuses what the build would refuse, before anybody answers a question', () => {
+  // Three files the front door used to take. Live text was measured, described
+  // and accepted — a mark that renders in whatever font the recipient happens
+  // to have — and the other two died on a sentence from the measuring step
+  // ("the artwork renders empty, so it cannot be measured") that was written
+  // for a caller, not for a person holding an SVG.
+  const cases = {
+    'live text': ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60">'
+      + '<text x="10" y="40" font-family="Futura" font-size="32" fill="#1B1B1B">Carrock</text></svg>', 'live-text'],
+    'a raster in a wrapper': ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">'
+      + '<image href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ'
+      + 'AAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==" width="100" height="100"/></svg>', 'raster'],
+    'nothing painted': ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">'
+      + '<rect x="10" y="10" width="80" height="80" fill="none" stroke="none"/></svg>', 'nothing-drawn'],
+  };
+  for (const [name, [svg, code]] of Object.entries(cases)) {
+    const out = APP.ask({ mark: svg });
+    assert.strictEqual(out.ok, false, `${name} was accepted`);
+    assert.strictEqual(out.asset, 'mark');
+    assert.ok(/cannot be used/.test(out.what), `${name} refuses without saying so: ${out.what}`);
+    const blockers = out.findings.filter((f) => f.level === 'blocker');
+    assert.deepStrictEqual(blockers.map((f) => f.code), [code], `${name} was refused for the wrong reason`);
+    // what, why and how, every time — the refusal is the only thing the person
+    // holding the file gets, so it has to be the one that tells them what to do.
+    // The what is a label ("1 embedded image."); the other two are sentences,
+    // which is a shape rather than a length, so it is checked as one.
+    const b = blockers[0];
+    for (const k of ['what', 'why', 'how']) assert.ok(b[k] && b[k].trim(), `${name} has no ${k}`);
+    for (const k of ['why', 'how']) {
+      assert.ok(/\s/.test(b[k].trim()) && /[.!?]$/.test(b[k].trim()),
+        `${name}'s ${k} is not a sentence: ${b[k]}`);
+    }
+    assert.strictEqual(new Set([b.what, b.why, b.how]).size, 3,
+      `${name} says the same thing more than once`);
+  }
+
+  // and what it does not refuse, it hands over: the audit reaches the answer
+  // rather than being run and thrown away
+  const good = APP.ask({ mark: fs.readFileSync(path.join(__dirname, '..', 'projects', 'pagrin', 'mark.svg'), 'utf8') });
+  assert.strictEqual(good.ok, true);
+  const codes = good.findings.mark.map((f) => f.code);
+  assert.ok(codes.includes('gradient'), `the door did not pass on what it found: ${codes.join(', ')}`);
+  const g = good.findings.mark.find((f) => f.code === 'gradient');
+  assert.ok(/colourway/.test(g.why) && /keep/.test(g.how), 'the gradient warning arrived without its why or its how');
 });
 
 test('the palette starts from the colours already in the artwork', () => {
@@ -5204,12 +5307,12 @@ function callFn(name, body) {
 
 test('the hosted functions answer with what the local handlers answer', async () => {
   const mark = markSrc();
-  const seen = await callFn('inspect', { brand: 'Hosted', mark });
+  const seen = await callFn('ask', { mark });
   assert.strictEqual(seen.code, 200);
-  assert.deepStrictEqual(seen.body.measured, APP.inspect({ brand: 'Hosted', mark }).measured);
+  assert.deepStrictEqual(seen.body.seen, APP.ask({ mark }).seen);
 
   // and a refusal is a refusal there too, in the same shape
-  const no = await callFn('inspect', { mark: 'this is not an svg' });
+  const no = await callFn('ask', { mark: 'this is not an svg' });
   assert.strictEqual(no.code, 400);
   assert.strictEqual(no.body.ok, false);
   for (const k of ['what', 'why', 'how']) assert.ok(no.body.findings[0][k], `a hosted refusal has no ${k}`);
@@ -5217,7 +5320,7 @@ test('the hosted functions answer with what the local handlers answer', async ()
   const wrong = await new Promise((resolve) => {
     let code = 0, sent = null;
     const res = { setHeader() {}, status(c) { code = c; return res; }, json(o) { sent = o; resolve({ code, body: sent }); return res; } };
-    fn('inspect')({ method: 'GET' }, res);
+    fn('ask')({ method: 'GET' }, res);
   });
   assert.strictEqual(wrong.code, 405);
 });

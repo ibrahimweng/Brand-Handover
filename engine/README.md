@@ -3318,13 +3318,16 @@ CLI does, so what the app reports is what the command line reports. It listens
 on localhost and uploads nothing, which is not a limitation: brand artwork is
 usually under an NDA before it is under anything else.
 
-The same app runs hosted, off `api/inspect.js` and `api/build.js`, which are
-wrappers around those same handlers. One thing genuinely differs there and the
-page says so rather than hiding it: a serverless function has no filesystem it
-can share with the next request, so it cannot serve a package file by file. It
-sends the zip — the package, compressed, in one answer, about 300 KB for a plain
-identity — and the browser opens the documents out of it. They open in a tab and
-do not survive a reload, because they live in the page's memory.
+The same app runs hosted, off wrappers around those same handlers in `api/`.
+(There were two at this point, `inspect.js` and `build.js`; there are four now
+and `inspect.js` is not one of them — see "The upload that failed with a parser
+error" and "The audit had been taken off the door it was written for" below.)
+One thing genuinely differs there and the page says so rather than hiding it:
+a serverless function has no filesystem it can share with the next request, so
+it cannot serve a package file by file. It sends the zip — the package,
+compressed, in one answer, about 300 KB for a plain identity — and the browser
+opens the documents out of it. They open in a tab and do not survive a reload,
+because they live in the page's memory.
 
 Two defects the app found in its first hour, both in itself:
 
@@ -5011,6 +5014,85 @@ The test reads the route list out of `client.html` and checks it against the
 files in `api/` **and** the paths in `server.js`, because the defect was three
 lists drifting rather than any one of them being wrong.
 
+## The audit had been taken off the door it was written for
+
+The route list above says one more thing, read the other way round.
+`/api/inspect` was deployed, tested, and called by nothing.
+
+It had been the first screen: drop the artwork, and before any question is
+asked, read back what the file actually contains. When `client.html` was
+rewritten into four screens that screen went, and the audit went with it. What
+took its place was `/api/ask`, and `ask` read the artwork by a different path —
+`intake.read`, which measures, and never runs the audit at all.
+
+Two readers of one file, in one product, that nothing had put side by side:
+
+    dropped on the door                what ask said         what the audit says
+    a mark set in live text            fine, 1 colour        blocker: live text
+    a PNG in an SVG wrapper            fine, 0 colours       blocker: a raster
+    a drawing with nothing painted     (threw)               blocker: nothing painted
+
+The first is the one that matters: accepted, described, measured, carried into
+the questions, and the package at the end of it contains a mark that needs the
+recipient to have Futura. The third threw `the artwork renders empty, so it
+cannot be measured` — the engine's own internal sentence, written for a caller
+rather than for somebody holding an SVG, and `normalise` has had a proper
+three-part refusal for that exact case the whole time.
+
+### The audit runs at the door
+
+`ask` puts each asset through `normalise`, the same function `project.load` puts
+every asset through. A refusal at the door is the refusal the build would have
+made, in the same words, before any work is done on the strength of it. It costs
+2–36 ms against a round trip that already takes 750–1800 ms, nearly all of it
+the pattern search.
+
+### And it measures what came out of that, not what went in
+
+Raw and audited are not the same drawing. Across the thirty-two identities, read
+one way against the other:
+
+    a different pattern motif   9 of 32
+    a different colour count    3 of 32
+
+A fill still sitting in a `<style>` block is invisible to anything reading
+attributes. A transform that has not been flattened measures a stroke thinner
+than it prints. A shape lying off the artboard widens the box every size is
+worked out from. Pagrin is the sharpest case — the one identity that came out of
+a real exporter, drawn in a gradient:
+
+    read raw       0 colours, slots ["all"]
+    read audited   slots ["ink"], plus a warning that was already written
+
+`normalise` has said the right thing about a gradient since the twelfth
+identity: that a colourway names one colour for a slot, that a gradient is not
+one colour, that `keep` is how you carry it, and that it cannot be a spot ink.
+It was generated on every upload and thrown away. It is on the screen now, under
+the facts, shut by default, split into what was cleaned up and what is worth
+looking at — those are different things and one summary line calling both "did"
+was wrong about half of them.
+
+### Three smaller things it was hiding
+
+- A refusal was flattened to one line of `what`s, dropping the `why` and the
+  `how`. The `how` is the half that tells somebody what to do.
+- A refusal *returned* went out as **200**; the same finding *thrown* from
+  `asSvg` went out as **400**. One answer, two status codes, in both the local
+  server and the hosted function.
+- `Continue` stayed lit after a refusal, because step 0 asked whether a file had
+  been read rather than whether the door had accepted it. It asks the second
+  question now.
+
+`inspect` is gone: the handler, the route in `server.js` and `api/inspect.js`.
+Everything it did that anything used, `ask` does. What is left of it was a
+second reader of the same artwork, which can only ever disagree with the first.
+Its one other duplication went with it — `lockupsFor` said, for the fourth time
+in this codebase, that three of the four lockups need both drawings; that rule
+is `seen.lockups` now and the front door reads it instead of restating it twice.
+
+The route test runs both directions. A deployed function nothing calls is a list
+that has drifted, exactly like a call nothing serves.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.
@@ -5090,5 +5172,5 @@ lists drifting rather than any one of them being wrong.
     src/typeface.js   how a typeface reaches a document, decided once
     src/setname.js    a name that is set in the brand's face rather than drawn
     src/app/          the front door: handlers.js, server.js, client.html
-    ../api/           the same two handlers, as functions, for hosting it
+    ../api/           the same four handlers, as functions, for hosting it
     ../site/build.js  every identity, built into one site, index and all
