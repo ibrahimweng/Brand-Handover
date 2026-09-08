@@ -9,7 +9,7 @@
       "forest": {
         "hex": "#1B2A24",
         "role": "primary",
-        "pantone": "5605 C",
+        "pantone": "5605 U",
         "cmyk": [
           75,
           50,
@@ -20,7 +20,7 @@
       "copper": {
         "hex": "#B4692B",
         "role": "accent",
-        "pantone": "1605 C",
+        "pantone": "1605 U",
         "cmyk": [
           22,
           68,
@@ -42,7 +42,7 @@
       "slate": {
         "hex": "#6C7770",
         "role": "secondary",
-        "pantone": "5497 C",
+        "pantone": "5497 U",
         "cmyk": [
           56,
           39,
@@ -53,7 +53,7 @@
       "ink": {
         "hex": "#12100E",
         "role": "neutral",
-        "pantone": "Black 6 C",
+        "pantone": "Black 6 U",
         "cmyk": [
           60,
           55,

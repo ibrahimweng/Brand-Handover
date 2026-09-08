@@ -112,6 +112,47 @@
     return { lightness: Math.abs(a[0] - b[0]), chroma: Math.hypot(a[1] - b[1], a[2] - b[2]) };
   }
 
+  // -------------------------------------------------- the third description
+  //
+  // A colour can be written down a third time, as a spot ink. Nothing here
+  // knows what colour any Pantone reference is, and nothing here should: the
+  // library is theirs, and licence.js already says this package grants no
+  // rights to it. These are questions about the reference, not the colour.
+  //
+  // They are still worth asking, because a spot reference is the one line in
+  // the manual a print buyer works from directly. northline shipped seven
+  // colours whose reference was the string "line", and the manual printed it:
+  //
+  //     north      88/17/86/3      194%  given   line
+  //
+  // The shapes a reference comes in. Solid coated and uncoated are the same
+  // numbers in two books, and the finish letter is which book — 185 C and
+  // 185 U are different inks that are meant to look the same on their own
+  // paper, so a number with no letter names neither of them.
+  const SPOT_FINISH = /\b(C|U|CP|UP|CVC|CVU|XGC|M|TCX|TPG|TPM|TN)$/;
+  const SPOT_PMS = /^\d{2,4}$/;
+  // the six figure Fashion, Home + Interiors form, which is a different book
+  const SPOT_FHI = /^\d{2}-\d{4}$/;
+  const SPOT_NAMED = new RegExp('^(black|cool ?gr[ae]y|warm ?gr[ae]y|warm red|reflex blue|rhodamine red'
+    + '|rubine red|purple|violet|blue|green|yellow|orange|red|process (blue|cyan|magenta|yellow|black))\\b', 'i');
+
+  function spot(raw) {
+    const v = String(raw == null ? '' : raw).trim();
+    if (!v) return { kind: 'none' };
+    const m = SPOT_FINISH.exec(v);
+    const finish = m ? m[1] : null;
+    const body = (m ? v.slice(0, m.index) : v).trim();
+    const book = SPOT_FHI.test(body) ? 'fhi'
+      : (SPOT_PMS.test(body) || SPOT_NAMED.test(body)) ? 'pms' : null;
+    return { kind: book ? 'ref' : 'unknown', book, finish, body, raw: v };
+  }
+
+  // Which book the paper asks for. Coated and uncoated are not two finishes of
+  // one ink; they are two inks, chosen so that each matches the chip on its own
+  // stock. Naming the coated chip for a job printed uncoated is naming a colour
+  // nobody will see.
+  const WANTS = { coated: 'C', uncoated: 'U', newsprint: 'U' };
+
   // ------------------------------------------------------------------ checks
   function check(table, opts) {
     const o = opts || {};
@@ -128,6 +169,40 @@
         // is now two places: a project file and the app's palette. A how that
         // is only true on one of them is a how that is wrong on the other.
         how: 'Ask the printer for the build, or read it off a printed swatch book, and give it to the engine as four numbers. Until then anything that opens these files converts them itself.' });
+    }
+
+    // the spot reference, which is asked about even where there is no build:
+    // it is a different decision and a job can be all spot and no process
+    for (const c of table) {
+      if (!c.pantone) continue;
+      const sp = spot(c.pantone);
+      if (sp.kind === 'unknown') {
+        found.push({ level: o.forPress ? 'blocker' : 'warning', code: 'spotShape',
+          what: `${c.name} names "${sp.raw}" as its spot ink, and that is not a reference anybody can match.`,
+          why: 'The spot line is the one thing in the manual a print buyer works from without translating '
+            + 'it first. Whatever is written there is what gets read down a telephone to an ink supplier, '
+            + 'so a reference that is not one is not caught by anybody downstream — it is simply mixed wrong.',
+          how: `Give the reference from the swatch book, with the book it came from: "185 C" or "185 U". `
+            + `If ${c.name} is not a spot colour, take the field out and it will print from its build.` });
+        continue;
+      }
+      if (sp.book === 'pms' && !sp.finish) {
+        found.push({ level: o.forPress ? 'blocker' : 'warning', code: 'spotFinish',
+          what: `${c.name} names Pantone ${sp.body} without saying which book it is from.`,
+          why: 'Solid coated and solid uncoated carry the same numbers and are not the same ink. They are '
+            + 'mixed differently so that each matches its own chip on its own paper, so a number on its own '
+            + 'names two different colours and the printer picks.',
+          how: `Write ${sp.body} C for coated or ${sp.body} U for uncoated.` });
+      } else if (sp.book === 'pms' && sp.finish && WANTS[stock] && (sp.finish === 'C' || sp.finish === 'U')
+        && sp.finish !== WANTS[stock]) {
+        found.push({ level: 'warning', code: 'spotStock',
+          what: `${c.name} is ${sp.raw} and this project prints on ${stock} stock.`,
+          why: `Coated and uncoated are two inks, not one ink on two papers: each is mixed to match its own `
+            + `chip on its own stock. ${sp.raw} laid on ${stock} paper is not the colour of the ${sp.finish} `
+            + 'chip anybody signs off against, and the difference is large enough to argue about.',
+          how: `Name ${sp.body} ${WANTS[stock]} for the stock this is printed on, or give both and say which `
+            + 'is which, the way a manual that covers two kinds of job has to.' });
+      }
     }
 
     for (const c of table) {
@@ -172,5 +247,5 @@
     return map;
   }
 
-  return { table, byName, check, inkMap, parse, tone, TAC, RICH_BLACK_MIN, TONE_LIMIT, isBlackish };
+  return { table, byName, check, inkMap, parse, tone, spot, TAC, RICH_BLACK_MIN, TONE_LIMIT, isBlackish };
 }));

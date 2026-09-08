@@ -10,7 +10,7 @@
       "moss": {
         "hex": "#2C4A3B",
         "role": "primary",
-        "pantone": "5535 C",
+        "pantone": "5535 U",
         "cmyk": [
           72,
           44,
@@ -21,7 +21,7 @@
       "chalk": {
         "hex": "#F3F1E9",
         "role": "ground",
-        "pantone": "9184 C",
+        "pantone": "9184 U",
         "cmyk": [
           4,
           3,
@@ -32,7 +32,7 @@
       "gorse": {
         "hex": "#D9A02B",
         "role": "accent",
-        "pantone": "143 C",
+        "pantone": "143 U",
         "cmyk": [
           12,
           38,
@@ -43,7 +43,7 @@
       "slate": {
         "hex": "#5C6B70",
         "role": "secondary",
-        "pantone": "5487 C",
+        "pantone": "5487 U",
         "cmyk": [
           58,
           40,
@@ -54,7 +54,7 @@
       "peat": {
         "hex": "#221C18",
         "role": "neutral",
-        "pantone": "Black 7 C",
+        "pantone": "Black 7 U",
         "cmyk": [
           60,
           60,

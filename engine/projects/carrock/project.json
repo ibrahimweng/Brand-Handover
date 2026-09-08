@@ -4,11 +4,11 @@
   "assets": { "mark": "mark.svg", "wordmark": "wordmark.svg" },
   "tokens": {
     "colour": {
-      "shellac": { "hex": "#241C1A", "role": "primary",   "cmyk": [60, 62, 62, 70], "pantone": "Black 7 C" },
+      "shellac": { "hex": "#241C1A", "role": "primary",   "cmyk": [60, 62, 62, 70], "pantone": "Black 7 U" },
       "paper":   { "hex": "#F4F1EA", "role": "ground",    "cmyk": [4, 3, 8, 0],     "pantone": "11-0605" },
-      "oxide":   { "hex": "#B4442C", "role": "accent",    "cmyk": [16, 84, 90, 5],  "pantone": "7599 C" },
-      "tape":    { "hex": "#8C8478", "role": "neutral",   "cmyk": [44, 42, 50, 8],  "pantone": "403 C" },
-      "signal":  { "hex": "#E4B23C", "role": "secondary", "cmyk": [10, 30, 86, 0],  "pantone": "129 C" }
+      "oxide":   { "hex": "#B4442C", "role": "accent",    "cmyk": [16, 84, 90, 5],  "pantone": "7599 U" },
+      "tape":    { "hex": "#8C8478", "role": "neutral",   "cmyk": [44, 42, 50, 8],  "pantone": "403 U" },
+      "signal":  { "hex": "#E4B23C", "role": "secondary", "cmyk": [10, 30, 86, 0],  "pantone": "129 U" }
     },
     "type": {
       "families": {

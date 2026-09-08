@@ -1334,6 +1334,67 @@ test('a build that is a different tone from its own hex is said so', () => {
   assert.deepStrictEqual(off, [], off.join('\n'));
 });
 
+test('a spot reference is read as a reference, not carried as a string', () => {
+  // The third description of a colour. Nothing here knows what colour any
+  // Pantone reference is and nothing here should — the library is theirs, and
+  // licence.js says this package grants no rights to it. These are questions
+  // about the reference.
+  //
+  // They were worth asking. northline shipped seven colours whose spot ink was
+  // the string "line", and the manual printed it straight out to the client:
+  // "north  88/17/86/3  194%  given  line". Nothing downstream catches that,
+  // because the spot line is the one thing a print buyer reads and acts on
+  // without translating it first.
+  const shape = (v) => K.spot(v);
+  assert.strictEqual(shape('185 C').book, 'pms');
+  assert.strictEqual(shape('185 C').finish, 'C');
+  assert.strictEqual(shape('Black 6 C').body, 'Black 6');
+  assert.strictEqual(shape('Cool Gray 9 U').finish, 'U');
+  assert.strictEqual(shape('11-0601').book, 'fhi', 'the six figure form is a different book');
+  assert.strictEqual(shape('line').kind, 'unknown');
+  assert.strictEqual(shape('').kind, 'none');
+
+  // not a reference at all
+  const junk = K.check(K.table({ north: { hex: '#0E7C4A', cmyk: [88, 17, 86, 3], pantone: 'line' } }), {});
+  const bad = junk.find((x) => x.code === 'spotShape');
+  assert.ok(bad, '"line" was carried through as a spot ink');
+  assert.strictEqual(bad.level, 'warning');
+  assert.strictEqual(K.check(K.table({ n: { hex: '#0E7C4A', pantone: 'line' } }),
+    { forPress: true }).find((x) => x.code === 'spotShape').level, 'blocker');
+  for (const k of ['what', 'why', 'how']) assert.ok(bad[k].length > 20);
+
+  // a number with no book names two different inks
+  const nofin = K.check(K.table({ a: { hex: '#C8102E', pantone: '185' } }), {});
+  const f = nofin.find((x) => x.code === 'spotFinish');
+  assert.ok(f && /185 C/.test(f.how) && /185 U/.test(f.how), 'it does not say which two');
+  // and the six figure form is left alone: it is a different book, not a
+  // solid coated number missing its letter
+  assert.deepStrictEqual(
+    K.check(K.table({ a: { hex: '#F5F3EC', pantone: '11-0601' } }), {})
+      .filter((x) => /^spot/.test(x.code || '')), []);
+
+  // the book the paper asks for
+  const wrong = K.check(K.table({ pitch: { hex: '#101820', pantone: 'Black 6 C' } }), { stock: 'uncoated' });
+  const w = wrong.find((x) => x.code === 'spotStock');
+  assert.ok(w, 'a coated ink on uncoated stock is not reported');
+  assert.ok(/Black 6 U/.test(w.how), `it does not name the ink to use: ${w.how}`);
+  assert.deepStrictEqual(K.check(K.table({ pitch: { hex: '#101820', pantone: 'Black 6 U' } }),
+    { stock: 'uncoated' }).filter((x) => /^spot/.test(x.code || '')), []);
+  assert.deepStrictEqual(K.check(K.table({ pitch: { hex: '#101820', pantone: 'Black 6 C' } }),
+    { stock: 'coated' }).filter((x) => /^spot/.test(x.code || '')), []);
+
+  // every identity in the repository passes all three
+  const names = fs.readdirSync(path.join(__dirname, '..', 'projects'))
+    .filter((d) => fs.existsSync(path.join(__dirname, '..', 'projects', d, 'project.json')));
+  const off = [];
+  for (const n of names) {
+    const pr = projectLoader.load(path.join(__dirname, '..', 'projects', n, 'project.json'));
+    for (const x of K.check(K.table(pr.tokens.colour || {}), { stock: pr.rules.stock }))
+      if (/^spot/.test(x.code || '')) off.push(`${n}: ${x.what}`);
+  }
+  assert.deepStrictEqual(off, [], off.join('\n'));
+});
+
 test('a missing build is a blocker for press and a warning otherwise', () => {
   const t = K.table({ a: { hex: '#1E7A8C' } });
   assert.strictEqual(K.check(t, { forPress: true })[0].level, 'blocker');

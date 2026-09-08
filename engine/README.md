@@ -4586,6 +4586,75 @@ gets wrong it gets wrong for both sides at once. The check cannot tell anybody
 that their build is *right*; only the printer can. It can tell them when it is
 not even close, which is the case nobody was watching for.
 
+## The third description
+
+The round before this one found that a colour is written down twice and the two
+were never compared. It is written down three times. The spot ink was carried
+faithfully from the project file into `brand.json`, into the print check, into
+the manual, and read by nothing on the way.
+
+### What can honestly be asked
+
+Not what colour it is. That belongs to Pantone, `licence.js` already says this
+package grants no rights to their references, and a lookup table lifted from
+somewhere would be both wrong and theirs. So the checks here know nothing about
+colour. They know about the shape of a reference, which is public:
+
+    solid       185 C     7527 U     Black 6 C     Cool Gray 9 U
+    process     185 CP    185 UP     extended gamut  185 XGC
+    FHI         11-0601 TCX / TPG / TPM   — a different book entirely
+
+`spot()` splits a reference into a body, a book and a finish. Three things
+follow from it, and none needs a colour value.
+
+**It is a reference.** northline shipped twelve colours, five with real
+references and seven whose spot ink was the string `"line"`. The print check
+laid it out for the client:
+
+    north      88/17/86/3      194%  given   line
+
+That is the one line in a manual somebody acts on without translating it: it is
+read down a telephone to an ink supplier. Nothing downstream sees anything odd,
+because nothing downstream expects to have to.
+
+**A number says which book it came from.** Solid coated and solid uncoated hold
+the same numbers, and they are not one ink on two papers — they are two inks,
+mixed so that each matches its own chip on its own stock. `185` on its own names
+both and neither.
+
+**The book is the one the paper asks for.** `rules.stock` is already declared,
+already drives the ink limit, and had never been asked this. Seven identities
+here declare `uncoated` and named coated inks — thirty-two references in
+beaumont, carrock, halyard, marlow, saltmarsh, thornbury and yarrow. A `C` ink
+on uncoated paper is not the colour of the `C` chip that was signed off, and the
+gap is large enough to be argued about at a press check.
+
+### What was fixed and what was not
+
+northline's seven are removed rather than replaced. The right PMS numbers for
+those greens and reds are not something that can be worked out from a hex, and
+the whole position of `src/cmyk.js` is that a print value nobody chose is worse
+than an absent one. Those colours print from their builds now, and the manual
+shows an empty spot column for them, which is true.
+
+The thirty-two say `U`. That is a format completion rather than a colour claim:
+the solid books carry the same numbers, so `Black 6 U` is the same chip in the
+book the declared stock asks for.
+
+Fifteen identities give their paper colour a six-figure code — `11-0601`,
+`11-0605`, `11-0602` — and those were measured and left alone. The `NN-NNNN`
+shape is the Fashion, Home + Interiors form, which is a different system from
+the printing inks around it, and a bare one names no system either. But they sit
+on near-white paper colours that are arguably stock rather than ink, the fix is
+ambiguous between TCX and TPG, and a check that fired on all fifteen would have
+produced fifteen shrugs and taught everybody to skip it. `spotFinish` asks for a
+book only of a PMS number, where a missing book means two named inks and a
+printer choosing. It fires on nothing in the repository today and has teeth for
+the case it is for.
+
+Eight identities change. meridian and vesper, both coated and both correct, do
+not.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.

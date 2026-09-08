@@ -4,10 +4,10 @@
   "assets": { "mark": "mark.svg", "wordmark": "wordmark.svg" },
   "tokens": {
     "colour": {
-      "pitch":  { "hex": "#101820", "role": "ground",    "pantone": "Black 6 C", "cmyk": [78, 62, 50, 92] },
-      "bone":   { "hex": "#F5F1E8", "role": "primary",   "pantone": "7527 C",    "cmyk": [3, 4, 9, 0] },
-      "flare":  { "hex": "#C6442E", "role": "accent",    "pantone": "1795 C",    "cmyk": [12, 88, 92, 3] },
-      "rope":   { "hex": "#8A7A5E", "role": "secondary", "pantone": "4515 C" },
+      "pitch":  { "hex": "#101820", "role": "ground",    "pantone": "Black 6 U", "cmyk": [78, 62, 50, 92] },
+      "bone":   { "hex": "#F5F1E8", "role": "primary",   "pantone": "7527 U",    "cmyk": [3, 4, 9, 0] },
+      "flare":  { "hex": "#C6442E", "role": "accent",    "pantone": "1795 U",    "cmyk": [12, 88, 92, 3] },
+      "rope":   { "hex": "#8A7A5E", "role": "secondary", "pantone": "4515 U" },
       "fog":    { "hex": "#6E7B82", "role": "neutral",   "cmyk": [52, 46, 43, 10] }
     },
     "type": {

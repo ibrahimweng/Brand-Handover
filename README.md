@@ -1470,4 +1470,42 @@ What this gives Pagrin is not four numbers. It is that when the four numbers
 arrive from the printer, the engine will check them against the colour they are
 supposed to be, which it could not do yesterday.
 
+The forty-fourth did the third description. A colour can be written down three
+times — a hex, a build, and a spot ink — and the round before this one found that
+nothing compared the first two. Nothing read the third at all.
+
+It cannot be read very far. What colour any Pantone reference is belongs to
+Pantone, and `licence.js` already says this package grants no rights to it. But
+a reference has a shape, and the shape is answerable:
+
+    northline    north      #0E7C4A     pantone: "line"
+
+Seven of northline's twelve colours named `"line"` as their spot ink, and the
+manual printed it to the client without comment:
+
+    north      88/17/86/3      194%  given   line
+
+The spot line is the one thing in a manual a print buyer acts on without
+translating it first — it gets read down a telephone to an ink supplier — so
+nothing downstream catches it. It is simply mixed wrong.
+
+**And the book matters as much as the number.** Solid coated and solid uncoated
+carry the same numbers and are not the same ink: each is mixed so that it matches
+its own chip on its own paper. Seven identities in this repository declared
+`stock: uncoated` and named coated inks — thirty-two references across beaumont,
+carrock, halyard, marlow, saltmarsh, thornbury and yarrow. `Black 6 C` laid on
+uncoated paper is not the colour of the chip anybody signed off.
+
+Three checks, none of which needs to know what colour anything is: the reference
+is a reference, a Pantone number says which book it came from, and that book is
+the one the declared stock asks for. northline's seven are gone rather than
+guessed at — the right numbers are not something that can be worked out — and
+those colours print from their builds now. The thirty-two say `U`.
+
+What was measured and left alone: fifteen identities give their paper colour a
+six-figure code like `11-0601`, which is the Fashion, Home + Interiors form
+rather than a printing ink. It is underspecified, the fix is ambiguous between
+two systems, and firing on it would have produced fifteen shrugs. The check asks
+for a book only where a book is what is missing.
+
 Still to do: nothing named. The next one is whatever the next real export breaks.

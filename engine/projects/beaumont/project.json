@@ -10,7 +10,7 @@
       "ink": {
         "hex": "#1A1714",
         "role": "primary",
-        "pantone": "Black 4 C",
+        "pantone": "Black 4 U",
         "cmyk": [
           58,
           58,
@@ -21,7 +21,7 @@
       "paper": {
         "hex": "#EFEADF",
         "role": "ground",
-        "pantone": "9182 C",
+        "pantone": "9182 U",
         "cmyk": [
           5,
           5,
@@ -32,7 +32,7 @@
       "correction": {
         "hex": "#A8342A",
         "role": "accent",
-        "pantone": "1805 C",
+        "pantone": "1805 U",
         "cmyk": [
           22,
           92,
@@ -43,7 +43,7 @@
       "board": {
         "hex": "#7A7266",
         "role": "secondary",
-        "pantone": "403 C",
+        "pantone": "403 U",
         "cmyk": [
           48,
           44,
@@ -54,7 +54,7 @@
       "gilt": {
         "hex": "#9A7B3F",
         "role": "neutral",
-        "pantone": "4515 C",
+        "pantone": "4515 U",
         "cmyk": [
           36,
           46,

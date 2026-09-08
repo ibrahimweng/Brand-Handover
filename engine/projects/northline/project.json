@@ -64,7 +64,6 @@
       },
       "north": {
         "hex": "#0E7C4A",
-        "pantone": "line",
         "cmyk": [
           88,
           17,
@@ -74,7 +73,6 @@
       },
       "east": {
         "hex": "#C8102E",
-        "pantone": "line",
         "cmyk": [
           8,
           100,
@@ -84,7 +82,6 @@
       },
       "west": {
         "hex": "#7A4FA3",
-        "pantone": "line",
         "cmyk": [
           62,
           79,
@@ -94,7 +91,6 @@
       },
       "coast": {
         "hex": "#0093B2",
-        "pantone": "line",
         "cmyk": [
           82,
           20,
@@ -104,7 +100,6 @@
       },
       "loop": {
         "hex": "#E8A33D",
-        "pantone": "line",
         "cmyk": [
           7,
           39,
@@ -114,7 +109,6 @@
       },
       "quay": {
         "hex": "#8C6239",
-        "pantone": "line",
         "cmyk": [
           38,
           58,
@@ -124,7 +118,6 @@
       },
       "spur": {
         "hex": "#5A6670",
-        "pantone": "line",
         "cmyk": [
           62,
           48,
