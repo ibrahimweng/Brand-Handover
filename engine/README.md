@@ -4506,6 +4506,86 @@ draw the monogram differently. What the engine can say is that the ladder is
 continuous, that every rung is simpler than the one above it and holds smaller,
 and that no size in the package now falls below the drawing it is cut from.
 
+## Two descriptions of the same colour
+
+`src/cmyk.js` has said the same thing since it was written, and it is correct:
+
+> The one rule here is that CMYK is a decision, not a conversion … sRGB
+> describes light leaving a screen and CMYK describes ink sitting on a
+> particular paper under a particular press. Nothing in a hex code knows which
+> paper.
+
+So the engine carries the four numbers somebody competent gives it, labels the
+fallback formula as a guess, refuses to put a guess in `inkMap`, and warns where
+a build is missing — a blocker if the file is going to press. Pagrin's palette
+has no builds and the honest answer is still that they have to come from
+Pagrin's printer. Fabricating five of them to clear a warning is the exact
+failure this file was written to prevent.
+
+What follows from carrying both, though, is that every brand colour is written
+down twice. A hex and four numbers, describing one colour, in one file, and
+nothing had ever asked whether they agreed.
+
+### The axis that survives
+
+The two are not meant to be identical, which is why this is not as simple as a
+colour difference. Ink has a smaller gamut than a screen: a vivid colour comes
+back duller, and that gap *is* the reason a build is a decision. So a large
+difference is expected and means nothing on its own.
+
+But the loss is in chroma. Lightness is the one axis every printing condition
+keeps — paper white to solid black is available whatever the ink and the stock.
+So the two failures separate cleanly:
+
+- far apart in **chroma**, close in lightness → the press cannot reach the hue.
+  Normal, expected, not a finding.
+- far apart in **lightness**, and further than in chroma → nothing about gamut
+  explains it. The build is a different colour.
+
+Measured over the 148 declared builds here. Taking the 108 the plain model
+reproduces without chroma loss, so that the model is being trusted only where it
+is trustworthy:
+
+    lightness away from its own hex
+      median 2.3    90th 6.8    99th 14.6    then 50.8
+
+One value, three and a half times the ninety-ninth percentile, with a gap under
+it and nothing in the gap. It is `halyard/fog`: `#6E7B82`, a mid grey, in the
+`neutral` role, declared `0/0/0/100`. Solid black. Printed, halyard's neutral
+would have come out black, next to `pitch` — its actual black — at 78/62/50/92.
+
+Every threshold from 15 to 30 finds that one and nothing else, so `TONE_LIMIT`
+is 20 because that is the middle of an empty band, not because it is where the
+one known case happened to fall. The check is insensitive across a 2× range of
+its own constant, which is the thing worth being able to say about a threshold.
+
+### The check that had already seen it
+
+The rich-black check found this colour eight rounds ago and said the wrong thing
+about it:
+
+    warning: fog is 0/0/0/100, which is a plain black. Back it up to about
+    240% total, for instance 60/40/40/100.
+
+That advice is correct for a black and this is not a black. Following it would
+have moved halyard's mid grey from solid black to *rich* black — further from
+`#6E7B82`, not nearer, and with the warning cleared. A check that reads a
+symptom and prescribes confidently for the wrong illness is worse than no check,
+because it closes the question.
+
+`fog` is `52/46/43/10` now, which is where ancroft's `#5A6068` (62/48/42/12) and
+harbourne's `#5E6265` (58/46/44/14) sit, allowing for it being the lighter grey.
+halyard is the only one of the thirty-two whose output moves.
+
+### What it is not
+
+`unInk` is the plain inverse of the plain formula and is not a press simulation.
+It is never asked what a colour will look like — only whether two descriptions
+of one colour are the same tone, which is a comparison, and whatever the model
+gets wrong it gets wrong for both sides at once. The check cannot tell anybody
+that their build is *right*; only the printer can. It can tell them when it is
+not even close, which is the case nobody was watching for.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.

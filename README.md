@@ -1429,4 +1429,45 @@ The bands meet, so there is no size from 12 px up that nothing serves. The icon
 warning is gone, the package goes from 143 files to 197, and `favicon-16.png`
 stops being a grey square and becomes a mark.
 
+The forty-third went after Pagrin's last warning and found somebody else's.
+
+`src/cmyk.js` opens by saying that CMYK is a decision and not a conversion: a
+hex describes light leaving a screen, ink sits on a particular paper under a
+particular press, and no formula knows which paper. So the engine carries the
+four numbers a designer or printer gives it, refuses to print a guess, and says
+so where they are missing. That is right, and Pagrin's four numbers still have
+to come from Pagrin's printer — inventing them is the exact thing this file
+exists to prevent.
+
+But it means every brand colour is written down **twice**, as a hex and as a
+build, and nothing had ever asked whether the two were the same colour.
+
+They are not meant to be identical. Ink has a smaller gamut, so a vivid colour
+comes back duller — that difference is the whole reason a build is a decision.
+The loss is in **chroma**. Lightness is the axis ink keeps: every press runs from
+paper white to solid black. So a build far from its hex in chroma is a colour the
+press cannot reach, and a build far from it in lightness is a different colour.
+
+Measured over the 148 declared builds in the repository — of the 108 the plain
+model reproduces without losing chroma, lightness differs by a median of 2.3 and
+a 99th percentile of 14.6, and then one sits at **50.8**:
+
+    halyard/fog   #6E7B82   declared 0/0/0/100
+
+A mid grey, declared as solid black. It is the `neutral` role, it has shipped
+since the ninth round, and printed it would have come out black beside halyard's
+actual black. Nothing caught it because nothing compared the two descriptions.
+The rich-black check had actually *seen* it — it warned "fog is 0/0/0/100, which
+is a plain black" and advised backing it up to 60/40/40/100, which would have
+taken a mid grey from solid black to **rich** black. It read a symptom and
+prescribed for the wrong illness.
+
+Every threshold between 15 and 30 catches that one and nothing else, so the
+number is a gap in the data rather than one fitted to the case that found it.
+fog is `52/46/43/10` now, which is where the repository's other cool greys sit.
+
+What this gives Pagrin is not four numbers. It is that when the four numbers
+arrive from the printer, the engine will check them against the colour they are
+supposed to be, which it could not do yesterday.
+
 Still to do: nothing named. The next one is whatever the next real export breaks.

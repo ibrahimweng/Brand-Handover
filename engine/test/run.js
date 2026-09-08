@@ -1285,6 +1285,55 @@ test('a plain black is worth a word, because it prints as grey', () => {
   // a rich black passes
   assert.deepStrictEqual(K.check(K.table({ ink: { hex: '#000000', cmyk: [60, 40, 40, 100] } }), {}), []);
 });
+test('a build that is a different tone from its own hex is said so', () => {
+  // Every brand colour is written down twice — a hex and a build — and nothing
+  // asked whether the two were the same colour. halyard shipped for thirty
+  // rounds with its neutral, a mid grey #6E7B82, declared 0/0/0/100. Printed,
+  // the brand's grey came out solid black beside its actual black.
+  //
+  // The two descriptions are not meant to be identical: ink has a smaller gamut
+  // and a vivid colour comes back duller, which is the whole reason a build is
+  // a decision rather than a conversion. The loss is in chroma. Lightness is
+  // the axis ink keeps, so a build that is far from its hex in lightness and
+  // near it in chroma is not a gamut problem, it is a different colour.
+  const grey = K.check(K.table({ fog: { hex: '#6E7B82', cmyk: [0, 0, 0, 100] } }), {});
+  const tone = grey.find((x) => x.code === 'cmykTone');
+  assert.ok(tone, 'a mid grey declared as solid black is not reported');
+  assert.strictEqual(tone.level, 'warning');
+  assert.strictEqual(K.check(K.table({ fog: { hex: '#6E7B82', cmyk: [0, 0, 0, 100] } }),
+    { forPress: true }).find((x) => x.code === 'cmykTone').level, 'blocker');
+  for (const k of ['what', 'why', 'how']) assert.ok(tone[k].length > 20);
+  assert.ok(/#6E7B82/.test(tone.what) && /0\/0\/0\/100/.test(tone.what));
+
+  // and it does not fire on the thing it would be easy to confuse it with: a
+  // saturated colour whose real build cannot reach it. northline's green is
+  // 26.7 out in lightness and 54.8 out in chroma, which is gamut, not a typo.
+  assert.deepStrictEqual(
+    K.check(K.table({ north: { hex: '#0E7C4A', cmyk: [88, 17, 86, 3] } }), {})
+      .filter((x) => x.code === 'cmykTone'), []);
+  // nor on a build that is simply right
+  assert.deepStrictEqual(
+    K.check(K.table({ fog: { hex: '#6E7B82', cmyk: [52, 46, 43, 10] } }), {})
+      .filter((x) => x.code === 'cmykTone'), []);
+
+  // the split it turns on, measured rather than asserted
+  const bad = K.tone('#6E7B82', [0, 0, 0, 100]);
+  assert.ok(bad.lightness > 45 && bad.chroma < 10, JSON.stringify(bad));
+  const gamut = K.tone('#0E7C4A', [88, 17, 86, 3]);
+  assert.ok(gamut.chroma > gamut.lightness, JSON.stringify(gamut));
+
+  // every identity in the repository passes it
+  const names = fs.readdirSync(path.join(__dirname, '..', 'projects'))
+    .filter((d) => fs.existsSync(path.join(__dirname, '..', 'projects', d, 'project.json')));
+  const off = [];
+  for (const n of names) {
+    const pr = projectLoader.load(path.join(__dirname, '..', 'projects', n, 'project.json'));
+    for (const f of K.check(K.table(pr.tokens.colour || {}), { stock: pr.rules.stock || 'coated' }))
+      if (f.code === 'cmykTone') off.push(`${n}: ${f.what}`);
+  }
+  assert.deepStrictEqual(off, [], off.join('\n'));
+});
+
 test('a missing build is a blocker for press and a warning otherwise', () => {
   const t = K.table({ a: { hex: '#1E7A8C' } });
   assert.strictEqual(K.check(t, { forPress: true })[0].level, 'blocker');
@@ -1493,7 +1542,17 @@ test('the whole package builds for a project unlike the first one', async () => 
   const w = r.warnings.join(' ');
   assert.ok(/no CMYK: rope/.test(w), 'the undeclared build was not reported');
   assert.ok(/282% ink/.test(w), 'the ink limit was not reported');
-  assert.ok(/plain black/.test(w), 'the plain black was not reported');
+  // There was a third: fog carried 0/0/0/100 and this line asked for "plain
+  // black". It was hung on the wrong colour. fog is #6E7B82, a mid grey, so
+  // that build was not an under-cooked black at all — it was a different
+  // colour, and the brand's neutral would have printed solid black beside its
+  // actual black. The rich-black check saw the symptom and gave advice that
+  // would have made it worse: back it up to 60/40/40/100, still black. The
+  // tone check finds it now and fog is 52/46/43/10, so there is no plain black
+  // left in the repository to demonstrate with. It is covered by its own test
+  // above, on a colour that really is black.
+  assert.ok(!/plain black/.test(w), 'halyard still carries a plain black');
+  assert.ok(!/different tone/.test(w), 'halyard still carries a build in the wrong tone');
   // this project marks no pattern source, and used to get a warning and no
   // pattern; it gets a pattern and a note saying which shape was chosen
   assert.ok(!/no pattern was written/.test(w), 'a pattern was still refused');
