@@ -16,7 +16,7 @@
   "tokens": {
     "colour": {
       "ink":     { "hex": "#1B2B4B", "role": "primary",   "cmyk": [96, 82, 40, 32], "pantone": "295 C" },
-      "lime":    { "hex": "#F4F2ED", "role": "ground",    "cmyk": [4, 3, 7, 0],     "pantone": "11-0601" },
+      "lime":    { "hex": "#F4F2ED", "role": "ground",    "cmyk": [4, 3, 7, 0] },
       "verdigris": { "hex": "#2E7D74", "role": "secondary", "cmyk": [82, 30, 55, 10], "pantone": "5483 C" },
       "ochre":   { "hex": "#C98A1E", "role": "accent",    "cmyk": [18, 45, 100, 2], "pantone": "1245 C" },
       "lead":    { "hex": "#6E7378", "role": "neutral",   "cmyk": [56, 44, 41, 8],  "pantone": "430 C" },

@@ -31,8 +31,7 @@
       "linen": {
         "hex": "#F4F1EA",
         "role": "ground",
-        "pantone": "11-0605",
-        "cmyk": [
+"cmyk": [
           4,
           3,
           7,

@@ -163,7 +163,7 @@ async function main(argv) {
         + `${c.declared ? 'given' : 'worked out, do not send this'}${c.pantone ? '   ' + c.pantone : ''}`);
     }
     console.log('');
-    const found = cmyk.check(table, { stock, forPress: true });
+    const found = cmyk.check(table, { stock, forPress: true, colourways: proj.rules.colourways });
     console.log(format(found, { name: `${proj.brand} for print` }));
     return found.some((f) => f.level === 'blocker') ? 1 : 0;
   }

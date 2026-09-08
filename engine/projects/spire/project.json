@@ -21,8 +21,7 @@
       "lime": {
         "hex": "#F2EFE6",
         "role": "primary",
-        "pantone": "11-0601",
-        "cmyk": [
+"cmyk": [
           4,
           3,
           9,

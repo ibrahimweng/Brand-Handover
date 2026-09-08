@@ -4642,18 +4642,62 @@ the solid books carry the same numbers, so `Black 6 U` is the same chip in the
 book the declared stock asks for.
 
 Fifteen identities give their paper colour a six-figure code — `11-0601`,
-`11-0605`, `11-0602` — and those were measured and left alone. The `NN-NNNN`
-shape is the Fashion, Home + Interiors form, which is a different system from
-the printing inks around it, and a bare one names no system either. But they sit
-on near-white paper colours that are arguably stock rather than ink, the fix is
-ambiguous between TCX and TPG, and a check that fired on all fifteen would have
-produced fifteen shrugs and taught everybody to skip it. `spotFinish` asks for a
-book only of a PMS number, where a missing book means two named inks and a
-printer choosing. It fires on nothing in the repository today and has teeth for
-the case it is for.
+`11-0605`, `11-0602` — the Fashion, Home + Interiors form, a different system
+from the printing inks around it. Those were measured and left alone at first,
+because they sit on near-white colours that are arguably stock rather than ink
+and the fix looked ambiguous between TCX and TPG. See the section below: it is
+not that choice, and the thing that decides it is measurable.
+
+`spotFinish` asks for a book only of a PMS number, where a missing book means
+two named inks and a printer choosing. It fires on nothing in the repository
+today and has teeth for the case it is for.
 
 Eight identities change. meridian and vesper, both coated and both correct, do
 not.
+
+## A chip is not an ink, where it is printed as one
+
+The FHI codes, left alone one round ago on the grounds that a bare `11-0601` is
+underspecified rather than wrong, and that choosing between TCX and TPG for
+somebody else was not the engine's business.
+
+Both halves of that were wrong, and one measurement shows why.
+
+    identity     colour     hex       role     fhi       what it does
+    ancroft      chalk      #F5F3EC   ground   11-0601   ink in "reverse"
+    fathom       foam       #F1F0EA   primary  11-0601   ink in "reverse"
+    perigee      paper      …         primary  11-0602   ink in "full"
+    verdon       calcaire   #F3F1EA   ground   11-0601   ink in "inverse"
+    hallward     paper      #FBFAF7   ground   11-0601   ground only
+    …
+
+**Fourteen of the fifteen are printed.** Each is the ink of a reversed
+colourway: the mark goes on paper in that colour. And the Fashion, Home +
+Interiors book numbers cloth, paint and plastic — there is no ink formula behind
+any of it. So the suffix was never the problem. A press cannot mix `11-0601`
+whether it says TCX, TPG or nothing at all.
+
+The fifteenth is hallward's paper, which appears in no colourway's slots and is
+only ever the ground a colourway is cut *for*. That is the stock, and recording
+which chip your stock matches is a reasonable thing for a manual to say.
+
+So `spotBook` does not ask whether a reference is FHI. It asks whether the
+colour is an ink, and `inked()` reads that off `rules.colourways` — a slot value
+is ink, the `on` is paper. Both callers already had the colourways to hand and
+now pass them. Fourteen fire; hallward does not; hallward is the one identity
+that still carries a six-figure code, which is the outcome that says the check
+is about the right thing.
+
+The fourteen are removed rather than replaced, for the reason northline's seven
+were: what printing ink matches `#F5F3EC` on a given press and paper is not
+derivable from the hex, and this file's whole position is that an absent print
+value beats one nobody chose. They print from their builds.
+
+What is lost by removing them is the record that the stock was matched to a
+chip, and there is nowhere in the schema to put that — `rules.fabrication` is
+about engraving and foil, not paper. That is a gap, and it is named here rather
+than papered over by leaving a wrong reference in a field that means something
+else.
 
 ## What it does not do yet
 

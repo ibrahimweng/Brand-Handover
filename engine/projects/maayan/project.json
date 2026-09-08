@@ -23,8 +23,7 @@
       "chalk": {
         "hex": "#F7F5F0",
         "role": "primary",
-        "pantone": "11-0601",
-        "cmyk": [
+"cmyk": [
           2,
           2,
           5,

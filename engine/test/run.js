@@ -1395,6 +1395,61 @@ test('a spot reference is read as a reference, not carried as a string', () => {
   assert.deepStrictEqual(off, [], off.join('\n'));
 });
 
+test('a chip from a book of cloth is not an ink, where it is printed as one', () => {
+  // Fifteen identities gave their near-white a six figure code — 11-0601,
+  // 11-0605, 11-0602 — which is the Fashion, Home + Interiors form. The round
+  // before this measured them and left them alone, because a bare one is
+  // underspecified rather than wrong and the fix looked like a choice between
+  // TCX and TPG.
+  //
+  // It is not that choice. That book numbers cloth, paint and plastic; there is
+  // no ink formula behind any of it. And fourteen of the fifteen colours are
+  // printed: each is the ink of a reversed colourway, so the mark really is put
+  // on paper in that colour. The odd one out is hallward's paper, which is only
+  // ever the ground — and for that, recording which chip the stock matches is a
+  // fair thing to write down. So the question is not whether the code is FHI.
+  // It is whether the colour is an ink.
+  const colours = { chalk: { hex: '#F5F3EC', cmyk: [4, 3, 8, 0], pantone: '11-0601' },
+    ink: { hex: '#123B2E', cmyk: [80, 40, 70, 40] } };
+  const reversed = [{ name: 'reverse', on: 'ink', slots: { ink: '#F5F3EC' } }];
+  const grounded = [{ name: 'plain', on: 'chalk', slots: { ink: '#123B2E' } }];
+
+  const asInk = K.check(K.table(colours), { colourways: reversed });
+  const f = asInk.find((x) => x.code === 'spotBook');
+  assert.ok(f, 'a cloth chip used as a printing ink is not reported');
+  assert.strictEqual(f.level, 'warning');
+  assert.strictEqual(K.check(K.table(colours), { colourways: reversed, forPress: true })
+    .find((x) => x.code === 'spotBook').level, 'blocker');
+  for (const k of ['what', 'why', 'how']) assert.ok(f[k].length > 20);
+
+  // the same chip on a colour nothing prints is a note about the stock
+  assert.deepStrictEqual(
+    K.check(K.table(colours), { colourways: grounded }).filter((x) => x.code === 'spotBook'), []);
+
+  // which colours are ink is read off the colourways, not guessed
+  assert.deepStrictEqual([...K.inked(K.table(colours), reversed)], ['chalk']);
+  assert.deepStrictEqual([...K.inked(K.table(colours), grounded)], ['ink']);
+  // and a colourway that keeps the artwork's own paint names no colour at all
+  assert.deepStrictEqual([...K.inked(K.table(colours), [{ name: 'x', slots: { ink: 'keep' } }])], []);
+
+  // every identity in the repository passes, hallward included, and hallward
+  // is the one that still carries a chip
+  const names = fs.readdirSync(path.join(__dirname, '..', 'projects'))
+    .filter((d) => fs.existsSync(path.join(__dirname, '..', 'projects', d, 'project.json')));
+  const off = [];
+  let chips = 0;
+  for (const n of names) {
+    const pr = projectLoader.load(path.join(__dirname, '..', 'projects', n, 'project.json'));
+    for (const c of Object.values(pr.tokens.colour || {}))
+      if (/^\d{2}-\d{4}$/.test(String(c.pantone || '').trim())) chips++;
+    for (const x of K.check(K.table(pr.tokens.colour || {}),
+      { stock: pr.rules.stock, colourways: pr.rules.colourways }))
+      if (/^spot/.test(x.code || '')) off.push(`${n}: ${x.what}`);
+  }
+  assert.deepStrictEqual(off, [], off.join('\n'));
+  assert.strictEqual(chips, 1, 'the one chip left should be the paper nothing prints');
+});
+
 test('a missing build is a blocker for press and a warning otherwise', () => {
   const t = K.table({ a: { hex: '#1E7A8C' } });
   assert.strictEqual(K.check(t, { forPress: true })[0].level, 'blocker');

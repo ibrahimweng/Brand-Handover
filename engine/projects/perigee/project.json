@@ -21,8 +21,7 @@
       "paper": {
         "hex": "rgb(247, 246, 243)",
         "role": "primary",
-        "pantone": "11-0602",
-        "cmyk": [
+"cmyk": [
           2,
           2,
           4,

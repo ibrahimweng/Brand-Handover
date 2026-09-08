@@ -342,7 +342,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   const lic0 = require('./licence');
   const inkTable = cmyk.table(project.tokens.colour || {});
   const ink = cmyk.inkMap(inkTable);
-  const inkFindings = cmyk.check(inkTable, { stock: rules.stock, forPress: false });
+  const inkFindings = cmyk.check(inkTable, { stock: rules.stock, forPress: false, colourways: rules.colourways });
   for (const f of inkFindings) warnings.push(`${f.what} ${f.how}`);
   // A colourway names the ground it is cut for. Whether its inks can actually
   // be seen on that ground is arithmetic, and the contrast module has been here

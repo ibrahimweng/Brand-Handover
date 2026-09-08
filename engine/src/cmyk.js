@@ -153,6 +153,20 @@
   // nobody will see.
   const WANTS = { coated: 'C', uncoated: 'U', newsprint: 'U' };
 
+  // Which of these is actually printed as ink. A colourway names a colour per
+  // slot and is cut *for* a ground, so the ground is paper and the slots are
+  // ink. The difference decides whether a reference from a book of material
+  // chips is a note about the stock or a colour nobody can mix.
+  function inked(table, colourways) {
+    const slots = new Set();
+    for (const w of colourways || []) {
+      for (const v of Object.values((w && w.slots) || {})) {
+        if (typeof v === 'string' && v.charAt(0) === '#') slots.add(v.trim().toUpperCase());
+      }
+    }
+    return new Set(table.filter((c) => slots.has(String(c.hex).trim().toUpperCase())).map((c) => c.name));
+  }
+
   // ------------------------------------------------------------------ checks
   function check(table, opts) {
     const o = opts || {};
@@ -173,6 +187,7 @@
 
     // the spot reference, which is asked about even where there is no build:
     // it is a different decision and a job can be all spot and no process
+    const asInk = o.colourways ? inked(table, o.colourways) : null;
     for (const c of table) {
       if (!c.pantone) continue;
       const sp = spot(c.pantone);
@@ -185,6 +200,24 @@
           how: `Give the reference from the swatch book, with the book it came from: "185 C" or "185 U". `
             + `If ${c.name} is not a spot colour, take the field out and it will print from its build.` });
         continue;
+      }
+      // A book of chips for cloth, plastic and paint is not a book of printing
+      // inks. Fifteen identities here give their near-white a six figure code
+      // like 11-0601, which is the Fashion, Home + Interiors form — and
+      // fourteen of the fifteen then print that colour, as the ink of a
+      // reversed colourway. A press cannot mix from that book. Recording that
+      // the stock matches an FHI chip is a fair thing to write down, which is
+      // why this is asked only of a colour that is actually put on paper.
+      if (sp.book === 'fhi' && asInk && asInk.has(c.name)) {
+        found.push({ level: o.forPress ? 'blocker' : 'warning', code: 'spotBook',
+          what: `${c.name} names ${sp.raw}, which is a Fashion, Home + Interiors chip, and ${c.name} is `
+            + 'printed as an ink.',
+          why: 'That book numbers cloth, paint and plastic, not printing ink. There is no formula behind '
+            + `${sp.body} that a press can mix, so the one line a print buyer works from names something `
+            + 'their supplier does not stock. It reads like a Pantone reference and is not one.',
+          how: `Give the printing ink reference for ${c.name}, from the solid book for the stock this is `
+            + 'printed on. If it is only ever the paper and never an ink, take it out of the colourways '
+            + 'instead, and the chip can stay as a note about the stock.' });
       }
       if (sp.book === 'pms' && !sp.finish) {
         found.push({ level: o.forPress ? 'blocker' : 'warning', code: 'spotFinish',
@@ -247,5 +280,5 @@
     return map;
   }
 
-  return { table, byName, check, inkMap, parse, tone, spot, TAC, RICH_BLACK_MIN, TONE_LIMIT, isBlackish };
+  return { table, byName, check, inkMap, parse, tone, spot, inked, TAC, RICH_BLACK_MIN, TONE_LIMIT, isBlackish };
 }));

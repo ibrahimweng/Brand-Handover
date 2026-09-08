@@ -5,7 +5,7 @@
   "tokens": {
     "colour": {
       "deep":  { "hex": "#0F3A46", "role": "ground",    "pantone": "3025 C", "cmyk": [92, 62, 45, 30] },
-      "foam":  { "hex": "#F1F0EA", "role": "primary",   "pantone": "11-0601", "cmyk": [4, 3, 7, 0] },
+      "foam":  { "hex": "#F1F0EA", "role": "primary","cmyk": [4, 3, 7, 0] },
       "ember": { "hex": "#C56A2E", "role": "accent",    "pantone": "1525 C", "cmyk": [18, 68, 96, 5] },
       "kelp":  { "hex": "#4A6B5C", "role": "secondary", "pantone": "5545 C", "cmyk": [70, 40, 60, 20] },
       "haar":  { "hex": "#8E9A9E", "role": "neutral",   "pantone": "429 C",  "cmyk": [44, 30, 28, 2] }

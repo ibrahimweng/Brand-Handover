@@ -1502,10 +1502,26 @@ the one the declared stock asks for. northline's seven are gone rather than
 guessed at — the right numbers are not something that can be worked out — and
 those colours print from their builds now. The thirty-two say `U`.
 
-What was measured and left alone: fifteen identities give their paper colour a
-six-figure code like `11-0601`, which is the Fashion, Home + Interiors form
-rather than a printing ink. It is underspecified, the fix is ambiguous between
-two systems, and firing on it would have produced fifteen shrugs. The check asks
-for a book only where a book is what is missing.
+Fifteen identities give their paper colour a six-figure code like `11-0601`,
+which is the Fashion, Home + Interiors form rather than a printing ink. That was
+measured and left alone, because a bare one is underspecified rather than wrong
+and the fix looked like a choice between two systems.
+
+The forty-fifth found it was not that choice. **Fourteen of the fifteen colours
+are printed** — each is the ink of a reversed colourway, so the mark really is
+put on paper in it. That book numbers cloth, paint and plastic; there is no ink
+formula behind any of it, so the one line a print buyer works from names
+something their supplier does not stock. It reads like a Pantone reference and
+is not one.
+
+The fifteenth is hallward's paper, which is only ever the ground. For that,
+recording which chip the stock matches is a fair thing to write down.
+
+So the check does not ask whether a code is FHI. It asks whether the colour is
+an **ink** — read off `rules.colourways`, where a slot value is ink and the
+ground a colourway is cut for is paper. Fourteen fire, hallward does not, and
+hallward is the one that keeps its chip. The fourteen are removed rather than
+replaced, for the same reason northline's were: the right printing reference is
+not something that can be worked out from a hex.
 
 Still to do: nothing named. The next one is whatever the next real export breaks.
