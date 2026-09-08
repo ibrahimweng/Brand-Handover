@@ -3,7 +3,24 @@
   "version": "0.1.0",
   "assets": {
     "mark": "mark.svg",
-    "wordmark": "wordmark.svg"
+    "wordmark": "wordmark.svg",
+    "tiers": [
+      {
+        "name": "standard",
+        "file": "mark-standard.svg",
+        "note": "All seven rays, stopped twenty units short of the corner they meet at."
+      },
+      {
+        "name": "compact",
+        "file": "mark-compact.svg",
+        "note": "Four rays. The middle of the fan goes, because those close on each other first."
+      },
+      {
+        "name": "monogram",
+        "file": "mark-monogram.svg",
+        "note": "Two rays, opened out. What a favicon is cut from."
+      }
+    ]
   },
   "tokens": {
     "colour": {
@@ -201,7 +218,14 @@
         "h": 630
       }
     },
-    "stock": "coated"
+    "stock": "coated",
+    "ladder": [
+      "horizontal",
+      "mark",
+      "standard",
+      "compact",
+      "monogram"
+    ]
   },
   "content": {
     "positioning": "One master file, every deliverable.",

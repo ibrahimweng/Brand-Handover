@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Pagrin, tier 4 of 4: two rays, at the width they need.
+
+     Every number here is read off mark.svg. The rays of the master converge on
+     a point the path returns to eleven times, at (7.6, 177.2), and the white
+     wedges between them sit at 11.2, 24.3, 35.4, 44.4, 52.0, 60.4 and 77.5
+     degrees from it, measured off the render at three radii and stable across
+     all three. Nothing in this drawing is at a bearing the master does not use.
+
+     Wedges at 24.3 and 60.4 degrees, the two the compact rung keeps furthest
+     apart, opened to six degrees and stopped 45 units short of the apex.
+
+     This is the rung a favicon is cut from. Nothing in it is narrower than 31
+     units in a 184 unit box, so it holds at 12 px and there is no size in the
+     package it cannot serve. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 184 182" width="184" height="182">
+  <path data-slot="ink" fill="#6F45F3" d="M0 0L85.017 0L25.616 135.964L33.796 140.61L134.463 0L184 0L184 74.12L46.453 154.496L50.324 163.07L184 118.861L184 182L0 182Z"/>
+</svg>

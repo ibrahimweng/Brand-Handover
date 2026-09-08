@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Pagrin, tier 2 of 4: the fan with its convergence taken out.
+
+     Every number here is read off mark.svg. The rays of the master converge on
+     a point the path returns to eleven times, at (7.6, 177.2), and the white
+     wedges between them sit at 11.2, 24.3, 35.4, 44.4, 52.0, 60.4 and 77.5
+     degrees from it, measured off the render at three radii and stable across
+     all three. Nothing in this drawing is at a bearing the master does not use.
+
+     All seven wedges, stopped 20 units short of the apex.
+
+     The master cannot go below 335 px because the rays meet at a point, and at a
+     point the ink between them is nothing at all: it measures 1.1 units thick.
+     Taking the last 20 units out is the whole of this rung. Nothing is dropped
+     and the floor comes down to 197 px. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 184 182" width="184" height="182">
+  <path data-slot="ink" fill="#6F45F3" d="M0 0L40.442 0L11.245 157.535L12.608 157.837L53.427 0L100.238 0L16.866 159.476L18.08 160.165L116.614 0L136.343 0L19.356 161.02L20.456 161.879L156.288 0L176.345 0L21.392 162.717L22.369 163.714L184 16.125L184 0L184 0L184 42.332L23.488 165.052L24.297 166.19L184 60.886L184 90.018L25.53 168.339L26.104 169.611L184 104.853L184 135.826L27.072 172.633L27.343 174.002L184 148.629L184 182L0 182Z"/>
+</svg>

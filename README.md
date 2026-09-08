@@ -1399,4 +1399,34 @@ that carry a gradient, and a middle stop of `#FFBADC` that measures 1.58:1
 against the white it is cut for. That last one is a finding this repository
 could not have made a day ago.
 
+The forty-second built its ladder. Pagrin's package shipped a warning that two
+of its app icons would read as a smudge — `icon-180.png at 0.73 px`,
+`icon-192.png at 0.78 px` — and the engine's advice with it: draw a simpler mark,
+put the drawings in `assets.tiers`, name the order in `rules.ladder`, and icons
+are cut from the last rung. That machinery has existed since the twenty-third
+round and two identities used it, both drawn by somebody who already knew the
+answer. This is the first time it has been pointed at a mark that arrived with
+the problem.
+
+**The floor is not about how many rays there are.** Measured off the render at
+three radii, the fan is seven wedges at 11.2, 24.3, 35.4, 44.4, 52.0, 60.4 and
+77.5 degrees from a point the path returns to eleven times, at (7.6, 177.2). Near
+that point the ink between two wedges is the radius times the angle between them,
+so it goes to nothing whatever the count is: the master measures 1.1 units at its
+thinnest and cannot go below 335 px. Dropping rays does not fix that. Stopping
+them short of the corner does, and it is the only move that does.
+
+So the ladder is the same drawing three times with less of it, and nothing in any
+rung sits at a bearing the master does not use:
+
+    horizontal   864 px and up
+    mark         335 – 863      seven wedges, meeting at a point
+    standard     197 – 334      the same seven, stopped 20 units short
+    compact       46 – 196      four of the seven
+    monogram      12 – 45       two, opened to six degrees
+
+The bands meet, so there is no size from 12 px up that nothing serves. The icon
+warning is gone, the package goes from 143 files to 197, and `favicon-16.png`
+stops being a grey square and becomes a mark.
+
 Still to do: nothing named. The next one is whatever the next real export breaks.

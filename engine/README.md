@@ -4425,6 +4425,87 @@ export would find a different seam, and the honest claim is not that the engine
 now handles real exports. It is that it handles one more thing than it did, and
 that the thing was found the only way this kind of thing gets found.
 
+## The first ladder the engine asked for
+
+`src/ladder.js` has existed since the twenty-third round, and two identities use
+it — ancroft and oriel. Both were drawn by somebody who already knew the answer:
+the tiers were authored alongside the master, in the same hand, to the same
+grid. Pagrin is the first mark that arrived with the problem and no answer, and
+the engine said so itself:
+
+    warning: 2 app icons were written where the thinnest part of the mark paints
+    under the 2 px this project sets as the thinnest a stroke may go:
+    icon-180.png at 0.73 px, icon-192.png at 0.78 px … this artwork needs 492 px
+    square before it holds together.
+
+### What actually sets the floor
+
+The obvious reading is that a fan of seven rays is too busy and the fix is fewer
+rays. That is wrong, and it is worth being precise about why, because the wrong
+reading produces a ladder that does not work.
+
+The fan converges. Measured off the render at r = 60, 100 and 150 units — stable
+across all three — the white wedges sit at 11.2, 24.3, 35.4, 44.4, 52.0, 60.4 and
+77.5 degrees from an apex at (7.6, 177.2), which is the point the path's own
+coordinates return to eleven times. The ink between two adjacent wedges at radius
+r is about `r × Δθ`. As r goes to zero so does the ink, for any Δθ at all. Seven
+rays or two, a fan that meets at a point has a hairline at that point, and
+`scanAt` finds it: 1.1 units, so `ceil(184 / 1.1 × 2)` = 335 px.
+
+Dropping rays widens Δθ and buys a little. Stopping the rays short of the corner
+removes the term that goes to zero. Measured, on the same seven wedges:
+
+    all seven, meeting at the apex        1.1 units    335 px
+    all seven, stopped 20 units short     1.87 units   197 px
+    four of seven, stopped 20 short       8.03 units    46 px
+    two of seven, opened, stopped 45      31 units      12 px
+
+The first row is the master. The second drops nothing at all and takes the floor
+down by 40 per cent, which is the whole of the argument: the convergence was the
+constraint, not the count.
+
+### The rungs
+
+    horizontal   864 px and up
+    mark         335 – 863      the master
+    standard     197 – 334      all seven wedges, stopped 20 units short
+    compact       46 – 196      four of the seven
+    monogram      12 – 45       two, opened to six degrees, stopped 45 short
+
+Each rung's bearings are a subset of the rung above it, so stepping down takes
+rays out and never swaps one for another. That is not a rule `check()` enforces —
+it compares part counts, proportion and slots — and it costs something: the
+monogram is [24.3°, 60.4°] rather than a pair that reads slightly better in
+isolation, because those are the two the compact rung keeps furthest apart. A
+subset that is a little worse alone is better as a ladder, because a reader who
+sees two of them at different sizes sees the same drawing.
+
+Everything else the ladder checks passes without adjustment. Each rung is one
+closed subpath, so `inkParts` is 1 at every rung and `ladderDetail` — which fires
+when a lower rung has *more* in it — has nothing to say. Each is drawn in the
+full 184 × 182 box, so every rung is 0.99 tall for its width against the mark's
+0.99 and `ladderShape` is quiet. Each carries `data-slot="ink"`, so the
+colourways reach them.
+
+All four checks were confirmed to have teeth against these exact tiers rather
+than assumed to: reordering the ladder blocks the build, stripping the
+monogram's slot raises `ladderSlots`, squashing its viewBox raises
+`ladderShape`, and adding two stray subpaths raises `ladderDetail`.
+
+### What it buys
+
+The icon warning is gone, because icons are cut from the bottom rung. The package
+goes from 143 files to 197 — the `12-ladder/` folder is 54 of them, three
+drawings in six colourways in three formats. `favicon-16.png` was a grey square
+with a moiré in it and is now a mark with two rays in it.
+
+What this is not: a claim that these three drawings are the right three. They are
+derived rather than designed — the bearings are the master's, the truncation is
+a number chosen to hit a floor, and a designer who sat with it would very likely
+draw the monogram differently. What the engine can say is that the ladder is
+continuous, that every rung is simpler than the one above it and holds smaller,
+and that no size in the package now falls below the drawing it is cut from.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.
