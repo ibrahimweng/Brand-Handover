@@ -1613,4 +1613,38 @@ says the choice is a decision rather than a reading and to look at both. What
 made the round worth doing was asking how good the number was before reporting
 it.
 
+The forty-ninth went to look at the canvas motif options and found there are
+none. Every package ever built ends its pattern note with:
+
+    the canvas shows every one of them
+
+It does not, and it never has. `pattern.options()` built exactly that — every
+motif crossed with every construction, as swatches — and **nothing has ever
+called it**. Not the editor, not the documents, not a test. The note was
+describing a chooser that was never wired up.
+
+It also cannot be wired up in that form. The canvas is one static file with no
+engine behind it, so every tile it might offer has to be written into it in
+advance, and a tile is keyed by density and colourway as well as by motif and
+construction:
+
+    ravelston   today 9 tiles, 32 KB     every combination 486 tiles, 1729 KB
+    vesper      today 9 tiles, 14 KB     every combination 243 tiles,  369 KB
+    pagrin      today 18 tiles, 147 KB   every combination 162 tiles, 1319 KB
+
+into an `editor.html` of about a megabyte. Even one density and one colourway —
+a contact sheet rather than a chooser — is 41 to 73 KB, and would still not be
+what the note described.
+
+So the note says what is true. The alternatives live in `brand.json`, and they
+are worth reading now: they used to be bare keys, `shape:5` and `shape:7`, which
+is not something anybody can choose between. Each carries its name and its
+score, in ranked order, and every one of them can be pinned with
+`system.pattern.motif` — which the test checks by pinning each in turn rather
+than taking the sentence's word for it.
+
+**And one of the sentences was mine.** The round before this added, on a close
+call, "look at both on the canvas before you take it." Same false promise, one
+round old.
+
 Still to do: nothing named. The next one is whatever the next real export breaks.

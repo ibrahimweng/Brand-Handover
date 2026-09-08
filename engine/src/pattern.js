@@ -723,7 +723,11 @@ function everyTile(markSource, rules, colourways, contrastPairs, measured) {
     construction: base.construction, why: base.why, choices: base.all.map((m) => m.key),
     margin: runner ? R(base.all[0].score - runner.score, 4) : null,
     runnerUp: runner ? { key: runner.key, name: runner.name, score: runner.score } : null,
-    score: base.motif.score };
+    score: base.motif.score,
+    // Named and scored, because "shape:5" on its own tells a designer choosing
+    // between them nothing at all, and the package has no other way to show
+    // them: see the note about the canvas below.
+    ranked: base.all.map((m) => ({ key: m.key, name: m.name, score: m.score })) };
 }
 
 // A patch of pattern for a document or the editor, using the tile as a fill.
@@ -741,21 +745,28 @@ function swatch(markSource, rules, ink, on, w, h, id, measured) {
 // Every pattern this identity could have, drawn from its own artwork, so the
 // choice is made by looking rather than by reading a list of words. This is
 // what the picker in the app is built on.
-function options(markSource, rules, ink, on, size, measured) {
-  const base = spec(markSource, rules, measured);
-  if (!base.ok) return [];
-  const out = [];
-  for (const m of base.all) {
-    for (const c of NAMES) {
-      const r = Object.assign({}, rules, { motif: m.key, construction: c });
-      const sw = swatch(markSource, r, ink, on, size || 240, size || 240,
-        `o-${m.key.replace(/[^a-z0-9]/gi, '')}-${c}`, measured);
-      if (sw) out.push({ motif: m.key, motifName: m.name, construction: c,
-        draws: CONSTRUCTIONS[c].draws, svg: sw, chosen: m.key === base.motif.key && c === base.construction });
-    }
-  }
-  return out;
-}
+// There is no options() any more.
+//
+// It built every motif crossed with every construction, as swatches, for a
+// canvas chooser — and nothing ever called it. The build note promised the
+// chooser anyway, in every package, for as long as the note has existed: "the
+// canvas shows every one of them".
+//
+// It cannot. The canvas is one static file with no engine behind it, so every
+// tile it could offer has to be written into it in advance, and a tile is
+// keyed by density and colourway as well. Measured on three identities:
+//
+//     ravelston   today 9 tiles, 32 KB    every combination 486 tiles, 1729 KB
+//     vesper      today 9 tiles, 14 KB    every combination 243 tiles,  369 KB
+//     pagrin      today 18 tiles, 147 KB  every combination 162 tiles, 1319 KB
+//
+// against an editor.html that is about a megabyte. Even one colourway and one
+// density — a contact sheet rather than a chooser — is 41 to 73 KB, and it
+// would still not be the thing the note described.
+//
+// So the alternatives are named and scored in brand.json instead, and the note
+// says that, which is both true and enough to act on: system.pattern.motif
+// takes any of them and the package rebuilds around it.
 
 // The motif's name and the construction's description are prose the engine
 // wrote off the artwork, not labels it was handed, so a document written in
@@ -783,7 +794,7 @@ function drawsText(construction, L) {
 
 module.exports = { candidates, rank, because, whyFacts, whyText, CONSTRUCTIONS, NAMES, normalised, painted, wrapped, inkOf, paintedBox,
   motifName, drawsText,
-  spec, tile, everyTile, swatch, options, R,
+  spec, tile, everyTile, swatch, R,
   // kept so the twenty-two callers and tests written against the old shape do
   // not have to know the engine stopped refusing
   sourceGeometry: (src) => { const r = rank(src); return r.length

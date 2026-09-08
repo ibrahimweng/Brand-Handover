@@ -4878,6 +4878,65 @@ designer should look at both rather than take the engine's word.
 `whyOnly` is the fourth string this needed: "Ranked first of 1 shape" is a
 sentence about a competition that did not happen.
 
+## The canvas motif options, which do not exist
+
+Every package the engine has ever written ends its pattern note the same way:
+
+    the canvas shows every one of them and system.pattern.motif and
+    system.pattern.construction pin whichever you want.
+
+The second half is true. The first half is not, and grep settles it in one line:
+`pattern.options()` — which builds every motif crossed with every construction
+as swatches, and is exported — is called by nothing. Not `editor/bundle.js`, not
+`documents/`, not a test, not `site/`, not `api/`. Confirmed against a built
+`editor.html` as well as against the source: `halfDrop`, the chosen
+construction, appears 48 times in ravelston's editor and `brick`, `rotary` and
+`scatter` appear zero times.
+
+### Why it cannot simply be turned on
+
+The canvas is one static HTML file with no engine behind it. `bundle.js` writes
+`patternTiles` keyed `density:colourway`, and the block looks its tile up there,
+so anything the canvas can offer has to be pre-generated. Offering motif and
+construction multiplies that key by both:
+
+    ravelston   9 tiles today,  32 KB    486 tiles, 1729 KB
+    vesper      9 tiles today,  14 KB    243 tiles,  369 KB
+    pagrin     18 tiles today, 147 KB    162 tiles, 1319 KB
+
+`editor.html` is about a megabyte, so the full grid doubles or triples it. A
+cross-section — the chosen motif in every construction, plus every motif in the
+chosen construction — is 150 KB to 1.3 MB, which is no better for pagrin,
+because its mark is one enormous path and every swatch carries several copies of
+it. Even one density and one colourway is 41 to 73 KB and still would not be a
+chooser.
+
+None of that is an argument for keeping a sentence that says otherwise.
+
+### What replaced it
+
+`options()` is gone, with the measurement written where it was, so the next
+person to think of building it starts from the numbers rather than from
+scratch.
+
+The alternatives were already in `brand.json` and were not usable: bare keys.
+
+    "alternatives": { "motifs": ["shape:2", "shape:3", "shape:5", …] }
+
+Nobody chooses between `shape:5` and `shape:7`. They carry the name the engine
+wrote off the artwork and the score it ranked them by, in order:
+
+    { "key": "shape:3", "name": "the third shape in the drawing", "score": 0.5572 }
+
+and the note points there. The test does not take that sentence's word for it:
+it pins each alternative in turn and checks the spec comes back with the motif
+it asked for, because "you can pin whichever you want" is a promise about
+behaviour and this file has just been caught making one it could not keep.
+
+The close-call advice added one round earlier — "look at both on the canvas
+before you take it" — was the same false promise, one round old. It says where
+they actually are now.
+
 ## What it does not do yet
 
 - **EPS.** Rarely asked for now that print shops take PDF, but not written.

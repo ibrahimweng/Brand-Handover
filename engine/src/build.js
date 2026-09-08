@@ -1132,11 +1132,13 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
         + `${require('./pattern').NAMES.length} constructions were measured`
         + (gen.runnerUp
           ? `; it scored ${gen.score} against ${gen.runnerUp.score} for ${gen.runnerUp.name}`
-            + `${close ? ', which is close enough that this is a decision rather than a reading — '
-              + 'look at both on the canvas before you take it' : ''}`
+            + `${close ? ', which is close enough that this is a decision rather than a reading. '
+              + 'Both are in brand.json; pin the other one and rebuild if it is the field you want'
+              : ''}`
           : '')
-        + `. The canvas shows every one of them and system.pattern.motif and `
-        + `system.pattern.construction pin whichever you want.`);
+        + `. Every one of them is named and scored in brand.json under `
+        + `system.pattern.alternatives, and system.pattern.motif and `
+        + `system.pattern.construction take any of them and rebuild around it.`);
     }
   } else {
     warnings.push(`no pattern was written. ${gen.why} ${gen.how}`);
@@ -1310,7 +1312,11 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
         motif: gen.motif, motifName: gen.motifName, construction: gen.construction,
         draws: require('./pattern').CONSTRUCTIONS[gen.construction].draws,
         chosenBecause: gen.why,
-        alternatives: { motifs: gen.choices, constructions: require('./pattern').NAMES },
+        // Named and scored. "shape:5" is not something a designer can choose
+        // between, and this list is the only place the alternatives exist —
+        // the canvas cannot carry them, see the note at the foot of
+        // src/pattern.js for what that would weigh.
+        alternatives: { motifs: gen.ranked || gen.choices, constructions: require('./pattern').NAMES },
         tiles: gen.tiles.length, seamless: true,
       }) : null,
       motion: sys.motion,

@@ -604,6 +604,59 @@ test('the note says how far ahead the shape it chose came', () => {
   assert.strictEqual(one.runnerUp, null);
 });
 
+test('the alternatives the note points at are named, scored, and can be taken', () => {
+  // The note ended, in every package ever built: "the canvas shows every one of
+  // them". It does not, and could not. The canvas is one static file with no
+  // engine behind it, so every tile it might offer has to be written into it in
+  // advance, keyed by density and colourway as well as by motif and
+  // construction. Measured: ravelston 486 tiles and 1729 KB against the 9 and
+  // 32 KB it carries now, into an editor.html of about a megabyte.
+  //
+  // pattern.options() built exactly that grid and nothing ever called it. The
+  // note was describing a chooser that was never wired up.
+  assert.strictEqual(require('../src/pattern').options, undefined,
+    'the chooser that was never built is still exported');
+
+  const pr2 = projectLoader.load(path.join(__dirname, '..', 'projects', 'vesper', 'project.json'));
+  const sys2 = require('../src/system').resolve(pr2, measure(pr2));
+  const src = projectLoader.masterOf(pr2).source;
+  const gen = pat.everyTile(src, sys2.pattern, [{ name: 'a', ink: '#2E2A63', on: '#F7F5F2' }], []);
+  assert.ok(gen.ok);
+  assert.ok(gen.ranked.length >= 2, 'vesper offers nothing to choose between');
+  for (const r of gen.ranked) {
+    assert.ok(r.key && r.name && typeof r.score === 'number', JSON.stringify(r));
+    assert.ok(!/^shape:\d+$/.test(r.name), `${r.key} is offered under its own key, which names nothing`);
+  }
+  // sorted, so the list reads as the ranking it is
+  for (let i = 1; i < gen.ranked.length; i++) {
+    assert.ok(gen.ranked[i - 1].score >= gen.ranked[i].score, 'the alternatives are not in order');
+  }
+  // and the promise is worth something: each one can actually be pinned
+  for (const r of gen.ranked) {
+    const pinned = pat.spec(src, Object.assign({}, sys2.pattern, { motif: r.key }), measure(pr2));
+    assert.ok(pinned.ok, `${r.key} cannot be pinned: ${pinned.why}`);
+    assert.strictEqual(pinned.motif.key, r.key, `pinning ${r.key} gave ${pinned.motif.key}`);
+  }
+});
+
+test('no package tells the designer to look somewhere that cannot show it', () => {
+  // The claim that had to go, and the one this round put in beside it: the
+  // close-margin advice added a round ago said to look at both on the canvas.
+  const pr2 = projectLoader.load(path.join(__dirname, '..', 'projects', 'marlow', 'project.json'));
+  const sys2 = require('../src/system').resolve(pr2, measure(pr2));
+  const gen = pat.everyTile(projectLoader.masterOf(pr2).source, sys2.pattern,
+    [{ name: 'a', ink: '#2E2A63', on: '#F7F5F2' }], []);
+  assert.ok(gen.margin != null && gen.margin < 0.02, 'marlow is no longer the close case');
+  const { build } = require('../src/build');
+  return build(pr2, fs.mkdtempSync(path.join(os.tmpdir(), 'handover-note-'))).then((r) => {
+    const note = r.notes.find((n) => /the pattern is built from/.test(n));
+    assert.ok(note, 'no pattern note was written');
+    assert.ok(!/canvas shows every one/.test(note), note);
+    assert.ok(!/on the canvas/.test(note), `it still sends them to the canvas: ${note}`);
+    assert.ok(/brand\.json/.test(note), `it does not say where the alternatives are: ${note}`);
+  });
+});
+
 test('every construction makes a tile that repeats seamlessly', () => {
   // Seamlessness is a property of the wrapping, not of nine pieces of careful
   // drawing: anything that crosses an edge is emitted again one tile away, and
