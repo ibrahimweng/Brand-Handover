@@ -2065,4 +2065,42 @@ than its server does not have. The drawing knows what can be locked up — the
 engine reads the slots, the paint and the scale off it already — so it reads
 this too, and a build with nothing named still writes all four.
 
+---
+
+**The canvas opened with artwork nobody could see**
+
+Twenty-four of the 158 pieces of artwork the canvas opens with, across nine of
+the thirty-two identities here, were drawn in a colour they could not be seen
+in. Measured in a browser: one picture of the page, and a count of how many
+pixels of each block are the ink the mark is meant to be drawn in.
+
+    Hallward   lockup        ink                1:1  100.0% of 124000 px, 2 tones
+    Cusp       minimumSize   ink                1:1   99.5% of  72800 px, 2 tones
+    Vesper     lockup        dusk               1:1   91.7% of 124000 px
+    Thornbury  construction  reverse #EDE7D9 9.66:1    0.0% of 159600 px
+    Marlow     lockup        horizontal:reverse — the project never cut it
+
+One shape, five times: the canvas asked for a colourway, a ground and a lockup
+without asking whether the project cuts them. The colourway resolver took the
+first one there was; three blocks painted a ground and then resolved a colourway
+without mentioning it; the cover went on the primary colour and the diagrams on
+the ground colour, which for Hallward and Cusp are the ink itself; and the cover
+asked for a horizontal lockup Marlow does not cut. All four now read the project
+and measure the contrast, and the project's own first choice still wins wherever
+it reads — so only what nobody could see has moved.
+
+Two more the browser found and the arithmetic could not. Reading a mark as text
+to find its colours counted a `clipPath`'s white rectangle as paint, which is
+the thing `src/svg.js` names at `NEVER_DRAWN`; the inks are measured through the
+walker that knows better and carried on the bundle. And the motion block split
+the artwork with a regex, which closed Kvist's `<defs>` in the wrong place and
+put the whole logotype inside it — a block that has drawn nothing at all in
+every package this repository has published.
+
+Fixing the last of those took yamabiko's `published.html` from 50.7 per cent
+Japanese to 48, and the engine's own accessibility check refused the build.
+Twenty latin characters were the margin: the build titled every published page
+`Guidelines`, in English, on a page declaring the identity's language. It uses
+the identity's own word now.
+
 Still to do: nothing named. The next one is whatever the next real export breaks.

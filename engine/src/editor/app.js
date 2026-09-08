@@ -560,7 +560,8 @@
       + field(T('cvColourway'), sel('colourway', COLOURS(), b.props.colourway)) + field(T('cvOn'), sel('on', GROUNDS(), b.props.on)),
     construction: (b) => field(T('cvInk'), sel('colourway', COLOURS(), b.props.colourway || 'primary'))
       + field(T('cvOn'), sel('on', COLOURS(), b.props.on || 'ground')) + field(T('cvLines'), sel('line', COLOURS(), b.props.line || 'neutral')),
-    minimumSize: (b) => field(T('cvInk'), sel('colourway', COLOURS(), b.props.colourway || 'primary')),
+    minimumSize: (b) => field(T('cvInk'), sel('colourway', COLOURS(), b.props.colourway || 'primary'))
+      + field(T('cvOn'), sel('on', COLOURS(), b.props.on || 'ground')),
     contrast: (b) => field(T('cvRows'), `<input type="number" data-prop="limit" value="${b.props.limit || 6}" min="1" max="${BUNDLE.contrast.length}">`),
     // The ink menu offers what there is a tile for, not the whole palette.
     // Tiles are cut per role and only where the ink can be seen on its ground,

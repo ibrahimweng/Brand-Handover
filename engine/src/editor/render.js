@@ -3,9 +3,9 @@
    and no measuring at draw time. Everything expensive already happened in the
    engine; this only lays it out. */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('../photography'), require('../print'), require('../surface'));
-  else root.HandoverRender = factory(root.HandoverPhotography, root.HandoverPrint, root.HandoverSurface);
-}(typeof self !== 'undefined' ? self : this, function (PH, PR, SU) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('../photography'), require('../print'), require('../surface'), require('../contrast'));
+  else root.HandoverRender = factory(root.HandoverPhotography, root.HandoverPrint, root.HandoverSurface, root.HandoverContrast);
+}(typeof self !== 'undefined' ? self : this, function (PH, PR, SU, CO) {
   'use strict';
 
   const esc = (s) => String(s == null ? '' : s)
@@ -53,14 +53,46 @@
     if (bundle.colours && bundle.colours[key]) return bundle.colours[key].hex;
     return key;
   }
+  // How well a piece of artwork reads against a ground: the ink in it that
+  // stands out most, which is the honest answer to "can this be seen at all".
+  // Not the ink that stands out least — a counter knocked out to the colour of
+  // the ground is how a mark is drawn, and calling that a fault is crying wolf.
+  //
+  // The inks come off the bundle, where svgu.eachPainted worked out which of
+  // them a browser will actually paint. Reading the artwork as text here instead
+  // called perigee's clipPath a white mark, which is the fault src/svg.js names
+  // at NEVER_DRAWN and has already been fixed once in the printing path.
+  const SEEN = 3;                     // a mark needs about this much to read
+  function bestInk(bundle, key, ground) {
+    const inks = ((bundle && bundle.inks) || {})[key] || [];
+    if (!inks.length || !ground || ground === 'transparent' || !CO) return null;
+    let best = null;
+    for (const hex of inks) {
+      const ratio = CO.ratio(hex, ground);
+      if (ratio != null && (!best || ratio > best.ratio)) best = { hex, ratio };
+    }
+    return best;
+  }
+  const readsAt = (bundle, key, ground) => {
+    const b = bestInk(bundle, key, ground);
+    return b ? b.ratio : null;
+  };
+
   // Which colourway to actually draw.
   //
   // A block asks for one by role — "the ground colourway" — and nothing says a
   // project cuts one named after each colour role. Meridian happens to; Halyard
   // does not, and three separate renderers dropped or mis-drew the mark because
   // of it before this was fixed in one place. Where the asked-for colourway is
-  // not cut, take one meant for the ground it is going onto, and only then the
-  // first that exists.
+  // not cut, take one meant for the ground it is going onto, and only then one
+  // that can actually be seen on it.
+  //
+  // That last step used to be "the first colourway there is", which is a guess
+  // dressed as a decision. Vesper cuts three and the first is its dusk: its
+  // canvas opened on a cover that was a plain violet slab with the lockup drawn
+  // in the same violet, while `reverse` sat unused at 11.86 to 1. The project's
+  // own first cut still wins wherever it reads, so this only ever replaces
+  // something nobody could see.
   function cwName(bundle, key, onKey) {
     const named = (bundle.roles && bundle.roles[key] && bundle.roles[key].name) || key;
     const have = bundle.colourways || [];
@@ -68,7 +100,17 @@
     if (have.indexOf(key) > -1) return key;
     const onName = (bundle.roles && bundle.roles[onKey] && bundle.roles[onKey].name) || onKey;
     const forGround = have.find((n) => (bundle.colourwayOn || {})[n] === onName);
-    return forGround || have[0];
+    if (forGround) return forGround;
+    const first = have[0];
+    const ground = colour(bundle, onKey);
+    const firstReads = readsAt(bundle, first, ground);
+    if (firstReads === null || firstReads >= SEEN) return first;
+    let best = null;
+    for (const n of have) {
+      const r = readsAt(bundle, n, ground);
+      if (r != null && (!best || r > best.r)) best = { n, r };
+    }
+    return best && best.r >= SEEN ? best.n : first;
   }
 
   function typeStyle(bundle, name) {
@@ -246,8 +288,12 @@
           t(bu, 'cvArtLockupIn', { lockup: String(key).split(':')[0], colourway: String(key).split(':')[1] }))}</div>`;
     },
 
-    construction: (b, bu) => `<div style="width:100%;height:100%;background:${colour(bu, b.props.on || 'ground')}">${construction(bu, cwName(bu, b.props.colourway || 'primary'), colour(bu, b.props.line || 'neutral'))}</div>`,
-    clearSpace: (b, bu) => `<div style="width:100%;height:100%;background:${colour(bu, b.props.on || 'ground')}">${clearSpace(bu, cwName(bu, b.props.colourway || 'primary'), colour(bu, b.props.line || 'neutral'))}</div>`,
+    // The ground goes into the resolver as well as into the background. These
+    // three painted one and asked about the other, so the one step that picks a
+    // colourway a reader can see was handed nothing to see it against, and
+    // Thornbury's canvas opened with all three drawn in its ink on its moss.
+    construction: (b, bu) => `<div style="width:100%;height:100%;background:${colour(bu, b.props.on || 'ground')}">${construction(bu, cwName(bu, b.props.colourway || 'primary', b.props.on || 'ground'), colour(bu, b.props.line || 'neutral'))}</div>`,
+    clearSpace: (b, bu) => `<div style="width:100%;height:100%;background:${colour(bu, b.props.on || 'ground')}">${clearSpace(bu, cwName(bu, b.props.colourway || 'primary', b.props.on || 'ground'), colour(bu, b.props.line || 'neutral'))}</div>`,
 
     // The steps are worked out in the engine and read here, because this block
     // is drawn twice — the manual draws the other one — and when the caption
@@ -261,8 +307,16 @@
       const steps = (m && m.steps) || [];
       if (!steps.length) return `<div class="hb-missing">${esc(t(bu, 'cvNoFloor'))}</div>`;
       const big = steps[0].px;
-      const svg = bu.marks[cwName(bu, b.props.colourway || 'primary')] || Object.values(bu.marks)[0];
-      return `<div class="hb-sizes">${steps.map((s) =>
+      const cw = cwName(bu, b.props.colourway || 'primary', b.props.on || 'ground');
+      const svg = bu.marks[cw] || Object.values(bu.marks)[0];
+      // Its own ground, like the two diagrams beside it, so an identity whose
+      // ground role is its ink can put the specimen somewhere it can be seen.
+      // The captions go in the ink the specimen is drawn in: that ink reads on
+      // this ground by construction, which nothing inherited from the page can
+      // promise once the block stops using the page's colour.
+      const on = colour(bu, b.props.on || 'ground');
+      const ink = bestInk(bu, cw, on);
+      return `<div class="hb-sizes" style="background:${on}${ink ? `;color:${ink.hex}` : ''}">${steps.map((s) =>
         `<figure><div class="cell">
          <span style="display:block;width:min(${s.px}px,${r3((s.px / big) * 100)}%)">${fitSvg(svg, 0, t(bu, 'cvArtAtSize', { px: s.px, label: s.label }))}</span></div>
          <figcaption>${esc(iso(bu, s.caption))} · ${esc(s.label)}</figcaption></figure>`).join('')}</div>`;
@@ -351,27 +405,23 @@
 
     motion: (b, bu) => {
       const mo = (bu.system || {}).motion; if (!mo) return `<div class="hb-missing">${esc(t(bu, 'cvNoMotion'))}</div>`;
-      const svg = bu.marks[cwName(bu, b.props.colourway, b.props.on)] || Object.values(bu.marks)[0];
-      const inner = (svg.match(/<svg[^>]*>([\s\S]*)<\/svg>/) || [])[1] || '';
+      const cw = cwName(bu, b.props.colourway, b.props.on);
+      const svg = bu.marks[cw] || Object.values(bu.marks)[0];
       const vb = (svg.match(/viewBox="([^"]+)"/) || [])[1] || '0 0 120 120';
-      const n = vb.split(/\s+/).map(Number), vw = n[2] || 120, vh = n[3] || 120;
 
-      // The rule has two steps, so the artwork has to move in two parts. Split
-      // it the only way that generalises: what is stroked is the outline, what
-      // is filled is the fill. The fill rises inside a clip of the outline's
+      // The rule has two steps, so the artwork has to move in two parts. The
+      // split is artwork, so the engine does it: see editor/bundle.js. This did
+      // it here with a regex over the artwork's own text and came apart on any
+      // mark with a <defs> in it. The fill rises inside a clip of the outline's
       // own bounds, so it fills up rather than sliding past.
-      const els = inner.match(/<[a-z][^>]*\/?>(?:[\s\S]*?<\/[a-z]+>)?/gi) || [];
-      const outline = [], filled = [];
-      for (const el of els) {
-        const hasStroke = /stroke="(?!none)/.test(el);
-        const hasFill = /fill="(?!none)/.test(el);
-        (hasFill && !hasStroke ? filled : outline).push(el);
-      }
-      // A mark drawn entirely in fills has no outline to settle first, and
-      // that is most marks. Splitting it anyway left the whole thing in the
-      // rising half and the block came out empty. So say what is true: it
-      // arrives in one piece.
-      const onePiece = !outline.length;
+      const parts = (bu.motionParts || {})[cw] || { defs: '', outline: '', filled: '' };
+      const { defs, outline, filled } = parts;
+      // A mark drawn entirely in fills has no outline to settle first, and that
+      // is most marks; a mark drawn entirely in strokes has nothing to rise,
+      // and that is Kvist. Splitting either anyway leaves one half holding
+      // everything and the other holding the animation. So say what is true:
+      // it arrives in one piece.
+      const onePiece = !outline || !filled;
       const dur = mo.durations, e = mo.easing;
       const bez = (a) => `cubic-bezier(${a.join(',')})`;
       const id = 'm' + esc(b.id);
@@ -386,7 +436,7 @@
       const ms = (a) => `${a.to - a.from}ms`;
       const caption = b.props.caption === false ? '' :
         ruleCaption(onePiece
-          ? t(bu, 'cvMotionOnePiece', { out: ms(draw) })
+          ? t(bu, outline ? 'cvMotionOneStroke' : 'cvMotionOnePiece', { out: ms(draw) })
           : stated
             ? t(bu, 'cvMotionStated', { out: ms(draw), through: ms(rise), a: draw.part, b: rise.part })
             : t(bu, 'cvMotionUnstated', { out: ms(draw), through: ms(rise) }),
@@ -400,11 +450,11 @@
           @media (prefers-reduced-motion:reduce){#${id} .hb-fill,#${id} .hb-out{animation:none}}
         </style>
         <svg id="${id}" viewBox="${vb}" style="width:64%;height:auto" role="img" aria-label="${esc(t(bu, 'cvArtMotion'))}">
-          <defs><clipPath id="${id}-c"><rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}"/></clipPath></defs>
+          <defs><clipPath id="${id}-c"><rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}"/></clipPath></defs>${defs}
           ${onePiece
-            ? `<g class="hb-out">${filled.join('')}</g>`
-            : `<g clip-path="url(#${id}-c)"><g class="hb-fill">${filled.join('')}</g></g>`
-              + `<g class="hb-out">${outline.join('')}</g>`}</svg>${caption}</div>`;
+            ? `<g class="hb-out">${outline}${filled}</g>`
+            : `<g clip-path="url(#${id}-c)"><g class="hb-fill">${filled}</g></g>`
+              + `<g class="hb-out">${outline}</g>`}</svg>${caption}</div>`;
     },
 
     // The treatment stated, and shown. A ramp rather than a photograph, because
@@ -474,5 +524,5 @@
     `<div class="hb-page" data-page="${p.id}" style="position:relative;width:${size.w}px;height:${size.h}px;background:${bundle.roles.ground.hex};overflow:hidden">`
     + p.blocks.map((b) => positioned(b, bundle)).join('') + `</div>`;
 
-  return { block, positioned, page, colour, cwName, typeStyle, esc, construction, clearSpace, publishing, BLOCK, t };
+  return { block, positioned, page, colour, cwName, readsAt, bestInk, SEEN, typeStyle, esc, construction, clearSpace, publishing, BLOCK, t };
 }));

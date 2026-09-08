@@ -1166,6 +1166,66 @@ test('the starter document opens on something worth looking at', () => {
   assert.ok(d.pages.length >= 3, 'a beginner should not meet a blank page');
   assert.ok(d.pages.every((p) => p.blocks.length > 0), 'every starter page should have content');
 });
+
+// Every identity in the repository, opened the way a designer opens it.
+//
+// The canvas asked for a horizontal lockup, a cover in the primary colour and
+// three diagrams on the ground colour, and resolved a colourway by taking the
+// first one cut when it could not find the one asked for. None of those four is
+// something a project has to have, and nine of the thirty-two opened on artwork
+// nobody could see — twenty-four blocks of the 158 these documents hold, counted
+// in pixels by test/seen-check.mjs. Hallward and Vesper on a cover that was a
+// plain dark slab; Cusp with all three diagrams as empty rectangles; Fathom,
+// Kvist, Lammas, Spire and Thornbury each cutting a reverse for exactly this
+// case and drawing their ink on their own ground instead; and Marlow drawing a
+// wordmark where a horizontal lockup had been asked for, because that is what
+// the fallback reached first.
+//
+// Nothing here is an opinion. A ratio is arithmetic and a lockup a project cuts
+// is a fact about the project.
+const ART_BLOCKS = ['mark', 'lockup', 'construction', 'clearSpace', 'minimumSize', 'motion'];
+const inksIn = (svg) => {
+  const re = /(?:fill|stroke)="(#[0-9a-fA-F]{3,8})"/g;
+  const out = new Set();
+  let mm;
+  while ((mm = re.exec(String(svg)))) out.add(mm[1].toUpperCase());
+  return out;
+};
+test('the canvas opens with the artwork somewhere it can be seen', () => {
+  const dir = path.join(__dirname, '..', 'projects');
+  const names = fs.readdirSync(dir).filter((d) => fs.existsSync(path.join(dir, d, 'project.json')));
+  const blind = [], missing = [], undrawn = [];
+  for (const n of names) {
+    const pr = projectLoader.load(path.join(dir, n, 'project.json'));
+    const b2 = bundleOf(pr, measure(pr));
+    for (const page of starterDoc(b2).pages) for (const blk of page.blocks) {
+      if (!ART_BLOCKS.includes(blk.type)) continue;
+      const on = blk.props.on || 'ground';
+      if (on === 'none') continue;                  // over a photograph, not a flat ground
+      const want = ER.cwName(b2, blk.props.colourway || 'primary', on);
+      const key = blk.type === 'lockup' ? `${blk.props.lockup}:${want}` : want;
+      const art = blk.type === 'lockup' ? b2.variants[key] : b2.marks[key];
+      if (!art) { missing.push(`${n}: the ${blk.type} block asks for ${key}, and the project cuts ${JSON.stringify(pr.rules.lockups)}`); continue; }
+      const ground = ER.colour(b2, on);
+      const ink = ER.bestInk(b2, key, ground);
+      // the ink that stands out most, because a counter knocked out to the
+      // ground is how a mark is drawn and flagging that is crying wolf
+      if (!ink || ink.ratio < ER.SEEN) {
+        blind.push(`${n}: the ${blk.type} block draws ${want} on ${on} ${ground} at ${ink ? ink.ratio : 0} to 1`);
+        continue;
+      }
+      // and the block has to draw what the resolver worked out, which is where
+      // the ground goes missing: three of these painted one ground and asked
+      // the resolver about none, so it never had anything to measure against.
+      if (!inksIn(ER.block(blk, b2)).has(ink.hex)) {
+        undrawn.push(`${n}: the ${blk.type} block resolves to ${want} but ${ink.hex} is not in what it draws`);
+      }
+    }
+  }
+  assert.deepStrictEqual(missing, [], missing.join('\n'));
+  assert.deepStrictEqual(blind, [], blind.join('\n'));
+  assert.deepStrictEqual(undrawn, [], undrawn.join('\n'));
+});
 test('the editor is self contained, with no fetch at load', () => {
   const html = editorHtml(project, m, []);
   assert.ok(html.includes('HANDOVER_BUNDLE'), 'the bundle is not inlined');
@@ -8110,6 +8170,27 @@ test('a Hebrew identity gets a Hebrew manual and a Hebrew deck', () => {
   // says so — without that the Hebrew manual measured 55 per cent latin
   const g = fs.readFileSync(path.join(maayOut, 'guidelines.html'), 'utf8');
   assert.ok(/<pre lang="en" dir="ltr">/.test(g), 'the machine file does not say what it is');
+});
+test('the page a package publishes is titled in the language it is written in', () => {
+  // The canvas publishes under the identity's own word for it and the build
+  // wrote the English one, so every package outside English shipped a page
+  // whose two most prominent words — the tab and the heading a screen reader
+  // announces first — were "Guidelines" under a declaration that the document
+  // is not in English. For yamabiko those twenty latin characters are the
+  // whole margin: 50.7 per cent Japanese with the right word, 48 without, and
+  // the engine's own accessibility check refuses the build at 48.
+  for (const [out, lang, word] of [[yamaOut, 'ja', 'ブランドマニュアル'],
+    [maayOut, 'he', 'מדריך המותג'], [verdOut, 'fr', 'Charte graphique']]) {
+    const html = fs.readFileSync(path.join(out, 'published.html'), 'utf8');
+    assert.ok(html.indexOf(`<h1 class="hp-sr">${word}</h1>`) > -1,
+      `the page a ${lang} package publishes is not headed in ${lang}`);
+    assert.ok(html.indexOf('Guidelines') < 0, `the English word is still on a ${lang} page`);
+  }
+  // and the Japanese one measures as Japanese, which is the thing the word
+  // decided rather than described
+  const got = require('../src/access').language(
+    fs.readFileSync(path.join(yamaOut, 'published.html'), 'utf8'));
+  assert.ok(got && got.ok && got.top === 'cjk', `published.html measures ${JSON.stringify(got)}`);
 });
 test('the language check catches a page that claims what it is not', () => {
   const ACC2 = require('../src/access');

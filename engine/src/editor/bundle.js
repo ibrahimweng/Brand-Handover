@@ -34,24 +34,79 @@ function bundle(project, measured, files = []) {
   // "the mark" on the canvas is the master artwork, which for a logotype
   // identity is the logotype: there is no symbol to fall back to
   const masterSrc = require('../project').masterOf(project).source;
-  const marks = {}, markInner = {}, variants = {};
+  const marks = {}, markInner = {}, variants = {}, inks = {};
+
+  // The colours a piece of artwork actually puts on the page, in the order the
+  // artwork paints them. Measured through svgu.eachPainted, which is the one
+  // walker in this engine that knows a clipPath's white rectangle is a shape
+  // for hiding things and not a colour: perigee's mark carries one, and reading
+  // the file as text made its diagrams look like they were drawn in white.
+  const inksIn = (svg) => {
+    const out = [];
+    svgu.eachPainted(svgu.parse(svg), (el) => {
+      if (!el.getAttribute) return;
+      for (const a of ['fill', 'stroke']) {
+        const hex = contrast.toHex(el.getAttribute(a));
+        if (hex && out.indexOf(hex) < 0) out.push(hex);
+      }
+    });
+    return out;
+  };
+
+  // The mark in the two parts it builds in: what is stroked settles first, what
+  // is filled rises into it. Split here, on the parsed document, because the
+  // canvas split it with a regex over the artwork's own text — a tag, then
+  // everything up to the first closing tag — and that comes apart on anything
+  // nested. Kvist's logotype sits in a <g> after a <defs>, so the regex closed
+  // the <defs> at the clipPath and the whole mark ended up inside it: a block
+  // that drew nothing at all, in every package this repository has published.
+  //
+  // Whole subtrees move together, so a group keeps the paint it sets for its
+  // children, and what is never drawn is kept out of both halves and emitted
+  // once — a clipPath the artwork points at has to stay reachable.
+  const buildOf = (svg) => {
+    const doc = svgu.parse(svg);
+    const out = { defs: '', outline: '', filled: '' };
+    for (let c = doc.documentElement.firstChild; c; c = c.nextSibling) {
+      if (c.nodeType !== 1) continue;
+      const xml = svgu.serialize(c);
+      const tag = String(c.nodeName).replace(/^.*:/, '').toLowerCase();
+      if (svgu.NEVER_DRAWN.indexOf(tag) > -1) { out.defs += xml; continue; }
+      let stroked = false, painted = false;
+      svgu.eachPainted({ documentElement: c }, (el) => {
+        if (!el.getAttribute) return;
+        const st = el.getAttribute('stroke'), fi = el.getAttribute('fill');
+        if (st && st !== 'none') stroked = true;
+        if (fi && fi !== 'none') painted = true;
+      });
+      out[stroked || !painted ? 'outline' : 'filled'] += xml;
+    }
+    return out;
+  };
+  const motionParts = {};
   for (const cw of project.rules.colourways) {
     const doc = svgu.parse(masterSrc);
     svgu.applyColourway(doc, cw.slots);
     marks[cw.name] = svgu.serialize(doc);
     markInner[cw.name] = svgu.innerXML(doc);
+    inks[cw.name] = inksIn(marks[cw.name]);
+    motionParts[cw.name] = buildOf(marks[cw.name]);
     for (const l of project.rules.lockups) {
       variants[`${l}:${cw.name}`] = buildVariant({
         markSrc: project.assets.mark && project.assets.mark.source,
         wordmarkSrc: project.assets.wordmark && project.assets.wordmark.source,
         lockup: l, colourway: cw, rules: project.rules, measured,
       }).svg;
+      inks[`${l}:${cw.name}`] = inksIn(variants[`${l}:${cw.name}`]);
     }
   }
   // roles double as colourway names in block props, so map them across
   for (const key of Object.keys(roles)) {
     const n = roles[key].name;
-    if (marks[n]) { marks[key] = marks[n]; markInner[key] = markInner[n]; }
+    if (marks[n]) {
+      marks[key] = marks[n]; markInner[key] = markInner[n];
+      inks[key] = inks[n]; motionParts[key] = motionParts[n];
+    }
   }
 
   // ---- rule blocks: resolved once here, then every instance is generated ----
@@ -109,6 +164,10 @@ function bundle(project, measured, files = []) {
     // project does not cut can fall back to one that reads where it is going
     colourwayOn: Object.fromEntries(project.rules.colourways.map((c) => [c.name, c.on || null])),
     marks, markInner, variants,
+    // and what each of them paints, so the half of this that runs in a browser
+    // can ask whether a piece of artwork can be seen on a ground without
+    // parsing it again, or worse, reading it as text
+    inks, motionParts,
     contrast: contrast.matrix(cols),
     files: files.map((f) => ({ path: f.path, bytes: f.bytes })),
     content: project.content || {},
@@ -126,9 +185,43 @@ function bundle(project, measured, files = []) {
 
 // A first document that is worth opening, rather than a blank page. Every
 // beginner meets the editor with something already on it.
+//
+// What it opens with has to be read off the project rather than written here.
+// This asked for a horizontal lockup, a cover in the primary colour and three
+// diagrams on the ground colour, and none of those three is something a project
+// has to have: Marlow cuts only a wordmark, Hallward's primary role IS its ink,
+// and Cusp's ground role is a near-black its one colourway is drawn in. So the
+// canvas opened on a black cover for Hallward, three empty boxes for Cusp, and
+// a wordmark on Marlow where a horizontal lockup had been asked for, because
+// that is what the fallback reached first. Ask what the project cuts, and put
+// the artwork where it reads.
 function starterDoc(bu) {
   const M = require('./model');
+  const R = require('./render');
   const L = require('../strings').resolve({ language: bu.language, direction: bu.direction }, 'canvas');
+
+  // A ground the artwork can actually be seen on. The wanted one wins wherever
+  // it works, because it is what the identity is for; the rest of the palette
+  // is only consulted when nothing can be seen on it at all.
+  const groundFor = (want, art) => {
+    const reads = (name) => {
+      const hex = R.colour(bu, name);
+      let best = 0;
+      for (const key of art) { const r = R.readsAt(bu, key, hex); if (r != null && r > best) best = r; }
+      return best;
+    };
+    if (reads(want) >= R.SEEN) return want;
+    const better = Object.keys(bu.colours).map((n) => ({ n, r: reads(n) }))
+      .sort((a, b) => b.r - a.r)[0];
+    return better && better.r >= R.SEEN ? better.n : want;
+  };
+  const cuts = bu.lockups || [];
+  const lockup = cuts.indexOf('horizontal') > -1 ? 'horizontal' : (cuts[0] || 'horizontal');
+  const cwKeys = bu.colourways || [];
+  const lockupArt = cwKeys.map((n) => `${lockup}:${n}`).filter((k) => bu.variants[k]);
+  const coverOn = groundFor('primary', lockupArt);
+  const diagramOn = groundFor('ground', cwKeys);
+  const motionOn = groundFor('primary', cwKeys);
   // ids start again for each document, so building the same project twice in
   // one run gives the same document rather than a second range of numbers
   M.resetIds();
@@ -144,9 +237,9 @@ function starterDoc(bu) {
     add('slot', { x: 0, y: 0, w: P.w, h: P.h,
       props: { image: shot[0], fit: 'cover', treatment: true, label: L.t('sldCover'), caption: shot[1].caption || '' } });
   } else {
-    add('fill', { x: 0, y: 0, w: P.w, h: P.h, props: { colour: 'primary' } });
+    add('fill', { x: 0, y: 0, w: P.w, h: P.h, props: { colour: coverOn } });
   }
-  add('lockup', { x: 120, y: 180, w: 620, h: 200, props: { lockup: 'horizontal', colourway: 'ground', on: shot ? 'none' : 'primary' } });
+  add('lockup', { x: 120, y: 180, w: 620, h: 200, props: { lockup, colourway: 'ground', on: shot ? 'none' : coverOn } });
   // The cover carries whatever the project wrote as its positioning, and that
   // is a sentence in a real project rather than the one word every fixture had.
   // A block 120 tall at H1 held three lines of it and the rest ran through the
@@ -165,9 +258,9 @@ function starterDoc(bu) {
   doc.pages.push(p2);
   const add2 = (type, at) => p2.blocks.push(M.makeBlock(type, at));
   add2('text', { x: 80, y: 64, w: 600, h: 60, props: { text: L.t('chMark'), style: 'H1', colour: 'primary' } });
-  add2('construction', { x: 80, y: 150, w: 380, h: 420, props: { colourway: 'primary', on: 'ground', line: 'neutral' } });
-  add2('clearSpace', { x: 500, y: 150, w: 380, h: 420, props: { colourway: 'primary', on: 'ground', line: 'neutral' } });
-  add2('minimumSize', { x: 920, y: 150, w: 280, h: 260, props: { colourway: 'primary' } });
+  add2('construction', { x: 80, y: 150, w: 380, h: 420, props: { colourway: 'primary', on: diagramOn, line: 'neutral' } });
+  add2('clearSpace', { x: 500, y: 150, w: 380, h: 420, props: { colourway: 'primary', on: diagramOn, line: 'neutral' } });
+  add2('minimumSize', { x: 920, y: 150, w: 280, h: 260, props: { colourway: 'primary', on: diagramOn } });
 
   const p3 = M.makePage(L.t('chColour'));
   doc.pages.push(p3);
@@ -183,7 +276,7 @@ function starterDoc(bu) {
   p4.blocks.push(M.makeBlock('pattern', { x: 544, y: 136, w: 288, h: 232, props: { density: 'fine', colourway: 'primary', on: 'ground', caption: true } }));
   p4.blocks.push(M.makeBlock('photography', { x: 856, y: 136, w: 344, h: 232, props: { on: 'ground' } }));
   p4.blocks.push(M.makeBlock('iconGrid', { x: 80, y: 400, w: 280, h: 264, props: { colourway: 'primary', on: 'ground', line: 'neutral' } }));
-  p4.blocks.push(M.makeBlock('motion', { x: 384, y: 400, w: 232, h: 264, props: { colourway: 'ground', on: 'primary' } }));
+  p4.blocks.push(M.makeBlock('motion', { x: 384, y: 400, w: 232, h: 264, props: { colourway: 'ground', on: motionOn } }));
   p4.blocks.push(M.makeBlock('text', { x: 648, y: 408, w: 552, h: 200,
     props: { text: L.t('cnvFourBlocks'), style: 'Body', colour: 'primary' } }));
   return doc;

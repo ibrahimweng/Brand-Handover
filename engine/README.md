@@ -9,10 +9,11 @@ around it.
 
     cd engine
     npm install
-    npm test                                            # 339 checks
+    npm test                                            # 574 checks
     node test/print-check.mjs                           # prints, and measures the paper
     node test/treatment-check.mjs                       # renders, and reads the pixels back
     node test/typst-check.mjs                           # the printed piece against the published page
+    node test/seen-check.mjs projects/*/project.json    # the artwork the canvas opens with, in pixels
     node src/cli.js check   test/fixtures/messy-illustrator.svg --tokens projects/meridian/project.json
     node src/cli.js check   my-icon.svg --icon projects/meridian/project.json
     node src/cli.js check   projects/meridian/project.json --print
@@ -5502,6 +5503,116 @@ nothing and the build refuses on a choice nobody was asked to make. `stage`
 already reads the slots, the paint and the scale off the artwork rather than
 taking them from the caller. It reads this too now, and `make` no longer asks.
 
+## The canvas opened with artwork nobody could see
+
+Twenty-four of the 158 pieces of artwork the canvas opens with — across nine of
+the thirty-two identities in this repository — were drawn in a colour they could
+not be seen in. Measured in a browser rather than argued about: one picture of
+the published starter document, and a count of how many pixels of each block are
+the ink the mark is supposed to be drawn in. `test/seen-check.mjs`.
+
+    Hallward   lockup        ink                1:1  100.0% of 124000 px, 2 tones
+    Cusp       minimumSize   ink                1:1   99.5% of  72800 px, 2 tones
+    Vesper     lockup        dusk               1:1   91.7% of 124000 px
+    Thornbury  construction  reverse #EDE7D9 9.66:1    0.0% of 159600 px
+    Marlow     lockup        horizontal:reverse — the project never cut it
+
+Five faults with one shape: the canvas asked for a colourway, a ground and a
+lockup without asking whether the project cuts them. A hundred per cent of a
+block in the ink it is drawn in, with two tones in it, is a rectangle.
+
+### The resolver took the first colourway there was
+
+`cwName` in `src/editor/render.js` is the one place three renderers agree on
+which colourway to draw. It tries the name the role resolves to, then the raw
+key, then a colourway cut for the ground the block is going onto — and then,
+having run out of reasons, took the first one the project cuts.
+
+    return forGround || have[0];
+
+Vesper cuts three and the first is `dusk`, which is its violet. Its cover is
+violet. So the canvas opened on a plain violet slab with the lockup drawn in the
+same violet at 1.00 to 1, while `reverse` sat unused at 11.86. The last resort
+asks now, and the project's own first cut still wins wherever it reads — so this
+only ever replaces something nobody could see. One resolution moved, out of the
+158 the thirty-two starter documents ask for.
+
+### Three blocks painted a ground and asked the resolver about none
+
+    construction: (b, bu) => `…background:${colour(bu, b.props.on || 'ground')}…
+      ${construction(bu, cwName(bu, b.props.colourway || 'primary'), …)}`
+
+The construction diagram, the clear space diagram and the minimum sizes each
+paint a ground and then resolve a colourway without saying what the ground is,
+so the one step that picks something a reader can see had nothing to see it
+against. Thornbury, Fathom, Kvist, Lammas and Spire all cut a `reverse` for
+exactly this and all five drew `full` on their own ink.
+
+### The cover went on the primary colour, and the diagrams on the ground colour
+
+Both are written into `starterDoc`, and neither is something a project has to
+have. Hallward's primary role **is** its ink, so its cover was a black rectangle
+with a black lockup on it. Cusp's ground role is a near-black its one colourway
+is drawn in, and its paper is not in the palette at all, so all three diagrams
+were empty boxes. The starter document measures now: the wanted ground wins
+wherever the artwork reads on it, and the rest of the palette is consulted only
+when nothing can be seen at all. Three of the thirty-two start somewhere
+different.
+
+The minimum sizes block had no ground to move to — it was the one of the three
+without an `on`, which is why it could not be saved. It has one now, with the
+captions set in the ink the specimen is drawn in, because that ink reads on that
+ground by construction and nothing inherited from the page can promise it.
+
+### The cover asked for a horizontal lockup
+
+Marlow cuts a wordmark and nothing else. `bu.variants['horizontal:reverse']`
+does not exist, so `BLOCK.lockup` fell through to `Object.values(bu.variants)[0]`
+— a different lockup in a different colourway, silently. The starter document
+asks for a lockup the project cuts.
+
+### Two the browser found that the arithmetic did not
+
+**A clipPath is not a colour.** Reading the artwork as text to find its inks
+counted `<clipPath><path fill="#fff"…>` as white paint, so perigee's diagrams
+measured as readable on the strength of a shape whose whole job is to hide
+things. `src/svg.js` names this at `NEVER_DRAWN` and has fixed it once already
+in the printing path. The inks are measured through `svgu.eachPainted` in
+`editor/bundle.js` now and carried on the bundle, so the half of the renderer
+that runs in a browser never has to read a file it cannot parse.
+
+**A regex is not a parser.** `BLOCK.motion` split the artwork into the part that
+settles and the part that rises with
+
+    inner.match(/<[a-z][^>]*\/?>(?:[\s\S]*?<\/[a-z]+>)?/gi)
+
+— a tag, then everything up to the first closing tag. Kvist's logotype sits in a
+`<g>` after a `<defs>`, so that closed the `<defs>` at the `</clipPath>` and the
+whole mark ended up inside it. `<defs>` is not drawn. The block was empty in
+every package this repository has published, and no arithmetic could see it
+because the ink was in the file. The split is artwork, so the engine does it, on
+the parsed document: whole subtrees move together so a group keeps the paint it
+sets for its children, and what is never drawn is emitted once outside both
+halves so a clipPath the artwork points at stays reachable.
+
+That also made the caption true. A mark drawn entirely in strokes has no fill to
+rise and was claiming a two-part build; it says which of the two it is now, in
+all four languages.
+
+### And one the engine's own check found
+
+Fixing the caption took yamabiko's `published.html` from 50.7 per cent Japanese
+to 48, and the accessibility check refused the build — correctly. The margin was
+twenty latin characters:
+
+    write('published.html', publish(document, bu, { title: 'Guidelines' }));
+
+The canvas publishes under `T('cvPublishTitle')`, which every dictionary has;
+the build wrote the English word, into the tab and into the heading a screen
+reader announces first, on a page that then declares the identity's language.
+Every package outside English shipped that. It publishes under the identity's
+own word now.
+
 ## What it does not do yet
 
 - **The door cannot write in Japanese.** It offers the language and marks it
@@ -5551,6 +5662,7 @@ taking them from the caller. It reads this too now, and `make` no longer asks.
     test/rtl-check.mjs     every value, drawn against the way it is written
     test/font-check.mjs    every character, against the face it is set in
     test/reader-check.mjs  the tree a screen reader reads, and what it says
+    test/seen-check.mjs    the artwork the canvas opens with, counted in pixels
     src/documents/    blocks.js, chrome.js, index.js (manual), deck.js
     projects/meridian/  the first identity: one stroked mark, one ink
     projects/halyard/   the second: filled artwork, two inks, four faults left in

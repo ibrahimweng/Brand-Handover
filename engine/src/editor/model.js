@@ -139,7 +139,10 @@ const DEFAULTS = {
     blend: 'multiply', opacity: 1, surfaceWidthMm: 0, treatment: false },
   mark: { colourway: 'primary', on: 'ground' },
   lockup: { lockup: 'horizontal', colourway: 'primary', on: 'ground' },
-  construction: {}, clearSpace: {}, minimumSize: {},
+  // The two diagrams have always carried the ground they are drawn on; the
+  // sizes block did not, and so had nowhere to go on an identity whose ground
+  // role holds its ink. Cusp is one colour and its paper is not in the palette.
+  construction: {}, clearSpace: {}, minimumSize: { colourway: 'primary', on: 'ground' },
   palette: {}, contrast: { limit: 6 }, typeSpecimen: {}, assetIndex: {},
   pattern: { density: 'medium', colourway: 'ground', on: 'primary', caption: false },
   iconGrid: { colourway: 'primary', on: 'ground', line: 'neutral', caption: true },

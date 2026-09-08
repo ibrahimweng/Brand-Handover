@@ -1519,7 +1519,14 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     for (const id of keep) if (bu.images[id]) carried[id] = bu.images[id];
     write('document.json', JSON.stringify(
       Object.keys(carried).length ? Object.assign({}, document, { images: carried }) : document, null, 2));
-    write('published.html', publish(document, bu, { title: 'Guidelines' }));
+    // The canvas publishes under the identity's own word for it, and this wrote
+    // the English one, on a page that then declares the identity's language.
+    // Yamabiko's published.html said lang="ja" over a document whose two most
+    // prominent words were "Guidelines"; twenty latin characters in the title
+    // and the heading are what took it from Japanese to not, and the engine's
+    // own accessibility check is the thing that noticed. See editor/app.js.
+    const pubTitle = require('./strings').resolve(project, 'canvas').t('cvPublishTitle');
+    write('published.html', publish(document, bu, { title: pubTitle }));
 
     // ---- the documents this engine just wrote ----
     //
@@ -1533,7 +1540,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     const pages = {
       'guidelines.html': docs.guidelines(ctx),
       'deck.html': deck(ctx),
-      'published.html': publish(document, bu, { title: 'Guidelines' }),
+      'published.html': publish(document, bu, { title: pubTitle }),
     };
     // The canvas goes in too. Every statement this engine wrote said it was an
     // application and left it out, and that was true and was also the reason
