@@ -126,7 +126,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 150 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 593 tests.
+of it. 594 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -2387,6 +2387,61 @@ nobody mentions, and a wrong sentence is not the cure for it.
 233 of 233 folders named, 0 files unmentioned. And 03-mark now says the one
 thing that is a choice between drawings rather than a size: *the symbol on its
 own, where the name is already present.*
+
+---
+
+**"No old variant can be hiding in a folder"**
+
+That sentence opens the read me in every package this engine has ever built. A
+build only ever created files. It never removed one.
+
+`-o out` is for the folder a designer keeps, so rebuilding into it handed the
+client yesterday's package with today's laid over the top. Measured, on Meridian:
+
+    what changed between the two builds     handed over   the package   yesterday's
+    a colourway is dropped                          150           127            23
+    a lockup is dropped                             150           125            25
+    the brand is renamed                            251           150           101
+    an icon size is dropped                         150           149             1
+    nothing changes at all                          150           150             0
+
+Drop a colourway and twenty-three files of it stay, `.pdf` and `.ai` included.
+Drop a lockup and the whole of `02-stacked` stays. Rename the brand and a
+hundred and one files stay: two complete sets of artwork under two names, in one
+folder, with a read me, a `brand.json` and a manual that describe one of them —
+and the old zip beside the new one. Nothing distinguishes the old set from the
+real thing except knowing which name is current.
+
+The zip was always right, because it is packed from what that run wrote. It was
+the folder that was not, and the folder is what gets handed over.
+
+A build clears what it wrote before and no longer writes. Only that. `brand.json`
+carried `generated.files` — a count — and now carries the list beside it, so what
+a build removes is a path this engine has a record of writing, in a `brand.json`
+it wrote itself. Anything else in the folder is somebody's own: it is left where
+it is, and named.
+
+    25 files from the package that was in this folder are not in this one, so
+    they were removed: 02-stacked/meridian-stacked-black-1024.png, … and 21
+    more. Only files this engine recorded writing here are cleared; anything
+    else you put in this folder is left alone.
+
+    3 files in this folder are not part of the package and were left alone:
+    01-horizontal/my-own-crop.png, from-the-printer/proof.pdf,
+    notes-for-the-client.txt. The read me says everything here was cut from the
+    master, which is true of what this wrote and cannot be true of what it did
+    not — hand over the zip, or a folder with only the package in it.
+
+Nothing left from yesterday in any of the five cases; a folder emptied of the
+package goes with it; the designer's own files stay; and a rebuild into the same
+folder is byte for byte a fresh build. The list is read rather than obeyed, so a
+`brand.json` naming `../something` removes nothing outside the folder it is in —
+which is the fifth reversion, and it takes the guard away and watches a file
+outside the package disappear.
+
+It costs `brand.json` 10.3 KB to 17.0 KB on Meridian, 19.7 to 34.2 on Northline.
+The count on its own was enough to check a package against itself and never
+enough to clear one.
 
 Still to do: nothing named. The next one is whatever the next measurement finds.
 

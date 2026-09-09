@@ -4809,6 +4809,73 @@ test('the read me lists the folders the package has, not four fixed ones', async
   fs.rmSync(dir2, { recursive: true, force: true });
 });
 
+test("a rebuild hands over this package, not this one laid over yesterday's", async () => {
+  // Every read me this engine has written opens with "Nothing was drawn or
+  // renamed by hand, so no old variant can be hiding in a folder", and a build
+  // only ever created files — it never removed one. `-o out` is for the folder
+  // a designer keeps, so rebuilding into it handed the client yesterday's
+  // package with today's laid over the top:
+  //
+  //     a colourway dropped     23 files of it stay, .pdf and .ai included
+  //     a lockup dropped        the whole of 02-stacked stays, 25 files
+  //     the brand renamed      101 files stay — two complete sets of artwork
+  //                            under two names, and a read me for one of them
+  //
+  // A build clears what it wrote before and no longer writes, and only that:
+  // brand.json carries the list now rather than only the count, so what gets
+  // removed is a path this engine has a record of writing.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-again-'));
+  const day1 = await build(projectLoader.load(PROJECT), dir);
+  assert.deepStrictEqual(day1.cleared, [], 'a first build into an empty folder removed something');
+  assert.deepStrictEqual(day1.strangers, [], 'a first build found files it did not write');
+
+  // what the designer keeps in the same folder, which is not the engine's
+  const mine = ['notes-for-the-client.txt', '01-horizontal/my-own-crop.png'];
+  for (const f of mine) fs.writeFileSync(path.join(dir, f), 'mine');
+
+  const p = projectLoader.load(PROJECT);
+  p.rules = Object.assign({}, p.rules, {
+    lockups: p.rules.lockups.filter((l) => l !== 'stacked'),
+    colourways: p.rules.colourways.filter((c) => c.name !== 'deep'),
+  });
+  const day2 = await build(p, dir);
+
+  const onDisk = fs.readdirSync(dir, { recursive: true })
+    .map((f) => String(f).replace(/\\/g, '/'))
+    .filter((f) => fs.statSync(path.join(dir, f)).isFile());
+  const inPackage = new Set(day2.written.map((w) => w.path));
+  const left = onDisk.filter((f) => !inPackage.has(f) && !mine.includes(f));
+  assert.deepStrictEqual(left, [], `yesterday's package is still in the folder: ${left.slice(0, 5).join(', ')}`);
+  assert.ok(day2.cleared.length > 20, `only ${day2.cleared.length} files cleared`);
+  assert.ok(day2.cleared.some((f) => /^02-stacked\//.test(f)) && day2.cleared.some((f) => /-deep\./.test(f)));
+  // a folder with nothing left in it is not a folder the package has
+  assert.ok(!fs.existsSync(path.join(dir, '02-stacked')), '02-stacked is empty and still there');
+
+  // and what it did not write, it did not touch
+  for (const f of mine) assert.ok(fs.existsSync(path.join(dir, f)), `${f} was removed, and it is not the engine's`);
+  assert.deepStrictEqual(day2.strangers.slice().sort(), mine.slice().sort());
+  assert.ok(day2.notes.some((n) => /were removed/.test(n)), 'it cleared files and said nothing');
+  assert.ok(day2.notes.some((n) => /left alone/.test(n)), 'it found files of somebody else\'s and said nothing');
+
+  // the count brand.json has always carried is the list it carries now
+  const bj = JSON.parse(fs.readFileSync(path.join(dir, 'brand.json'), 'utf8'));
+  assert.strictEqual(bj.generated.files, bj.generated.wrote.length);
+  assert.deepStrictEqual(bj.generated.wrote.slice().sort(), [...inPackage].sort());
+
+  // and the list is read, not obeyed: it names what to remove inside this
+  // folder and nothing anywhere else, whatever it says
+  const outside = path.join(dir, '..', `not-the-package-${path.basename(dir)}.txt`);
+  fs.writeFileSync(outside, 'somebody else\'s file');
+  bj.generated.wrote = bj.generated.wrote.concat([
+    `../${path.basename(outside)}`, outside, '01-horizontal/../../' + path.basename(outside)]);
+  fs.writeFileSync(path.join(dir, 'brand.json'), JSON.stringify(bj, null, 2));
+  const day3 = await build(projectLoader.load(PROJECT), dir);
+  assert.ok(fs.existsSync(outside), 'a path outside the output folder was removed');
+  assert.ok(!day3.cleared.some((f) => /\.\.|^\//.test(f)), `it acted on ${day3.cleared.filter((f) => /\.\.|^\//.test(f))}`);
+  fs.unlinkSync(outside);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
 test('an icon is square, and artwork that is not is told so', () => {
   // the icon check measured stroke weight and never asked whether the artwork
   // is the right shape for a square. Kvist and Spire fill under a tenth of

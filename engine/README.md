@@ -6314,6 +6314,97 @@ saying so; read the folders from what has been written rather than the whole
 package and 10-documents vanishes; and put "avatars, app icons" back on 03-mark
 and the index is pointing at a lockup for icons with the icons beside it.
 
+## "No old variant can be hiding in a folder"
+
+Every package this engine has ever built opens its read me with:
+
+> Every file here was cut from mark.svg at the moment this package was built.
+> Nothing was drawn or renamed by hand, so no old variant can be hiding in a
+> folder.
+
+A build only ever created files. It never removed one, and nothing in the source
+had ever looked at what was in the output folder before writing into it.
+
+### What a rebuild actually hands over
+
+`-o out` is for the folder a designer keeps. Build Monday's package into it,
+change the project, build again: measured on Meridian, in files.
+
+    what changed between the two builds     handed over   the package   yesterday's
+    a colourway is dropped                          150           127            23
+    a lockup is dropped                             150           125            25
+    the brand is renamed                            251           150           101
+    an icon size is dropped                         150           149             1
+    nothing changes at all                          150           150             0
+
+The last row is the control: an unchanged rebuild leaves nothing behind, so this
+is a measurement of what changed rather than of rebuilding.
+
+Drop a colourway and 23 files of it stay — `meridian-horizontal-deep.pdf`,
+`.ai`, `.svg` and both PNGs, in every lockup folder. Drop a lockup and the whole
+of `02-stacked` stays, 25 files, a folder the read me no longer lists. Rename the
+brand and 101 files stay: **two complete sets of artwork under two names, in one
+folder**, with a read me, a `brand.json` and a manual describing one of them, and
+yesterday's zip sitting beside today's. Nothing in the folder distinguishes the
+old set from the real one except knowing which name is current — which is exactly
+the "old variant hiding in a folder" the sentence promises cannot happen.
+
+The zip was always right: it is packed from what that run wrote, in memory,
+never from the folder. It was the folder that was wrong, and the folder is what
+gets handed over.
+
+### A count is not a list
+
+`brand.json` has carried `generated.files` since the round that found an asset
+index reporting 45 files in a package of 57. A count is enough to check a
+package against itself. It is not enough to clear one: to remove yesterday's
+files you have to know their names, and nothing wrote them down.
+
+So `generated.wrote` sits beside the count — the same `wholePackage()` list the
+count is taken from, sorted. That is the whole mechanism. A build reads the
+`brand.json` already in the output folder, and removes exactly the paths that
+list names and this build does not write.
+
+It costs 10.3 KB → 17.0 KB on Meridian and 19.7 → 34.2 on Northline. `brand.json`
+is the file whose job is to describe the package, and until now it could say how
+many files there are and not which.
+
+### What it will not do
+
+**It removes only what it has a record of writing.** Not "everything in the
+folder that is not in the package" — that is the third reversion, and it deletes
+`notes-for-the-client.txt` and the designer's own crop out of `01-horizontal`.
+The list has to have come from a `brand.json` this engine wrote; any other
+folder is untouched, and a first build into a folder with no manifest removes
+nothing at all.
+
+**It reads the list rather than obeying it.** An absolute path, a `..`, or a
+`01-horizontal/../../` is dropped before anything is unlinked. The fifth
+reversion takes that guard away, and a file outside the output folder disappears.
+
+**It removes files, and only prunes a folder it emptied itself.** `02-stacked`
+goes when the last of its files goes; a folder with anything else still in it
+stays.
+
+**It says both halves.** What it cleared, and what it found that it did not write
+and left alone — because the read me tells a client everything in the folder was
+cut from the master, and this engine can say that about what it wrote and cannot
+say it about what it did not.
+
+### After
+
+    nothing left from yesterday in any of the five cases
+    the designer's three files, untouched
+    02-stacked, gone with its files
+    a rebuild into the same folder, byte for byte a fresh build
+
+Five reversions, each landing on the assertion written for it: stop clearing and
+yesterday's package is still there; keep the count and drop the list and it is
+still there, because there is nothing to clear it by; clear everything not in the
+package and the designer's own files go; stop pruning and `02-stacked` is empty
+and still there; obey the list rather than read it and a file outside the folder
+is removed.
+
 ## What it does not do yet
 
 - **The door cannot write in Japanese.** It offers the language and marks it

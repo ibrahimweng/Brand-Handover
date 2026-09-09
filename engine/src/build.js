@@ -306,6 +306,29 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // because which file carries it decides which one goes to a one-colour job.
   const notes = [];
   const written = [];
+  // What this engine wrote into this folder last time.
+  //
+  // The read me in every package ever built opens with "Nothing was drawn or
+  // renamed by hand, so no old variant can be hiding in a folder", and a build
+  // only ever created files: it never removed one. A designer rebuilding into
+  // the folder they keep — which is what `-o out` is for — handed over
+  // yesterday's package with today's laid over it. Drop a colourway and 23
+  // files of it stay, .pdf and .ai included. Drop a lockup and the whole of
+  // 02-stacked stays, 25 files. Rename the brand and 101 files stay: two
+  // complete sets of artwork under two names, in one folder, with a read me
+  // that describes one of them.
+  //
+  // So a build clears what it wrote before and no longer writes. Only that: a
+  // path this engine has a record of writing, in a brand.json it wrote itself.
+  // Anything else in the folder is somebody's own and is never touched.
+  const priorWrote = (() => {
+    try {
+      const j = JSON.parse(fs.readFileSync(path.join(outDir, 'brand.json'), 'utf8'));
+      const list = j && j.generated && j.generated.wrote;
+      return Array.isArray(list) ? list.filter((r) => typeof r === 'string' && r
+        && !path.isAbsolute(r) && !r.split('/').includes('..')) : [];
+    } catch { return []; }        // no package here, or not one this engine wrote
+  })();
   // Nine pattern tiles went into a package with the same attribute written
   // twice, which is not valid SVG and which no renderer would open — and
   // nothing noticed, because nothing ever tried to read back what it wrote.
@@ -1346,6 +1369,9 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       size: (d.doc.page && d.doc.page.size) || 'slide-16x9' })),
     generated: { measuredFrom: path.basename(masterOf(project).path), iconsFrom: iconFrom,
       files: wholePackage().length,
+      // the count was here on its own, which is enough to check a package
+      // against itself and not enough to clear one. The next build reads this.
+      wrote: wholePackage().map((f) => f.path).sort(),
       builtUnder: licence && licence.ok ? { plan: licence.licence.plan, fingerprint: lic0.fingerprint(licence.licence) } : null },
   };
   // The first time this engine reads a brand.json rather than writing one. The
@@ -1830,7 +1856,51 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     written.push({ path: zipName, bytes: buf.length });
   }
 
-  return { measured, written, warnings, notes, contrast: pairs };
+  // ---- and yesterday's package, which is not this one ----
+  const wroteNow = new Set(written.map((w) => w.path));
+  const cleared = [];
+  const dirs = new Set();
+  for (const rel of priorWrote) {
+    if (wroteNow.has(rel)) continue;
+    const at = path.join(outDir, rel);
+    try {
+      if (!fs.statSync(at).isFile()) continue;
+      fs.unlinkSync(at);
+      cleared.push(rel);
+      if (rel.includes('/')) dirs.add(path.dirname(at));
+    } catch { /* already gone, which is the state this wanted */ }
+  }
+  // a folder this emptied is a folder the package no longer has
+  for (const d of [...dirs].sort((a, b) => b.length - a.length)) {
+    try { if (!fs.readdirSync(d).length) fs.rmdirSync(d); } catch { /* not empty, so it stays */ }
+  }
+  if (cleared.length) {
+    notes.push(`${cleared.length} file${cleared.length === 1 ? '' : 's'} from the package that was `
+      + `in this folder ${cleared.length === 1 ? 'is' : 'are'} not in this one, so ${cleared.length === 1 ? 'it was' : 'they were'} `
+      + `removed: ${cleared.slice(0, 4).join(', ')}${cleared.length > 4 ? `, and ${cleared.length - 4} more` : ''}. `
+      + 'Only files this engine recorded writing here are cleared; anything else you put in this folder is left alone.');
+  }
+  // and anything else that is in the folder and not in the package, said once,
+  // because the read me tells a client that everything here was cut from the
+  // master and this engine cannot say that about a file it did not write
+  const strangers = [];
+  const walk = (dir, base) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const rel = base ? `${base}/${e.name}` : e.name;
+      if (e.isDirectory()) walk(path.join(dir, e.name), rel);
+      else if (!wroteNow.has(rel)) strangers.push(rel);
+    }
+  };
+  try { walk(outDir, ''); } catch { /* the folder went, which is not this to fix */ }
+  if (strangers.length) {
+    notes.push(`${strangers.length} file${strangers.length === 1 ? '' : 's'} in this folder `
+      + `${strangers.length === 1 ? 'is' : 'are'} not part of the package and ${strangers.length === 1 ? 'was' : 'were'} `
+      + `left alone: ${strangers.slice(0, 4).join(', ')}${strangers.length > 4 ? `, and ${strangers.length - 4} more` : ''}. `
+      + 'The read me says everything here was cut from the master, which is true of what this wrote and '
+      + 'cannot be true of what it did not — hand over the zip, or a folder with only the package in it.');
+  }
+
+  return { measured, written, warnings, notes, contrast: pairs, cleared, strangers };
 }
 
 module.exports = { build, KEYS_READ, unreadKeys };
