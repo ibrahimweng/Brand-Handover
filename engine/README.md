@@ -6195,6 +6195,125 @@ same ramp; a user-space gradient keeps a ramp instead of collapsing; the box is
 the curve and not the handles; every curve's own drawing starts at its own
 origin; every path closes straight; and a gradient with a transform is refused.
 
+## Half the package was in no sentence the client reads
+
+Every out-of-suite instrument this repository has came back clean, so this round
+began by asking a question none of them ask: does the package describe the
+package that is there? A client opening a zip reads `README.txt` first, and it
+carried one index, headed *Which file to use*.
+
+    folder            ships in   named in its read me   files
+    01-horizontal           31                     31     393
+    02-stacked              29                     29     382
+    03-mark                 29                     29     381
+    04-wordmark             21                     21     289
+    05-icons                32                      0     167
+    06-social               15                      0      36
+    07-pattern              32                     32     318
+    08-photography           2                      0       5
+    09-type                 32                      0     274
+    10-documents             1                      0       6
+    11-partners              1                      1      12
+    12-ladder                3                      3     135
+    13-fabrication           2                      2      11
+    14-family                1                      1      54
+    15-motion                2                      2       8
+
+82 of 233 folders. 488 files. The split is not random: ten kinds of folder are
+named in every package that ships them and five kinds in none.
+
+### The five it never named
+
+**05-icons and 09-type ship in all thirty-two.** Every package this engine has
+ever built hands over a folder of cut icons and a folder of typefaces, and its
+own read me does not mention either. 06-social in fifteen packages,
+08-photography in two.
+
+The manual and the deck name all four, in every package that ships them, so a
+client who reads the manual finds them. **10-documents is named by nothing in
+the package at all** — not the read me, not the manual, not the deck, not
+`brand.json`. The one thing that has ever said it is there is a build note:
+
+> the pages laid out in this identity are in 10-documents, as pages to read and
+> as files to open again
+
+and a build note goes to whoever ran the build. It does not travel with the zip.
+
+And the read me was worse than silent. Its index said
+
+    03-mark         avatars, app icons, and anywhere the name is already present.
+
+with `05-icons/icon-180.png`, `icon-512.png`, `favicon.ico` and a folder of
+`profile-400x400.png` sitting beside it, unnamed. It sent the client to resize a
+drawing by hand past the files cut for exactly that.
+
+### The third time this shape has appeared
+
+The comment above that index is the record of the same fault being fixed once
+already, one folder-kind over:
+
+> Four hardcoded lines, in a package that writes the lockups the project asks
+> for. Eleven of the thirteen projects here do not ask for all four, so eleven
+> read mes named folders that are not in the package — Cusp's named three of
+> them. The read me now lists what was written.
+
+07-pattern got its line the same way — *the pattern was in the package and in no
+sentence anybody reads*. Both fixes taught the read me about one more thing, and
+neither taught it to ask the question.
+
+### It asks the question now
+
+The folders are read off the package, from `wholePackage()` — the same list
+`brand.json` counts, which exists because an asset index a designer laid out once
+*reported 45 files in a package of 57 and did not mention the folder its own page
+was in*. That matters here for one reason: `10-documents` is written **after**
+the read me is composed, so a fix built on "what has been written so far" would
+have left the one folder nothing names still unnamed. The teeth run does exactly
+that, and 10-documents disappears again.
+
+Any folder that no other line in the read me already covers gets a line of its
+own, and the line is read off what is in the folder:
+
+    Also in here
+    ------------
+      05-icons        the mark cut square: 180, 192, 512, 1024 px for an app
+                      icon, 16, 32, 48 px and a favicon.ico holding them, for
+                      a browser tab. Use these rather than resizing one
+                      yourself.
+      06-social       the mark placed and centred for each crop a network asks
+                      for: 400×400, 1128×191, 1200×630, 1500×500. The name of
+                      each file says which is which.
+      09-type         Archivo and Literata, as web font files. Every document
+                      carries the type inside it, so this folder is for
+                      everything else you set.
+
+"Already covered" is measured against the read me's own text rather than a list
+kept by hand, so 07-pattern, 12-ladder and the rest are not said twice. Cusp,
+with one favicon, reads *a favicon.ico holding it*; Marlow, which has no symbol,
+reads *the logotype cut square*; Lammas, whose photographs ship untreated, gets
+the plain sentence while Saltmarsh's says *each also with the identity's own
+treatment laid over it*. None of that is a sentence kept in the source and hoped
+for.
+
+**A folder with no sentence is still listed**, with a count of what is in it —
+`10-documents  6 files. This read me has no sentence for them.` — and the build
+tells whoever ran it to write one. The fault being fixed is a file nobody
+mentions, and a wrong sentence is not the cure for it.
+
+And 03-mark now says the one thing that is a choice between drawings rather than
+a size: *the symbol on its own, where the name is already present.*
+
+### After
+
+    233 of 233 folders named. 0 files in a folder the read me never mentions.
+
+Four reversions, each landing on the assertion written for it: put the index
+back to the lockups and 05-icons, 06-social and 09-type go unnamed; take away
+10-documents' sentence and it is listed and counted instead, with the build
+saying so; read the folders from what has been written rather than the whole
+package and 10-documents vanishes; and put "avatars, app icons" back on 03-mark
+and the index is pointing at a lockup for icons with the icons beside it.
+
 ## What it does not do yet
 
 - **The door cannot write in Japanese.** It offers the language and marks it

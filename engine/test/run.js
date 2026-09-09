@@ -4779,12 +4779,19 @@ test('the read me lists the folders the package has, not four fixed ones', async
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-readme-'));
   const r = await build(MW, dir);
   const txt = fs.readFileSync(path.join(dir, 'README.txt'), 'utf8');
-  const listed = [...txt.matchAll(/^ {2}(\d\d-[a-z]+)/gm)].map((x) => x[1]);
-  const onDisk = fs.readdirSync(dir).filter((f) => /^\d\d-/.test(f) && !/icons|social/.test(f));
+  // the index of drawings is the lockups, and only those: choosing between
+  // 01-horizontal and 02-stacked is a choice, choosing 05-icons is not
+  const index = (t) => t.slice(t.indexOf('Which file to use'),
+    t.indexOf('Also in here') > -1 ? t.indexOf('Also in here') : t.indexOf('Rules that travel with it'));
+  const listed = [...index(txt).matchAll(/^ {2}(\d\d-[a-z]+)/gm)].map((x) => x[1]);
+  const onDisk = fs.readdirSync(dir).filter((f) => /^\d\d-/.test(f));
   // 07-pattern is in every package now: a logotype has a pattern like anything
   // else, and before this it had one only if somebody hand-edited the master
   assert.deepStrictEqual(listed, ['04-wordmark']);
-  assert.deepStrictEqual(onDisk.slice().sort(), ['04-wordmark', '07-pattern', '09-type']);
+  assert.deepStrictEqual(onDisk.slice().sort(),
+    ['04-wordmark', '05-icons', '06-social', '07-pattern', '09-type']);
+  // and the read me names all of them, wherever it names them
+  assert.deepStrictEqual(onDisk.filter((f) => !txt.includes(f)), []);
   // and it says what a logotype is, rather than calling it a fallback for a
   // symbol the identity has not got
   assert.ok(/the logotype, which is the whole identity/.test(txt), txt.split('\n').slice(6, 12).join('\n'));
@@ -4794,8 +4801,9 @@ test('the read me lists the folders the package has, not four fixed ones', async
   const dir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-readme2-'));
   const r2 = await build(project, dir2);
   const t2 = fs.readFileSync(path.join(dir2, 'README.txt'), 'utf8');
-  assert.deepStrictEqual([...t2.matchAll(/^ {2}(\d\d-[a-z]+)/gm)].map((x) => x[1]),
+  assert.deepStrictEqual([...index(t2).matchAll(/^ {2}(\d\d-[a-z]+)/gm)].map((x) => x[1]),
     ['01-horizontal', '02-stacked', '03-mark', '04-wordmark']);
+  assert.deepStrictEqual(fs.readdirSync(dir2).filter((f) => /^\d\d-/.test(f) && !t2.includes(f)), []);
   assert.ok(/below the minimum size, where the mark stops reading/.test(t2));
   assert.ok(r.written.length && r2.written.length);
   fs.rmSync(dir2, { recursive: true, force: true });
@@ -6505,6 +6513,62 @@ test('a project can ship the pages the designer laid out', async () => {
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+test('every folder in the package is in a sentence the read me says', async () => {
+  // A client opens README.txt. It carried one index — "Which file to use" —
+  // and that index listed the lockup folders and nothing else. Across the
+  // thirty-two identities here that left 82 of 233 folders, 488 files, in a
+  // package whose own read me never mentions them: 05-icons and 09-type in all
+  // thirty-two, 06-social in fifteen, 08-photography in two. The manual and the
+  // deck do name those four. 10-documents was named by nothing in the package
+  // at all — only by a build note, which stays on the machine that ran the
+  // build and does not travel with the zip.
+  //
+  // Worse than silent: the read me sent you to 03-mark for "avatars, app
+  // icons", with a folder of cut icons and avatars beside it, unnamed.
+  const check = (dir) => {
+    const readme = fs.readFileSync(path.join(dir, 'README.txt'), 'utf8');
+    const folders = fs.readdirSync(dir, { withFileTypes: true })
+      .filter((e) => e.isDirectory()).map((e) => e.name);
+    assert.ok(folders.length >= 4, `${dir} has no folders to name`);
+    const quiet = folders.filter((f) => !readme.includes(f));
+    assert.deepStrictEqual(quiet, [],
+      `${quiet.join(', ')}: shipped in the package, named nowhere in its read me`);
+    return folders;
+  };
+  const mer = check(out);
+  for (const f of ['05-icons', '06-social', '09-type']) {
+    assert.ok(mer.includes(f), `meridian stopped shipping ${f}, so this tests less than it says`);
+  }
+  // and the index does not send you somewhere else for what a folder holds
+  const merRead = fs.readFileSync(path.join(out, 'README.txt'), 'utf8');
+  const useThis = merRead.slice(merRead.indexOf('Which file to use'), merRead.indexOf('Also in here'));
+  assert.ok(!/icon/i.test(useThis),
+    `"Which file to use" points at a lockup for icons, with 05-icons beside it:\n${useThis}`);
+  // the two folders one project each has, and the only 10-documents there is
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-folders-'));
+  const built = await build(LM, dir);
+  const lam = check(dir);
+  for (const f of ['08-photography', '10-documents']) {
+    assert.ok(lam.includes(f), `lammas stopped shipping ${f}, so this tests less than it says`);
+  }
+  // and what it says about one is read off that one, not written in advance
+  const readme = fs.readFileSync(path.join(dir, 'README.txt'), 'utf8');
+  assert.ok(/10-documents {4}the 3 pages laid out in this identity/.test(readme),
+    `the read me does not say what is in 10-documents:\n${readme.split('\n').filter((l) => /10-documents/.test(l)).join('\n')}`);
+  // lammas ships its photographs untreated, and the line says only that. The
+  // clause about a treatment is there when there is one, which is what makes
+  // this a reading of the package rather than a sentence kept in the source.
+  assert.ok(/08-photography {2}the photographs this identity is built from\.\n/.test(readme),
+    `the photography line is not read off the package:\n${readme.split('\n').filter((l) => /photograph/.test(l)).join('\n')}`);
+  assert.strictEqual(built.written.filter((f) => /^08-photography\/.*-treated\./.test(f.path)).length, 0,
+    'lammas grew a treated photograph, so the line above tests less than it says');
+  // a folder the read me has no sentence for is still listed, with what is in
+  // it, and the build says so rather than the read me inventing one
+  assert.ok(!built.notes.some((n) => /has no sentence for it/.test(n)),
+    'a folder shipped that the read me could only count');
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
 test('a document a project ships is refused when it is not one', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-baddoc-'));
   fs.copyFileSync(path.join(__dirname, '..', 'projects', 'lammas', 'mark.svg'), path.join(dir, 'mark.svg'));
@@ -6688,14 +6752,14 @@ test('a symbol that is the whole identity is not described as a fallback', async
   await build(only, dir);
   const readme = fs.readFileSync(path.join(dir, 'README.txt'), 'utf8');
   assert.ok(readme.indexOf('the whole of it') > -1, `the read me still calls it a fallback:\n${readme}`);
-  assert.ok(readme.indexOf('anywhere the name is already present') < 0);
+  assert.ok(readme.indexOf('where the name is already present') < 0);
   fs.rmSync(dir, { recursive: true, force: true });
 
   // and a mark beside a name still reads the old way, because there it is true
   const two = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-two2-'));
   await build(projectLoader.load(PROJECT), two);
   assert.ok(fs.readFileSync(path.join(two, 'README.txt'), 'utf8')
-    .indexOf('anywhere the name is already present') > -1);
+    .indexOf('where the name is already present') > -1);
   fs.rmSync(two, { recursive: true, force: true });
 });
 

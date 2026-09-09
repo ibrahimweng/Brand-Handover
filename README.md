@@ -126,7 +126,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 150 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 592 tests.
+of it. 593 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -2323,6 +2323,70 @@ rests on those being the same rectangle: 0.000pt apart. And the colour-space
 question got better rather than louder: not *no screen colour anywhere*, but *no
 screen colour the build did not name* — Pagrin's wordmark is a plain black nobody
 gave an ink for, and the build says so out loud.
+
+---
+
+**Half the package was in no sentence the client reads**
+
+A client opens README.txt. It carried one index, headed *Which file to use*, and
+that index listed the lockup folders. Across the thirty-two identities here:
+
+    folder            ships in   named in its read me   files
+    01-horizontal           31                     31     393
+    02-stacked              29                     29     382
+    03-mark                 29                     29     381
+    04-wordmark             21                     21     289
+    05-icons                32                      0     167
+    06-social               15                      0      36
+    07-pattern              32                     32     318
+    08-photography           2                      0       5
+    09-type                 32                      0     274
+    10-documents             1                      0       6
+
+82 of 233 folders, 488 files. Every package ever built shipped a folder of cut
+icons and a folder of typefaces that its own read me never mentions. The manual
+and the deck do name those; 10-documents is named by nothing in the package at
+all — not the read me, not the manual, not the deck, not brand.json. The only
+thing that ever said it was there is a build note, which stays on the machine
+that ran the build and does not travel with the zip.
+
+And it was not merely silent. *Which file to use* sent you to **03-mark** for
+"avatars, app icons" with a folder of avatars and app icons cut to size sitting
+beside it, unnamed.
+
+The comment above that index records the same fault being fixed once already,
+for the lockups: four hardcoded lines in a package that writes the lockups the
+project asks for, so eleven read mes named folders that were not there. It was
+taught to list what it wrote — and only the lockups. 07-pattern got its line the
+same way, because *the pattern was in the package and in no sentence anybody
+reads*.
+
+So the read me now reads its folders off the package, from the same list
+brand.json counts, which knows about the folders written after the read me is
+composed — that is how 10-documents was invisible even to a fix like this one.
+Any folder no other line already covers gets a line of its own, and the line is
+read off what is in it:
+
+    Also in here
+    ------------
+      05-icons        the mark cut square: 180, 192, 512, 1024 px for an app
+                      icon, 16, 32, 48 px and a favicon.ico holding them, for
+                      a browser tab. Use these rather than resizing one
+                      yourself.
+      06-social       the mark placed and centred for each crop a network asks
+                      for: 400×400, 1128×191, 1200×630, 1500×500. The name of
+                      each file says which is which.
+      09-type         Archivo and Literata, as web font files. Every document
+                      carries the type inside it, so this folder is for
+                      everything else you set.
+
+A folder the read me has no sentence for is still listed, with a count of what
+is in it, and the build tells whoever ran it to write one — the fault is a file
+nobody mentions, and a wrong sentence is not the cure for it.
+
+233 of 233 folders named, 0 files unmentioned. And 03-mark now says the one
+thing that is a choice between drawings rather than a size: *the symbol on its
+own, where the name is already present.*
 
 Still to do: nothing named. The next one is whatever the next measurement finds.
 

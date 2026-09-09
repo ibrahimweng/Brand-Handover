@@ -1382,6 +1382,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // the whole identity is the logo.
   const lockupLines = (lockups, assets) => {
     const alone = !assets.mark;
+    const icons = filesUnder('05-icons').length > 0;
     // The mirror of the logotype case the thirteenth round fixed: a symbol that
     // stands on its own was still described as the thing you reach for "where
     // the name is already present", which is exactly backwards when there is no
@@ -1393,7 +1394,13 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       stacked: 'when the space is narrower than it is tall.',
       mark: symbolOnly
         ? 'the identity. There is no drawn name: this is the whole of it.'
-        : 'avatars, app icons, and anywhere the name is already present.',
+        // "avatars, app icons" — with a folder of avatars and app icons cut to
+        // size sitting beside it, unmentioned, in every package ever built.
+        // The folder is listed now, two lines below, so this line can say the
+        // one thing that is a choice between drawings rather than a size.
+        : icons
+          ? 'the symbol on its own, where the name is already present.'
+          : 'avatars, app icons, and anywhere the name is already present.',
       wordmark: alone
         ? 'the logotype, which is the whole identity. Everything else is cut from it.'
         : set
@@ -1402,6 +1409,102 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     };
     return lockups.filter((l) => why[l])
       .map((l) => `  ${naming.folderFor(l).padEnd(15)} ${why[l]}`);
+  };
+
+  // Every folder in the package, in a sentence somebody reads.
+  //
+  // The comment below says why the lockup folders are listed from what was
+  // written rather than from four hardcoded lines. The rest of the package was
+  // never listed at all. 05-icons and 09-type ship in all thirty-two identities
+  // here and are named in none of the thirty-two read mes; 06-social in
+  // fifteen, 08-photography in two — 82 of 233 folders, 488 files. The manual
+  // and the deck do name those four, so a client who reads the manual finds
+  // them; 10-documents is named nowhere in the package at all. And the read me
+  // sends you to 03-mark for "avatars, app icons" with a folder of cut icons
+  // sitting beside it unmentioned.
+  //
+  // So the folders are read off the package — `wholePackage()`, which is the
+  // same list brand.json counts, and knows about the ones written after this —
+  // and any that no other line already covers gets a line of its own. A folder
+  // with no sentence still gets listed, with what is in it, because the fault
+  // is a file nobody mentions and a wrong sentence is not the cure for it.
+  const foldersIn = () => {
+    const out = [];
+    for (const f of wholePackage()) {
+      const i = f.path.indexOf('/');
+      if (i > 0 && !out.includes(f.path.slice(0, i))) out.push(f.path.slice(0, i));
+    }
+    return out.sort();
+  };
+  const filesUnder = (dir) => wholePackage().filter((f) => f.path.startsWith(`${dir}/`));
+  const folderSay = {
+    '05-icons': () => {
+      const at = (re) => filesUnder('05-icons').map((f) => re.exec(f.path)).filter(Boolean)
+        .map((m) => Number(m[1])).sort((a, b) => a - b);
+      const icons = at(/\/icon-(\d+)\.png$/), favs = at(/\/favicon-(\d+)\.png$/);
+      const ico = filesUnder('05-icons').some((f) => /favicon\.ico$/.test(f.path));
+      const from = project.assets.icon ? 'the icon drawing'
+        : project.assets.mark ? 'the mark' : 'the logotype';
+      return `${from} cut square`
+        + `${icons.length ? `: ${icons.join(', ')} px for an app icon` : ''}`
+        + `${favs.length ? `, ${favs.join(', ')} px${ico ? ` and a favicon.ico holding ${favs.length === 1 ? 'it' : 'them'},` : ''} for a browser tab` : ''}`
+        + '. Use these rather than resizing one yourself.';
+    },
+    '06-social': () => {
+      const at = filesUnder('06-social').map((f) => (/-(\d+)x(\d+)\.png$/.exec(f.path) || []).slice(1))
+        .filter((m) => m.length);
+      const sizes = [...new Set(at.map((m) => [Number(m[0]), Number(m[1])].join('×')))]
+        .sort((x, y) => {
+          const a = x.split('×').map(Number), b = y.split('×').map(Number);
+          return a[0] - b[0] || a[1] - b[1];
+        });
+      return 'the mark placed and centred for each crop a network asks for'
+        + `${sizes.length ? `: ${sizes.join(', ')}` : ''}`
+        + '. The name of each file says which is which.';
+    },
+    '08-photography': () => {
+      const t = filesUnder('08-photography').filter((f) => /-treated\./.test(f.path)).length;
+      return 'the photographs this identity is built from'
+        + (t ? ", each also with the identity's own treatment laid over it." : '.');
+    },
+    '09-type': () => {
+      const fam = [...new Set(heldFamilies.concat((project.fonts || []).map((f) => f.family)))];
+      return `${fam.length ? fam.join(' and ') : 'the type'}, as web font files. Every document `
+        + 'carries the type inside it, so this folder is for everything else you set.';
+    },
+    '10-documents': () => {
+      const n = filesUnder('10-documents').filter((f) => /\.html$/.test(f.path)).length;
+      return `the ${n === 1 ? 'page' : `${n} pages`} laid out in this identity: one to read, and the `
+        + 'file beside it to open that page again and change it.';
+    },
+  };
+  // the read me is a text file somebody opens in a terminal, so it wraps
+  const wrapAt = (text, width, indent) => {
+    const out = [];
+    let line = '';
+    for (const word of String(text).split(' ')) {
+      if (line && (line + ' ' + word).length + indent > width) { out.push(line); line = word; }
+      else line = line ? `${line} ${word}` : word;
+    }
+    if (line) out.push(line);
+    return out;
+  };
+  const alsoIn = (text) => {
+    const rows = [];
+    for (const dir of foldersIn()) {
+      if (text.includes(dir)) continue;              // already in a sentence above
+      const known = !!folderSay[dir];
+      const say = known ? folderSay[dir]()
+        : `${filesUnder(dir).length} files. This read me has no sentence for them.`;
+      const [first, ...rest] = wrapAt(say, 78, 18);
+      rows.push(`  ${dir.padEnd(15)} ${first}`);
+      for (const more of rest) rows.push(`                  ${more}`);
+      if (!known) {
+        notes.push(`${dir} ships ${filesUnder(dir).length} files and the read me has no sentence `
+          + 'for it, so it says so rather than inventing one. Give it a line in src/build.js.');
+      }
+    }
+    return rows.length ? ['Also in here', '------------', ...rows, ''] : [];
   };
 
   const readme = [
@@ -1510,8 +1613,12 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       'Keep it. The next version of this identity is built against it, and it is',
       'the only thing that can say what moved between the two.',
     ]), '',
-  ].join('\n');
-  write('README.txt', readme);
+  ];
+  // spliced in once the rest is written, so "already covered above" is measured
+  // against the read me rather than against a list kept by hand
+  const at = readme.indexOf('Rules that travel with it');
+  readme.splice(at < 0 ? readme.length : at, 0, ...alsoIn(readme.join('\n')));
+  write('README.txt', readme.join('\n'));
 
   // ---- the two documents, both reading this same project ----
   if (rules.documents !== false) {
