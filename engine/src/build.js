@@ -440,6 +440,8 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   const saidMissingTier = new Set();
   const keptSlots = new Set();     // slots a colourway left painted as the master drew them
   const rgbShaded = [];            // PDFs carrying a gradient, which jsPDF writes as DeviceRGB
+  // set to the finding, once, if the PDF writer cannot run here at all
+  let noPdf = null;
   const gradientSlots = new Set([
     ...(project.assets.mark ? svgu.gradientSlots(svgu.parse(project.assets.mark.source)) : []),
     ...(project.assets.wordmark ? svgu.gradientSlots(svgu.parse(project.assets.wordmark.source)) : []),
@@ -487,14 +489,31 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       // brand colour, so a colourway either keeps it or loses it, and the
       // package has to say which files are which.
       if (v.kept && v.kept.length) for (const sl of v.kept) keptSlots.add(sl);
-      if (rules.formats.includes('pdf') || rules.formats.includes('ai')) {
+      if ((rules.formats.includes('pdf') || rules.formats.includes('ai')) && !noPdf) {
         // the file that actually goes to a press, so it goes in ink where the
         // project says what the ink is. See src/cmyk.js.
-        const pdf = await exp.toPdf(v.svg, { ink });
-        if (pdf.rgbShadings) rgbShaded.push(`${base}.pdf`);
-        if (rules.formats.includes('pdf')) write(`${dir}/${base}.pdf`, pdf);
-        // an .ai file is a PDF wrapper, so the same bytes open in Illustrator
-        if (rules.formats.includes('ai')) write(`${dir}/${base}.ai`, pdf);
+        //
+        // A package is a hundred and fifty files and forty of them are drawn by
+        // this one library. Reported from use: on a host where it could not
+        // load, the build stopped on the first one and the person was handed
+        // nothing — no SVGs, no PNGs, no icons, no manual, no read me, after
+        // answering every question and reading the whole manual on the screen.
+        // A package missing one format is worth a great deal more than no
+        // package, so the format drops out and the build says so, loudly, and
+        // keeps going.
+        let pdf = null;
+        try { pdf = await exp.toPdf(v.svg, { ink }); }
+        catch (e) {
+          noPdf = (e && e.findings && e.findings[0]) || {
+            level: 'blocker', code: 'pdfFailed', what: 'The PDF writer stopped.',
+            why: String((e && e.message) || e), how: null };
+        }
+        if (pdf) {
+          if (pdf.rgbShadings) rgbShaded.push(`${base}.pdf`);
+          if (rules.formats.includes('pdf')) write(`${dir}/${base}.pdf`, pdf);
+          // an .ai file is a PDF wrapper, so the same bytes open in Illustrator
+          if (rules.formats.includes('ai')) write(`${dir}/${base}.ai`, pdf);
+        }
       }
     }
   }
@@ -1856,6 +1875,16 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     written.push({ path: zipName, bytes: buf.length });
   }
 
+  // Said before anything else, because it is the one thing about this package
+  // that is not in it. The person is holding a folder that looks complete.
+  if (noPdf) {
+    const asked = ['pdf', 'ai'].filter((f) => rules.formats.includes(f));
+    warnings.unshift(`${noPdf.what} ${noPdf.why} `
+      + `So this package has no ${asked.join(' or ')} in it: every other file is here — the SVGs, `
+      + `every PNG, the icons, the pattern, the type, the manual, the deck and the read me — and the `
+      + `${asked.join(' and ')} that go to a printer are the ones missing. `
+      + `${noPdf.how || ''} Then build again and the same package comes out whole.`);
+  }
   // ---- and yesterday's package, which is not this one ----
   const wroteNow = new Set(written.map((w) => w.path));
   const cleared = [];

@@ -30,21 +30,59 @@ const svgu = require('./svg');
 // The version is not the question — the flag that turns it off is real and the
 // version would say yes anyway — so ask the runtime what it can do. See
 // engines.node in package.json, which is what the host reads.
+// Node 22.12 is where `require()` learned to load an ES module, and the
+// libraries that draw a vector PDF are ES modules. But the version is not the
+// question — the switch is, and it can be off on a Node new enough to have it:
+// `--no-experimental-require-module`, or the same in NODE_OPTIONS, which is a
+// thing hosts set. Reported from use, on Node 22.23.2:
+//
+//     This copy of Node cannot load an ES module from ordinary code, which is
+//     what drawing a PDF needs. It is Node 22.23.2; 22.12 and newer can.
+//
+// 22.23.2 is newer than 22.12. The sentence read as a version rule that the
+// version already satisfied, so the one person who could act on it had nothing
+// to act on. Which of the two it is, is knowable here.
+function nodeVersion() {
+  return String(process.versions.node || '').split('.').map(Number);
+}
+const OLD_ENOUGH = [22, 12, 0];
+function tooOld() {
+  const v = nodeVersion();
+  for (let i = 0; i < OLD_ENOUGH.length; i++) {
+    if ((v[i] || 0) !== OLD_ENOUGH[i]) return (v[i] || 0) < OLD_ENOUGH[i];
+  }
+  return false;
+}
+
 function needsNewerNode() {
   if (process.features.require_module) return null;
-  const said = `This copy of Node cannot load an ES module from ordinary code, which is what drawing `
-    + `a PDF needs. It is Node ${process.versions.node}; 22.12 and newer can.`;
+  const version = process.versions.node;
+  const old = tooOld();
+  const said = old
+    ? `This copy of Node is too old to load an ES module from ordinary code, which is what drawing a `
+      + `PDF needs. It is Node ${version}; 22.12 and newer can.`
+    : `Node ${version} can load an ES module from ordinary code, which is what drawing a PDF needs, `
+      + 'and in this process that is switched off.';
   const e = new Error(said);
   e.findings = [{
     level: 'blocker',
-    code: 'nodeTooOld',
+    code: old ? 'nodeTooOld' : 'requireModuleOff',
     what: said,
-    why: 'The libraries that turn artwork into a vector PDF are published as ES modules, and loading one '
-      + 'from ordinary code is something Node only learned in 22.12. On an older one it stops part way '
-      + 'through with a message about a file inside node_modules, which is true and is no use to anybody.',
-    how: 'Run it on Node 22.12 or newer. A hosted copy takes its version from `engines.node` in '
-      + 'package.json and needs redeploying after that changes; a local one takes it from whatever '
-      + '`node -v` says.',
+    why: old
+      ? 'The libraries that turn artwork into a vector PDF are published as ES modules, and loading one '
+        + 'from ordinary code is something Node only learned in 22.12. On an older one it stops part way '
+        + 'through with a message about a file inside node_modules, which is true and is no use to anybody.'
+      : 'The libraries that turn artwork into a vector PDF are published as ES modules. Node has been able '
+        + 'to load one from ordinary code since 22.12 and this copy is newer than that, so the version is '
+        + 'not the problem: `process.features.require_module` is false, which means the flag has been '
+        + 'turned off — usually --no-experimental-require-module, in NODE_OPTIONS or on the command line.',
+    how: old
+      ? 'Run it on Node 22.12 or newer. A hosted copy takes its version from `engines.node` in '
+        + 'package.json and needs redeploying after that changes; a local one takes it from whatever '
+        + '`node -v` says.'
+      : 'Take --no-experimental-require-module out of NODE_OPTIONS and out of however this is started. '
+        + 'On a host that is an environment variable in the project settings, and it needs redeploying '
+        + 'after the change.',
   }];
   return e;
 }

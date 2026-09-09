@@ -6535,6 +6535,90 @@ the file is "not painted" again; stop counting `foreignObject` and HTML is
 accepted; place the symbol without fitting its viewBox and the drawing is 16.8%
 different from the file that went in.
 
+## An error that argued with itself, and took the package with it
+
+Reported from use, with three screenshots. The first two show the manual
+rendering properly — the mark, the misuse page with all eight treatments drawn
+in the identity's own green — so the artwork was never the problem. Under them:
+
+> **This copy of Node cannot load an ES module from ordinary code, which is what
+> drawing a PDF needs. It is Node 22.23.2; 22.12 and newer can.**
+
+22.23.2 is newer than 22.12.
+
+### The guard was right; its sentence was not
+
+That guard came out of an earlier round, where a host running an older Node
+answered `Build the package` with `require() of ES Module
+/var/task/node_modules/@exodus/bytes/encoding-lite.js …`. The fix was to ask the
+runtime what it can do before drawing, and say the answer in the engine's own
+words. It asks `process.features.require_module`, which is exact, and it was
+telling the truth: on that host it is `false`.
+
+What it then said was a version rule, because when it was written the only case
+anybody had seen was a version. `require(esm)` landed in Node 22.12 — and it can
+also be **switched off** on a Node that has it, with
+`--no-experimental-require-module`, on the command line or in `NODE_OPTIONS`,
+which is a thing a host sets and a person deploying rarely types. So the check
+correctly refused and then explained it with the one rule the reader already
+satisfied.
+
+Both cases are knowable at the point of refusing, and they need different
+sentences and different instructions. Below 22.12 the version is the fault, and
+the fix is `engines.node` and a redeploy. At or above it, the switch is the
+fault, and the fix is an environment variable:
+
+    18.20.4   nodeTooOld         This copy of Node is too old to load an ES module…
+    22.11.0   nodeTooOld         …It is Node 22.11.0; 22.12 and newer can.
+    22.12.0   requireModuleOff   Node 22.12.0 can load an ES module from ordinary
+    22.23.2   requireModuleOff   code… and in this process that is switched off.
+
+The `why` on the second names what was actually looked at —
+`process.features.require_module` is false — rather than a version the reader can
+check for themselves and find fine.
+
+### The half that cost the package
+
+That is the smaller half. A package is a hundred and fifty files, and forty of
+them are the `.pdf` and the `.ai`: **110 files need nothing from that library at
+all.** The build wrote five files, hit the first PDF, and threw. The person had
+answered seven questions, chosen a layout, and read the whole manual on the
+screen, and was handed nothing.
+
+    meridian, with the PDF writer unavailable      110 of 150 files
+      52 png   35 svg   10 woff2   4 txt   4 html   3 json   1 zip   1 ico
+      missing: 20 pdf, 20 ai
+
+A package missing one format is worth a great deal more than no package. The
+format drops out now — once, on the first failure, for the whole build rather
+than per file — and everything else is written. The `.pdf` and `.ai` are the two
+that go to a printer, and they are named, in the first line of the last screen,
+because they are the one thing about that folder which is not in it:
+
+> So this package has no pdf or ai in it: every other file is here — the SVGs,
+> every PNG, the icons, the pattern, the type, the manual, the deck and the read
+> me — and the pdf and ai that go to a printer are the ones missing. […] Then
+> build again and the same package comes out whole.
+
+Nothing else in the package pretends the files are there: the read me lists the
+folders that were written, `brand.json` counts and names what was written, the
+zip is packed from what was written, and the asset index reads the same list.
+All of that was already true, because all of it is derived from `written` — this
+is the first time the list has been shorter than the formats asked for, and
+nothing had to change to keep it honest.
+
+### The teeth
+
+Four reversions, each on the assertion written for it: make it a version rule
+again whatever the version, and the boundary test fails on 22.12 and 22.23.2;
+move the boundary to 22.13 and it fails on 22.12; let the first PDF throw and the
+build stops dead with 5 files on disk; drop the formats without saying so and
+the first thing the last screen says is about something else.
+
+The second test runs a real build in a child process started with
+`--no-experimental-require-module`, because the only honest way to have the PDF
+writer fail is to start Node the way the host did.
+
 ## What it does not do yet
 
 - **The door cannot write in Japanese.** It offers the language and marks it

@@ -126,7 +126,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 150 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 598 tests.
+of it. 600 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -2501,6 +2501,53 @@ live text is.
 Every cleaned file is still the drawing that went in: rendered before and after
 at the same size, none of the thirty-nine that get through differs by so much as
 half a percent of its pixels.
+
+---
+
+**A bug report, from use: an error that argued with itself**
+
+> **This copy of Node cannot load an ES module from ordinary code, which is what
+> drawing a PDF needs. It is Node 22.23.2; 22.12 and newer can.**
+
+22.23.2 *is* newer than 22.12. The sentence reads as a version rule that the
+version already satisfies, so the one person who could act on it had nothing to
+act on — and no package, after answering every question and reading the whole
+manual on the screen.
+
+The check was right that it cannot. It was wrong about why. `require(esm)`
+arrived in Node 22.12, and it can also be switched off on a Node new enough to
+have it: `--no-experimental-require-module`, usually through `NODE_OPTIONS`,
+which is a thing a host sets. Which of the two it is, is knowable at the point of
+refusing, and the two need different sentences. Below 22.12 it says the version
+and where a host takes it from; at or above, it says the switch, and where to
+turn it back on. Reverting the boundary to 22.13 fails the test; so does making
+it a version rule again whatever the version.
+
+**And the second half, which is the one that cost the package.** A package is a
+hundred and fifty files and forty of them — the `.pdf` and the `.ai` — are drawn
+by that one library. The build stopped on the first of them, so 110 files that
+need nothing from it were never written: every SVG, every PNG, the icons, the
+pattern, the type, the manual, the deck, the canvas, `brand.json` and the read
+me. The person got nothing.
+
+A format that cannot be drawn drops out now, and the build finishes:
+
+    meridian, with the PDF writer unavailable      110 of 150 files
+      52 png   35 svg   10 woff2   4 txt   4 html   3 json   1 zip   1 ico
+      and the 20 pdf and 20 ai that are missing, named first on the last screen
+
+> Node 22.23.2 can load an ES module from ordinary code, which is what drawing a
+> PDF needs, and in this process that is switched off. […] So this package has no
+> pdf or ai in it: every other file is here — the SVGs, every PNG, the icons, the
+> pattern, the type, the manual, the deck and the read me — and the pdf and ai
+> that go to a printer are the ones missing. Take
+> `--no-experimental-require-module` out of `NODE_OPTIONS` and out of however
+> this is started. On a host that is an environment variable in the project
+> settings, and it needs redeploying after the change. Then build again and the
+> same package comes out whole.
+
+It is the first thing the last screen says, because it is the one thing about
+that package which is not in it.
 
 Still to do: nothing named. The next one is whatever the next measurement finds.
 

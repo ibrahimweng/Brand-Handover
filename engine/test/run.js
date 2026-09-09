@@ -5716,6 +5716,103 @@ test('HTML inside the artwork is refused, not quietly dropped', () => {
   assert.ok(/vector/.test(f.how), f.how);
 });
 
+test('the PDF refusal says which of the two it is', () => {
+  // Reported from use, on Node 22.23.2:
+  //
+  //     This copy of Node cannot load an ES module from ordinary code, which is
+  //     what drawing a PDF needs. It is Node 22.23.2; 22.12 and newer can.
+  //
+  // 22.23.2 is newer than 22.12. The sentence read as a version rule that the
+  // version already satisfied, so the one person who could act on it had
+  // nothing to act on. The version is not the question — the switch is, and it
+  // can be off on a Node new enough to have it.
+  const PDF = require('../src/pdf');
+  const real = process.versions.node;
+  const at = (v) => {
+    Object.defineProperty(process.versions, 'node', { value: v, configurable: true });
+    try { return PDF.needsNewerNode(); } finally {
+      Object.defineProperty(process.versions, 'node', { value: real, configurable: true });
+    }
+  };
+  if (process.features.require_module) {
+    // a Node that can do it says nothing at all, whatever its version
+    assert.strictEqual(at('18.20.4'), null, 'it refused on a Node that can load an ES module');
+  }
+  // and where it cannot, which of the two it is, is knowable
+  const saw = [];
+  const stub = Object.getOwnPropertyDescriptor(process.features, 'require_module');
+  Object.defineProperty(process.features, 'require_module', { value: false, configurable: true });
+  try {
+    for (const v of ['18.20.4', '22.11.0', '22.12.0', '22.23.2']) saw.push([v, at(v).findings[0].code]);
+  } finally {
+    if (stub) Object.defineProperty(process.features, 'require_module', stub);
+  }
+  assert.deepStrictEqual(saw, [
+    ['18.20.4', 'nodeTooOld'],
+    ['22.11.0', 'nodeTooOld'],
+    ['22.12.0', 'requireModuleOff'],
+    ['22.23.2', 'requireModuleOff'],
+  ], 'the boundary is 22.12, and above it the version is not what is wrong');
+
+  Object.defineProperty(process.features, 'require_module', { value: false, configurable: true });
+  let f;
+  try { f = at('22.23.2').findings[0]; } finally {
+    if (stub) Object.defineProperty(process.features, 'require_module', stub);
+  }
+  assert.ok(!/too old|and newer can/.test(f.what), `it still calls a newer Node too old: ${f.what}`);
+  assert.ok(/switched off/.test(f.what), f.what);
+  assert.ok(/require_module/.test(f.why), 'it does not say what it actually looked at');
+  assert.ok(/NODE_OPTIONS/.test(f.how), `it does not say where to turn it back on: ${f.how}`);
+});
+
+test('a format that cannot be drawn does not take the package with it', async () => {
+  // A package is a hundred and fifty files and forty of them are drawn by one
+  // library. On a host where it could not load, the build stopped on the first
+  // one and handed the person nothing — no SVGs, no PNGs, no icons, no manual,
+  // no read me — after they had answered every question and read the whole
+  // manual on the screen. A package missing one format is worth a great deal
+  // more than no package.
+  //
+  // Run in a child, because the only honest way to have the PDF writer fail is
+  // to start Node the way the host did.
+  const { execFileSync } = require('child_process');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-nopdf-'));
+  const script = `
+    const { build } = require(${JSON.stringify(path.join(__dirname, '..', 'src', 'build'))});
+    const loader = require(${JSON.stringify(path.join(__dirname, '..', 'src', 'project'))});
+    (async () => {
+      const p = loader.load(${JSON.stringify(PROJECT)});
+      const r = await build(p, ${JSON.stringify(dir)}, { log: () => {} });
+      process.stdout.write(JSON.stringify({ files: r.written.length, first: r.warnings[0] || '' }));
+    })().catch((e) => { process.stdout.write(JSON.stringify({ threw: (e && e.message) || String(e) })); });
+  `;
+  const out = JSON.parse(execFileSync(process.execPath,
+    ['--no-experimental-require-module', '-e', script],
+    { encoding: 'utf8', timeout: 300000, maxBuffer: 1 << 26 }));
+  assert.ok(!out.threw, `the build still stops dead: ${out.threw}`);
+
+  const here = fs.readdirSync(dir, { recursive: true })
+    .map(String).filter((f) => fs.statSync(path.join(dir, f)).isFile());
+  const byKind = (re) => here.filter((f) => re.test(f)).length;
+  assert.strictEqual(byKind(/\.(pdf|ai)$/), 0, 'it wrote a PDF with the writer switched off');
+  // and everything else is there
+  for (const [what, re, least] of [['svg', /\.svg$/, 8], ['png', /\.png$/, 10],
+    ['the documents', /\.html$/, 3], ['the type', /\.woff2$/, 2]]) {
+    assert.ok(byKind(re) >= least, `${what}: only ${byKind(re)} in the package`);
+  }
+  for (const f of ['README.txt', 'brand.json', 'LICENCE.txt', 'guidelines.html']) {
+    assert.ok(here.includes(f), `${f} is not in the package`);
+  }
+  assert.ok(out.files > 30, `only ${out.files} files`);
+
+  // and the one thing about this package that is not in it is the first thing
+  // it says
+  assert.ok(/switched off|too old/.test(out.first), `the first warning is about something else:\n${out.first}`);
+  assert.ok(/no pdf or ai in it/.test(out.first), `it does not say what is missing:\n${out.first}`);
+  assert.ok(/every other file is here/.test(out.first), `nor what is not:\n${out.first}`);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
 test('a refusal reaches the person, on the screen they are on', () => {
   // Reported from use: clicking Build the package said "That did not work."
   // and nothing else. Three faults, one on top of another.
@@ -6288,7 +6385,13 @@ test('a host that cannot draw a PDF says so in words, not in node_modules', () =
     + "process.stdout.write(JSON.stringify(e ? e.findings[0] : null));");
   const f = JSON.parse(out);
   assert.ok(f, 'a runtime that cannot load an ES module was not noticed');
-  assert.strictEqual(f.code, 'nodeTooOld');
+  // Which of the two it is depends on the Node running this: below 22.12 the
+  // version is the fault, at or above it the switch is. Reported from use on
+  // 22.23.2, where saying "22.12 and newer can" left the reader with nothing to
+  // do. See "the PDF refusal says which of the two it is".
+  const v = process.versions.node.split('.').map(Number);
+  const old22 = v[0] < 22 || (v[0] === 22 && v[1] < 12);
+  assert.strictEqual(f.code, old22 ? 'nodeTooOld' : 'requireModuleOff');
   assert.strictEqual(f.level, 'blocker');
   for (const k of ['what', 'why', 'how']) {
     assert.ok(f[k] && f[k].length > 40, `${k} is not a sentence: ${f[k]}`);
@@ -6297,8 +6400,11 @@ test('a host that cannot draw a PDF says so in words, not in node_modules', () =
   // must not be node's. The why is allowed to describe the message it replaces.
   assert.ok(!/node_modules|encoding-lite|dynamic import\(\)/.test(f.what),
     `the headline passes node's own message on: ${f.what}`);
-  assert.ok(/22\.12/.test(f.what) && /22\.12/.test(f.how), 'it does not say which Node');
-  assert.ok(/engines\.node/.test(f.how), 'it does not say where a host takes its version from');
+  assert.ok(/22\.12/.test(f.why), 'it does not say which Node can do it');
+  assert.ok(new RegExp(process.versions.node.replace(/\./g, '\\.')).test(f.what),
+    `it does not say which Node this is: ${f.what}`);
+  assert.ok(old22 ? /engines\.node/.test(f.how) : /NODE_OPTIONS/.test(f.how),
+    `it does not say where to change it: ${f.how}`);
   // and on a runtime that can, it says nothing at all
   assert.strictEqual(require('../src/pdf').needsNewerNode(), null);
 });
