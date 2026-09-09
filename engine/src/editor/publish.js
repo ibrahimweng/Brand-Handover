@@ -18,7 +18,9 @@
 
   const CSS = () => `
 :root{--shell:#15181A;--ink:#E9EBEC;--dim:#8A9198;--line:#2A2E31}
-@media (prefers-color-scheme:light){:root{--shell:#E9E9E6;--ink:#15181A;--dim:#666C71;--line:#D2D3CF}}
+/* --dim was #666C71: 4.37 to 1 on this shell, painting the bar at 11 px and
+   the page captions at 10. Same fault as the deck's, found the same way. */
+@media (prefers-color-scheme:light){:root{--shell:#E9E9E6;--ink:#15181A;--dim:#62686C;--line:#D2D3CF}}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--shell);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,sans-serif}
 .hp-bar{position:fixed;top:0;left:0;right:0;height:42px;display:flex;align-items:center;gap:12px;

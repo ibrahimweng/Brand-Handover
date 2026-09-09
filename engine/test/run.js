@@ -7628,7 +7628,11 @@ test('every rule that sets type in the documents\' own colours meets the standar
   assert.ok(got.some((m) => m.theme === 'light') && got.some((m) => m.theme === 'dark'));
 });
 test('and the check can still fail, on the values it used to ship', () => {
-  const was = CHROME.CSS.replace('--ink-3:#6E747A', '--ink-3:#8B9197').replace('--ink-3:#7E858B', '--ink-3:#6B7177');
+  // replaceAll, because the dark palette is declared twice — once for the
+  // preference and once for the explicit choice — and the reader now takes
+  // both. Replacing the first left the second to put the good value back, and
+  // the mutation only reached one theme.
+  const was = CHROME.CSS.replaceAll('--ink-3:#6E747A', '--ink-3:#8B9197').replaceAll('--ink-3:#7E858B', '--ink-3:#6B7177');
   const bad = ACC.chromeContrast(was).filter((m) => !m.passes);
   assert.ok(bad.length >= 30, `only ${bad.length} failures found in the values that shipped for 28 rounds`);
   assert.ok(bad.every((b) => b.token === 'ink-3'), 'it is not all one token');
@@ -7748,6 +7752,80 @@ test('the package says what was measured, and does not claim what was not', () =
   const readme = fs.readFileSync(path.join(rookOut, 'README.txt'), 'utf8');
   assert.ok(fs.readdirSync(rookOut).indexOf('ACCESSIBILITY.txt') > -1);
   assert.ok(readme.length > 100);
+});
+test('every document named in the statement was measured, from its own stylesheet', () => {
+  // The statement named three documents and printed one table, and the table
+  // was the manual's: `audit` took a single stylesheet and the build handed it
+  // chrome.CSS. The deck and the published page ship their own, written the
+  // other way round — dark on :root with the light palette in a
+  // prefers-color-scheme:light block — so even had they been handed over,
+  // `themes` would have read the dark palette twice and called half of it
+  // light. Both were below the line the same package prints a table about:
+  // the deck's top bar and keyboard hint at 3.97 to 1, the published page's
+  // bar and captions at 4.37, where 4.5 is the figure.
+  const txt = fs.readFileSync(path.join(rookOut, 'ACCESSIBILITY.txt'), 'utf8');
+  const table = txt.slice(txt.indexOf("Text in the documents' own type"), txt.indexOf('What else was checked'));
+  for (const f of ['guidelines.html', 'deck.html', 'published.html']) {
+    assert.ok(table.indexOf(f) > -1, `${f} is named as checked and has no measurements in the table`);
+  }
+  // and each was read in both themes, which is what the reading missed
+  for (const w of ['sd in light', 'sd in dark', 'dim in light', 'dim in dark']) {
+    assert.ok(table.indexOf(w) > -1, `${w} is not in the table`);
+  }
+});
+test('a stylesheet written dark first has both its palettes read', () => {
+  const dark = ':root{--shell:#141618;--sd:#7C838A}'
+    + '@media (prefers-color-scheme:light){:root:not([data-theme=dark]){--shell:#E8E8E4;--sd:#61686D}}';
+  const t = ACC.themes(dark);
+  assert.strictEqual(t.dark.shell, '#141618', 'the base palette is not the dark one');
+  assert.strictEqual(t.light.shell, '#E8E8E4', 'the light palette was never read');
+  // :not([data-theme=dark]) is a light selector and must not read as a dark one
+  assert.strictEqual(t.light.sd, '#61686D');
+  // and the manual's way round still works
+  const light = ':root{--paper:#FCFCFB;--ink:#0E1011}'
+    + '@media (prefers-color-scheme:dark){:root{--paper:#0C0D0F;--ink:#ECEEF0}}';
+  assert.strictEqual(ACC.themes(light).light.paper, '#FCFCFB');
+  assert.strictEqual(ACC.themes(light).dark.paper, '#0C0D0F');
+});
+test('the page ground is found when body is not the whole selector', () => {
+  assert.strictEqual(ACC.pageGround('html,body{margin:0;background:var(--shell)}'), 'shell');
+  assert.strictEqual(ACC.pageGround('body{background:var(--paper)}'), 'paper');
+});
+test('the identity\'s own colours are not measured as the document\'s', () => {
+  // The deck sets a chapter number in the brand's accent, on a slide painted in
+  // the brand's primary. Measuring it against the shell it is nowhere near
+  // reported eighty failures that were not there. Which tokens belong to the
+  // document is read off the stylesheet: they are the ones every block that
+  // declares the page ground declares, because a reader's theme preference
+  // redefines the chrome and is not allowed to change what colour a brand is.
+  const css = ':root{--deep:#0A2A33;--accent:#F2A007;--shell:#141618;--si:#EDEEEA;--sd:#7C838A}'
+    + ':root[data-theme=light]{--shell:#E8E8E4;--si:#14171A;--sd:#61686D}'
+    + 'body{background:var(--shell)}.topbar{font-size:11px;color:var(--sd)}'
+    + '.chno{font-size:11px;color:var(--accent)}';
+  const got = ACC.chromeContrast(css, {});
+  assert.deepStrictEqual([...new Set(got.map((m) => m.token))].sort(), ['sd'],
+    'the brand accent was measured against the document shell');
+  assert.deepStrictEqual(got.filter((m) => !m.passes), []);
+});
+test('every identity in the repo measures its own three documents, and passes', () => {
+  const B = fs.readdirSync(path.join(__dirname, '..', 'projects'))
+    .filter((d) => fs.existsSync(path.join(__dirname, '..', 'projects', d, 'project.json')));
+  assert.ok(B.length >= 32, `${B.length} identities`);
+  // the built packages are the meridian, rookhope and halyard ones this suite
+  // already writes; the rest are covered by the same stylesheets, so measure
+  // those directly rather than building thirty-two packages again
+  const style = (f) => {
+    const html = fs.readFileSync(path.join(rookOut, f), 'utf8');
+    return [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
+  };
+  for (const f of ['guidelines.html', 'deck.html', 'published.html']) {
+    const got = ACC.chromeContrast(style(f), {});
+    assert.ok(got.length > 0, `${f}: nothing was measured in it`);
+    assert.ok(got.some((m) => m.theme === 'light') && got.some((m) => m.theme === 'dark'),
+      `${f}: only one theme was read`);
+    assert.deepStrictEqual(got.filter((m) => !m.passes)
+      .map((b) => `${f} ${b.theme} ${b.selector} ${b.hex} on ${b.on} ${b.ratio}`), []);
+  }
 });
 test('the asset index counts the file, like every other file', () => {
   const brand = JSON.parse(fs.readFileSync(path.join(rookOut, 'brand.json'), 'utf8'));

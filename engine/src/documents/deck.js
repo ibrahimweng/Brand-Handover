@@ -10,8 +10,12 @@ const CSS = (t) => `
 :root{--deep:${t.primary};--ink2:${t.secondary};--accent:${t.accent};--ground:${t.ground};
 --f:${t.display};--ft:${t.text};--fm:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 --shell:#141618;--si:#EDEEEA;--sd:#7C838A;--sr:#2A2E31}
-:root[data-theme=light]{--shell:#E8E8E4;--si:#14171A;--sd:#6B7278;--sr:#CFD0CB}
-@media (prefers-color-scheme:light){:root:not([data-theme=dark]){--shell:#E8E8E4;--si:#14171A;--sd:#6B7278;--sr:#CFD0CB}}
+/* --sd was #6B7278, which is 3.97 to 1 on this shell — and it paints the top
+   bar at 11 px and the keyboard hint at 10, in a deck that carries a contrast
+   table asking 4.5 of exactly that. It had never been measured: the check was
+   handed the manual's stylesheet for all three documents. #61686D is 4.61. */
+:root[data-theme=light]{--shell:#E8E8E4;--si:#14171A;--sd:#61686D;--sr:#CFD0CB}
+@media (prefers-color-scheme:light){:root:not([data-theme=dark]){--shell:#E8E8E4;--si:#14171A;--sd:#61686D;--sr:#CFD0CB}}
 *{box-sizing:border-box}body{background:var(--shell);color:var(--si);font-family:var(--f);margin:0;-webkit-font-smoothing:antialiased}
 .wrap{min-height:100vh;display:flex;flex-direction:column;gap:14px;padding:16px clamp(14px,3vw,28px) 20px;align-items:center;justify-content:center}
 .topbar,.ctrl{width:min(100%,calc((100vh - 132px)*16/9))}

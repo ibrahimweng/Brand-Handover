@@ -34,14 +34,53 @@ const needs = (px, weight) => (isLarge(px, weight) ? 3 : 4.5);
 const varsIn = (block) => Object.fromEntries(
   [...String(block).matchAll(/--([\w-]+)\s*:\s*([^;]+)/g)].map((m) => [m[1], m[2].trim()]));
 
-// The token blocks a document ships: the light one on :root, and whatever a
-// dark preference redefines on top of it.
+// The token blocks a document ships: a base palette on :root, and whatever a
+// theme redefines on top of it.
+//
+// This read one convention — light on :root, dark in a media query — because
+// that is how the manual is written. The deck and the published page are
+// written the other way round, dark on :root with the light palette in
+// `prefers-color-scheme: light` and `[data-theme=light]`, so both came back
+// with the dark palette twice and their light one was never measured at all.
+// Read the blocks and let each say which theme it is for. `:not([data-theme=
+// dark])` is a light selector and has to not look like a dark one.
+const ROOT_BLOCK = /(@media[^{]*\{\s*)?(:root[^{,]*)\{([^}]*)\}/g;
+const saysTheme = (media, sel, which) =>
+  new RegExp(`prefers-color-scheme:\\s*${which}`).test(media)
+  || new RegExp(`(?<!:not\\()\\[data-theme=["']?${which}`).test(sel);
+
 function themes(css) {
-  const root = /:root\s*\{([^}]*)\}/.exec(css);
-  const light = root ? varsIn(root[1]) : {};
-  const dm = /prefers-color-scheme:\s*dark\s*\)\s*\{[^{]*\{([^}]*)\}/.exec(css);
-  const dark = Object.assign({}, light, dm ? varsIn(dm[1]) : {});
-  return { light, dark };
+  const base = {}, light = {}, dark = {};
+  for (const m of String(css).matchAll(ROOT_BLOCK)) {
+    const media = (m[1] || '').toLowerCase();
+    const vars = varsIn(m[3]);
+    if (!Object.keys(vars).length) continue;
+    Object.assign(saysTheme(media, m[2], 'dark') ? dark
+      : saysTheme(media, m[2], 'light') ? light : base, vars);
+  }
+  return { light: Object.assign({}, base, light), dark: Object.assign({}, base, dark) };
+}
+
+// A document's own tokens, as opposed to the identity's.
+//
+// The section this feeds is called "text in the documents' own type", and the
+// deck sets a chapter number in the brand's accent on a slide painted in the
+// brand's primary. That is the identity, measured elsewhere and to a different
+// question; reading it here scored it against the shell it is nowhere near.
+//
+// Which is which is in the stylesheet rather than in a list kept by hand: the
+// document's own tokens are the ones every block that declares the page ground
+// declares. A theme block redefines the chrome and leaves the identity alone,
+// because a reader's light or dark preference is not allowed to change what
+// colour the brand is.
+function ownTokens(css, ground) {
+  const blocks = [];
+  for (const m of String(css).matchAll(ROOT_BLOCK)) {
+    const names = Object.keys(varsIn(m[3]));
+    if (names.includes(ground)) blocks.push(names);
+  }
+  if (blocks.length < 2) return null;                 // one palette says nothing
+  return new Set(blocks.reduce((a, b) => a.filter((n) => b.includes(n))));
 }
 
 // Which token each rule paints in, and how big. A rule that sets a colour and no
@@ -80,8 +119,11 @@ function textRules(css, bodyPx = 14) {
 // clear 4.5. A browser found it in one measurement and the arithmetic here had
 // been agreeing with itself.
 function pageGround(css) {
-  const m = /(?:^|})\s*body\s*\{[^}]*background\s*:\s*var\(--([\w-]+)\)/.exec(css);
-  return m ? m[1] : 'surface';
+  // `body` is not always the whole selector. The published page writes
+  // `html,body{...}`, so this found nothing there and fell through to a token
+  // that page does not have — and with no ground, nothing on it was measured.
+  const m = /(?:^|})\s*([^{}@]*\bbody\b[^{}@]*)\{[^}]*background\s*:\s*var\(--([\w-]+)\)/.exec(css);
+  return m ? m[2] : 'surface';
 }
 
 function groundFor(sel, vars, ground) {
@@ -96,9 +138,11 @@ function chromeContrast(css, { minTextRatio = null } = {}) {
   const t = themes(css);
   const rules = textRules(css);
   const ground = pageGround(css);
+  const own = ownTokens(css, ground);
   const out = [];
   for (const [theme, vars] of Object.entries(t)) {
     for (const r of rules) {
+      if (own && !own.has(r.token)) continue;         // the identity's colour, not the document's
       const fg = vars[r.token];
       const bg = (r.own && vars[r.own]) || groundFor(r.selector, vars, ground);
       if (!fg || !bg) continue;
@@ -425,17 +469,36 @@ function application(source, css = '') {
 
 // ---------------------------------------------------------------- the report
 
+// Every page carries its own stylesheet, and this measured one of them.
+//
+// `audit` took a single `css` and reported the result under "Pages:
+// guidelines.html, deck.html, published.html" followed by "Everything above
+// passed on every page in this package". It was the manual's. The deck and the
+// published page ship their own — written the other way round, dark first —
+// and neither had ever been measured, in any package this repository has
+// published. Both fail: the deck's top bar and its keyboard hint at 3.97 to 1
+// and the published page's bar and captions at 4.37, in the light theme, where
+// 4.5 is the figure the same package prints a table about. Read each page's
+// own <style>, and keep the passed-in sheet for a caller that has one.
+const STYLE = /<style[^>]*>([\s\S]*?)<\/style>/g;
+const styleOf = (html) => [...String(html).matchAll(STYLE)].map((m) => m[1]).join('\n');
+
 function audit(pages, css, rules = {}, app = null) {
   const findings = [];
-  const measured = chromeContrast(css, rules);
+  const measured = [];
+  for (const [name, html] of Object.entries(pages)) {
+    const own = styleOf(html) || css;
+    for (const m of chromeContrast(own, rules)) measured.push(Object.assign({ page: name }, m));
+  }
+  if (!measured.length) measured.push(...chromeContrast(css, rules));
   const failed = measured.filter((m) => !m.passes);
   if (failed.length) {
     const worst = failed.slice().sort((a, b) => a.ratio - b.ratio)[0];
-    const sel = [...new Set(failed.map((f) => f.selector))];
+    const sel = [...new Set(failed.map((f) => `${f.page ? `${f.page} ` : ''}${f.selector}`))];
     findings.push({ code: 'chromeContrast', level: 'warning',
-      what: `${sel.length} of the things this document sets in its own type do not meet the standard it prints `
-        + `a table about: the worst is ${worst.selector} at ${worst.px} px, ${worst.ratio} to 1 against the page `
-        + `in ${worst.theme}, where ${worst.needs} is the figure.`,
+      what: `${sel.length} of the things these documents set in their own type do not meet the standard they print `
+        + `a table about: the worst is ${worst.selector}${worst.page ? ` in ${worst.page}` : ''} at ${worst.px} px, `
+        + `${worst.ratio} to 1 against the page in ${worst.theme}, where ${worst.needs} is the figure.`,
       why: 'These are the captions, the column headings and the footer — the document\'s own voice rather than '
         + 'the brand\'s. Every manual this engine has written has printed a contrast table for the client\'s '
         + 'palette on a page whose own small print is below the line that table draws.',
@@ -469,17 +532,29 @@ function statement(result, { brand, standard = 'WCAG 2.2 AA' } = {}) {
   L.push('');
   L.push('Text in the documents\' own type');
   L.push('-------------------------------');
-  const worst = {};
+  // Per page, because each of them ships its own stylesheet. This printed one
+  // table under a heading naming three documents, and the table was the
+  // manual's: the deck and the published page had never been measured, and
+  // both were below the line. A page named here is a page that was read.
+  const byPage = new Map();
   for (const m of result.measured) {
+    const page = m.page || (result.pages[0] || '');
+    if (!byPage.has(page)) byPage.set(page, {});
+    const worst = byPage.get(page);
     const k = `${m.token} in ${m.theme}`;
     if (!worst[k] || m.ratio < worst[k].ratio) worst[k] = m;
   }
-  for (const k of Object.keys(worst).sort()) {
-    const m = worst[k];
-    L.push(`  ${k.padEnd(22)} ${String(m.hex).padEnd(9)} ${String(m.ratio).padStart(6)}:1 against ${m.on}`
-      + `  needs ${m.needs}  ${m.passes ? 'passes' : 'FAILS'}   (${m.selector} at ${m.px} px)`);
+  for (const [page, worst] of byPage) {
+    if (byPage.size > 1) L.push(`  ${page}`);
+    const pad = byPage.size > 1 ? '    ' : '  ';
+    for (const k of Object.keys(worst).sort()) {
+      const m = worst[k];
+      L.push(`${pad}${k.padEnd(22)} ${String(m.hex).padEnd(9)} ${String(m.ratio).padStart(6)}:1 against ${m.on}`
+        + `  needs ${m.needs}  ${m.passes ? 'passes' : 'FAILS'}   (${m.selector} at ${m.px} px)`);
+    }
+    if (byPage.size > 1) L.push('');
   }
-  L.push('');
+  if (byPage.size <= 1) L.push('');
   L.push('  Rules and hairlines are not in this table. WCAG asks 3 to 1 of a graphical');
   L.push('  object that has to be seen to understand the content; the lines between');
   L.push('  rows here separate things that whitespace and reading order already');

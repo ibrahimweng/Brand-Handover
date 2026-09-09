@@ -2103,4 +2103,36 @@ Twenty latin characters were the margin: the build titled every published page
 `Guidelines`, in English, on a page declaring the identity's language. It uses
 the identity's own word now.
 
-Still to do: nothing named. The next one is whatever the next real export breaks.
+---
+
+**The package said it measured three documents and measured one**
+
+Every package ships an ACCESSIBILITY.txt that names three documents and ends
+"Everything above passed on every page in this package". Every row in its table
+came from the manual's stylesheet. The deck and the published page carry their
+own, and neither had ever been read — in any package this repository has
+published. Both were under the line the same package prints a table about: the
+deck's top bar and keyboard hint at 3.97 to 1, the published page's bar and
+captions at 4.37, where 4.5 is the figure.
+
+Three faults under it, each of which hid the others. The theme reader knew only
+one way of writing two themes — light on `:root`, dark in a media query, which
+is how the manual is written; the deck and the published page are written dark
+first, so it read their dark palette twice and called half of it light. The page
+ground was only found when `body` was the whole selector, and the published page
+writes `html,body`. And the identity's own colours were being measured as the
+document's: the deck sets a chapter number in the brand's accent on a slide
+painted in the brand's primary, and scoring that against the shell it is nowhere
+near is eighty failures that are not there.
+
+Which tokens belong to the document is now read off the stylesheet rather than a
+list kept by hand: they are the ones every block that declares the page ground
+declares, because a reader's light or dark preference redefines the chrome and
+is not allowed to change what colour a brand is. A hundred rules are measured
+across the three documents in both themes, four failed, and the statement prints
+a table per page.
+
+Still to do: the manual's three verdict colours are picked for a light page and
+sit at 3.55 to 1 on the dark one, and the published page's chrome ink lands at
+1.02 to 1 on a page painted in the identity's own ground. Both are measured by
+`test/chrome-check.mjs`, both are named, and both are the next one.

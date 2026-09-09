@@ -14,6 +14,7 @@ around it.
     node test/treatment-check.mjs                       # renders, and reads the pixels back
     node test/typst-check.mjs                           # the printed piece against the published page
     node test/seen-check.mjs projects/*/project.json    # the artwork the canvas opens with, in pixels
+    node test/chrome-check.mjs out/guidelines.html      # every run of text, both themes, in a browser
     node src/cli.js check   test/fixtures/messy-illustrator.svg --tokens projects/meridian/project.json
     node src/cli.js check   my-icon.svg --icon projects/meridian/project.json
     node src/cli.js check   projects/meridian/project.json --print
@@ -5613,6 +5614,96 @@ reader announces first, on a page that then declares the identity's language.
 Every package outside English shipped that. It publishes under the identity's
 own word now.
 
+## The package said it measured three documents and measured one
+
+Every package carries an ACCESSIBILITY.txt, and it says:
+
+    Pages: guidelines.html, deck.html, published.html.
+
+    Text in the documents' own type
+    -------------------------------
+      ink in dark   #ECEEF0  16.72:1 against #0C0D0F  needs 4.5  passes  (body at 14 px)
+      ...
+    Everything above passed on every page in this package.
+
+Every selector in that table is from `documents/chrome.js`, which is the
+manual's stylesheet. `audit(pages, css, …)` takes one `css` and the build hands
+it `chrome.CSS`; the deck and the published page ship their own and neither had
+ever been read, in any package this repository has published. Both were below
+the line the same package prints a table about:
+
+    deck.html       light  .topbar       11px  #6B7278 on #E8E8E4  3.97:1  needs 4.5
+    deck.html       light  .hint         10px  #6B7278 on #E8E8E4  3.97:1  needs 4.5
+    published.html  light  .hp-bar span  11px  #666C71 on #E9E9E6  4.37:1  needs 4.5
+    published.html  light  .hp-cap       10px  #666C71 on #E9E9E6  4.37:1  needs 4.5
+
+Thirty-two packages, four rules, and the closing line of the file said they
+passed. Three faults under it, each of which would have hidden the others.
+
+### The theme reader knew one way of writing two themes
+
+    const root = /:root\s*\{([^}]*)\}/.exec(css);
+    const light = root ? varsIn(root[1]) : {};
+    const dm = /prefers-color-scheme:\s*dark\s*\)\s*\{[^{]*\{([^}]*)\}/.exec(css);
+
+Light on `:root`, dark in a media query. That is how the manual is written. The
+deck and the published page are written the other way round — dark on `:root`,
+the light palette in `prefers-color-scheme: light` and `[data-theme=light]` — so
+`themes()` handed back the dark palette twice and called half of it light. Had
+the stylesheets been passed in, the failing values would still have been
+invisible. Each `:root` block says which theme it is for now, and
+`:not([data-theme=dark])` is a light selector that must not read as a dark one.
+
+### The page ground was only found when `body` was the whole selector
+
+`pageGround` looks for `body{…background:var(--x)}`. The published page writes
+`html,body{…}`, so it found nothing, fell through to `'surface'` — a token that
+page does not have — and with no ground, nothing on it could be measured at all.
+
+### And the identity's colours were being measured as the document's
+
+The section is called "text in the documents' own type", and the deck sets a
+chapter number in the brand's accent on a slide painted in the brand's primary.
+Measured against the shell it is nowhere near, that is eighty failures that are
+not there. `groundFor` had a hand-kept list of the manual's class names for this
+and knew nothing of the deck's.
+
+Which tokens are the document's is in the stylesheet rather than in a list:
+**they are the ones every block that declares the page ground declares.** A
+theme block redefines the chrome and leaves the identity alone, because a
+reader's light or dark preference is not allowed to change what colour a brand
+is. For the manual that comes to `paper surface sunk ink ink-2 ink-3 rule
+rule-2 on-ink on-ink-2`; for the deck, `shell si sd sr`; for the canvas, all of
+them. No list, and it follows the meaning rather than approximating it.
+
+With all three fixed, 100 rules are measured across the three documents in both
+themes, and exactly four fail — the four above. `--sd` goes to `#61686D` (4.61)
+and `--dim` to `#62686C` (4.65), and the statement now prints a table per page.
+
+### What a stylesheet cannot tell you
+
+Reading CSS means inferring two things a browser does not: the size an element
+ends up at when it inherits one, and which ancestor paints the ground under it.
+The deck sizes its slides in container units against a stage painted in the
+brand's primary, so both inferences are wrong there — which is why the build's
+check measures each document's own tokens and leaves the identity's alone.
+
+`test/chrome-check.mjs` is the other half, and is what found this: every element
+with text in it, in both themes, on all four documents, measured against what
+`elementsFromPoint` says is stacked underneath. Walking up the ancestors is not
+enough — a canvas block sits on a fill block that is its sibling. In the light
+theme all four documents now come back clean. In the dark theme it reports two
+things this round did not fix and the next one should:
+
+- **The manual's verdict labels.** `Pass AAA`, `Large text only` and `Never for
+  text` are painted in three fixed status colours picked for a light page —
+  3.55 to 3.64 to 1 on the dark one. They are not tokens, so they have no dark
+  value to redefine.
+- **The published page in dark.** Its chrome ink is `#E9EBEC` and its pages are
+  painted in the identity's own ground, which for Meridian is `#EFEDE4`: 1.02
+  to 1 for every chip label, contrast row and caption on it. The block text
+  takes its colour from the application and its ground from the brand.
+
 ## What it does not do yet
 
 - **The door cannot write in Japanese.** It offers the language and marks it
@@ -5663,6 +5754,7 @@ own word now.
     test/font-check.mjs    every character, against the face it is set in
     test/reader-check.mjs  the tree a screen reader reads, and what it says
     test/seen-check.mjs    the artwork the canvas opens with, counted in pixels
+    test/chrome-check.mjs  every run of text against what is actually behind it
     src/documents/    blocks.js, chrome.js, index.js (manual), deck.js
     projects/meridian/  the first identity: one stroked mark, one ink
     projects/halyard/   the second: filled artwork, two inks, four faults left in
