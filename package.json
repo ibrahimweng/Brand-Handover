@@ -9,5 +9,5 @@
     "serve": "node engine/src/cli.js serve",
     "test": "node engine/test/run.js"
   },
-  "engines": { "node": ">=20" }
+  "engines": { "node": "22.x" }
 }

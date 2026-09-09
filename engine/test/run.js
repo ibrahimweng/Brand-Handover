@@ -5836,6 +5836,69 @@ test('the hosted functions answer with what the local handlers answer', async ()
   assert.strictEqual(wrong.code, 405);
 });
 
+test('a host that cannot draw a PDF says so in words, not in node_modules', () => {
+  // A bug report, from use. "Build the package" answered
+  //
+  //   require() of ES Module /var/task/node_modules/@exodus/bytes/encoding-lite.js
+  //   from .../html-encoding-sniffer.js not supported. Instead change the require
+  //   of encoding-lite.js to a dynamic import()
+  //
+  // which is true, names two files nobody outside this repository has heard of,
+  // and asks for a change nobody reading it can make. jsdom, jspdf and svg2pdf
+  // are published as ES modules and are loaded with require(), which Node
+  // learned in 22.12; the host was running an older one. Ask the runtime what
+  // it can do before drawing, and say the answer in the engine's own words.
+  const run = (code) => {
+    const { execFileSync } = require('child_process');
+    return execFileSync(process.execPath, ['--no-experimental-require-module', '-e', code],
+      { cwd: path.join(__dirname, '..'), encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  };
+  const out = run("const p=require('./src/pdf.js');"
+    + "const e=p.needsNewerNode();"
+    + "process.stdout.write(JSON.stringify(e ? e.findings[0] : null));");
+  const f = JSON.parse(out);
+  assert.ok(f, 'a runtime that cannot load an ES module was not noticed');
+  assert.strictEqual(f.code, 'nodeTooOld');
+  assert.strictEqual(f.level, 'blocker');
+  for (const k of ['what', 'why', 'how']) {
+    assert.ok(f[k] && f[k].length > 40, `${k} is not a sentence: ${f[k]}`);
+  }
+  // The headline is the one that reached the screen, so that is the one that
+  // must not be node's. The why is allowed to describe the message it replaces.
+  assert.ok(!/node_modules|encoding-lite|dynamic import\(\)/.test(f.what),
+    `the headline passes node's own message on: ${f.what}`);
+  assert.ok(/22\.12/.test(f.what) && /22\.12/.test(f.how), 'it does not say which Node');
+  assert.ok(/engines\.node/.test(f.how), 'it does not say where a host takes its version from');
+  // and on a runtime that can, it says nothing at all
+  assert.strictEqual(require('../src/pdf').needsNewerNode(), null);
+});
+test('the version the engine needs is the version it asks a host for', () => {
+  const root = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'package.json'), 'utf8'));
+  const eng = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+  // The host reads the root one and wants it shaped like a major line.
+  assert.strictEqual(root.engines.node, '22.x');
+  // and the engine says the real figure, which is where require(esm) landed
+  assert.strictEqual(eng.engines.node, '>=22.12');
+});
+test('a failure the engine already explained is not explained again, worse', () => {
+  // `fail` looked only for `e.finding`, which is what the door's own refusals
+  // carry. An error the build raised carries `e.findings`, already written as
+  // what, why and how — and every one of them fell to the last branch, where
+  // the message became the headline and the why and how were replaced by two
+  // sentences about the engine stopping. The reason was on the error the whole
+  // time. Both servers now take findings where there are findings.
+  const mk = () => Object.assign(new Error('raw node message'),
+    { findings: [{ level: 'blocker', code: 'nodeTooOld', what: 'W', why: 'Y', how: 'H' }] });
+  const shared = require('../../api/_shared.js');
+  let code = 0, body = null;
+  const res = { setHeader() {}, status(c) { code = c; return res; }, json(o) { body = o; return res; } };
+  shared.fail(res, mk());
+  assert.strictEqual(code, 400);
+  assert.deepStrictEqual(body.findings, [{ level: 'blocker', code: 'nodeTooOld', what: 'W', why: 'Y', how: 'H' }]);
+  // the local server answers the same way, because it is the same door
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'server.js'), 'utf8');
+  assert.ok(/Array\.isArray\(e\.findings\)/.test(src), 'the local server still drops them');
+});
 test('the hosted build sends the package back whole', async () => {
   const r = await callFn('build', {
     brand: 'Hosted', mark: markSrc(),

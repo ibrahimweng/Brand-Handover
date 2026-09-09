@@ -2136,3 +2136,33 @@ Still to do: the manual's three verdict colours are picked for a light page and
 sit at 3.55 to 1 on the dark one, and the published page's chrome ink lands at
 1.02 to 1 on a page painted in the identity's own ground. Both are measured by
 `test/chrome-check.mjs`, both are named, and both are the next one.
+
+---
+
+**A bug report, from use: "Build the package" answered with a require()**
+
+    require() of ES Module /var/task/node_modules/@exodus/bytes/encoding-lite.js
+    from .../html-encoding-sniffer.js not supported. Instead change the require
+    of encoding-lite.js to a dynamic import()
+
+True, and it names two files nobody outside this repository has heard of.
+Three faults.
+
+**The engine needs a Node it never asked for.** jspdf, svg2pdf and jsdom's
+dependencies are ES modules loaded with `require()`, which Node learned in
+22.12; the manifest said `>=20`, so the host gave it one that cannot and the
+first PDF killed the build. There is nothing to retreat to — every recent jsdom
+reaches an ES-only package, and `svg2pdf.js` ships a UMD bundle inside a
+`"type": "module"` package. It asks for `22.x` now.
+
+**And nothing asked whether it could, before starting.** A version is not the
+question, because the flag that turns the feature off is real. `pdf.js` asks
+`process.features.require_module` before it builds a DOM, and says the answer in
+the same what/why/how the rest of the engine refuses in.
+
+**And the door threw away the reason it had been given.** `fail()` looked for
+`e.finding` — what the door's own refusals carry — and an error the build raised
+carries `e.findings`. Every build failure in the hosted app fell past it to the
+branch that puts the raw message in the headline and replaces the why and the
+how with two sentences about the engine stopping. The reason was on the error
+the whole time.

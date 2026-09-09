@@ -28,8 +28,23 @@ const bad = () => Object.assign(new Error('the request was not readable JSON'), 
   finding: { level: 'blocker', code: 'input', what: 'The request did not arrive readable.',
     why: 'The browser and the server disagreed about what was sent.', how: 'Reload the page and try again.' } });
 
+// An error the build itself raised carries the engine's own findings — what,
+// why and how, already written. This looked only for `e.finding`, which is what
+// the door's own refusals carry, and everything else fell to the last branch:
+// the message became the headline and the why and how were replaced with two
+// sentences about the engine stopping. So a designer pressing Build the package
+// on a host running an old Node was shown
+//
+//   require() of ES Module .../encoding-lite.js ... not supported. Instead
+//   change the require of encoding-lite.js to a dynamic import()
+//
+// as the thing that had gone wrong, with the engine's own explanation sitting
+// unread on the error beside it. Take findings where there are findings.
 function fail(res, e) {
   if (e && e.expected && e.finding) return res.status(400).json({ ok: false, findings: [e.finding] });
+  if (e && Array.isArray(e.findings) && e.findings.length) {
+    return res.status(400).json({ ok: false, findings: e.findings });
+  }
   return res.status(500).json({ ok: false, findings: [{ level: 'blocker', code: 'engine',
     what: (e && e.message) || 'something went wrong',
     why: 'The engine stopped here rather than writing something it could not stand behind.',

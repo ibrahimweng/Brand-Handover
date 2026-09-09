@@ -5704,6 +5704,74 @@ things this round did not fix and the next one should:
   to 1 for every chip label, contrast row and caption on it. The block text
   takes its colour from the application and its ground from the brand.
 
+## "Instead change the require of encoding-lite.js to a dynamic import()"
+
+A bug report, from use. Pressing **Build the package** answered:
+
+    require() of ES Module /var/task/node_modules/@exodus/bytes/encoding-lite.js
+    from /var/task/node_modules/html-encoding-sniffer/lib/html-encoding-sniffer.js
+    not supported. Instead change the require of encoding-lite.js in
+    /var/task/node_modules/html-encoding-sniffer/lib/html-encoding-sniffer.js to
+    a dynamic import() which is available in all CommonJS modules.
+
+    The engine stopped here rather than writing something it could not stand behind.
+
+Every word of that is true. It names two files nobody outside this repository
+has heard of, and asks for a change nobody reading it can make. Three faults.
+
+### The engine needs a Node it never asked for
+
+`jspdf`, `svg2pdf.js` and jsdom's own dependencies are published as ES modules
+and are loaded with `require()`. Loading an ES module that way is a thing Node
+learned in **22.12**; the root package said
+
+    "engines": { "node": ">=20" }
+
+so the host gave it a Node that cannot, and the first PDF in the package killed
+the build. It reproduces exactly on any Node with the feature turned off:
+
+    node --no-experimental-require-module -e "require('jsdom')"
+
+There is no version of jsdom to retreat to: 27.4 and later depend on
+`@exodus/bytes`, 27.3 and earlier reach `@csstools/css-calc`, and `svg2pdf.js`
+ships a UMD bundle inside a package declaring `"type": "module"`, so requiring
+it is an ES-module require whatever jsdom does. The engine needs 22.12. It says
+so now, in both manifests — `22.x` in the root, which is the shape a host reads,
+and `>=22.12` in the engine's, which is the real figure.
+
+### And nothing asked whether it could, before starting
+
+A version is not the question — the flag that turns the feature off is real, and
+a version check would have said yes on the machine this was found on. Ask the
+runtime: `process.features.require_module` is exactly the capability, and
+`src/pdf.js` asks it before it builds a DOM. What a designer sees on a host that
+cannot:
+
+    ✗ This copy of Node cannot load an ES module from ordinary code, which is
+      what drawing a PDF needs. It is Node 20.19.0; 22.12 and newer can.
+      The libraries that turn artwork into a vector PDF are published as ES
+      modules, and loading one from ordinary code is something Node only
+      learned in 22.12. On an older one it stops part way through with a
+      message about a file inside node_modules, which is true and is no use
+      to anybody.
+      → Run it on Node 22.12 or newer. A hosted copy takes its version from
+        `engines.node` in package.json and needs redeploying after that
+        changes; a local one takes it from whatever `node -v` says.
+
+### The door threw away the reason it had been given
+
+    function fail(res, e) {
+      if (e && e.expected && e.finding) return … [e.finding];
+      return … { what: e.message, why: 'The engine stopped here …', how: '…' };
+    }
+
+`e.finding`, singular, is what the door's own refusals carry. An error the
+**build** raised carries `e.findings`, plural — what, why and how, already
+written by the thing that knows. Both servers fell past it to the last branch,
+where the message became the headline and the engine's own why and how were
+replaced by two sentences about stopping. Every build failure in the hosted app
+has come out that way. Take findings where there are findings.
+
 ## What it does not do yet
 
 - **The door cannot write in Japanese.** It offers the language and marks it

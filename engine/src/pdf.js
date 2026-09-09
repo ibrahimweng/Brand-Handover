@@ -12,9 +12,48 @@ const jspdfModule = require('jspdf');
 const { jsPDF } = jspdfModule;
 const svgu = require('./svg');
 
+// What a PDF needs of the machine it is drawn on.
+//
+// jspdf, svg2pdf and jsdom's own dependencies are published as ES modules and
+// are loaded here with require(), which is a thing Node learned in 22.12. On an
+// older one it stops with
+//
+//   require() of ES Module .../@exodus/bytes/encoding-lite.js from
+//   .../html-encoding-sniffer.js not supported. Instead change the require of
+//   encoding-lite.js to a dynamic import()
+//
+// which is true, names a file nobody here has heard of, and asks for a change
+// nobody here can make. That message reached a designer on the screen where
+// they had just pressed Build the package. Ask the question first, and answer
+// it in the language the rest of this engine refuses in.
+//
+// The version is not the question — the flag that turns it off is real and the
+// version would say yes anyway — so ask the runtime what it can do. See
+// engines.node in package.json, which is what the host reads.
+function needsNewerNode() {
+  if (process.features.require_module) return null;
+  const said = `This copy of Node cannot load an ES module from ordinary code, which is what drawing `
+    + `a PDF needs. It is Node ${process.versions.node}; 22.12 and newer can.`;
+  const e = new Error(said);
+  e.findings = [{
+    level: 'blocker',
+    code: 'nodeTooOld',
+    what: said,
+    why: 'The libraries that turn artwork into a vector PDF are published as ES modules, and loading one '
+      + 'from ordinary code is something Node only learned in 22.12. On an older one it stops part way '
+      + 'through with a message about a file inside node_modules, which is true and is no use to anybody.',
+    how: 'Run it on Node 22.12 or newer. A hosted copy takes its version from `engines.node` in '
+      + 'package.json and needs redeploying after that changes; a local one takes it from whatever '
+      + '`node -v` says.',
+  }];
+  return e;
+}
+
 let win = null;
 function dom() {
   if (win) return win;
+  const old = needsNewerNode();
+  if (old) throw old;
   const { JSDOM } = require('jsdom');
   const d = new JSDOM('<!doctype html><body></body>');
   // Node 22 defines some of these itself, and defines them read only, so a
@@ -121,4 +160,4 @@ async function toPdf(svgString, opts) {
   return buf;
 }
 
-module.exports = { toPdf, useInk, triple, countShadings };
+module.exports = { toPdf, useInk, triple, countShadings, needsNewerNode };

@@ -11,6 +11,7 @@
     "build": "node src/cli.js build projects/meridian/project.json -o out",
     "test": "node test/run.js"
   },
+  "engines": { "node": ">=22.12" },
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",
     "@xmldom/xmldom": "^0.9.0",

@@ -66,8 +66,23 @@ function readBody(req) {
 
 // A failure a designer caused reads like the rest of the engine: what, why,
 // how. A failure the engine caused says so plainly rather than dressing it up.
+// An error the build itself raised carries the engine's own findings — what,
+// why and how, already written. This looked only for `e.finding`, which is what
+// the door's own refusals carry, and everything else fell to the last branch:
+// the message became the headline and the why and how were replaced with two
+// sentences about the engine stopping. So a designer pressing Build the package
+// on a host running an old Node was shown
+//
+//   require() of ES Module .../encoding-lite.js ... not supported. Instead
+//   change the require of encoding-lite.js to a dynamic import()
+//
+// as the thing that had gone wrong, with the engine's own explanation sitting
+// unread on the error beside it. Take findings where there are findings.
 function fail(res, e) {
   if (e && e.expected && e.finding) return json(res, 400, { ok: false, findings: [e.finding] });
+  if (e && Array.isArray(e.findings) && e.findings.length) {
+    return json(res, 400, { ok: false, findings: e.findings });
+  }
   const what = (e && e.message) || 'something went wrong';
   return json(res, 500, { ok: false, findings: [{ level: 'blocker', code: 'engine', what,
     why: 'The engine stopped here rather than writing something it could not stand behind.',
