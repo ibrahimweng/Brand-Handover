@@ -1082,6 +1082,23 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       + `${TFS.NAMES().join(', ')}.`);
   }
 
+  // The same question, asked of the documents' own furniture rather than the
+  // identity's families. Nothing had ever asked it: every manual named
+  // Schibsted Grotesk, which the engine vendors and no package contained, so
+  // the furniture was drawn in Helvetica under a stylesheet saying otherwise.
+  // See src/typeface.js.
+  {
+    const CHROME2 = require('./documents/chrome');
+    const sheets = { 'guidelines.html': CHROME2.CSS, 'editor.html': require('./editor/emit').CSS };
+    for (const [where, css] of Object.entries(sheets)) {
+      for (const fam of TF.unshipped(css, project.tokens.type, project.fonts)) {
+        warnings.push(`${where} sets its own furniture in "${fam}", which the engine holds and this `
+          + `package does not carry, so every reader sees the next name in the stack instead. `
+          + `Either put it in the package or stop naming it.`);
+      }
+    }
+  }
+
   // Every document carries the type inline so it survives being emailed, and
   // that is the cost of it. A size threshold would fire on almost every project
   // and mean nothing; a weight that nothing sets is precise, actionable, and

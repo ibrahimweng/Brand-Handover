@@ -108,6 +108,16 @@ function embed(type, text) {
   return { css: blocks.join('\n'), used };
 }
 
+// Which of the faces the engine holds a stylesheet names.
+//
+// A family with a space in it has to be quoted in CSS, so a quoted name is the
+// document asking for that face and nothing else — which keeps this off prose
+// that happens to mention one.
+function namedIn(css) {
+  const s = String(css);
+  return NAMES().filter((n) => new RegExp(`["']${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["']`).test(s));
+}
+
 // A family that is named, is not one of ours, and is not shipped with the
 // project. It will be asked for by name and quietly replaced by the fallback.
 function missing(type, fonts) {
@@ -120,4 +130,4 @@ function missing(type, fonts) {
   return out;
 }
 
-module.exports = { catalogue, NAMES, has, filesFor, dataUri, embed, missing, rangeCovers, DIR };
+module.exports = { catalogue, NAMES, has, filesFor, dataUri, embed, missing, namedIn, rangeCovers, DIR };

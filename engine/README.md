@@ -5925,6 +5925,61 @@ base64, four times over, for a face Arial already covers; cutting it to the
 document's own words the way Yamabiko's IPAGothic was cut needs the subsetter in
 the build. Measured, named, and the next one.
 
+## The engine has a check for naming a face you do not deliver
+
+`src/typeface.js` opens by describing the fault it exists to prevent:
+
+> the family was named in the CSS, no `@font-face` was ever written, and every
+> page fell through to its fallback while the manual's specimen carried the
+> licensed name above type set in Georgia. A specimen showing the wrong face is
+> worse than no specimen, because it is offered as proof.
+
+It has a check for it — `unreachable` — and in every round since, that check has
+only ever been asked about the families an *identity* declares. Nobody had asked
+it of the documents' own furniture. Every manual this engine has written begins
+its stylesheet with
+
+    --ui: "Schibsted Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif
+
+and the engine **vendors** Schibsted Grotesk: eight files, four weights, latin
+and latin-ext, sitting in `fonts/` with a full manifest entry. No package has
+ever contained one of them. So the furniture is drawn in Helvetica and the
+stylesheet goes on saying otherwise — the same fault, one document over, in the
+file that describes it.
+
+### The list is the catalogue, not a list
+
+What separates Schibsted Grotesk from Helvetica is not a judgement, it is the
+manifest: **a family named in a document's stylesheet that the engine's own
+catalogue holds is a face the engine could have delivered and did not.** A name
+outside the catalogue is a system name, which is what a fallback is for. So
+there is nothing kept by hand, and it stays true as the catalogue grows.
+
+A family with a space has to be quoted in CSS, so only a quoted name counts —
+which is what keeps the check off prose that mentions one. Loosen that and the
+paragraph explaining this round, sitting in `chrome.js` as a comment, is read as
+a font stack; that is the third reversion in the teeth run.
+
+Asked of all eleven catalogue families against all four stylesheets, it finds
+exactly one, in one document, in every identity in the repository.
+
+### Ship it or stop naming it
+
+Carrying it is **245 KB onto a 296 KB manual** at the four weights that sheet
+sets — four documents over, thirty-two identities over — for furniture whose own
+first line in `chrome.js` calls it *deliberately neutral, so the brand being
+documented is the only thing on the page with a colour*, and which Helvetica has
+been drawing all along. Cutting it to the document's own words the way Yamabiko's
+IPAGothic was cut needs a subsetter the build does not have and cannot get: the
+package is built inside a serverless function.
+
+So the name goes, and the sheet says what has always been true. Nothing on any
+page changes — measured, because the round before this one built the instrument
+for it: 128 documents, the same figures before and after, because Schibsted
+Grotesk was never winning. What changes is that the document has stopped
+claiming a face it does not have, and the build says so if it ever claims one
+again.
+
 ## What it does not do yet
 
 - **The door cannot write in Japanese.** It offers the language and marks it

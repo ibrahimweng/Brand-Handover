@@ -2198,11 +2198,38 @@ shipped fonts with opentype.js, opentype.js cannot decompress woff2, and woff2
 is what every package ships. It stopped at "nothing was measured" every time it
 was run. It asks Chromium now.
 
-Still to do: the engine vendors Schibsted Grotesk, names it first in every
-manual, and ships it in no package — so the furniture is drawn in Helvetica
-while the stylesheet says otherwise. Embedding it is 187 KB a document; cutting
-it down the way Yamabiko's Japanese face was cut needs the subsetter in the
-build. That is the next one.
+---
+
+**The engine has a check for naming a face you do not deliver**
+
+`src/typeface.js` opens by describing the fault it exists to prevent: a family
+named in the CSS, no `@font-face` ever written, every page falling through to
+its fallback while the document goes on saying it is the face. It has a check
+for it, and that check had only ever been asked about the families an identity
+declares. Nobody had asked it of the documents' own furniture — where every
+manual this engine has written begins
+
+    --ui: "Schibsted Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif
+
+and the engine vendors Schibsted Grotesk, eight files in `fonts/` with a full
+manifest entry, in no package.
+
+What separates it from Helvetica is not a judgement but the manifest: a family
+named in a stylesheet that the engine's own catalogue holds is a face it could
+have delivered and did not. A name outside the catalogue is a system name, which
+is what a fallback is for. Asked of all eleven catalogue families against all
+four stylesheets, it finds exactly one, in every identity here.
+
+Carrying it is 245 KB onto a 296 KB manual, four documents over, for furniture
+`chrome.js` itself calls deliberately neutral and that Helvetica has been drawing
+all along; cutting it down needs a subsetter the build cannot have, because the
+package is built inside a serverless function. So the name goes and the sheet
+says what has always been true. Nothing on any page changes — measured across
+128 documents, identical before and after, because Schibsted Grotesk was never
+winning. What changes is that the build now says so if a document claims a face
+it does not have.
+
+Still to do: nothing named. The next one is whatever the next measurement finds.
 
 ---
 

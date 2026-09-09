@@ -8246,6 +8246,55 @@ const reachesPkg = (stack, vars, depth = 0) => {
   }
   return false;
 };
+test('no document names a face the engine holds and the package does not carry', () => {
+  // src/typeface.js opens by describing this fault: a family named in the CSS,
+  // no @font-face ever written, every page falling through to its fallback
+  // while the document goes on saying it is the face. The engine has a check
+  // for it — `unreachable` — and it had only ever been asked about the families
+  // an identity declares. Nobody had asked it of the documents' own furniture.
+  //
+  // Every manual this engine has written began its stylesheet with
+  //   --ui: "Schibsted Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif
+  // and the engine vendors Schibsted Grotesk — eight files, four weights, latin
+  // and latin-ext, in fonts/ with a full manifest entry. No package held one of
+  // them. Carrying it is 245 KB on a 296 KB manual, four documents over, for
+  // furniture chrome.js's own first line calls deliberately neutral; so the
+  // name went, and the stylesheet says what has always been true.
+  //
+  // The catalogue is the list, so nothing here is kept by hand: a name in it is
+  // a face the engine could have delivered; a name outside it is a system name,
+  // which is what a fallback is for.
+  const TF4 = require('../src/typeface');
+  const TFS4 = require('../src/typefaces');
+  const sheets = {
+    'guidelines.html': CHROME.CSS,
+    'editor.html': require('../src/editor/emit').CSS,
+    'deck.js': fs.readFileSync(path.join(__dirname, '..', 'src', 'documents', 'deck.js'), 'utf8'),
+    'publish.js': fs.readFileSync(path.join(__dirname, '..', 'src', 'editor', 'publish.js'), 'utf8'),
+  };
+  const dir = path.join(__dirname, '..', 'projects');
+  const names = fs.readdirSync(dir).filter((d) => fs.existsSync(path.join(dir, d, 'project.json')));
+  const named = [];
+  for (const n of names) {
+    const pr = projectLoader.load(path.join(dir, n, 'project.json'));
+    for (const [where, css] of Object.entries(sheets)) {
+      for (const fam of TF4.unshipped(css, pr.tokens.type, pr.fonts)) {
+        named.push(`${n}: ${where} names "${fam}" and the package does not carry it`);
+      }
+    }
+  }
+  assert.deepStrictEqual(named, [], named.join('\n'));
+
+  // and the check has teeth: put the name back and it is found again
+  const was = `:root{--ui:"Schibsted Grotesk","Helvetica Neue",Helvetica,Arial,sans-serif}`;
+  assert.deepStrictEqual(TF4.unshipped(was, project.tokens.type, project.fonts), ['Schibsted Grotesk']);
+  // a face the document does carry is not reported
+  assert.deepStrictEqual(TF4.unshipped(`:root{--display:"Archivo",sans-serif}`,
+    project.tokens.type, project.fonts), []);
+  // and a catalogue name mentioned in prose rather than asked for is not a stack
+  assert.deepStrictEqual(TFS4.namedIn('/* Schibsted Grotesk was dropped from this sheet */'), []);
+  assert.deepStrictEqual(TFS4.namedIn(`font-family:'Schibsted Grotesk'`), ['Schibsted Grotesk']);
+});
 test('a document can reach the faces its own package carries', () => {
   const TF3 = require('../src/typeface');
   // the head names them, so a stack has something to end with

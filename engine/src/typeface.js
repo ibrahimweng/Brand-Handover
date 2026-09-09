@@ -94,6 +94,28 @@ function unreachable(type, fonts) {
   return require('./typefaces').missing(type, fonts);
 }
 
+// A face the engine holds, named by a document, and not put in the package.
+//
+// `unreachable` asks this of the families an identity declares — and nothing
+// had ever asked it of the documents' own furniture. Every manual this engine
+// has written opens its stylesheet with
+//
+//     --ui: "Schibsted Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif
+//
+// and the engine vendors Schibsted Grotesk: eight files, four weights, latin
+// and latin-ext, sitting in fonts/ with a full manifest entry. No package
+// contains one of them. So the furniture is drawn in Helvetica and the
+// stylesheet goes on saying otherwise, which is the fault this file opens by
+// describing, one document over.
+//
+// The catalogue is the list, so there is nothing kept by hand: a name in it is
+// a face the engine could have delivered and did not; a name outside it —
+// Helvetica, Arial — is a system name, which is what a fallback is for.
+function unshipped(css, type, fonts, text) {
+  const have = new Set(stack(type, fonts, text));
+  return require('./typefaces').namedIn(css).filter((n) => !have.has(n));
+}
+
 // Which characters a document sets that the faces it ships cannot draw.
 //
 // `unreachable` asks whether a family can arrive at all. This asks the question
@@ -148,4 +170,4 @@ function cannotDraw(fonts, text) {
   return out;
 }
 
-module.exports = { faces, ours, head, stack, unreachable, cannotDraw };
+module.exports = { faces, ours, head, stack, unreachable, unshipped, cannotDraw };
