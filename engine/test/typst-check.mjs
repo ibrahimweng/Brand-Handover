@@ -90,8 +90,67 @@ for (const [name, src] of everyAsset) {
 // to compile was Meridian's page, and a mark whose ring is a gradient produced
 // `fill: rgb("url(#a)")` — which Typst refuses outright — with nothing to
 // notice it. Compile every mark, in every colourway, and look at the result.
-const bin = process.env.TYPST || which('typst');
+//
+// Two of the three sections here need a Typst to compile with, and for want of
+// one they had never run — not once, in this repository. What they printed was
+//
+//     every mark, compiled
+//       skipped: no typst binary (set TYPST)
+//     the printed page against the published page
+//       skipped: no typst binary (set TYPST)
+//     the piece on paper is the piece on the canvas
+//
+// and an exit code of 0. The last line is the only thing anybody reads, and it
+// signs off on two comparisons that did not happen. Every other check in this
+// directory that cannot run says "nothing was measured" and says nothing else;
+// this one was alone in giving an answer to a question it had skipped.
+//
+// It is also solvable rather than only sayable. A Typst compiler is an npm
+// package, so it is found the way Playwright is found: not a dependency of this
+// repository, looked for where one might be, and skipped plainly when it is
+// not there. With one present all three sections run, and they pass — which is
+// the thing nobody could see.
 const fonts = process.env.FONTS || null;
+const bin = process.env.TYPST || which('typst');
+let nodeCompiler = null;
+if (!bin) {
+  try {
+    const p = [import.meta.dirname, process.cwd()].concat(process.env.TYPST_NODE ? [process.env.TYPST_NODE] : []);
+    const { NodeCompiler } = require(require.resolve('@myriaddreamin/typst-ts-node-compiler', { paths: p }));
+    nodeCompiler = NodeCompiler;
+  } catch { /* reported below */ }
+}
+const typstReady = !!(bin || nodeCompiler);
+
+// One way to ask for a compile, whichever of the two is here. The CLI writes
+// the file itself; the node compiler hands back an SVG, which resvg turns into
+// the same PNG this check would have got from `--format png`.
+function compile(input, output, { format = 'png', ppi = 72 } = {}) {
+  if (bin) {
+    const args = ['compile'];
+    if (fonts) args.push('--font-path', fonts);
+    args.push('--format', format, '--ppi', String(ppi), input, output);
+    const r = spawnSync(bin, args, { encoding: 'utf8' });
+    return { status: r.status, stderr: r.stderr || '' };
+  }
+  try {
+    const c = nodeCompiler.create({
+      workspace: path.dirname(path.resolve(input)),
+      fontArgs: fonts ? [{ fontPaths: [fonts] }] : undefined,
+    });
+    if (format === 'pdf') {
+      fs.writeFileSync(output, Buffer.from(c.pdf({ mainFilePath: path.resolve(input) })));
+    } else {
+      const svg = c.plainSvg({ mainFilePath: path.resolve(input) });
+      if (!svg) throw new Error('nothing came back from the compiler');
+      fs.writeFileSync(output, new Resvg(svg, { fitTo: { mode: 'zoom', value: ppi / 72 } }).render().asPng());
+    }
+    return { status: 0, stderr: '' };
+  } catch (e) {
+    return { status: 1, stderr: (e && e.message) || String(e) };
+  }
+}
+
 let chromium = null;
 try {
   const p = [import.meta.dirname, process.cwd()].concat(process.env.PW_PATH ? [process.env.PW_PATH] : []);
@@ -106,7 +165,7 @@ function which(name) {
   return null;
 }
 
-if (bin) {
+if (typstReady) {
   console.log('\nevery mark, compiled');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-marks-'));
   for (const name of PROJECTS) {
@@ -129,10 +188,7 @@ if (bin) {
       const src = `#set page(width: 160pt, height: 160pt, margin: 0pt, fill: white)\n${body}\n`;
       const f = path.join(dir, `${name}-${cw.name}-${lockup}.typ`);
       fs.writeFileSync(f, src);
-      const args = ['compile'];
-      if (fonts) args.push('--font-path', fonts);
-      args.push('--format', 'png', '--ppi', '72', f, path.join(dir, `${name}-${cw.name}-${lockup}.png`));
-      const r = spawnSync(bin, args, { encoding: 'utf8' });
+      const r = compile(f, path.join(dir, `${name}-${cw.name}-${lockup}.png`));
       if (r.status !== 0) {
         ok = false;
         worstNote = `${cw.name}/${lockup}: ${(r.stderr || '').trim().split('\n').find((l) => /error/.test(l)) || 'did not compile'}`;
@@ -153,12 +209,14 @@ if (bin) {
   }
   fs.rmSync(dir, { recursive: true, force: true });
 } else {
-  console.log('\nevery mark, compiled\n  skipped: no typst binary (set TYPST)');
+  console.log('\nevery mark, compiled\n  skipped: no typst '
+    + '(set TYPST, or install @myriaddreamin/typst-ts-node-compiler)');
 }
 
-if (!bin || !chromium) {
+if (!typstReady || !chromium) {
   console.log(`\nthe printed page against the published page\n  skipped: `
-    + `${!bin ? 'no typst binary (set TYPST) ' : ''}${!chromium ? 'no playwright (set PW_PATH)' : ''}`);
+    + `${!typstReady ? 'no typst (set TYPST, or install @myriaddreamin/typst-ts-node-compiler) ' : ''}`
+    + `${!chromium ? 'no playwright (set PW_PATH)' : ''}`);
 } else {
   console.log('\nthe printed page against the published page');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-typst-'));
@@ -177,10 +235,7 @@ if (!bin || !chromium) {
 
   const out = typst.emit(doc, bu, {});
   fs.writeFileSync(path.join(dir, 'p.typ'), out.source);
-  const args = ['compile'];
-  if (fonts) args.push('--font-path', fonts);
-  args.push('--format', 'png', '--ppi', '72', path.join(dir, 'p.typ'), path.join(dir, 'typst.png'));
-  const r = spawnSync(bin, args, { encoding: 'utf8' });
+  const r = compile(path.join(dir, 'p.typ'), path.join(dir, 'typst.png'));
   if (r.status !== 0) {
     report(false, 'typst compiled the piece', (r.stderr || '').trim().split('\n')[0]);
   } else {
@@ -249,10 +304,7 @@ if (!bin || !chromium) {
   }
 
   // ------------------------------------------- 3. the colour space
-  const pdfArgs = ['compile'];
-  if (fonts) pdfArgs.push('--font-path', fonts);
-  pdfArgs.push(path.join(dir, 'p.typ'), path.join(dir, 'p.pdf'));
-  spawnSync(bin, pdfArgs, { encoding: 'utf8' });
+  compile(path.join(dir, 'p.typ'), path.join(dir, 'p.pdf'), { format: 'pdf' });
   if (fs.existsSync(path.join(dir, 'p.pdf'))) {
     const zlib = await import('node:zlib');
     const s = fs.readFileSync(path.join(dir, 'p.pdf')).toString('latin1');
@@ -273,5 +325,16 @@ if (!bin || !chromium) {
   fs.rmSync(dir, { recursive: true, force: true });
 }
 
-console.log(failed ? `\n${failed} failed\n` : '\nthe piece on paper is the piece on the canvas\n');
+// "skipped" is not "passed". This used to print the sign-off whatever had run,
+// so two comparisons nobody could make came out as an assurance that they had.
+const ran = ['the path translation']
+  .concat(typstReady ? ['every mark compiled'] : [])
+  .concat(typstReady && chromium ? ['the printed page', 'the colour space'] : []);
+const skipped = 4 - ran.length;
+console.log(failed
+  ? `\n${failed} failed\n`
+  : skipped
+    ? `\n${ran.join(', ')} — measured and clean. ${skipped} of the 4 could not run here, `
+      + `so nothing above says anything about ${skipped === 1 ? 'it' : 'them'}.\n`
+    : '\nthe piece on paper is the piece on the canvas\n');
 process.exit(failed ? 1 : 0);

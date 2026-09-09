@@ -123,10 +123,10 @@ lie.
 ## Status
 
 The engine runs. `engine/` takes one master SVG and a project file and writes
-138 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
+150 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 368 tests.
+of it. 589 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -2228,6 +2228,48 @@ says what has always been true. Nothing on any page changes — measured across
 128 documents, identical before and after, because Schibsted Grotesk was never
 winning. What changes is that the build now says so if a document claims a face
 it does not have.
+
+---
+
+**A check that skipped two thirds of itself and signed off anyway**
+
+`test/typst-check.mjs` compares four things about the printed piece. Two of them
+need a Typst compiler to compile with, and there has never been one in this
+repository. For the seventy-four commits since it was written it printed
+
+    every mark, compiled
+      skipped: no typst binary (set TYPST)
+
+    the printed page against the published page
+      skipped: no typst binary (set TYPST) no playwright (set PW_PATH)
+
+    the piece on paper is the piece on the canvas
+
+and exited 0. The last line is the one anybody reads, and it answers the question
+the two lines above it say nobody asked. The other nine checks in that directory
+stop dead — *playwright is not installed, so nothing was measured* — and say
+nothing further. This one was alone in signing off on work it had skipped, and it
+is the check on the one path that goes to a press.
+
+It is also solvable rather than only sayable. A Typst compiler is an npm package,
+so it is found the way Playwright is found: not a dependency — 51 MB of native
+binary per platform, which is why Playwright is not one either — looked for where
+one might be, skipped plainly when it is not there. With one present all four
+sections run:
+
+    379 marks compiled, every colourway and every lockup of all 32 identities
+    ok   the printed page matches the published page
+         576 areas, mean 0.52 of 255, worst 8.9
+    ok   the printed piece is entirely in ink
+         5 distinct colours, 0 of them screen colours
+
+They pass. That is the thing nobody could see — and the reason nobody went
+looking is that the closing line said it had been checked.
+
+It now names what ran and counts what did not: *the path translation — measured
+and clean. 3 of the 4 could not run here, so nothing above says anything about
+them.* A suite test runs every `*-check.mjs` with the environment emptied and
+fails any that comes back without saying what it could not do.
 
 Still to do: nothing named. The next one is whatever the next measurement finds.
 

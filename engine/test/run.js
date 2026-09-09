@@ -8246,6 +8246,62 @@ const reachesPkg = (stack, vars, depth = 0) => {
   }
   return false;
 };
+test('a check that could not run says so, and signs off on nothing', () => {
+  // test/typst-check.mjs compares three things, two of which need a Typst to
+  // compile with. There was none, so for the whole life of this repository it
+  // printed
+  //
+  //     every mark, compiled
+  //       skipped: no typst binary (set TYPST)
+  //     the printed page against the published page
+  //       skipped: no typst binary (set TYPST)
+  //     the piece on paper is the piece on the canvas
+  //
+  // and exited 0. The last line is the one anybody reads, and it signed off on
+  // two comparisons that had not happened. Every other check in that directory
+  // says "nothing was measured" and stops; this one was alone in answering a
+  // question it had skipped.
+  //
+  // It is also solvable: a Typst compiler is an npm package, so it is now found
+  // the way Playwright is. With one present all four sections run and pass —
+  // which was the thing nobody could see.
+  const { execFileSync } = require('child_process');
+  const dir = path.join(__dirname);
+  const checks = fs.readdirSync(dir).filter((f) => /-check\.mjs$/.test(f));
+  assert.ok(checks.length >= 8, `only ${checks.length} checks found`);
+  const said = [];
+  for (const f of checks) {
+    let out = '';
+    try {
+      out = execFileSync(process.execPath, [path.join(dir, f)], {
+        encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 120000,
+        env: Object.assign({}, process.env, { TYPST: '', PW_PATH: '', TYPST_NODE: '', PW_CHROMIUM: '' }),
+      });
+    } catch (e) {
+      // a check that needs an argument is not a check that lied about running
+      out = String((e && (e.stdout || e.message)) || '');
+      if (/give it/.test(out) || /path\/to/.test(out)) continue;
+      said.push(`${f} did not exit cleanly with nothing installed: ${out.split('\n')[0]}`);
+      continue;
+    }
+    if (!/nothing was measured|could not run|not installed|skipped/i.test(out)) {
+      said.push(`${f} ran with nothing installed and never said what it could not do`);
+    }
+  }
+  assert.deepStrictEqual(said, [], said.join('\n'));
+
+  // and the one that used to sign off does not any more
+  const out = require('child_process').execFileSync(process.execPath,
+    [path.join(dir, 'typst-check.mjs')], {
+      encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 120000,
+      env: Object.assign({}, process.env, { TYPST: '', PW_PATH: '', TYPST_NODE: '', PW_CHROMIUM: '' }),
+    });
+  assert.ok(!/the piece on paper is the piece on the canvas/.test(out),
+    'it still signs off on the comparisons it skipped');
+  assert.ok(/could not run here/.test(out), `it does not say what it skipped:\n${out.slice(-300)}`);
+  assert.ok(/the path translation — measured and clean/.test(out),
+    'it does not say what it did measure');
+});
 test('no document names a face the engine holds and the package does not carry', () => {
   // src/typeface.js opens by describing this fault: a family named in the CSS,
   // no @font-face ever written, every page falling through to its fallback

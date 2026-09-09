@@ -5980,6 +5980,94 @@ Grotesk was never winning. What changes is that the document has stopped
 claiming a face it does not have, and the build says so if it ever claims one
 again.
 
+## A check that skipped two thirds of itself and signed off anyway
+
+`test/typst-check.mjs` exists because there are two emitters for one drawing. The
+canvas edits real DOM and publishes HTML, which is the whole architecture; the
+Typst path redraws the mark from its own path data so a piece going to a press is
+in ink rather than in light. Two implementations of one drawing is exactly the
+drift this project has spent its whole length designing against, so it got a
+check rather than an assurance. The check compares four things:
+
+    1. the path translation, against the SVG renderer, shape for shape
+    2. every mark, in every colourway, through Typst
+    3. the printed page, against the published page, area by area
+    4. the colour space of the result, which is the reason any of it exists
+
+Only the first needs nothing but Node. There has never been a Typst binary in
+this repository. So for the seventy-four commits since the file was written, what
+it printed was
+
+    every mark, compiled
+      skipped: no typst binary (set TYPST)
+
+    the printed page against the published page
+      skipped: no typst binary (set TYPST) no playwright (set PW_PATH)
+
+    the piece on paper is the piece on the canvas
+
+and it exited 0.
+
+### "Skipped" is not "passed"
+
+The last line is the only one anybody reads, and it is an answer to a question
+the two lines above it say was never asked. Both statements are in the same
+output, four lines apart, and the false one is the summary.
+
+The other nine `*-check.mjs` in that directory stop dead when what they need is
+missing — *playwright is not installed, so nothing was measured* — and say
+nothing else at all. That is the honest shape for a check that can do none of its
+work. This one is different in a way that matters: it can do *some* of its work,
+so stopping dead would throw away a real measurement, and it took the other
+option and claimed all of it. It was alone in the directory in giving a verdict
+on a comparison it had skipped, on the one path in this engine that ends at a
+printer.
+
+### A compiler is an npm package
+
+The interesting part is that this was solvable rather than only sayable. Typst
+ships as a node addon, so it is found the way Playwright is already found here:
+not a dependency of this repository — 51 MB of native binary per platform, which
+is precisely why Playwright is not one either — looked for in the test directory,
+the working directory and `TYPST_NODE`, and skipped plainly when absent.
+
+One `compile()` now stands in front of both, because the three call sites had the
+CLI's argv built inline three times over. Given a binary it spawns it. Given the
+addon it asks for SVG and rasterises with resvg — the same rasteriser section 1
+already compares shapes with — and for the colour space it takes PDF straight out
+of the compiler, so the section that exists to prove there is no RGB in the file
+is reading the compiler's own output either way.
+
+With one present, all four sections run:
+
+    379 marks compiled, in every colourway and every lockup of all 32 identities
+    ok   the printed page matches the published page
+         576 areas, mean 0.52 of 255, worst 8.9
+         (the whole page previews 5.7 off, which is the ink build differing
+          from the screen colour, as it should)
+    ok   the printed piece is entirely in ink
+         5 distinct colours, 0 of them screen colours
+
+They pass. The printed piece really is the piece on the canvas — and the reason
+nobody had ever seen that is that the closing line had been saying so for
+seventy-four commits.
+
+### The closing line counts
+
+    the path translation — measured and clean. 3 of the 4 could not run here,
+    so nothing above says anything about them.
+
+It names what ran, counts what did not, and says in one clause what the count
+means. With everything present it prints the old sign-off, which is now earned.
+
+A suite test spawns every `*-check.mjs` with `TYPST`, `TYPST_NODE`, `PW_PATH` and
+`PW_CHROMIUM` emptied and fails any that comes back without saying what it could
+not do — so the next check written into this directory inherits the rule rather
+than the habit. Reverting the closing line to the old one fails it on the
+sentence it exists for: *it still signs off on the comparisons it skipped.*
+Narrowing the compiler search back to `!!bin` puts two sections back into
+"skipped" with a compiler sitting right there.
+
 ## What it does not do yet
 
 - **The door cannot write in Japanese.** It offers the language and marks it
@@ -6031,6 +6119,7 @@ again.
     test/reader-check.mjs  the tree a screen reader reads, and what it says
     test/seen-check.mjs    the artwork the canvas opens with, counted in pixels
     test/chrome-check.mjs  every run of text against what is actually behind it
+    test/typst-check.mjs   the printed piece against the published page, in ink
     src/documents/    blocks.js, chrome.js, index.js (manual), deck.js
     projects/meridian/  the first identity: one stroked mark, one ink
     projects/halyard/   the second: filled artwork, two inks, four faults left in
