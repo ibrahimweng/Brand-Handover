@@ -8216,6 +8216,67 @@ test('a word is not a unit every language has', () => {
   assert.strictEqual(STR.residue(en, en, {}).share, 1);
 });
 
+// Can a document reach the faces its own package carries?
+//
+// Every document sets its furniture in a stack of names — Schibsted Grotesk,
+// Helvetica Neue, Helvetica, Arial, sans-serif — and not one of them is a face
+// the package ships. Measured through Chromium, 1.8 per cent of the glyphs on
+// Meridian's manual came out of a file in its own package, 1.0 per cent of
+// Yamabiko's and 0.5 per cent of Maayan's. For an English document that is a
+// neutral system stack behaving as designed. For a Japanese or Hebrew one it is
+// a promise the package cannot keep: none of those four names holds a single
+// CJK or Hebrew glyph, so the whole document depends on the reader owning a
+// font — in a package whose one promise is that it opens with no network.
+//
+// The faces were in the package the whole time. Ending each stack with them
+// costs nothing and overrides nothing the reader has.
+//
+// test/font-check.mjs measures the result in a browser; this asks the question
+// of the stylesheet, which is where the answer is decided.
+const STACKS = (css) => [...String(css).matchAll(/font-family\s*:\s*([^;}]+)/g)].map((m) => m[1].trim());
+const VARS = (css) => Object.fromEntries(
+  [...String(css).matchAll(/--([\w-]+)\s*:\s*([^;}]+)/g)].map((m) => [m[1], m[2].trim()]));
+// does this stack, once its custom properties are followed, reach --pkg?
+const reachesPkg = (stack, vars, depth = 0) => {
+  if (depth > 4) return false;
+  if (/var\(\s*--pkg\b/.test(stack)) return true;
+  for (const m of String(stack).matchAll(/var\(\s*--([\w-]+)/g)) {
+    if (m[1] === 'pkg') return true;
+    if (vars[m[1]] && reachesPkg(vars[m[1]], vars, depth + 1)) return true;
+  }
+  return false;
+};
+test('a document can reach the faces its own package carries', () => {
+  const TF3 = require('../src/typeface');
+  // the head names them, so a stack has something to end with
+  const meta = TF3.head(project.tokens.type, project.fonts, 'Meridian');
+  const named = /--pkg:([^}]*)}/.exec(meta);
+  assert.ok(named, 'the head does not say which faces the package has');
+  for (const fam of TF3.stack(project.tokens.type, project.fonts, 'Meridian')) {
+    assert.ok(named[1].indexOf(fam) > -1, `${fam} is shipped and not named`);
+  }
+  // and a project with no faces at all does not get an empty list, which would
+  // make every stack that used it invalid
+  assert.strictEqual(TF3.head({}, [], 'x'), '');
+
+  // every stack in every document, followed through its own variables
+  const sheets = {
+    'guidelines.html': CHROME.CSS,
+    'published.html': require('../src/editor/publish').CSS
+      || (fs.readFileSync(path.join(__dirname, '..', 'src', 'editor', 'publish.js'), 'utf8')),
+    'editor.html': require('../src/editor/emit').CSS,
+  };
+  const dim = [];
+  for (const [name, css] of Object.entries(sheets)) {
+    const vars = VARS(css);
+    for (const st of STACKS(css)) {
+      if (/^(inherit|var\(--f[a-z]*\)|)$/.test(st)) continue;
+      if (reachesPkg(st, vars)) continue;
+      dim.push(`${name}: ${st.slice(0, 60)}`);
+    }
+  }
+  assert.deepStrictEqual(dim, [], dim.join('\n'));
+});
 test('a font can arrive and still have nothing to draw with', () => {
   // 山彦 ships IPAGothic subsetted to the characters its own content sets, which
   // is why the package opens with no network at all. A subset is subset to what

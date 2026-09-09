@@ -35,7 +35,13 @@ const verdicts = (theme) => Object.entries(CO.INK)
 
 const CSS = `
 :root{--paper:#FCFCFB;--surface:#fff;--sunk:#F2F2F0;--ink:#0E1011;--ink-2:#5A5F63;--ink-3:#6E747A;--rule:#E3E5E6;--rule-2:#C7CACC;--on-ink:#FCFCFB;--on-ink-2:#B9BCBE;
---ui:"Schibsted Grotesk","Helvetica Neue",Helvetica,Arial,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+/* Each stack ends with the faces the package carries, so a document can always
+   draw its own words out of its own files. It is reached only for a character
+   every name before it lacks, which for English is none and for Japanese is
+   all of them. --pkg is written by src/typeface.js beside the @font-face rules,
+   and is not set at all where there are no faces, so the var() fallback is the
+   generic each stack would have ended with anyway. */
+--ui:"Schibsted Grotesk","Helvetica Neue",Helvetica,Arial,var(--pkg,sans-serif),sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,var(--pkg,monospace),monospace;
 --display:var(--ui);--page-max:1040px;--page-pad:30px;--measure:66ch;--body:16px;--lead:1.6;--track:-.028em;
 --h1:clamp(32px,5.4vw,54px);--h2:clamp(23px,3.3vw,32px);--h3:17px;--chapter-gap:70px;--sec-gap:40px;
 --rule-heavy:2px;--rule-hair:1px;--stage-pad:40px 26px;--stage-bg:var(--sunk);--stage-border:1px solid var(--rule);
@@ -196,7 +202,7 @@ function displayVar(style, type) {
   const d = D.DIRECTIONS[style] || D.DIRECTIONS[D.DEFAULT];
   const fam = ((type || {}).families || {}).display;
   if (!d.brandType || !fam || !fam.family) return '';
-  return `<style>:root{--display:${JSON.stringify(fam.family)}, ${fam.fallback || 'Helvetica, Arial, sans-serif'}}</style>`;
+  return `<style>:root{--display:${JSON.stringify(fam.family)}, ${fam.fallback || 'Helvetica, Arial, sans-serif'}, var(--pkg,sans-serif), sans-serif}</style>`;
 }
 
 // What the script this document is written in asks of a line. Nothing, for the

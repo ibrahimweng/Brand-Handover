@@ -36,17 +36,55 @@ function faces(fonts) {
 // self contained, which is the one promise the whole engine is built on; and the
 // build was not reproducible, because the bytes came from somebody else's server
 // and could change. The faces are vendored now. See src/typefaces.js.
-function ours(type, text) {
-  return require('./typefaces').embed(type, text).css;
+function ours(type, text, listOnly) {
+  const got = require('./typefaces').embed(type, text);
+  if (!listOnly) return got.css;
+  const out = [];
+  for (const u of got.used) if (out.indexOf(u.family) < 0) out.push(u.family);
+  return out;
 }
 
 // Everything the head of a document needs to set the identity in its own face.
 // `text` is the document's own words, so only the character subsets it actually
 // contains are carried: an English manual takes four faces and a French one
 // eight, because French needs Latin Extended and English does not.
+// Every family this document will actually have, as a list a stack can end
+// with.
+//
+// A document sets its own furniture in a stack of names — Schibsted Grotesk,
+// Helvetica Neue, Helvetica, Arial, sans-serif — and not one of them is a face
+// the package carries. So the words on it are drawn by whatever the reader
+// happens to own: measured through Chromium, 1.8 per cent of the glyphs on
+// Meridian's manual came out of a file in its own package. For an English
+// document that is a neutral system stack behaving as designed. For a Japanese
+// or a Hebrew one it is a promise the package cannot keep — none of those four
+// names holds a single CJK or Hebrew glyph, so the whole document depends on
+// the reader owning a font, in a package whose one promise is that it opens
+// with no network at all. Yamabiko came out at 1.0 per cent.
+//
+// The faces were in the package the whole time. Ending each stack with them
+// costs no bytes and overrides nothing the reader has: it is only reached for a
+// character every name before it lacks. That takes Yamabiko to 94.4 per cent.
+//
+// Undefined where there are no faces, so `var(--pkg, sans-serif)` falls to the
+// generic each stack chooses for itself rather than putting a sans in a
+// monospace stack.
+function stack(type, fonts, text) {
+  const names = [];
+  for (const f of fonts || []) if (f.family && names.indexOf(f.family) < 0) names.push(f.family);
+  for (const f of ours(type, text, true)) if (names.indexOf(f) < 0) names.push(f);
+  return names;
+}
+
+// Everything the head of a document needs to set the identity in its own face.
 function head(type, fonts, text) {
   const css = [ours(type, text), faces(fonts)].filter(Boolean).join('\n');
-  return css ? `<style>\n${css}\n</style>` : '';
+  if (!css) return '';
+  const names = stack(type, fonts, text);
+  const pkg = names.length
+    ? `\n:root{--pkg:${names.map((n) => `'${String(n).replace(/'/g, '')}'`).join(',')}}`
+    : '';
+  return `<style>\n${css}${pkg}\n</style>`;
 }
 
 // Which families are named but cannot arrive. A face that is neither one of ours
@@ -110,4 +148,4 @@ function cannotDraw(fonts, text) {
   return out;
 }
 
-module.exports = { faces, ours, head, unreachable, cannotDraw };
+module.exports = { faces, ours, head, stack, unreachable, cannotDraw };

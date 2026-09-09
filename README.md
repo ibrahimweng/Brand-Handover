@@ -2170,6 +2170,42 @@ in Chromium: none under the standard.
 
 ---
 
+**A package that carries its faces, and documents that never ask for them**
+
+Every document sets its own furniture in a stack of names — Schibsted Grotesk,
+Helvetica Neue, Helvetica, Arial, sans-serif — and not one of them is a face the
+package ships. Chromium knows which font actually drew each page, and will say:
+
+    yamabiko  guidelines.html   1.0% of 12826 glyphs from a file the package ships
+    maayan    guidelines.html   0.5% of 14802 glyphs from a file the package ships
+    meridian  guidelines.html   1.8% of 18293 glyphs from a file the package ships
+
+124 of the 128 documents this repository builds were drawn mostly by fonts that
+are not in them. For an English document that is a neutral system stack working
+as designed. For a Japanese or Hebrew one it is a promise the package cannot
+keep: none of those four names holds a single CJK or Hebrew glyph, so a manual
+whose whole point is that it opens with no network depends on the reader owning
+a font. 2960 glyphs of Yamabiko's manual were drawn by WenQuanYi Zen Hei, which
+nobody here has ever named.
+
+The faces were in the package the whole time. Each stack ends with them now,
+which costs no bytes and overrides nothing the reader has — it is reached only
+for a character every name before it lacks. 128 of 128.
+
+The check that exists for this had never run. `test/font-check.mjs` says in its
+own header that only a browser has the answer, and then asked Node: it read the
+shipped fonts with opentype.js, opentype.js cannot decompress woff2, and woff2
+is what every package ships. It stopped at "nothing was measured" every time it
+was run. It asks Chromium now.
+
+Still to do: the engine vendors Schibsted Grotesk, names it first in every
+manual, and ships it in no package — so the furniture is drawn in Helvetica
+while the stylesheet says otherwise. Embedding it is 187 KB a document; cutting
+it down the way Yamabiko's Japanese face was cut needs the subsetter in the
+build. That is the next one.
+
+---
+
 **A bug report, from use: "Build the package" answered with a require()**
 
     require() of ES Module /var/task/node_modules/@exodus/bytes/encoding-lite.js

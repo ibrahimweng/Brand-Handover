@@ -5846,6 +5846,85 @@ markup — every colour a block writes has to read on the ground it is drawn on,
 and the four that lay words out in a wrapper have to write one at all, because a
 block that names nothing has nothing to measure, which is how this got here.
 
+## A package that carries its faces, and documents that never ask for them
+
+Every document sets its own furniture in a stack of names:
+
+    --ui: "Schibsted Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace
+
+Not one of those is a face the package ships. So the words on the page are drawn
+by whatever the reader happens to own — measured through Chromium, which knows
+exactly and will say so:
+
+    yamabiko   guidelines.html    1.0% of 12826 glyphs from a file the package ships
+    maayan     guidelines.html    0.5% of 14802 glyphs from a file the package ships
+    meridian   guidelines.html    1.8% of 18293 glyphs from a file the package ships
+
+**124 of the 128 documents this repository builds were drawn mostly by fonts
+that are not in them.**
+
+For an English document that is a neutral system stack behaving exactly as
+designed, and Helvetica drawing an English caption is not a fault. For a
+Japanese or a Hebrew one it is a promise the package cannot keep: none of those
+four names holds a single CJK or Hebrew glyph, so a manual whose whole point is
+that it opens with no network at all depends on the reader owning a font. On the
+machine this was measured on, 2960 glyphs of Yamabiko's manual were drawn by
+WenQuanYi Zen Hei — a font nobody in this repository has ever named.
+
+The faces were in the package the whole time. Ending each stack with them costs
+no bytes and overrides nothing the reader has: it is reached only for a
+character every name before it lacks, which for English is none.
+
+    --ui: "Schibsted Grotesk", …, Arial, var(--pkg, sans-serif), sans-serif
+
+`--pkg` is written by `src/typeface.js` beside the `@font-face` rules, from the
+same list, so the two cannot drift; it is not set at all where a project ships
+no faces, and `var()` then falls to the generic each stack chose for itself,
+rather than putting a sans in a monospace stack.
+
+    yamabiko   guidelines.html   1.0% → 94.4%      deck 24.0% → 100.0%
+    maayan     guidelines.html   0.5% → 73.4%      deck  5.2% →  97.9%
+    meridian   guidelines.html   1.8% → 64.5%      deck 22.7% →  98.5%
+
+128 of 128 now. Meridian's manual stays at 64.5 because Liberation Sans draws
+its Latin furniture, which is the stack working; on a reader's machine that is
+Helvetica, and the point is that there is now something in the package behind it.
+
+### The check that was supposed to catch this had never run
+
+`test/font-check.mjs` exists for exactly this question, and its own header says
+where the answer is: *which characters land in which face on a finished page is
+a fact about the page, and only a browser has it.* It then asked Node. It read
+every file in `09-type` with opentype.js, and opentype.js does not decompress
+woff2 — which is what every package ships — so it stopped at
+
+    this package ships 10 font files and none of them could be read here
+    (.woff2). woff2 is Brotli compressed and opentype.js does not decompress
+    it, so nothing was measured.
+
+and had never once measured anything. It was honest about that, and it was still
+an instrument that measured nothing, in a repository that has run it against
+thirty-two identities.
+
+Chromium knows and says so. `CSS.getPlatformFontsForNode` reports the platform
+font that supplied each element's glyphs, how many, and whether it came from an
+`@font-face` — which is the same question as whether it came out of the package.
+On the same package, unchanged:
+
+    ok  meridian-a  guidelines.html  64.5% of 18279 glyphs from a file the package ships
+
+### And one it turned up on the way
+
+The engine **vendors** Schibsted Grotesk — eight files, four weights, latin and
+latin-ext, in `fonts/` with a full manifest entry — names it first in every
+manual's `--ui`, and puts it in no package. The furniture is drawn in Helvetica
+and the stylesheet goes on saying otherwise, which is the fault `src/typeface.js`
+opens by describing, one document over. Embedding it is 187 KB a document before
+base64, four times over, for a face Arial already covers; cutting it to the
+document's own words the way Yamabiko's IPAGothic was cut needs the subsetter in
+the build. Measured, named, and the next one.
+
 ## What it does not do yet
 
 - **The door cannot write in Japanese.** It offers the language and marks it
@@ -5893,7 +5972,7 @@ block that names nothing has nothing to measure, which is how this got here.
     test/canvas-check.mjs  the canvas driven by keyboard in a real browser
     test/hosted-check.mjs  the app as deployed: static page, functions, no disk
     test/rtl-check.mjs     every value, drawn against the way it is written
-    test/font-check.mjs    every character, against the face it is set in
+    test/font-check.mjs    which face actually drew each page, asked of Chromium
     test/reader-check.mjs  the tree a screen reader reads, and what it says
     test/seen-check.mjs    the artwork the canvas opens with, counted in pixels
     test/chrome-check.mjs  every run of text against what is actually behind it

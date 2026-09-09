@@ -16,7 +16,7 @@ const fontLink = (bu) => bu.fontHead || '';
 
 const CSS = `
 :root{--bg:#141618;--pane:#1B1E20;--line:#2A2E31;--ink:#ECEEF0;--dim:#9199A0;--sel:#3B82F6;--danger:#E8695F;
---ui:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace}
+--ui:ui-sans-serif,system-ui,-apple-system,"Segoe UI",var(--pkg,sans-serif),sans-serif;--mono:ui-monospace,"SF Mono",Menlo,var(--pkg,monospace),monospace}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--ui);font-size:13px;overflow:hidden}

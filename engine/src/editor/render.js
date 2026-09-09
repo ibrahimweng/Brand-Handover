@@ -180,7 +180,7 @@
   // inside a phrase. Done with nowrap rather than hard spaces, so the caption
   // is still ordinary text to search for, select and paste.
   const ruleCaption = (text, tint) =>
-    `<p style="font-family:ui-monospace,Menlo,monospace;font-size:10px;line-height:1.5;letter-spacing:.06em;`
+    `<p style="font-family:var(--mono,ui-monospace),ui-monospace,monospace;font-size:10px;line-height:1.5;letter-spacing:.06em;`
     + `color:${tint};margin:0;text-align:center;opacity:.8">`
     + esc(text).split(' \u00b7 ').map((seg) => `<span style="white-space:nowrap">${seg}</span>`).join(' \u00b7 ')
     + `</p>`;
@@ -216,8 +216,8 @@
       <rect x="${X(vb.x)}" y="${Y(vb.y)}" width="${r3(vb.w * k)}" height="${r3(vb.h * k)}" fill="none" stroke="${line}" stroke-width=".9" opacity=".55"/>
       <rect x="${X(ink2.x)}" y="${Y(ink2.y)}" width="${r3(ink2.w * k)}" height="${r3(ink2.h * k)}" fill="none" stroke="${bundle.roles.accent.hex}" stroke-width="1" stroke-dasharray="4 3"/>
       <g clip-path="url(#${clip})"><g transform="translate(${X(vb.x)} ${Y(vb.y)}) scale(${r3(k)})${vb.x || vb.y ? ` translate(${-vb.x} ${-vb.y})` : ''}">${bundle.markInner[ink] || ''}</g></g>
-      <text x="${S / 2}" y="16" font-family="ui-monospace,Menlo,monospace" font-size="8" fill="${say(line)}" text-anchor="middle">${vb.w} unit box</text>
-      <text x="${S / 2}" y="${S + 16}" font-family="ui-monospace,Menlo,monospace" font-size="8" fill="${say(bundle.roles.accent.hex)}" text-anchor="middle">fills ${ink2.w} × ${ink2.h} · stroke ${bundle.measured.minimumSize.thinnestStroke}</text>
+      <text x="${S / 2}" y="16" font-family="var(--mono,ui-monospace),ui-monospace,monospace" font-size="8" fill="${say(line)}" text-anchor="middle">${vb.w} unit box</text>
+      <text x="${S / 2}" y="${S + 16}" font-family="var(--mono,ui-monospace),ui-monospace,monospace" font-size="8" fill="${say(bundle.roles.accent.hex)}" text-anchor="middle">fills ${ink2.w} × ${ink2.h} · stroke ${bundle.measured.minimumSize.thinnestStroke}</text>
     </svg>`;
   }
 
@@ -236,8 +236,8 @@
       <g transform="translate(${PX(x)} ${PY(x)}) scale(${r3(k)}) translate(${-b.x} ${-b.y})">${bundle.markInner[ink] || ''}</g>
       <g stroke="${bundle.roles.accent.hex}" stroke-width="1.1">
         <path d="M${PX(0)} ${PY(th / 2)}H${PX(x)}"/><path d="M${PX(0)} ${PY(th / 2) - 5}v10"/><path d="M${PX(x)} ${PY(th / 2) - 5}v10"/></g>
-      <text x="${PX(x / 2)}" y="${PY(th / 2) - 9}" font-family="ui-monospace,Menlo,monospace" font-size="8" fill="${say(bundle.roles.accent.hex)}" text-anchor="middle">x</text>
-      <text x="${S / 2}" y="${S + 14}" font-family="ui-monospace,Menlo,monospace" font-size="8" fill="${say(line)}" text-anchor="middle">x = ${x} units · ${bundle.clearSpaceRatio} of the mark's height</text>
+      <text x="${PX(x / 2)}" y="${PY(th / 2) - 9}" font-family="var(--mono,ui-monospace),ui-monospace,monospace" font-size="8" fill="${say(bundle.roles.accent.hex)}" text-anchor="middle">x</text>
+      <text x="${S / 2}" y="${S + 14}" font-family="var(--mono,ui-monospace),ui-monospace,monospace" font-size="8" fill="${say(line)}" text-anchor="middle">x = ${x} units · ${bundle.clearSpaceRatio} of the mark's height</text>
     </svg>`;
   }
 

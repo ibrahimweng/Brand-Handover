@@ -17,16 +17,16 @@
   const fontLink = (bundle) => bundle.fontHead || '';
 
   const CSS = () => `
-:root{--shell:#15181A;--ink:#E9EBEC;--dim:#8A9198;--line:#2A2E31}
+:root{--shell:#15181A;--ink:#E9EBEC;--dim:#8A9198;--line:#2A2E31;/* ends with the faces the package carries: see src/typeface.js */--mono:ui-monospace,Menlo,var(--pkg,monospace),monospace}
 /* --dim was #666C71: 4.37 to 1 on this shell, painting the bar at 11 px and
    the page captions at 10. Same fault as the deck's, found the same way. */
 @media (prefers-color-scheme:light){:root{--shell:#E9E9E6;--ink:#15181A;--dim:#62686C;--line:#D2D3CF}}
 *{box-sizing:border-box}
-html,body{margin:0;background:var(--shell);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,sans-serif}
+html,body{margin:0;background:var(--shell);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,var(--pkg,sans-serif),sans-serif}
 .hp-bar{position:fixed;top:0;left:0;right:0;height:42px;display:flex;align-items:center;gap:12px;
   padding:0 16px;background:color-mix(in srgb,var(--shell) 86%,transparent);backdrop-filter:blur(8px);
   border-bottom:1px solid var(--line);font-size:12px;z-index:10}
-.hp-bar b{font-weight:600}.hp-bar span{color:var(--dim);font-family:ui-monospace,Menlo,monospace;font-size:11px}
+.hp-bar b{font-weight:600}.hp-bar span{color:var(--dim);font-family:var(--mono);font-size:11px}
 .hp-bar .sp{flex:1}
 .hp-bar button{background:none;border:1px solid var(--line);color:var(--ink);border-radius:4px;padding:5px 11px;cursor:pointer;font:inherit}
 .hp-bar button:hover{background:color-mix(in srgb,var(--ink) 8%,transparent)}
@@ -34,7 +34,7 @@ html,body{margin:0;background:var(--shell);color:var(--ink);font-family:ui-sans-
 .hp-page{position:relative;overflow:hidden;box-shadow:0 4px 30px rgba(0,0,0,.28);flex:none;
   transform-origin:top center}
 .hp-trim{position:absolute;overflow:hidden}
-.hp-cap{font-family:ui-monospace,Menlo,monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-top:-18px}
+.hp-cap{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-top:-18px}
 .hb-block{position:absolute}
 @media print{
   html,body{background:#fff}
@@ -49,30 +49,30 @@ html,body{margin:0;background:var(--shell);color:var(--ink);font-family:ui-sans-
   // block styles the published page needs, kept identical to the editor's
   const BLOCK_CSS = `\n/* The page has a name, and it is the one thing on it that was not said out\n   loud. Visually the masthead block says it; a reader who is not looking at\n   the page needs it as a heading. */\n.hp-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}\n
 .hb-slot{width:100%;height:100%;border:1.5px dashed rgba(128,128,128,.45);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:rgba(128,128,128,.85)}
-.hb-slot b{font-family:ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:500}
-.hb-slot span{font-family:ui-monospace,Menlo,monospace;font-size:10px;opacity:.75}
+.hb-slot b{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:500}
+.hb-slot span{font-family:var(--mono);font-size:10px;opacity:.75}
 .hb-img{width:100%;height:100%;margin:0;display:flex;flex-direction:column;overflow:hidden}
 .hb-img-f{flex:1;min-height:0;overflow:hidden;position:relative}
 .hb-scrim{position:absolute;inset:0;pointer-events:none}
 .hb-photo{width:100%;height:100%;display:flex;flex-direction:column;gap:9px;padding:12px;box-sizing:border-box}
 .hb-photo .ramp{flex:1;min-height:34px;display:flex;position:relative;overflow:hidden}
 .hb-photo .ramp i{flex:1}
-.hb-photo .rows{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;line-height:1.7}
+.hb-photo .rows{font-family:var(--mono);font-size:10.5px;line-height:1.7}
 .hb-photo .r{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid currentColor;opacity:.85}
 .hb-photo .r span{opacity:.6;letter-spacing:.06em;text-transform:uppercase;font-size:9px}
 .hb-photo .r em{font-style:normal}
 .hb-img figcaption,figure.hb-img>figcaption{flex:none;padding-top:7px}
 .hb-img img{background:rgba(128,128,128,.12)}
 .hb-surface{width:100%;height:100%}
-.hb-missing{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#3A2422;color:#E8695F;font-family:ui-monospace,Menlo,monospace;font-size:11px;text-align:center;padding:8px}
+.hb-missing{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#3A2422;color:#E8695F;font-family:var(--mono);font-size:11px;text-align:center;padding:8px}
 .hb-sizes{display:flex;gap:14px;align-items:flex-end;width:100%;height:100%}
 .hb-sizes figure{margin:0;flex:1;min-width:0;text-align:center;display:flex;flex-direction:column;justify-content:flex-end}
 .hb-sizes .cell{flex:1;min-height:0;display:flex;align-items:flex-end;justify-content:center}
-.hb-sizes figcaption{font-family:ui-monospace,Menlo,monospace;font-size:9px;letter-spacing:.06em;text-transform:uppercase;opacity:.55;margin-top:6px}
+.hb-sizes figcaption{font-family:var(--mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;opacity:.55;margin-top:6px}
 .hb-chips{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;width:100%;height:100%}
 .hb-chips .sw{height:56%;border:1px solid rgba(0,0,0,.08)}
 .hb-chips b{display:block;font-size:13px;margin-top:7px}
-.hb-chips span{display:block;font-family:ui-monospace,Menlo,monospace;font-size:9.5px;opacity:.6;direction:ltr}
+.hb-chips span{display:block;font-family:var(--mono);font-size:9.5px;opacity:.6;direction:ltr}
 /* the same rule the canvas gets, for the same reason: a value is a
    left-to-right run wherever the page reads. See src/editor/emit.js. */
 .hb-atab .r code,.hb-atab .r em{direction:ltr}
@@ -81,14 +81,14 @@ html,body{margin:0;background:var(--shell);color:var(--ink);font-family:ui-sans-
 .hb-ctab{width:100%;height:100%;font-size:12px}
 .hb-ctab .r{display:grid;grid-template-columns:40px 1fr 54px 96px;gap:10px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(128,128,128,.22)}
 .hb-ctab .cp{display:flex;align-items:center;justify-content:center;height:26px;font-weight:600;font-size:11px}
-.hb-ctab em{font-family:ui-monospace,Menlo,monospace;font-style:normal;font-size:11px;text-align:right}
-.hb-ctab i{font-family:ui-monospace,Menlo,monospace;font-style:normal;font-size:9px;letter-spacing:.05em;text-transform:uppercase;text-align:right}
+.hb-ctab em{font-family:var(--mono);font-style:normal;font-size:11px;text-align:right}
+.hb-ctab i{font-family:var(--mono);font-style:normal;font-size:9px;letter-spacing:.05em;text-transform:uppercase;text-align:right}
 /* the verdict and the guess marker take their colour from the page they are
    drawn on, which is the identity's ground rather than this document's. Set by
    the renderer, per block. See editor/render.js. */
 .hb-faces{display:grid;gap:14px;width:100%;height:100%}
-.hb-faces .fl{font-family:ui-monospace,Menlo,monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;opacity:.55;margin:0}
-.hb-atab{width:100%;height:100%;font-family:ui-monospace,Menlo,monospace;font-size:11.5px}
+.hb-faces .fl{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;opacity:.55;margin:0}
+.hb-atab{width:100%;height:100%;font-family:var(--mono);font-size:11.5px}
 .hb-atab .r{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(128,128,128,.22)}
 .hb-atab .total{font-weight:600;border-bottom:none}
 .hb-atab em{font-style:normal;opacity:.6}

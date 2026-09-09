@@ -8,7 +8,7 @@ const M = require('../editor/model');
 
 const CSS = (t) => `
 :root{--deep:${t.primary};--ink2:${t.secondary};--accent:${t.accent};--ground:${t.ground};
---f:${t.display};--ft:${t.text};--fm:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+--f:${t.display};--ft:${t.text};--fm:ui-monospace,SFMono-Regular,Menlo,Consolas,var(--pkg,monospace),monospace;
 --shell:#141618;--si:#EDEEEA;--sd:#7C838A;--sr:#2A2E31}
 /* --sd was #6B7278, which is 3.97 to 1 on this shell — and it paints the top
    bar at 11 px and the keyboard hint at 10, in a deck that carries a contrast
