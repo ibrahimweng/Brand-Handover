@@ -6405,6 +6405,136 @@ package and the designer's own files go; stop pruning and `02-stacked` is empty
 and still there; obey the list rather than read it and a file outside the folder
 is removed.
 
+## "I uploaded an SVG and it kept throwing errors"
+
+Reported from use, with no file attached: different errors on different tries,
+and no package at the end of any of them.
+
+There was no instrument for this. Every check in `test/` measures a package the
+engine built out of a project file somebody wrote; the front door reads a file
+somebody else drew, and the thirty-two fixtures here are all files this
+repository prepared. So the first thing was a corpus: forty-seven exports —
+Figma with and without a clip path, Illustrator with its colours in a `<style>`
+block, Inkscape with `sodipodi` metadata and millimetres, Sketch, no viewBox,
+a viewBox with commas, points, percentages, a BOM, a DOCTYPE, CRLF, negative
+origins, huge coordinates, a one-pixel drawing, four hundred paths, a `<switch>`,
+a `<mask>`, a drop-shadow filter, `vector-effect`, an `<animate>`, live text, a
+`<textPath>`, an embedded photograph, a file that is really a PDF — and each one
+walked through the door the way a person walks it, in a browser: drop the file,
+take the defaults, press **Build the package**.
+
+    forty-seven uploads, through the front door   before   after
+      built the package                              36       40
+      refused at the door, with a way forward         6        7
+      could not be finished                           5        0
+
+Six were refused correctly and helpfully before this round and still are. Five
+could not be finished, and **four of those five got all the way to the last
+button first** — through the audit, the seven questions, the layout preview and
+a whole rendered manual — and then:
+
+> **No colours were chosen.** The engine has nothing it can work from. *Pick at
+> least one ink and one ground.*
+
+That sentence was written for a caller that forgot to send a palette. To a person
+in a browser it is addressed to the wrong party: there is no "pick" on that
+screen, and they had picked nothing wrong.
+
+### A logo drawn in plain black could not be handed over
+
+One black path is the commonest export there is. This is what the cleaner makes
+of it:
+
+    <svg …><path d="m60 8 52 92H8z"/></svg>
+
+No fill. That is not a bug in the cleaner — a shape with no `fill` is painted
+black by every renderer, and `fill="#000000"` is removed precisely because it is
+the default. It is a bug in everything after it, all of which reads colour off
+the attribute:
+
+- `colourPass` counted no colour, so `used` was empty;
+- `assignSlots` keys the slot off that attribute, so the shape got no
+  `data-slot`, so no colourway could ever repaint it;
+- `intake.palette` found nothing, so `roles([])` returned `[]`;
+- and the build refused, four screens later.
+
+`applyColourway` already knew the rule and carries the comment for it — *"A shape
+with no fill attribute is not unfilled: SVG paints it black… Black is the
+commonest colour a logo is drawn in."* It never got the chance: the slot it needs
+to reach the shape is the one that was never assigned. The fix is upstream of all
+of it. `colourPass` writes the implicit fill out, once, when nothing up the tree
+sets one — and everything downstream, which is already correct, sees a drawing
+that says what it draws.
+
+### Ink on paper, when the file names neither
+
+A fill of `currentColor` names no colour; a shape filled with a pattern or a
+gradient names no colour either. Both are drawings, and both handed back an
+empty palette and the same last-screen refusal.
+
+`roles()` already invents a ground when the lightest colour in the file is not
+light enough to be one. It gave up entirely when there were none at all. It
+proposes ink on paper now — black on white, which is what a renderer draws
+`currentColor` as — and the colour question says so instead of claiming the two
+were read off the file:
+
+> Nothing in this file names a colour — the artwork is drawn in whatever it is
+> placed on, or filled with a pattern or a gradient rather than a flat colour. So
+> these are ink on paper, which is what a browser would draw it as. Change them
+> to the ones this identity actually uses.
+
+### A `<symbol>` is a viewport, not a shape
+
+`<symbol>` is in `NEVER_DRAWN` because it holds artwork without showing it. The
+`<use>` expander cloned whatever it referenced, so a `<use>` of a symbol put a
+never-drawn element into the drawing, and a file whose whole artwork is one
+symbol placed twice was refused:
+
+> **Nothing in this file is painted.** Every shape is either set to no fill and
+> no stroke, hidden, or lying outside the artboard… *Check the layer the artwork
+> is on, and that it has not been left switched off or moved aside.*
+
+Which sends a designer looking for a hidden layer that is not there. Both copies
+are placed now, in a `<g>`, with the transform that fits the symbol's own viewBox
+into the width and height the `<use>` asks for — `xMidYMid meet`, the default.
+The check is not that a `<symbol>` tag is gone: it is that the cleaned file draws
+what the file that went in draws, rendered at the same size, ink counted in both
+halves of the box. Take the fit away and the drawing is 16.8% different.
+
+### And one that built and should not have
+
+A `<foreignObject>` is HTML inside artwork. A browser paints it; nothing else
+does. So the page showed the mark with its name on it, the door accepted it, and
+every PNG and PDF in the package came out without the name — and nothing on the
+screen would tell you. Measured on the same file at the same size, Chromium
+draws 2424 dark pixels and the engine's own renderer draws 1620. The word is the
+804 that never reach the package.
+
+It goes down the same road as live text now, which is the fault it is:
+
+> **1 piece of HTML inside the artwork.** A foreignObject holds HTML rather than
+> drawing, so only a browser paints it. It is on the screen in front of you and
+> in none of the files: every PNG, PDF and print of this mark comes out with that
+> part missing, and nothing about the page you are looking at would tell you.
+> *Draw it as vector — outline the type, or rebuild the shape — and export again.*
+
+### The instrument that keeps it honest
+
+The normaliser rewrites an upload a great deal: it expands references, flattens
+transforms, drops metadata, snaps colours, and now writes a fill that was not
+there. None of that may change what the drawing looks like. So every file in the
+corpus is rendered before and after at the same size and compared: **none of the
+thirty-nine that get through differs by half a percent of its pixels.** That is
+the check that made the symbol fix believable rather than merely non-empty, and
+it is the one the fifth reversion fails.
+
+Five reversions, each on the assertion written for it: leave the unset fill alone
+and the black is not in the cleaned artwork; return an empty palette and the
+artwork that names no colour is offered nothing; clone the symbol as a symbol and
+the file is "not painted" again; stop counting `foreignObject` and HTML is
+accepted; place the symbol without fitting its viewBox and the drawing is 16.8%
+different from the file that went in.
+
 ## What it does not do yet
 
 - **The door cannot write in Japanese.** It offers the language and marks it

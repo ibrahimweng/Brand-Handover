@@ -126,7 +126,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 150 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 594 tests.
+of it. 598 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -2442,6 +2442,65 @@ outside the package disappear.
 It costs `brand.json` 10.3 KB to 17.0 KB on Meridian, 19.7 to 34.2 on Northline.
 The count on its own was enough to check a package against itself and never
 enough to clear one.
+
+---
+
+**A bug report, from use: "I uploaded an SVG and it kept throwing errors"**
+
+Different errors, and no package at the end of them. So forty-seven exports —
+Figma, Illustrator, Inkscape, Sketch, and the awkward things in between — were
+walked through the front door the way a person walks it, in a real browser: drop
+the file, take the defaults on every screen, press Build the package.
+
+Thirty-six finished. Five could not, and four of those five got all the way to
+the last button first — through the audit, the questions, the layout preview and
+a rendered manual — before being told:
+
+> **No colours were chosen.** The engine has nothing it can work from. *Pick at
+> least one ink and one ground.*
+
+on a screen with nothing to pick, to somebody who had picked nothing wrong.
+
+**A logo drawn in plain black could not be handed over.** One black path is the
+commonest export there is. A shape with no `fill` attribute is not unfilled —
+SVG paints it black — and the cleaner removes `fill="#000000"` precisely because
+it is the default. So the drawing arrived with no colour to count, and therefore
+no slot to repaint and no palette to confirm. `applyColourway` already knew this
+and said so in a comment; it never got the chance, because the slot it needs is
+assigned from the attribute that is not there. The black is written out now, and
+the file says what it draws.
+
+**Artwork that names no colour at all** — a fill of `currentColor`, a shape
+filled with a pattern — hit the same wall by another road. Both are drawings, and
+both handed back an empty palette. The door proposes ink on paper now, which is
+what a renderer draws them as, and says why rather than presenting them as read
+off the file.
+
+**A `<use>` of a `<symbol>` was refused as an empty file.** `<symbol>` holds
+artwork without showing it, so the expander cloning the symbol element put a
+never-drawn tag into the drawing — and a file whose whole artwork is one symbol
+placed twice came back *"Nothing in this file is painted. Check the layer the
+artwork is on, and that it has not been left switched off or moved aside."* The
+designer goes looking for a hidden layer that does not exist. A symbol is a
+viewport: its own viewBox is fitted into the width and height the `<use>` asks
+for, the way a picture fits a box. It is placed that way now, and the result is
+the same drawing the renderer makes of the file that went in.
+
+**And one that built and should not have.** A `<foreignObject>` is HTML inside
+the artwork, so only a browser paints it: the page showed the mark with its name
+on it and every PNG and PDF came out without it — 2424 dark pixels in Chromium
+against 1620 in the engine's own renderer, on the same file at the same size. The
+word is the 804 that never reach the package. It is refused by name now, the way
+live text is.
+
+    forty-seven uploads, through the front door   before   after
+      built the package                              36       40
+      refused at the door, with a way forward         6        7
+      could not be finished                           5        0
+
+Every cleaned file is still the drawing that went in: rendered before and after
+at the same size, none of the thirty-nine that get through differs by so much as
+half a percent of its pixels.
 
 Still to do: nothing named. The next one is whatever the next measurement finds.
 

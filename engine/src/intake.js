@@ -78,7 +78,19 @@ function palette(sources) {
 // from grey is the one that is doing something.
 function roles(hexes) {
   const list = hexes.slice(0, 6);
-  if (!list.length) return [];
+  // Artwork that names no colour at all is still artwork. A fill of
+  // currentColor is black wherever nothing says otherwise, and a shape filled
+  // with a pattern or a gradient carries a slot a colourway can paint over —
+  // both are drawings, and both handed back an empty palette. The front door
+  // then asked a person to confirm nothing, showed them a preview and a whole
+  // manual, and refused at the last screen with "No colours were chosen. Pick
+  // at least one ink and one ground" — a sentence written for a caller that
+  // forgot to send any, on a screen with nothing to pick. Ink on paper is what
+  // a renderer would draw and what the person can change.
+  if (!list.length) {
+    return [{ hex: '#000000', role: 'primary', name: 'ink' },
+      { hex: '#FFFFFF', role: 'ground', name: 'paper' }];
+  }
   const byDark = list.slice().sort((a, b) => lum(a) - lum(b));
   const primary = byDark[0];
   const lightest = byDark[byDark.length - 1];
@@ -260,9 +272,13 @@ function questions(seen) {
       options: Object.entries(PLACES).map(([k, v]) => ({ value: k, label: v.name, note: v.note })) },
 
     { key: 'colours', kind: 'confirm-colours', ask: 'These are the colours in your artwork. Which does what?',
-      why: `Read off the file — ${seen.foundColours} in the drawing. The engine has proposed a role for each: `
-        + 'the darkest is what the mark is drawn in, the lightest is what it stands on, and the one furthest '
-        + 'from grey is the one doing the work. Change any of them.',
+      why: seen.foundColours
+        ? `Read off the file — ${seen.foundColours} in the drawing. The engine has proposed a role for each: `
+          + 'the darkest is what the mark is drawn in, the lightest is what it stands on, and the one furthest '
+          + 'from grey is the one doing the work. Change any of them.'
+        : 'Nothing in this file names a colour — the artwork is drawn in whatever it is placed on, or filled '
+          + 'with a pattern or a gradient rather than a flat colour. So these are ink on paper, which is what '
+          + 'a browser would draw it as. Change them to the ones this identity actually uses.',
       suggested: seen.colours },
 
     { key: 'never', kind: 'pick-many', ask: 'What must never be done to it?',

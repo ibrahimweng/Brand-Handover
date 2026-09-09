@@ -5596,6 +5596,126 @@ test('the door reads the artwork the engine will use, not the one that arrived',
   assert.deepStrictEqual(APP.ask({ mark }).seen.slots, ['ink']);
 });
 
+// ---- reported from use: an upload that threw a different error each time ----
+//
+// Forty exports — Figma, Illustrator, Inkscape, Sketch, and the awkward things
+// in between — walked through the front door the way a person walks it: drop
+// the file, take the defaults, press Build the package. Five of them could not
+// be finished, and four of those got all the way to the last button first.
+const DOOR = {
+  black: '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">'
+    + '<path d="M60 8L112 100H8L60 8Z" fill="#000000"/></svg>',
+  unset: '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">'
+    + '<path d="M60 8L112 100H8L60 8Z"/></svg>',
+  named: '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">'
+    + '<path d="M60 8L112 100H8L60 8Z" fill="currentColor"/></svg>',
+  symbol: '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" '
+    + 'width="140" height="80" viewBox="0 0 140 80">'
+    + '<defs><symbol id="s" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="#2A9D8F"/></symbol></defs>'
+    + '<use xlink:href="#s" x="10" y="20" width="40" height="40"/>'
+    + '<use xlink:href="#s" x="80" y="20" width="40" height="40"/></svg>',
+  html: '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="80" viewBox="0 0 200 80">'
+    + '<foreignObject x="0" y="0" width="200" height="80">'
+    + '<div xmlns="http://www.w3.org/1999/xhtml">Northwind</div></foreignObject>'
+    + '<path d="M10 70H190" stroke="#333" stroke-width="4"/></svg>',
+};
+
+test('a logo drawn in plain black can be handed over', () => {
+  // The commonest export there is, and it went all the way to the last screen
+  // and refused: "No colours were chosen. Pick at least one ink and one ground"
+  // — on a screen with nothing to pick, to a person who had picked nothing
+  // wrong. A shape with no fill attribute is not unfilled, SVG paints it black,
+  // and the cleaner removes fill="#000000" precisely because it is the default.
+  // So the drawing arrived with no colour to count, therefore no slot to
+  // repaint and no palette to confirm. applyColourway already knew black is the
+  // commonest colour a logo is drawn in; it never got the chance, because the
+  // slot it needs is assigned from the attribute that is not there.
+  const { normalise } = require('../src/normalise');
+  for (const [how, src] of [['written out', DOOR.black], ['left to the default', DOOR.unset]]) {
+    const n = normalise(src, { tokens: { colour: {} } });
+    assert.ok(n.ok, how);
+    assert.ok(/fill="#000000"/.test(n.svg), `${how}: the black is not in the cleaned artwork`);
+    assert.ok(/data-slot="/.test(n.svg), `${how}: black got no slot, so no colourway could repaint it`);
+    assert.ok(n.findings.some((f) => f.code === 'implied-fill' && f.level === 'fixed'),
+      `${how}: it wrote the fill and said nothing`);
+    const seen = APP.ask({ mark: src }).seen;
+    assert.strictEqual(seen.foundColours, 1, `${how}: the door reads ${seen.foundColours} colours`);
+    assert.deepStrictEqual(seen.colours.map((c) => [c.role, c.hex]),
+      [['primary', '#000000'], ['ground', '#FFFFFF']], how);
+  }
+});
+
+test('artwork that names no colour is offered ink on paper, not an empty palette', () => {
+  // A fill of currentColor is black wherever nothing says otherwise, and a
+  // shape filled with a pattern or a gradient carries a slot a colourway paints
+  // over. Both are drawings; both handed back an empty palette, and the same
+  // last-screen refusal written for a caller that forgot to send any colours.
+  const seen = APP.ask({ mark: DOOR.named }).seen;
+  assert.strictEqual(seen.foundColours, 0, 'the fixture names a colour after all');
+  assert.deepStrictEqual(seen.colours.map((c) => c.role), ['primary', 'ground']);
+  assert.deepStrictEqual(seen.colours.map((c) => c.hex), ['#000000', '#FFFFFF']);
+  // and the screen says why these two, rather than presenting them as read off
+  const q = require('../src/intake').questions(seen).find((x) => x.key === 'colours');
+  assert.ok(/Nothing in this file names a colour/.test(q.why), q.why);
+});
+
+test('a <use> of a <symbol> is placed, not reported as an empty file', () => {
+  // <symbol> is in NEVER_DRAWN because it holds artwork without showing it, and
+  // the expander cloned the symbol element itself — so a file whose whole
+  // artwork is one symbol placed twice came back "Nothing in this file is
+  // painted. Check the layer the artwork is on, and that it has not been left
+  // switched off or moved aside", and the designer went looking for a hidden
+  // layer that does not exist. Every renderer draws it.
+  const { normalise } = require('../src/normalise');
+  const n = normalise(DOOR.symbol, { tokens: { colour: {} } });
+  assert.ok(n.ok, (n.findings.find((f) => f.level === 'blocker') || {}).what);
+  assert.ok(!/<symbol/.test(n.svg), 'a symbol element is still in the drawing');
+
+  // Both copies, and placed where a renderer puts them: a symbol is a viewport,
+  // so its own viewBox is fitted into the width and height the use asks for.
+  // Counted in ink rather than in tags, because the cleaner is free to write
+  // two circles as one path with two subpaths, and does.
+  const { Resvg } = require('@resvg/resvg-js');
+  const shot = (src) => new Resvg(src, { fitTo: { mode: 'width', value: 280 }, background: 'white' }).render();
+  const halves = (px, w) => {
+    const h = px.length / 4 / w;
+    let left = 0, right = 0;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4;
+        if (px[i] > 240 && px[i + 1] > 240 && px[i + 2] > 240) continue;
+        if (x < w / 2) left++; else right++;
+      }
+    }
+    return [left, right];
+  };
+  const [l, r] = halves(shot(n.svg).pixels, 280);
+  assert.ok(l > 100 && r > 100, `only one copy was placed: ${l} and ${r} pixels of ink in the two halves`);
+  const a = shot(DOOR.symbol).pixels, b = shot(n.svg).pixels;
+  assert.strictEqual(a.length, b.length);
+  let differ = 0;
+  for (let i = 0; i < a.length; i += 4) {
+    let d = 0;
+    for (let k = 0; k < 3; k++) d = Math.max(d, Math.abs(a[i + k] - b[i + k]));
+    if (d > 8) differ++;
+  }
+  const share = (differ / (a.length / 4)) * 100;
+  assert.ok(share < 0.5, `the cleaned drawing is ${share.toFixed(2)}% different from the file that went in`);
+});
+
+test('HTML inside the artwork is refused, not quietly dropped', () => {
+  // A foreignObject is live text with a second problem: it is HTML, so only a
+  // browser draws it. The page showed the mark with its name on it, the door
+  // accepted it, and every PNG and PDF came out without it — 804 dark pixels of
+  // a 300px-wide mark, measured against what Chromium draws of the same file.
+  const r = APP.ask({ mark: DOOR.html });
+  assert.strictEqual(r.ok, false, 'HTML in a mark was accepted');
+  const f = r.findings.find((x) => x.code === 'foreign-object');
+  assert.ok(f && f.level === 'blocker', JSON.stringify(r.findings.map((x) => x.code)));
+  assert.ok(/only a browser paints it/.test(f.why), f.why);
+  assert.ok(/vector/.test(f.how), f.how);
+});
+
 test('a refusal reaches the person, on the screen they are on', () => {
   // Reported from use: clicking Build the package said "That did not work."
   // and nothing else. Three faults, one on top of another.

@@ -50,10 +50,16 @@ function inspect(source) {
     return { found, doc: null };
   }
 
-  const counts = { text: 0, image: 0, clip: 0, mask: 0, filter: 0, transform: 0, hidden: 0, zero: 0, gradient: 0, nonScaling: 0, translucent: 0 };
+  const counts = { text: 0, image: 0, clip: 0, mask: 0, filter: 0, transform: 0, hidden: 0, zero: 0, gradient: 0, nonScaling: 0, translucent: 0, foreign: 0 };
   eachEl(doc, (el) => {
     const tag = String(el.nodeName).toLowerCase();
     if (tag === 'text' || tag === 'tspan') counts.text++;
+    // A <foreignObject> is live text with a second problem: it is HTML, so
+    // only a browser draws it at all. The page showed the mark with its name
+    // on it, the door accepted it, and every PNG and PDF in the package came
+    // out with the name missing — 804 pixels of a 300px-wide mark, measured
+    // against what Chromium draws of the same file.
+    if (tag === 'foreignobject') counts.foreign++;
     if (tag === 'image') counts.image++;
     if (tag === 'clippath' || el.getAttribute('clip-path')) counts.clip++;
     if (tag === 'mask' || el.getAttribute('mask')) counts.mask++;
@@ -78,6 +84,13 @@ function inspect(source) {
     `${counts.text} piece${counts.text > 1 ? 's' : ''} of live text.`,
     'Live type renders in a different font on any machine without your typeface, so a client would get the wrong wordmark and never know.',
     'In Illustrator select the type and use Type > Create Outlines, then export again.'));
+
+  if (counts.foreign) found.push(finding('blocker', 'foreign-object',
+    `${counts.foreign} piece${counts.foreign > 1 ? 's' : ''} of HTML inside the artwork.`,
+    'A foreignObject holds HTML rather than drawing, so only a browser paints it. It is on the screen '
+    + 'in front of you and in none of the files: every PNG, PDF and print of this mark comes out with '
+    + 'that part missing, and nothing about the page you are looking at would tell you.',
+    'Draw it as vector — outline the type, or rebuild the shape — and export again.'));
 
   if (counts.image) found.push(finding('blocker', 'raster',
     `${counts.image} embedded image${counts.image > 1 ? 's' : ''}.`,
@@ -157,14 +170,43 @@ const SVGO = {
 // ---------- colour ----------
 const SNAP_DISTANCE = 18;   // close enough that it is a slip rather than a choice
 
+// A shape that draws an area. A <g> is walked through and never painted itself,
+// and a <line> encloses none, so neither takes a fill it did not have.
+const FILLED = ['path', 'rect', 'circle', 'ellipse', 'polygon', 'polyline'];
+const tagOf = (el) => String(el.nodeName || '').replace(/^.*:/, '').toLowerCase();
+// what a renderer would paint this with, walking up the way inheritance does
+const inheritedFill = (el) => {
+  for (let n = el; n && n.nodeType === 1; n = n.parentNode) {
+    const v = n.getAttribute && n.getAttribute('fill');
+    if (v && v.trim()) return v.trim();
+    const st = String((n.getAttribute && n.getAttribute('style')) || '');
+    const m = /(?:^|;)\s*fill\s*:\s*([^;]+)/i.exec(st);
+    if (m) return m[1].trim();
+  }
+  return null;
+};
+
 function colourPass(doc, tokens) {
   const palette = Object.entries((tokens && tokens.colour) || {})
     .map(([name, t]) => ({ name, hex: hex(t.hex) })).filter((t) => t.hex);
   const snapped = [];
   const offPalette = new Set();
   const used = new Map();          // hex -> count
+  let implied = 0;
 
   svgu.eachPainted(doc, (el) => {
+    // A shape with no fill attribute is not unfilled: SVG paints it black, and
+    // the cleaner removes fill="#000000" precisely because it is the default.
+    // So a logo drawn in plain black — the commonest thing anybody exports —
+    // arrived with no colour to count, and therefore no slot to repaint and no
+    // palette to hand anybody. applyColourway already knew this and said so in
+    // a comment; it never got the chance, because the slot it needed is
+    // assigned from the attribute that is not there. Written out here, once, so
+    // the drawing says what it draws.
+    if (FILLED.indexOf(tagOf(el)) > -1 && !inheritedFill(el)) {
+      el.setAttribute('fill', '#000000');
+      implied += 1;
+    }
     for (const prop of ['fill', 'stroke']) {
       const raw = el.getAttribute(prop);
       if (!raw || raw === 'none' || raw.startsWith('url(')) continue;
@@ -190,7 +232,7 @@ function colourPass(doc, tokens) {
       used.set(final, (used.get(final) || 0) + 1);
     }
   });
-  return { snapped, offPalette: [...offPalette], used };
+  return { snapped, offPalette: [...offPalette], used, implied };
 }
 
 // Give every distinct colour a slot, so colourways have something to target.
@@ -276,7 +318,34 @@ function expandUse(doc) {
       if (!ref || ref === u || (ref.contains && ref.contains(u))) {
         u.parentNode.removeChild(u); dropped++; continue;
       }
-      const clone = ref.cloneNode(true);
+      // A <use> of a <symbol> is not a copy of the symbol. The symbol becomes a
+      // viewport: its own viewBox is fitted into the width and height the use
+      // asks for, the way an <img> fits a picture into a box. Cloning the
+      // <symbol> element itself put a never-drawn tag into the drawing — symbol
+      // is in NEVER_DRAWN precisely because it holds artwork without showing it
+      // — so a file whose whole artwork is one symbol placed twice was reported
+      // as "Nothing in this file is painted", and the designer was sent looking
+      // for a switched-off layer that does not exist. Every renderer draws it.
+      const kind = String(ref.nodeName || '').replace(/^.*:/, '').toLowerCase();
+      let clone;
+      if (kind === 'symbol' || kind === 'svg') {
+        clone = doc.createElementNS('http://www.w3.org/2000/svg', 'g');
+        for (let c = ref.firstChild; c; c = c.nextSibling) clone.appendChild(c.cloneNode(true));
+        const vb = (ref.getAttribute('viewBox') || '').trim().split(/[\s,]+/).map(Number);
+        const w = Number(u.getAttribute('width')), h = Number(u.getAttribute('height'));
+        if (vb.length === 4 && vb[2] > 0 && vb[3] > 0 && w > 0 && h > 0) {
+          // xMidYMid meet is the default and what all but a handful of files use
+          const stretch = /^\s*none\b/.test(ref.getAttribute('preserveAspectRatio') || '');
+          const k = Math.min(w / vb[2], h / vb[3]);
+          const sx = stretch ? w / vb[2] : k, sy = stretch ? h / vb[3] : k;
+          const ox = (w - vb[2] * sx) / 2 - vb[0] * sx;
+          const oy = (h - vb[3] * sy) / 2 - vb[1] * sy;
+          clone.setAttribute('transform', `translate(${svgu.round(ox, 4)} ${svgu.round(oy, 4)}) `
+            + `scale(${svgu.round(sx, 6)} ${svgu.round(sy, 6)})`);
+        }
+      } else {
+        clone = ref.cloneNode(true);
+      }
       clone.removeAttribute('id');
       for (const a of USE_PAINT) {
         const v = u.getAttribute(a);
@@ -503,6 +572,13 @@ function normalise(source, { tokens } = {}) {
   if (counts.hidden || counts.zero) findings.push(finding('fixed', 'leftovers',
     `Removed ${counts.hidden + counts.zero} hidden or zero-size shape${counts.hidden + counts.zero > 1 ? 's' : ''}.`,
     'Leftovers from editing. They are invisible but they enlarge the file and can widen the measured bounds.', null));
+
+  if (colour.implied) findings.push(finding('fixed', 'implied-fill',
+    `Wrote the black ${colour.implied === 1 ? 'a shape was' : `${colour.implied} shapes were`} already drawn in.`,
+    'A shape with no fill attribute is not unfilled: every renderer paints it black, and an exporter '
+    + 'leaves the attribute off precisely because black is the default. Nothing downstream could see a '
+    + 'colour that is not written down, so the drawing had no palette, no slot to recolour, and no '
+    + 'ground to be measured against.', null));
 
   for (const s of colour.snapped) findings.push(finding('fixed', 'colour-snapped',
     `${s.from} was ${s.distance} step${s.distance === 1 ? '' : 's'} from ${s.token} ${s.to}. Snapped it.`,
