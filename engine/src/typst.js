@@ -77,20 +77,114 @@ function colour(bundle, key, seen) {
 // it is given, so a fill of url(#a) came out as rgb("url(#a)") — which Typst
 // refuses outright: "color string contains non-hexadecimal letters". Nothing
 // noticed, because the only page this path ever compiled was Meridian's and
-// every mark in the repo was flat. Typst has gradient.linear, and it fills the
-// element's own box, which is what an SVG gradient in objectBoundingBox units
-// means, so the two line up.
-function gradientFill(g, bundle, seen) {
-  if (!g || g.kind !== 'linear' || !g.stops.length) return null;
-  const stops = g.stops.map((st, i) => {
-    const off = st.offset == null ? (i / Math.max(1, g.stops.length - 1)) : st.offset;
-    return `(${colour(bundle, st.hex, seen)}, ${svgu.round(off * 100, 2)}%)`;
-  });
+// every mark in the repo was flat.
+//
+// Typst's answer is gradient.linear, and it runs the ramp across the element's
+// own box along an angle. Two things follow, and both were got wrong.
+//
+// The box has to be the shape. Every curve here used to be placed at the page
+// origin with the page coordinates written into it, so Typst sized the element
+// from the corner of the paper to the far edge of the mark. The ramp was drawn
+// across that, which made the mark's colour a function of where on the page it
+// sat: the same mark, the same size, four corners of one page, came out four
+// different colourways — 98.6 of 255 apart at the worst, against 0.00 for every
+// flat mark in the repository. Each shape is placed at its own box now.
+//
+// And an angle is not an axis. SVG runs the ramp between two named points,
+// which is not corner to corner: Vesper's runs (0.06,0.04) to (0.82,0.96) of
+// the shape, and Pagrin's is in user space and runs well outside it. Typst has
+// no way to say that, so the stops are moved instead — each one to where it
+// falls across the box the ramp is drawn on — and the ends are the colour the
+// artwork holds there, which is what `pad` means.
+const HEX = (v) => {
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(v || '').trim());
+  if (!m) return null;
+  const h = m[1].length === 3 ? m[1].replace(/./g, (c) => c + c) : m[1];
+  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+};
+const mix = (a, b, t) => '#' + a.map((v, i) =>
+  Math.round(v + (b[i] - v) * t).toString(16).padStart(2, '0')).join('');
+
+// The stops as SVG reads them: a missing offset is 0, and an offset never goes
+// backwards — the renderer clamps it to the one before rather than reordering.
+function stopsOf(g) {
+  const out = [];
+  let last = 0;
+  for (const st of g.stops) {
+    const raw = st.offset == null ? 0 : Number(st.offset);
+    const o = Math.min(1, Math.max(last, isFinite(raw) ? raw : 0));
+    last = o;
+    out.push({ o, rgb: HEX(st.hex), hex: st.hex });
+  }
+  return out.every((s) => s.rgb) ? out : null;
+}
+
+// what the artwork paints at one point along its ramp, pad at both ends
+function rampAt(stops, o) {
+  if (o <= stops[0].o) return stops[0].hex;
+  const last = stops[stops.length - 1];
+  if (o >= last.o) return last.hex;
+  for (let i = 1; i < stops.length; i++) {
+    const a = stops[i - 1], b = stops[i];
+    if (o > b.o) continue;
+    return b.o === a.o ? b.hex : mix(a.rgb, b.rgb, (o - a.o) / (b.o - a.o));
+  }
+  return last.hex;
+}
+
+function gradientFill(g, bundle, seen, ctx) {
+  if (!g || g.kind !== 'linear') return null;
+  // a gradient with a transform of its own is refused, not approximated
+  if (g.gradientTransform) return null;
+  const stops = stopsOf(g);
+  if (!stops || !stops.length) return null;
+  const box = ctx && ctx.box;
+  if (!box || !(box.w > 0) || !(box.h > 0)) return null;
+
+  // where the ramp runs, in the coordinates the shape is drawn in
+  const a = g.axis || {};
+  const n = (raw, d, span) => {
+    if (raw == null || raw === '') return d;
+    const v = Number(String(raw).replace('%', ''));
+    if (!isFinite(v)) return d;
+    return String(raw).includes('%') ? (v / 100) * span : v;
+  };
+  let p1, p2;
+  if (g.units === 'userSpaceOnUse') {
+    const vb = ctx.vb || { w: 1, h: 1 };
+    p1 = paths.applyTo(ctx.m, [n(a.x1, 0, vb.w), n(a.y1, 0, vb.h)]);
+    p2 = paths.applyTo(ctx.m, [n(a.x2, vb.w, vb.w), n(a.y2, 0, vb.h)]);
+  } else {
+    const f = (raw, d) => n(raw, d, 1);
+    p1 = [box.x + f(a.x1, 0) * box.w, box.y + f(a.y1, 0) * box.h];
+    p2 = [box.x + f(a.x2, 1) * box.w, box.y + f(a.y2, 0) * box.h];
+  }
+  const dx = p2[0] - p1[0], dy = p2[1] - p1[1];
+  const len = Math.hypot(dx, dy);
+  if (!(len > 0)) return null;               // a ramp with no length is one colour
+  const ux = dx / len, uy = dy / len;
+
+  // how far along that line the box reaches. Typst puts 0% at one end of this
+  // and 100% at the other, so this is the window the artwork is seen through.
+  const at = (x, y) => (x - p1[0]) * ux + (y - p1[1]) * uy;
+  const ends = [at(box.x, box.y), at(box.x + box.w, box.y),
+    at(box.x, box.y + box.h), at(box.x + box.w, box.y + box.h)];
+  const lo = Math.min.apply(null, ends), hi = Math.max.apply(null, ends);
+  if (!(hi - lo > 0)) return null;
+  const place = (o) => ((o * len) - lo) / (hi - lo);
+  const held = (p) => rampAt(stops, ((p * (hi - lo)) + lo) / len);
+
+  const out = [[0, held(0)]];
+  for (const st of stops) {
+    const p = place(st.o);
+    if (p > 0.0001 && p < 0.9999) out.push([p, st.hex]);
+  }
+  out.push([1, held(1)]);
+  const said = out.map(([p, hex]) => `(${colour(bundle, hex, seen)}, ${svgu.round(p * 100, 3)}%)`);
   // the axis, as an angle: Typst measures clockwise from pointing right, and so
   // does atan2 on a y-down coordinate system, which SVG's is
-  const a = g.axis || { x1: 0, y1: 0, x2: 1, y2: 0 };
-  const deg = svgu.round((Math.atan2(a.y2 - a.y1, a.x2 - a.x1) * 180) / Math.PI, 2);
-  return `gradient.linear(${stops.join(', ')}, angle: ${deg}deg)`;
+  const deg = svgu.round((Math.atan2(uy, ux) * 180) / Math.PI, 3);
+  return `gradient.linear(${said.join(', ')}, angle: ${deg}deg, relative: "self")`;
 }
 
 const strokeHexOf = (el) => (el.match(/stroke="([^"]+)"/) || [])[1];
@@ -114,15 +208,15 @@ function artwork(svg, box, bundle, seen) {
   // the gradients this artwork defines, with the axis each one runs along
   const grads = new Map();
   for (const g of svgu.gradients(doc)) grads.set(g.id, g);
+  // the axis as it is written, not as a number: what "0.82" means depends on
+  // gradientUnits, and reading it before knowing that is how a gradient in user
+  // space came to be drawn as a fraction of a box
   (function axes(n) {
     if (n.nodeType === 1 && String(n.nodeName).toLowerCase() === 'lineargradient' && grads.has(n.getAttribute('id'))) {
-      const num = (a, d) => {
-        const raw = n.getAttribute(a);
-        if (raw == null) return d;
-        const v = Number(String(raw).replace('%', ''));
-        return String(raw).includes('%') ? v / 100 : v;
-      };
-      grads.get(n.getAttribute('id')).axis = { x1: num('x1', 0), y1: num('y1', 0), x2: num('x2', 1), y2: num('y2', 0) };
+      const g = grads.get(n.getAttribute('id'));
+      g.axis = { x1: n.getAttribute('x1'), y1: n.getAttribute('y1'), x2: n.getAttribute('x2'), y2: n.getAttribute('y2') };
+      g.units = n.getAttribute('gradientUnits') || 'objectBoundingBox';
+      g.gradientTransform = n.getAttribute('gradientTransform') || null;
     }
     for (let c = n.firstChild; c; c = c.nextSibling) axes(c);
   }(doc.documentElement));
@@ -188,16 +282,27 @@ function artwork(svg, box, bundle, seen) {
         const scale = paths.scaleOf(m);
         const fill = here.fill, stroke = here.stroke;
         const w = Number(here['stroke-width'] || 1) * scale;
+        // Placed at its own box, with its own coordinates, rather than at the
+        // page origin with the page's. Typst measures a gradient against the
+        // element's box, and an element placed at 0,0 holding a shape that sits
+        // at the bottom of an A4 page is an A4-sized element.
+        const bx = paths.bboxOf(segs) || { x: 0, y: 0, w: 0, h: 0 };
+        const rel = (p) => [p[0] - bx.x, p[1] - bx.y];
         const parts = segs.map((sg) =>
-          sg.op === 'move' ? `curve.move((${pt(sg.to[0])}, ${pt(sg.to[1])}))`
-            : sg.op === 'line' ? `curve.line((${pt(sg.to[0])}, ${pt(sg.to[1])}))`
-              : sg.op === 'cubic' ? `curve.cubic((${pt(sg.c1[0])}, ${pt(sg.c1[1])}), (${pt(sg.c2[0])}, ${pt(sg.c2[1])}), (${pt(sg.to[0])}, ${pt(sg.to[1])}))`
-                : 'curve.close()');
+          sg.op === 'move' ? `curve.move((${pt(rel(sg.to)[0])}, ${pt(rel(sg.to)[1])}))`
+            : sg.op === 'line' ? `curve.line((${pt(rel(sg.to)[0])}, ${pt(rel(sg.to)[1])}))`
+              : sg.op === 'cubic' ? `curve.cubic((${pt(rel(sg.c1)[0])}, ${pt(rel(sg.c1)[1])}), (${pt(rel(sg.c2)[0])}, ${pt(rel(sg.c2)[1])}), (${pt(rel(sg.to)[0])}, ${pt(rel(sg.to)[1])}))`
+                // Z is a straight line back to the start. Typst closes with a
+                // curve unless told otherwise, which both draws a shape the
+                // artwork does not have and grows the box a gradient is
+                // measured against — a dome 100 tall closed smoothly measures
+                // 150.
+                : 'curve.close(mode: "straight")');
         // an unset fill paints black, exactly as it does in a browser
         const paint = (v) => {
           const ref = /^url\(#([^)]+)\)$/.exec(String(v).trim());
           if (!ref) return colour(bundle, v, seen);
-          const g = gradientFill(grads.get(ref[1]), bundle, seen);
+          const g = gradientFill(grads.get(ref[1]), bundle, seen, { box: bx, m, vb });
           // a paint server this cannot say — a radial, a pattern, a gradient in
           // user space — is refused rather than written as a colour it is not
           if (!g) unsayable.add(ref[1]);
@@ -207,7 +312,7 @@ function artwork(svg, box, bundle, seen) {
           : fill === 'none' ? 'none' : paint(fill);
         const strokeCss = stroke && stroke !== 'none'
           ? `${pt(w)} + ${paint(stroke)}` : 'none';
-        out.push(`#place(dx: 0pt, dy: 0pt, curve(\n  fill: ${fillCss},\n  stroke: ${strokeCss},\n`
+        out.push(`#place(dx: ${pt(bx.x)}, dy: ${pt(bx.y)}, curve(\n  fill: ${fillCss},\n  stroke: ${strokeCss},\n`
           + `  ${parts.join(',\n  ')},\n))`);
       }
     }

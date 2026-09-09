@@ -126,7 +126,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 150 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 589 tests.
+of it. 592 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -2270,6 +2270,59 @@ It now names what ran and counts what did not: *the path translation — measure
 and clean. 3 of the 4 could not run here, so nothing above says anything about
 them.* A suite test runs every `*-check.mjs` with the environment emptied and
 fails any that comes back without saying what it could not do.
+
+---
+
+**A mark that changed colour depending on where you put it on the page**
+
+Two of the thirty-two identities here have a gradient in their artwork. Both
+printed wrong, and one of them printed *differently in different places*: the
+same mark, the same size, at four corners of one page, came out four colourways.
+Measured across the whole repository — the same drawing, moved, compared with
+itself:
+
+    pagrin        98.63 of 255
+    vesper         4.58
+    the other 30   0.00
+
+Every curve was written into the file at its page coordinates and placed at the
+paper's corner. Typst sizes an element by what is in it and runs a gradient
+across that box, so an element holding a mark at the foot of an A4 page is an
+A4-sized element, and the ramp was drawn across the sheet rather than across the
+mark. Flat artwork could not notice, which is why thirty of them read 0.00.
+
+The file's own comment said *Typst has gradient.linear, and it fills the
+element's own box, which is what an SVG gradient in objectBoundingBox units
+means, so the two line up.* Neither half held. Each shape is placed at its own
+box now; `gradientUnits` is read, because Pagrin's mark came out of a real
+exporter and a real exporter writes a line in the artwork's own coordinates
+running well outside the drawing — read as fractions of a box it is about 180
+times too long, and 180 times too long is one flat colour. And an angle is not
+an axis: SVG runs a ramp between two named points and holds the end colour
+beyond them, so the stops are moved to where they fall across the box and the
+ends are the colour the artwork actually holds there.
+
+One more, found on the way: `Z` closes a path with a straight line, and Typst's
+`close()` is a curve unless told otherwise — which draws a shape the artwork does
+not have and grows the box a gradient is measured against. A dome 100 tall,
+closed smoothly, measures 150. On this repository's artwork it is worth at most
+0.10 of 255, and it is still the wrong line.
+
+    the printed page against the published page      before   after
+      pagrin                       mean of 576 areas   3.41     1.50
+                                          worst area   71.8     16.6
+      vesper                                    mean   0.84     0.13
+      the other 30                                     unchanged to the digit
+
+Thirty-two of thirty-two pass now; before, Pagrin failed both thresholds. The
+check that should have caught it was pinned to one fixture — the file said in its
+own comment why that is a risk, and it was right — so it runs on every identity
+now, 1 page to 32. It also reads Typst's own box back out of the compiler and
+compares it with the box the emitter computed, because the whole translation
+rests on those being the same rectangle: 0.000pt apart. And the colour-space
+question got better rather than louder: not *no screen colour anywhere*, but *no
+screen colour the build did not name* — Pagrin's wordmark is a plain black nobody
+gave an ink for, and the build says so out loud.
 
 Still to do: nothing named. The next one is whatever the next measurement finds.
 

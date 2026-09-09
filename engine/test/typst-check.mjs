@@ -7,11 +7,13 @@
 
    Two implementations of one drawing is exactly the drift this project has
    spent its whole length designing against, so it gets a check rather than an
-   assurance. Three things are compared here:
+   assurance. Four things are compared here, over every identity in the
+   repository:
 
      1. the path translation, against the SVG renderer, shape for shape
-     2. the printed page, against the published page, area by area
-     3. the colour space of the result, which is the reason any of it exists
+     2. every mark, in every colourway, compiled
+     3. the printed page, against the published page, area by area
+     4. the colour space of the result, which is the reason any of it exists
 
    Kept out of `npm test` because it needs a browser and a typst binary.
 
@@ -27,6 +29,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const paths = require('../src/paths');
+const svgu = require('../src/svg');
 const typst = require('../src/typst');
 const M = require('../src/editor/model');
 const { publish } = require('../src/editor/publish');
@@ -35,16 +38,16 @@ const { measure, buildVariant } = require('../src/variants');
 const { bundle } = require('../src/editor/bundle');
 const { Resvg } = require('@resvg/resvg-js');
 
-// The page comparison needs a browser and a typst binary, so it runs on one
-// project; the path translation needs neither, so it runs on all of them. A
-// check pinned to one fixture tests that fixture: Kvist's printed piece carried
-// a clipping rectangle for two rounds behind a check that only knew Meridian.
+// A check pinned to one fixture tests that fixture. Kvist's printed piece
+// carried a clipping rectangle for two rounds behind a check that only knew
+// Meridian, and the page comparison below stayed pinned to Meridian anyway,
+// because for want of a compiler it could not run at all. It runs on every
+// identity now, which is how Pagrin's gradient was found. PROJECT= narrows it
+// to one while you are looking at that one.
 const PROJECTS = fs.readdirSync(path.join(import.meta.dirname, '..', 'projects'))
   .filter((d) => fs.existsSync(path.join(import.meta.dirname, '..', 'projects', d, 'project.json')))
   .sort();
 const load = (name) => projectLoader.load(path.join(import.meta.dirname, '..', 'projects', name, 'project.json'));
-const project = load(process.env.PROJECT || 'meridian');
-const bu = bundle(project, measure(project), []);
 let failed = 0;
 const report = (ok, name, detail) => {
   if (!ok) failed++;
@@ -140,6 +143,10 @@ function compile(input, output, { format = 'png', ppi = 72 } = {}) {
     });
     if (format === 'pdf') {
       fs.writeFileSync(output, Buffer.from(c.pdf({ mainFilePath: path.resolve(input) })));
+    } else if (format === 'svg') {
+      const svg = c.plainSvg({ mainFilePath: path.resolve(input) });
+      if (!svg) throw new Error('nothing came back from the compiler');
+      fs.writeFileSync(output, svg);
     } else {
       const svg = c.plainSvg({ mainFilePath: path.resolve(input) });
       if (!svg) throw new Error('nothing came back from the compiler');
@@ -207,6 +214,55 @@ if (typstReady) {
     report(ok, `${name} compiles in every colourway`,
       worstNote || `${p.rules.colourways.length} colourway(s) x ${lockups.length} lockup(s), nothing left unsaid`);
   }
+
+  // And the box Typst measures a gradient against is the box the emitter
+  // computed. Everything the gradient translation does rests on those being the
+  // same rectangle: the stops are moved to where they fall across it, so a box
+  // one number out puts every stop somewhere the artwork does not have it. Only
+  // a compiler can say what that box is — Typst writes it into the SVG as the
+  // gradientTransform on the gradient the shape actually references.
+  for (const name of PROJECTS) {
+    const p = load(name);
+    const meas = measure(p);
+    const b = bundle(p, meas, []);
+    const v = buildVariant({ markSrc: p.assets.mark && p.assets.mark.source,
+      wordmarkSrc: p.assets.wordmark && p.assets.wordmark.source,
+      lockup: p.assets.mark ? 'mark' : p.rules.lockups[0],
+      colourway: p.rules.colourways[0], rules: p.rules, measured: meas });
+    const body = typst.artwork(v.svg, { x: 0, y: 0, w: 200, h: 200 }, b, new Set());
+    if (!/gradient\.linear/.test(body)) continue;                 // nothing to measure
+    const f = path.join(dir, `${name}-box.typ`);
+    fs.writeFileSync(f, `#set page(width: 150pt, height: 150pt, margin: 0pt, fill: white)\n${body}\n`);
+    const svgOut = path.join(dir, `${name}-box.svg`);
+    const r = compile(f, svgOut, { format: 'svg' });
+    if (r.status !== 0 || !fs.existsSync(svgOut)) {
+      report(false, `${name}: the gradient compiles`, (r.stderr || 'no svg came back').trim().split('\n')[0]);
+      continue;
+    }
+    const svg = fs.readFileSync(svgOut, 'utf8');
+    const id = (/fill="url\(#([^)]+)\)"/.exec(svg) || [])[1];
+    const el = id && new RegExp(`<linearGradient[^>]*id="${id}"[^>]*>`).exec(svg);
+    const mt = el && /gradientTransform="matrix\(([-\d.e]+) 0 0 ([-\d.e]+)/.exec(el[0]);
+    if (!mt) { report(false, `${name}: typst said which box it used`, 'no gradientTransform in the output'); continue; }
+    // the same shape, measured here: the first path the artwork paints with it
+    const marked = svgu.parse(v.svg);
+    let mine = null;
+    (function find(n) {
+      if (mine || n.nodeType !== 1) return;
+      if (String(n.nodeName).toLowerCase() === 'path' && /^url\(#/.test(n.getAttribute('fill') || '')) {
+        mine = paths.bboxOf(paths.parse(n.getAttribute('d')));
+      }
+      for (let c = n.firstChild; c; c = c.nextSibling) find(c);
+    }(marked.documentElement));
+    const vb = svgu.viewBox(marked);
+    const k = Math.min(200 / vb.w, 200 / vb.h) * 0.75;             // as artwork() fits it, in points
+    const want = [mine.w * k, mine.h * k];
+    const got = [Number(mt[1]), Number(mt[2])];
+    const off = Math.max(Math.abs(want[0] - got[0]), Math.abs(want[1] - got[1]));
+    report(off < 0.05, `${name}: the box typst measures the ramp on is the box this measured`,
+      `${got.map((x) => x.toFixed(2)).join(' x ')} against ${want.map((x) => x.toFixed(2)).join(' x ')}, `
+      + `${off.toFixed(3)}pt apart`);
+  }
   fs.rmSync(dir, { recursive: true, force: true });
 } else {
   console.log('\nevery mark, compiled\n  skipped: no typst '
@@ -220,28 +276,45 @@ if (!typstReady || !chromium) {
 } else {
   console.log('\nthe printed page against the published page');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-typst-'));
+  const browser = await chromium.launch(process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {});
 
-  // a piece made of the things a printed piece is made of, and no bleed, so
-  // the two pages are the same rectangle
-  const doc = M.emptyDoc('Meridian');
-  M.ops.setPageSize(doc, null, 'a4');
-  const sheet = M.sheet('a4'), pg = doc.pages[0];
-  pg.blocks.push(M.makeBlock('fill', { x: 0, y: 0, w: sheet.w, h: sheet.h, props: { colour: 'primary' } }, sheet));
-  pg.blocks.push(M.makeBlock('lockup', { x: 70, y: 300, w: 654, h: 180,
-    props: { lockup: 'horizontal', colourway: 'ground', on: 'none' } }, sheet));
-  pg.blocks.push(M.makeBlock('fill', { x: 70, y: 560, w: 300, h: 8, props: { colour: 'accent' } }, sheet));
-  pg.blocks.push(M.makeBlock('mark', { x: 560, y: 800, w: 164, h: 164,
-    props: { colourway: 'accent', on: 'none' } }, sheet));
+  // Every identity, not one. This comparison was pinned to Meridian for its
+  // whole life, and the file said in its own comment why that is a risk. It was
+  // right: with a compiler finally in the room, thirty-one identities came in
+  // under a mean of 0.9 of 255 and Pagrin came in at 3.41 with a worst area of
+  // 71.8, because its mark is the only one in the repository whose gradient is
+  // written in user space. A check pinned to one fixture tests that fixture.
+  const only = process.env.PROJECT ? [process.env.PROJECT] : PROJECTS;
+  const undisclosed = [];
+  for (const name of only) {
+    const proj = load(name);
+    const b = bundle(proj, measure(proj), []);
+    const cw = proj.rules.colourways[0].name;
+    const lock = proj.rules.lockups.includes('horizontal') ? 'horizontal' : proj.rules.lockups[0];
 
-  const out = typst.emit(doc, bu, {});
-  fs.writeFileSync(path.join(dir, 'p.typ'), out.source);
-  const r = compile(path.join(dir, 'p.typ'), path.join(dir, 'typst.png'));
-  if (r.status !== 0) {
-    report(false, 'typst compiled the piece', (r.stderr || '').trim().split('\n')[0]);
-  } else {
-    const browser = await chromium.launch(process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {});
+    // a piece made of the things a printed piece is made of, and no bleed, so
+    // the two pages are the same rectangle
+    const doc = M.emptyDoc(proj.brand || name);
+    M.ops.setPageSize(doc, null, 'a4');
+    const sheet = M.sheet('a4'), pg = doc.pages[0];
+    pg.blocks.push(M.makeBlock('fill', { x: 0, y: 0, w: sheet.w, h: sheet.h, props: { colour: 'primary' } }, sheet));
+    pg.blocks.push(M.makeBlock('lockup', { x: 70, y: 300, w: 654, h: 180,
+      props: { lockup: lock, colourway: cw, on: 'none' } }, sheet));
+    pg.blocks.push(M.makeBlock('fill', { x: 70, y: 560, w: 300, h: 8, props: { colour: 'accent' } }, sheet));
+    if (proj.assets.mark) {
+      pg.blocks.push(M.makeBlock('mark', { x: 560, y: 800, w: 164, h: 164,
+        props: { colourway: cw, on: 'none' } }, sheet));
+    }
+
+    const out = typst.emit(doc, b, {});
+    fs.writeFileSync(path.join(dir, 'p.typ'), out.source);
+    const r = compile(path.join(dir, 'p.typ'), path.join(dir, 'typst.png'));
+    if (r.status !== 0) {
+      report(false, `${name} compiled`, (r.stderr || '').trim().split('\n')[0]);
+      continue;
+    }
     const page = await browser.newPage({ viewport: { width: 900, height: 1300 } });
-    fs.writeFileSync(path.join(dir, 'p.html'), publish(doc, bu, { captions: false, builtAt: 'fixed' }));
+    fs.writeFileSync(path.join(dir, 'p.html'), publish(doc, b, { captions: false, builtAt: 'fixed' }));
     await page.goto('file://' + path.join(dir, 'p.html'));
     await page.waitForTimeout(500);
     await page.locator('.hp-page').first().screenshot({ path: path.join(dir, 'html.png') });
@@ -253,7 +326,7 @@ if (!typstReady || !chromium) {
     // expected to preview a few values off. Each cell is compared against its
     // own image's mean instead, which cancels that offset and leaves what is
     // actually being asked — is the same thing in the same place.
-    const cells = await page.evaluate(async ({ a, b }) => {
+    const cells = await page.evaluate(async ({ a, b: bb }) => {
       const load = async (b64) => {
         const im = new Image();
         await new Promise((res) => { im.onload = res; im.src = 'data:image/png;base64,' + b64; });
@@ -262,17 +335,17 @@ if (!typstReady || !chromium) {
         c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
         return c.getContext('2d').getImageData(0, 0, c.width, c.height);
       };
-      const A = await load(a), B = await load(b);
+      const A = await load(a), B = await load(bb);
       if (A.width !== B.width || Math.abs(A.height - B.height) > 2) return { mismatch: [A.width, A.height, B.width, B.height] };
       const G = 24;
-      const cw = Math.floor(A.width / G), ch = Math.floor(Math.min(A.height, B.height) / G);
+      const cw2 = Math.floor(A.width / G), ch = Math.floor(Math.min(A.height, B.height) / G);
       const cellsOf = (img) => {
         const v = [];
         for (let gy = 0; gy < G; gy++) {
           for (let gx = 0; gx < G; gx++) {
             let s = 0, n = 0;
             for (let y = gy * ch; y < (gy + 1) * ch; y++) {
-              for (let x = gx * cw; x < (gx + 1) * cw; x++) {
+              for (let x = gx * cw2; x < (gx + 1) * cw2; x++) {
                 const i = (y * img.width + x) * 4;
                 s += (img.data[i] + img.data[i + 1] + img.data[i + 2]) / 3;
                 n++;
@@ -289,39 +362,51 @@ if (!typstReady || !chromium) {
       return { diffs: a2.map((v, i) => Math.abs((v - ma) - (b2[i] - mb))), offset: Math.abs(ma - mb) };
     }, { a: fs.readFileSync(path.join(dir, 'html.png')).toString('base64'),
       b: fs.readFileSync(path.join(dir, 'typst.png')).toString('base64') });
-    await browser.close();
+    await page.close();
 
     if (cells.mismatch) {
-      report(false, 'the two pages are the same shape', `html ${cells.mismatch.slice(0, 2)}, typst ${cells.mismatch.slice(2)}`);
+      report(false, `${name}: the two pages are the same shape`,
+        `html ${cells.mismatch.slice(0, 2)}, typst ${cells.mismatch.slice(2)}`);
     } else {
-      const mean = cells.diffs.reduce((a, b) => a + b, 0) / cells.diffs.length;
+      const mean = cells.diffs.reduce((a, b2) => a + b2, 0) / cells.diffs.length;
       const worst = Math.max(...cells.diffs);
-      report(mean < 3 && worst < 40, 'the printed page matches the published page',
+      report(mean < 3 && worst < 40, `${name} prints what it publishes`,
         `${cells.diffs.length} areas, mean ${mean.toFixed(2)} of 255, worst ${worst.toFixed(1)}`
-        + `  (the whole page previews ${cells.offset.toFixed(1)} off, which is the ink build`
-        + ` differing from the screen colour, as it should)`);
+        + `, whole page ${cells.offset.toFixed(1)} off (the ink build differing from the screen colour, as it should)`);
     }
-  }
 
-  // ------------------------------------------- 3. the colour space
-  compile(path.join(dir, 'p.typ'), path.join(dir, 'p.pdf'), { format: 'pdf' });
-  if (fs.existsSync(path.join(dir, 'p.pdf'))) {
+    // ------------------------------------------- the colour space
+    // Not "no screen colour anywhere": a colour with no declared build is
+    // written as the hex it is, and the build says so out loud — Pagrin's
+    // wordmark is drawn in a plain black nobody gave an ink for. What must
+    // never happen is a screen colour going to a press that nobody was told
+    // about, so the file is measured against what the build disclosed.
+    fs.rmSync(path.join(dir, 'p.pdf'), { force: true });
+    compile(path.join(dir, 'p.typ'), path.join(dir, 'p.pdf'), { format: 'pdf' });
+    if (!fs.existsSync(path.join(dir, 'p.pdf'))) continue;
     const zlib = await import('node:zlib');
-    const s = fs.readFileSync(path.join(dir, 'p.pdf')).toString('latin1');
+    const raw = fs.readFileSync(path.join(dir, 'p.pdf')).toString('latin1');
     const ops = [];
     const re = /stream\r?\n/g;
-    let m;
-    while ((m = re.exec(s))) {
-      const start = m.index + m[0].length, end = s.indexOf('endstream', start);
-      if (end < 0) continue;
+    let mm;
+    while ((mm = re.exec(raw))) {
+      const from = mm.index + mm[0].length, to = raw.indexOf('endstream', from);
+      if (to < 0) continue;
       let text;
-      try { text = zlib.inflateSync(Buffer.from(s.slice(start, end), 'latin1')).toString('latin1'); } catch { continue; }
+      try { text = zlib.inflateSync(Buffer.from(raw.slice(from, to), 'latin1')).toString('latin1'); } catch { continue; }
       for (const q of text.matchAll(/[\d.]+ [\d.]+ [\d.]+ [\d.]+ [kK]|[\d.]+ [\d.]+ [\d.]+ (?:rg|RG|scn|SCN)/g)) ops.push(q[0]);
     }
-    const rgb = [...new Set(ops.filter((o) => /(rg|RG|scn|SCN)$/.test(o)))];
-    report(ops.length > 0 && rgb.length === 0, 'the printed piece is entirely in ink',
-      `${[...new Set(ops)].length} distinct colours, ${rgb.length} of them screen colours${rgb.length ? ': ' + rgb.join(', ') : ''}`);
+    const told = new Set((out.screenColours || []).map((h) => String(h).toUpperCase()));
+    for (const op of new Set(ops.filter((o) => /(rg|RG|scn|SCN)$/.test(o)))) {
+      const v = op.split(' ').slice(0, 3).map(Number);
+      const asHex = '#' + v.map((x) => Math.round(x * 255).toString(16).padStart(2, '0')).join('').toUpperCase();
+      if (!told.has(asHex)) undisclosed.push(`${name}: ${op} (${asHex})`);
+    }
   }
+  await browser.close();
+  console.log('\nthe colour space');
+  report(undisclosed.length === 0, `every page is in ink but for the colours the build named`,
+    undisclosed.length ? undisclosed.slice(0, 4).join('; ') : `${only.length} page(s) measured`);
   fs.rmSync(dir, { recursive: true, force: true });
 }
 

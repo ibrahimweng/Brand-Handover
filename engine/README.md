@@ -6068,6 +6068,133 @@ sentence it exists for: *it still signs off on the comparisons it skipped.*
 Narrowing the compiler search back to `!!bin` puts two sections back into
 "skipped" with a compiler sitting right there.
 
+## A mark that changed colour depending on where you put it on the page
+
+The printed piece finally had a compiler to check it with, and the check that
+compares it against the published page was pinned to one fixture. Unpinned, it
+found this.
+
+Two of the thirty-two identities here have a gradient in their artwork: Pagrin's
+mark, which came out of a real exporter, and Vesper's, which exists to be *a
+gradient, which is not one colour*. Both printed wrong. One of them printed
+differently in different places — the same mark, the same size, at four corners
+of one page, four colourways. That is measurable directly: draw the artwork,
+move it, compare it with itself.
+
+    pagrin        98.63 of 255
+    vesper         4.58
+    the other 30   0.00
+
+Nothing flat moved at all, which is exactly why nobody had seen it.
+
+### The box was the paper
+
+Every shape in the artwork was written out as
+
+    #place(dx: 0pt, dy: 0pt, curve(
+      fill: gradient.linear(…),
+      curve.move((420.4pt, 601.2pt)),
+      …
+
+— placed at the corner of the paper, with the page's coordinates inside it.
+Typst sizes an element by what is in it and runs a gradient across that box, so a
+curve whose points sit at the foot of an A4 page is an A4-sized element and the
+ramp was drawn across the sheet. Move the mark, and a different part of the ramp
+lands on it.
+
+Each shape is placed at its own box now, with its own coordinates, and the
+element is the shape. Nothing else changes: the thirty flat identities print the
+same page to the digit before and after.
+
+### An angle is not an axis, and a fraction is not a length
+
+The comment above the old code said it:
+
+> Typst has gradient.linear, and it fills the element's own box, which is what an
+> SVG gradient in objectBoundingBox units means, so the two line up.
+
+Neither half held.
+
+**`gradientUnits` was never read.** Pagrin's says `userSpaceOnUse`, and the line
+it names runs from (206.82, −21.66) to (−15.98, 188.93) in the artwork's own
+coordinates — well outside the 184 × 182 the mark is drawn in. Taken as
+fractions of a box, that line is about 180 times longer than the mark, and a
+ramp 180 times too long is one flat colour with no ramp in it. That is what the
+reversion shows: the mark collapses to two stops of the same paint.
+
+**And an SVG ramp runs between two named points, not corner to corner.** Vesper's
+runs (0.06, 0.04) to (0.82, 0.96) of the shape's own box, and outside that line
+SVG holds the end colour — `pad`, which is the default and the only spread the
+artwork here uses. Typst has no way to say *from this point to that one*, so the
+stops are moved instead: each to where it falls across the box the ramp is drawn
+on, with the two ends set to the colour the artwork actually holds there. Vesper
+comes out with five stops where it had three, the extra two holding its first and
+last declared inks across the padded ends.
+
+Pagrin's ends are interpolated rather than declared, because its ramp starts
+outside its own drawing: the pure `#FF5715` the file names is never reached
+inside the mark, so writing it at the mark's edge was drawing a colour the
+artwork does not have.
+
+### `Z` is a straight line
+
+Found while reading Typst's own output. `curve.close()` closes a path with a
+*curve* unless told otherwise, and SVG's `Z` is a straight line back to the
+start. It draws a shape the artwork does not have, and it grows the box a
+gradient is measured against: a dome 100 tall, closed smoothly, measures 150 —
+read out of the `gradientTransform` Typst writes into its own SVG. On this
+repository's artwork it is worth at most 0.10 of 255, because the marks here
+almost all return to their start before closing. It is still the wrong line, and
+the box has to be right for the stops to land, so it is `close(mode: "straight")`
+now.
+
+A linear gradient carrying a `gradientTransform` of its own goes down the same
+road as a radial: refused by name, drawn in black, and reported by the print
+command, rather than drawn without the transform in colours nobody chose.
+
+### After
+
+    the printed page against the published page      before   after
+      pagrin                       mean of 576 areas   3.41     1.50
+                                          worst area   71.8     16.6
+      vesper                                    mean   0.84     0.13
+                                          worst area   27.7      4.4
+      the other 30                                     unchanged to the digit
+
+    the same mark, moved                             before   after
+      identities whose mark changes colour            2 of 32   0 of 32
+
+Thirty-two of thirty-two pages pass the check's own thresholds — mean under 3,
+worst area under 40. Before, Pagrin failed both.
+
+### What now measures it
+
+**The page comparison is not pinned any more.** It ran on Meridian, whose mark is
+flat, for its whole life; the file's own comment said a check pinned to one
+fixture tests that fixture, and it was right twice over. It runs on every
+identity: 1 page to 32. `PROJECT=` still narrows it while you are looking at one.
+
+**The box is read back out of the compiler.** Everything the gradient translation
+does rests on Typst's box and this engine's box being the same rectangle, so the
+check compiles a mark to SVG, reads the `gradientTransform` Typst wrote, and
+compares it with what `paths.bboxOf` computed: **0.000pt apart**, for both marks
+that carry a gradient. It is also the only way to know that Typst measures the
+*curve* and not the hull of its handles — a cubic stays inside its handles and
+rarely touches them, so the two boxes differ, and `bboxOf` solves `B'(t) = 0`
+rather than taking the hull.
+
+**The colour space got a better question rather than a louder one.** It asked *is
+there any screen colour in this file*, on one page. Now it asks, on all
+thirty-two, *is there a screen colour the build did not name* — because a colour
+with no declared build is written as the hex it is and the build says so out
+loud. Pagrin's wordmark is a plain black nobody gave an ink for. That is
+disclosed, and disclosed is not the same as silent.
+
+And in the suite, with no compiler needed: the same mark at four places emits the
+same ramp; a user-space gradient keeps a ramp instead of collapsing; the box is
+the curve and not the handles; every curve's own drawing starts at its own
+origin; every path closes straight; and a gradient with a transform is refused.
+
 ## What it does not do yet
 
 - **The door cannot write in Japanese.** It offers the language and marks it

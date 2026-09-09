@@ -361,8 +361,9 @@ async function main(argv) {
     }
     if ((out.unsayablePaint || []).length) {
       console.log(`  ${out.unsayablePaint.length} paint server could not be said in Typst and was drawn in `
-        + `black: ${out.unsayablePaint.join(', ')}. A linear gradient translates; a radial one and a `
-        + `pattern fill do not. Flatten those parts, or use the flat colourway for the printed piece.`);
+        + `black: ${out.unsayablePaint.join(', ')}. A linear gradient translates; a radial one, a `
+        + `pattern fill, and a linear one carrying a gradientTransform do not. Flatten those parts, `
+        + `or use the flat colourway for the printed piece.`);
     }
     if (out.rasterColour) console.log('  a photograph is placed as given; a press converts those itself, which is normal.');
     if (out.refused.length) {

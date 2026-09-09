@@ -2547,9 +2547,40 @@ test('the mark is redrawn as curves, not embedded', () => {
   });
   assert.ok(/curve\.move/.test(r.source) && /curve\.cubic/.test(r.source), 'no curves were emitted');
   assert.ok(!/image\(/.test(r.source), 'the artwork was embedded, which would arrive in RGB');
-  // both parts of the lockup, each in the colourway's ink
-  assert.ok((r.source.match(/#place\(dx: 0pt, dy: 0pt, curve\(/g) || []).length >= 2, 'only one shape was drawn');
+  // both parts of the lockup, each in the colourway's ink. Each shape is
+  // placed at its own box rather than at the page origin: an element placed at
+  // 0,0 holding a shape at the bottom of the page is a page-sized element, and
+  // Typst measures a gradient against the element's box.
+  const drawn = r.source.split('#place(').filter((c) => c.startsWith('dx:') && /curve\(/.test(c));
+  assert.ok(drawn.length >= 2, 'only one shape was drawn');
+  // Every curve's own coordinates start at its own box. Typst sizes an element
+  // from its origin to its far edge and measures a gradient against that, so a
+  // shape written in page coordinates is a page-sized element: the same mark at
+  // four corners of one page came out four different colourways.
+  const PA_ = require('../src/paths');
+  for (const c of drawn) {
+    // read the curve back and measure it: a handle may sit outside the box on
+    // purpose, so it is the drawing's own extent that has to start at nothing
+    const segs = [];
+    for (const piece of c.split('curve.').slice(1)) {
+      const op = piece.slice(0, piece.indexOf('('));
+      if (!['move', 'line', 'cubic'].includes(op)) continue;
+      const n = [...piece.slice(0, piece.indexOf('\n')).matchAll(/([-\d.]+)pt/g)].map((x) => Number(x[1]));
+      if (op === 'cubic') segs.push({ op, c1: [n[0], n[1]], c2: [n[2], n[3]], to: [n[4], n[5]] });
+      else segs.push({ op, to: [n[0], n[1]] });
+    }
+    if (!segs.length) continue;
+    const box = PA_.bboxOf(segs);
+    assert.ok(Math.abs(box.x) < 0.01 && Math.abs(box.y) < 0.01,
+      `a shape is drawn in the page's coordinates, not its own: it starts at ${box.x}, ${box.y}`);
+  }
   assert.ok(r.source.includes('cmyk(3%, 3%, 8%, 0%)'), 'the chalk colourway was not written as ink');
+  // Z is a straight line back to the start; Typst's close() is a curve unless
+  // it is told otherwise. It draws a shape the artwork does not have, and it
+  // grows the box a gradient is measured against — a dome 100 tall closed
+  // smoothly measures 150, which typst-check reads back out of the compiler.
+  assert.ok(/curve\.close\(mode: "straight"\)/.test(r.source), 'a path was closed with a curve');
+  assert.ok(!/curve\.close\(\)/.test(r.source), 'a path was closed with a curve');
 });
 test('copy is a string, so markup in it stays what it says', () => {
   // regression: a markup block reads *stars* as bold and _underscores_ as
@@ -4481,15 +4512,45 @@ test('a gradient is said in Typst, not handed to it as a colour', () => {
   assert.ok(!/rgb\("url\(/.test(src), 'a paint server was handed to Typst as a colour string');
   assert.ok(/gradient\.linear\(/.test(src), 'the gradient did not survive into the printed piece');
   assert.strictEqual(seen.unsayable.size, 0);
-  // the stops are the declared ink builds, in order, at the offsets the artwork sets
   const stops = /gradient\.linear\(([^]*?), angle:/.exec(src)[1];
   // the offset is the number closing each stop tuple, not the percentages
   // inside the ink build beside it
-  assert.deepStrictEqual([...stops.matchAll(/\), ([\d.]+)%\)/g)].map((x) => x[1]), ['0', '52', '100']);
-  assert.strictEqual((stops.match(/cmyk\(/g) || []).length, 3, 'a declared build was not used');
+  const at = [...stops.matchAll(/\), ([\d.]+)%\)/g)].map((x) => Number(x[1]));
+  const ink = [...stops.matchAll(/cmyk\([^)]*\)/g)].map((x) => x[0]);
+  assert.strictEqual((stops.match(/rgb\(/g) || []).length, 0, 'a declared build was not used');
+
+  // An angle is not an axis. Vesper's runs (0.06, 0.04) to (0.82, 0.96) of the
+  // shape's own box, which is not corner to corner, and outside it SVG holds
+  // the end colour — that is what `pad` means. Typst can only run a ramp across
+  // the whole box, so the stops are moved to where they fall on it and the two
+  // ends are the colour the artwork holds there. Written as an axis instead,
+  // the ends land only in the two corners and everything between them is wrong.
+  assert.strictEqual(at[0], 0);
+  assert.strictEqual(at[at.length - 1], 100);
+  assert.strictEqual(ink[0], ink[1], 'the ramp does not hold its first colour up to the axis');
+  assert.strictEqual(ink[ink.length - 1], ink[ink.length - 2], 'nor its last colour after it');
+  assert.ok(at[1] > 4 && at[1] < 6, `the axis starts ${at[1]}% across the box`);
+  assert.ok(at[at.length - 2] > 88 && at[at.length - 2] < 91, `and ends at ${at[at.length - 2]}%`);
+  assert.strictEqual(new Set(ink).size, 3, 'the three declared builds are still the three colours');
   // and an angle, taken from the axis rather than assumed
   const deg = Number(/angle: ([-\d.]+)deg/.exec(src)[1]);
   assert.ok(deg > 45 && deg < 56, `the axis came out at ${deg} degrees`);
+
+  // The same drawing, somewhere else on the page, is the same drawing. Every
+  // curve used to be placed at the page origin with the page's coordinates
+  // written into it, so Typst sized the element from the corner of the paper to
+  // the far edge of the mark and ran the ramp across that. Moving the mark
+  // moved the ramp: the same mark at four corners of one page came out four
+  // different colourways, 98.6 of 255 apart at the worst.
+  const grad = (x, y) => {
+    const t = typst.artwork(v.svg, { x, y, w: 160, h: 160 }, bu, new Set());
+    return (t.match(/gradient\.linear\([^]*?\)\)?,\s*$/m) || [])[0]
+      || /gradient\.linear\([^]*?deg[^)]*\)/.exec(t)[0];
+  };
+  const here = grad(0, 0);
+  for (const [x, y] of [[400, 0], [0, 400], [420, 620]]) {
+    assert.strictEqual(grad(x, y), here, `the mark changes colour when it moves to ${x},${y}`);
+  }
 
   // a flat colourway is unchanged: no gradient, no shading, nothing new
   const flat = buildVariant({ markSrc: VE.assets.mark.source, wordmarkSrc: VE.assets.wordmark.source,
@@ -4506,6 +4567,81 @@ test('a gradient is said in Typst, not handed to it as a colour', () => {
     assert.ok(!/rgb\("url\(/.test(t), proj.brand);
   }
 });
+
+test('a gradient in user space is read in user space', () => {
+  // Pagrin came out of a real exporter, and a real exporter writes
+  //
+  //   <linearGradient gradientUnits="userSpaceOnUse" x1="206.82" y1="-21.66"
+  //                   x2="-15.98" y2="188.93">
+  //
+  // — a line drawn in the artwork's own coordinates, running well outside the
+  // 184 x 182 the mark is drawn in. gradientUnits was not read at all: the
+  // numbers were taken as fractions of a box, which makes the ramp about 180
+  // times longer than the mark, and 180 times longer than the mark is one flat
+  // colour with no ramp in it.
+  const typst = require('../src/typst');
+  const dir = path.join(__dirname, '..', 'projects', 'pagrin');
+  const PG = require('../src/project').load(path.join(dir, 'project.json'));
+  const pgM = measure(PG);
+  const bu = bundleOf(PG, pgM);
+  const v = buildVariant({ markSrc: PG.assets.mark.source, wordmarkSrc: PG.assets.wordmark.source,
+    lockup: 'mark', colourway: PG.rules.colourways[0], rules: PG.rules, measured: pgM });
+  const seen = new Set(); seen.unsayable = new Set();
+  const src = typst.artwork(v.svg, { x: 0, y: 0, w: 160, h: 160 }, bu, seen);
+  assert.strictEqual(seen.unsayable.size, 0, 'the gradient was refused');
+  const stops = /gradient\.linear\(([^]*?), angle:/.exec(src)[1];
+  const said = [...stops.matchAll(/(cmyk\([^)]*\)|rgb\("[^"]*"\)), ([\d.]+)%\)/g)]
+    .map((x) => [x[1], Number(x[2])]);
+  assert.ok(said.length >= 3, `only ${said.length} stops`);
+  assert.strictEqual(new Set(said.map((x) => x[0])).size, said.length, 'the mark came out one flat colour');
+  // the middle of the ramp lands in the middle of the mark, not at 0.3% of it
+  const inner = said.slice(1, -1).map((x) => x[1]);
+  assert.ok(inner.some((v) => v > 20 && v < 80), `the ramp only covers ${inner.join(', ')}% of the mark`);
+
+  // and the ends are what the artwork paints at the mark's edges, which is not
+  // where its stops are: the line starts outside the drawing, so the first
+  // colour written into the file is never reached inside it
+  assert.ok(!/#FF5715/i.test(stops), 'the ramp starts at a colour the mark never shows');
+});
+
+test('the box a shape draws in is the shape, not the box its handles reach', () => {
+  // A gradient in objectBoundingBox units is measured against the shape's own
+  // box, and an SVG bounding box is where the curve goes — not where its
+  // control points go. A cubic stays inside the hull of its handles and rarely
+  // touches it, so the hull is the wrong box and reading it puts every stop in
+  // the wrong place.
+  const P = require('../src/paths');
+  // handles pulled far above the curve: the hull is 100 tall, the curve is 75
+  const b = P.bboxOf(P.parse('M0,0 C0,-100 100,-100 100,0'));
+  assert.strictEqual(Math.round(b.x), 0);
+  assert.strictEqual(Math.round(b.w), 100);
+  assert.strictEqual(Math.round(b.y), -75);
+  assert.strictEqual(Math.round(b.h), 75);
+  // a straight run is exactly itself
+  assert.deepStrictEqual(P.bboxOf(P.parse('M10,10 L50,10 L50,40 Z')), { x: 10, y: 10, w: 40, h: 30 });
+  assert.strictEqual(P.bboxOf([]), null);
+});
+
+test('a gradient carrying a transform is refused, not approximated', () => {
+  // gradientTransform moves the ramp on its own, and nothing here says that in
+  // Typst. Drawing it without the transform is a mark in the wrong colours with
+  // nothing to say so, which is the fault this whole path exists to prevent, so
+  // it goes down the same road as a radial: black, named, and reported.
+  const typst = require('../src/typst');
+  const v = buildVariant({ markSrc: VE.assets.mark.source, wordmarkSrc: VE.assets.wordmark.source,
+    lockup: 'mark', colourway: VE.rules.colourways[0], rules: VE.rules, measured: veM });
+  const bu = bundleOf(VE, veM);
+  const turned = v.svg.replace('<linearGradient ', '<linearGradient gradientTransform="rotate(30)" ');
+  assert.notStrictEqual(turned, v.svg, 'the fixture no longer has a linearGradient to turn');
+  const seen = new Set(); seen.unsayable = new Set();
+  const src = typst.artwork(turned, { x: 0, y: 0, w: 160, h: 160 }, bu, seen);
+  assert.strictEqual(seen.unsayable.size, 1, 'a gradient it cannot say went out unremarked');
+  assert.ok(!/gradient\./.test(src), 'it drew the gradient anyway');
+  // and the words the print command says name it
+  const cli = fs.readFileSync(path.join(__dirname, '..', 'src', 'cli.js'), 'utf8');
+  assert.ok(/gradientTransform/.test(cli), 'the refusal does not tell the designer what it cannot do');
+});
+
 
 test('"keep" is a word the project file may use, and a typo still is not', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-keep-'));

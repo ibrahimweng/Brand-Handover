@@ -218,6 +218,48 @@ function parseTransform(str) {
   return m;
 }
 
+// The box a path draws inside. Not the hull of the control points: a cubic
+// stays inside its hull but rarely touches it, and an SVG bounding box is the
+// curve's own extremes, which is what a gradient in objectBoundingBox units is
+// measured against. B'(t) = 0 is a quadratic, so the extremes are exact.
+function bboxOf(segs) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const put = (p) => {
+    x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]);
+    x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]);
+  };
+  let cur = null, first = null;
+  for (const s of segs) {
+    if (s.op === 'close') { cur = first; continue; }
+    if (s.op === 'move') { first = s.to; put(s.to); cur = s.to; continue; }
+    if (s.op === 'line') { put(s.to); cur = s.to; continue; }
+    if (s.op !== 'cubic' || !cur) continue;
+    put(s.to);
+    for (const a of [0, 1]) {
+      const p0 = cur[a], p1 = s.c1[a], p2 = s.c2[a], p3 = s.to[a];
+      const A = -p0 + 3 * p1 - 3 * p2 + p3;
+      const B = 2 * (p0 - 2 * p1 + p2);
+      const C = p1 - p0;
+      const roots = [];
+      if (Math.abs(A) < 1e-12) { if (Math.abs(B) > 1e-12) roots.push(-C / B); }
+      else {
+        const d = B * B - 4 * A * C;
+        if (d >= 0) { const r = Math.sqrt(d); roots.push((-B + r) / (2 * A), (-B - r) / (2 * A)); }
+      }
+      for (const t of roots) {
+        if (!(t > 0 && t < 1)) continue;
+        const u = 1 - t;
+        const v = u * u * u * p0 + 3 * u * u * t * p1 + 3 * u * t * t * p2 + t * t * t * p3;
+        if (a === 0) { x0 = Math.min(x0, v); x1 = Math.max(x1, v); }
+        else { y0 = Math.min(y0, v); y1 = Math.max(y1, v); }
+      }
+    }
+    cur = s.to;
+  }
+  if (!isFinite(x0) || !isFinite(y0)) return null;
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}
+
 const transformSegs = (segs, m) => segs.map((s) => {
   if (s.op === 'close') return s;
   const out = { op: s.op, to: applyTo(m, s.to) };
@@ -226,4 +268,4 @@ const transformSegs = (segs, m) => segs.map((s) => {
 });
 
 module.exports = { parse, toPathData, quadToCubic, arcToCubics, tokens, round,
-  IDENTITY, multiply, applyTo, scaleOf, parseTransform, transformSegs };
+  IDENTITY, multiply, applyTo, scaleOf, parseTransform, transformSegs, bboxOf };
