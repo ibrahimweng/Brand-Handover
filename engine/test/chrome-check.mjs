@@ -91,8 +91,22 @@ for (const scheme of ['light', 'dark']) {
         if (!r.width || !r.height) continue;
         const cs = getComputedStyle(el);
         if (cs.visibility === 'hidden' || parseFloat(cs.opacity) < 1) continue;
-        const fg = rgb(cs.color);
+        // SVG text paints with `fill`, and inherits a `color` it never uses.
+        // Reading `color` for it called four labels in the construction diagram
+        // 1.02 to 1 when they are drawn in the diagram's own line colour.
+        const svg = el.ownerSVGElement || el.tagName.toLowerCase() === 'svg';
+        const fg = rgb(svg && cs.fill && cs.fill !== 'none' ? cs.fill : cs.color);
         if (!fg) continue;
+        // Words over a photograph are not a pair of flat colours, and the rule
+        // that governs them is the identity's scrim — measured where that is
+        // decided, in src/photography.js, not here against a placeholder tint.
+        const r2 = el.getBoundingClientRect();
+        const overPicture = (r2.top < window.innerHeight && r2.bottom > 0
+          ? document.elementsFromPoint(
+            Math.min(window.innerWidth - 1, Math.max(0, r2.left + Math.min(r2.width / 2, 40))),
+            Math.min(window.innerHeight - 1, Math.max(0, r2.top + r2.height / 2)))
+          : []).some((n) => n.tagName === 'IMG' || /hb-surface|hb-slot/.test(String(n.className || '')));
+        if (overPicture) continue;
         out.push({ tag: el.tagName.toLowerCase(), cls: String(el.className || '').slice(0, 30),
           px: parseFloat(cs.fontSize), weight: cs.fontWeight, fg, bg: behind(el), text: txt.slice(0, 40) });
       }

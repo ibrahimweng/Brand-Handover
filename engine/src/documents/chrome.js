@@ -13,15 +13,35 @@
 const TF = require('../typeface');
 const fontLink = (type, fonts, text) => TF.head(type, fonts, text);
 
+// A verdict is green, amber or red because that is what those words mean, and
+// the three were written once for a white page: on the dark one they came out
+// at 3.55, 3.62 and 3.64 to 1, under a heading in the same document asking 4.5
+// of the client's palette. They are tokens now, one value per theme, each moved
+// to where it reads on that theme's paper — which also means the engine's own
+// check measures them, because it measures the tokens declared alongside the
+// page ground. See src/contrast.js.
+//
+// Each is set on more than one ground — the verdicts on the page, the guessed
+// CMYK marker on a card, which is a shade off it — so each has to clear on the
+// darkest and the lightest of them. The engine's own check found that the
+// moment these became tokens: 4.35 on the card in dark, against the 4.5 the
+// page had just been given.
+const CO = require('../contrast');
+const GROUNDS = { light: ['#FCFCFB', '#fff', '#F2F2F0'], dark: ['#0C0D0F', '#141618', '#101214'] };
+const readableOnAll = (hex, grounds, need) => grounds
+  .reduce((out, g) => (CO.ratio(out, g) >= need ? out : CO.readable(out, g, need)), CO.toHex(hex));
+const verdicts = (theme) => Object.entries(CO.INK)
+  .map(([k, hex]) => `--${k}:${readableOnAll(hex, GROUNDS[theme], 4.5)}`).join(';');
+
 const CSS = `
 :root{--paper:#FCFCFB;--surface:#fff;--sunk:#F2F2F0;--ink:#0E1011;--ink-2:#5A5F63;--ink-3:#6E747A;--rule:#E3E5E6;--rule-2:#C7CACC;--on-ink:#FCFCFB;--on-ink-2:#B9BCBE;
 --ui:"Schibsted Grotesk","Helvetica Neue",Helvetica,Arial,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 --display:var(--ui);--page-max:1040px;--page-pad:30px;--measure:66ch;--body:16px;--lead:1.6;--track:-.028em;
 --h1:clamp(32px,5.4vw,54px);--h2:clamp(23px,3.3vw,32px);--h3:17px;--chapter-gap:70px;--sec-gap:40px;
 --rule-heavy:2px;--rule-hair:1px;--stage-pad:40px 26px;--stage-bg:var(--sunk);--stage-border:1px solid var(--rule);
---label-case:uppercase;--label-track:.09em}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--paper:#0C0D0F;--surface:#141618;--sunk:#101214;--ink:#ECEEF0;--ink-2:#9BA1A7;--ink-3:#7E858B;--rule:#232629;--rule-2:#34383C;--on-ink:#0C0D0F;--on-ink-2:#4A4C4E}}
-:root[data-theme=dark]{--paper:#0C0D0F;--surface:#141618;--sunk:#101214;--ink:#ECEEF0;--ink-2:#9BA1A7;--ink-3:#7E858B;--rule:#232629;--rule-2:#34383C;--on-ink:#0C0D0F;--on-ink-2:#4A4C4E}
+--label-case:uppercase;--label-track:.09em;${verdicts('light')}}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--paper:#0C0D0F;--surface:#141618;--sunk:#101214;--ink:#ECEEF0;--ink-2:#9BA1A7;--ink-3:#7E858B;--rule:#232629;--rule-2:#34383C;--on-ink:#0C0D0F;--on-ink-2:#4A4C4E;${verdicts('dark')}}}
+:root[data-theme=dark]{--paper:#0C0D0F;--surface:#141618;--sunk:#101214;--ink:#ECEEF0;--ink-2:#9BA1A7;--ink-3:#7E858B;--rule:#232629;--rule-2:#34383C;--on-ink:#0C0D0F;--on-ink-2:#4A4C4E;${verdicts('dark')}}
 /* A measure is counted in characters, and how wide a character is depends on
    the script. One ch is the width of a zero, so a display measure counted in
    ch comes out at half as many characters in a script written full width:
@@ -79,7 +99,7 @@ figcaption.said b{display:block;font-weight:600;color:var(--ink);margin-bottom:2
 .chip dl{margin:10px 0 0;display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-family:var(--mono);font-size:11px}
 .chip dt{color:var(--ink-3)}.chip dd{margin:0;text-align:right;color:var(--ink-2);font-variant-numeric:tabular-nums}
 .chip .typed{font-style:italic;color:var(--ink-3)}
-.chip .guess{color:#8A6410;font-style:italic}
+.chip .guess{color:var(--warn);font-style:italic}
 .ctab{border-top:1px solid var(--rule-2)}
 .ctr{display:grid;grid-template-columns:64px minmax(0,1fr) 66px 128px;gap:16px;align-items:center;padding:10px 4px;border-bottom:1px solid var(--rule)}
 .ctr.head{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);padding:0 4px 9px}
@@ -88,7 +108,7 @@ figcaption.said b{display:block;font-weight:600;color:var(--ink);margin-bottom:2
 .ctr span{font-size:14.5px;color:var(--ink-2)}
 .ctr em{font-family:var(--mono);font-style:normal;font-size:13px;text-align:right;font-variant-numeric:tabular-nums}
 .ctr i{font-family:var(--mono);font-style:normal;font-size:10px;letter-spacing:.06em;text-transform:uppercase;text-align:right}
-.v-ok{color:#1B7A4B}.v-warn{color:#8A6410}.v-bad{color:#C2352B}
+.v-ok{color:var(--ok)}.v-warn{color:var(--warn)}.v-bad{color:var(--bad)}
 .mrow{display:grid;grid-template-columns:64px minmax(0,1fr) 84px;gap:10px;align-items:center;padding:7px 0}
 .mrow b{font-family:var(--mono);font-size:11px;font-weight:400;color:var(--ink-2)}
 .mtrack{position:relative;height:9px;background:var(--rule);display:block}
@@ -114,7 +134,7 @@ figcaption.said b{display:block;font-weight:600;color:var(--ink);margin-bottom:2
 .ftr b{font-family:var(--mono);font-size:12.5px;font-weight:400;color:var(--ink-2)}
 .ftr span{font-size:14px;line-height:1.45;color:var(--ink-2)}
 .ftr em{font-family:var(--mono);font-style:normal;font-size:12.5px;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
-.ftr em.over{color:#8A6410}
+.ftr em.over{color:var(--warn)}
 /* A measured value is a left-to-right run wherever the page reads, and it has
    to say so. Hebrew is the first language here whose documents run the other
    way, and a browser laying out an unmarked value inside right-to-left prose

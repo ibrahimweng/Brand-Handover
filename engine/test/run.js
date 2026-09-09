@@ -1226,6 +1226,105 @@ test('the canvas opens with the artwork somewhere it can be seen', () => {
   assert.deepStrictEqual(blind, [], blind.join('\n'));
   assert.deepStrictEqual(undrawn, [], undrawn.join('\n'));
 });
+
+// Words a block draws for itself, on the page it draws them on.
+//
+// A block that sets no colour takes the one the document around it uses, and
+// the page under it is painted in the identity's ground. The canvas is dark and
+// the published page follows the reader, so every chip label, contrast row,
+// type specimen and asset row in every package came out at 1.02 to 1 on the
+// brand's paper in dark — and the same the other way for the identities whose
+// ground is dark. The diagram captions were worse: drawn in the accent, which
+// is chosen to be an accent, at 8 px. 1326 runs of text across the thirty-two,
+// measured in a browser by test/chrome-check.mjs.
+//
+// This is the same question asked of the markup: every colour a block writes
+// into what it draws has to read on the ground it is drawn on.
+const WORDS = ['palette', 'contrast', 'typeSpecimen', 'assetIndex', 'minimumSize',
+  'construction', 'clearSpace', 'iconGrid', 'motion', 'photography'];
+const inkOut = (html) => {
+  const out = [];
+  // an inline colour, and an SVG label's fill
+  for (const m of String(html).matchAll(/(?:^|[;"])color:(#[0-9a-fA-F]{3,8})/g)) out.push(m[1]);
+  for (const m of String(html).matchAll(/<text[^>]*\sfill="(#[0-9a-fA-F]{3,8})"/g)) out.push(m[1]);
+  return out;
+};
+test('a block that draws its own words says what colour they are, and it reads', () => {
+  const CON = require('../src/contrast');
+  const dir = path.join(__dirname, '..', 'projects');
+  const names = fs.readdirSync(dir).filter((d) => fs.existsSync(path.join(dir, d, 'project.json')));
+  const dim = [];
+  for (const n of names) {
+    const pr = projectLoader.load(path.join(dir, n, 'project.json'));
+    const b2 = bundleOf(pr, measure(pr));
+    for (const type of WORDS) {
+      const blk = EM.makeBlock(type);
+      const on = ER.colour(b2, blk.props.on || 'ground');
+      const html = ER.block(blk, b2);
+      // the contrast table shows failing pairs on purpose; that is its subject
+      const shown = html.replace(/<span class="cp"[^>]*>[\s\S]*?<\/span>/g, '');
+      for (const hex of inkOut(shown)) {
+        const r = CON.ratio(hex, on);
+        if (r != null && r < ER.READS) dim.push(`${n}: the ${type} block writes ${hex} on ${on}, ${r} to 1`);
+      }
+      // A block that names nothing has nothing to measure, which is how it got
+      // here: the four that lay out words in a wrapper have to name a colour on
+      // it, or they take the document's and land on the identity's page.
+      const wrap = { palette: 'hb-chips', contrast: 'hb-ctab', typeSpecimen: 'hb-faces', assetIndex: 'hb-atab' }[type];
+      if (wrap && html.indexOf(`class="${wrap}"`) > -1 && !new RegExp(`class="${wrap}" style="color:#`).test(html)) {
+        dim.push(`${n}: the ${type} block draws its words in whatever colour it is handed`);
+      }
+    }
+  }
+  assert.deepStrictEqual(dim, [], dim.join('\n'));
+});
+test('the words on the cover are chosen with the ground under them', () => {
+  const CON = require('../src/contrast');
+  const dir = path.join(__dirname, '..', 'projects');
+  const names = fs.readdirSync(dir).filter((d) => fs.existsSync(path.join(dir, d, 'project.json')));
+  const dim = [];
+  for (const n of names) {
+    const pr = projectLoader.load(path.join(dir, n, 'project.json'));
+    const b2 = bundleOf(pr, measure(pr));
+    const cover = starterDoc(b2).pages[0];
+    const fill = cover.blocks.find((x) => x.type === 'fill');
+    if (!fill) continue;                       // a cover with a photograph on it
+    const on = ER.colour(b2, fill.props.colour);
+    for (const t of cover.blocks.filter((x) => x.type === 'text')) {
+      const r = CON.ratio(ER.colour(b2, t.props.colour), on);
+      if (r != null && r < 3) dim.push(`${n}: the cover sets ${t.props.style} in ${t.props.colour} on ${on}, ${r} to 1`);
+    }
+  }
+  assert.deepStrictEqual(dim, [], dim.join('\n'));
+});
+test('a colour moved to be read keeps its hue, and stops as soon as it reads', () => {
+  const CON = require('../src/contrast');
+  // green stays green: the verdict says something, so it cannot be swapped
+  const moved = CON.readable('#1B7A4B', '#0C0D0F', 4.5);
+  assert.ok(CON.ratio(moved, '#0C0D0F') >= 4.5, `${moved} is still ${CON.ratio(moved, '#0C0D0F')}`);
+  const [r, g, b] = CON.rgb(moved);
+  assert.ok(g > r && g > b, `${moved} is no longer green`);
+  // one that already reads is handed back untouched
+  assert.strictEqual(CON.readable('#1B7A4B', '#FCFCFB', 4.5), '#1B7A4B');
+  // and it moves towards the far end of the range, not always towards black
+  assert.ok(CON.luminance(CON.readable('#8A6410', '#0C0D0F', 4.5)) > CON.luminance('#8A6410'));
+  assert.ok(CON.luminance(CON.readable('#8A6410', '#FFFFFF', 7)) < CON.luminance('#8A6410'));
+});
+test('the verdict colours are tokens with a value for each theme', () => {
+  // Green, amber and red were written out four times, all four for a light
+  // page, so on the dark one they printed at 3.55 to 1 under a heading in the
+  // same document asking 4.5 of the client's palette. One place now, and the
+  // engine's own check measures them because they are declared beside the ground.
+  const CON = require('../src/contrast');
+  assert.deepStrictEqual(Object.keys(CON.INK).sort(), ['bad', 'ok', 'warn']);
+  const blocks = [...CHROME.CSS.matchAll(/--ok:(#[0-9A-Fa-f]+);--warn:(#[0-9A-Fa-f]+);--bad:(#[0-9A-Fa-f]+)/g)];
+  assert.ok(blocks.length >= 2, 'the verdict colours are not declared per theme');
+  assert.notStrictEqual(blocks[0][1], blocks[1][1], 'both themes were given the same green');
+  const measured = ACC.chromeContrast(CHROME.CSS, {});
+  const tokens = [...new Set(measured.map((m) => m.token))];
+  for (const k of ['ok', 'warn', 'bad']) assert.ok(tokens.includes(k), `${k} is not measured`);
+  assert.deepStrictEqual(measured.filter((m) => !m.passes), []);
+});
 test('the editor is self contained, with no fetch at load', () => {
   const html = editorHtml(project, m, []);
   assert.ok(html.includes('HANDOVER_BUNDLE'), 'the bundle is not inlined');

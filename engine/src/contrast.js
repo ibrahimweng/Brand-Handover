@@ -145,6 +145,38 @@ function ratioOfLuminance(la, lb) {
 }
 const channelOf = channel;
 
+// The same colour, moved until it can be read on a given ground.
+//
+// A status colour says something — this pair passes, this one is for large text
+// only, this one never — so it cannot be swapped for whatever reads best; green
+// has to stay green. What it can do is move towards the end of the range the
+// ground is furthest from, which keeps the hue and changes only how light it
+// is. Three of them were written once, for a light page, and printed on a dark
+// one at 3.55 to 1 in every package this engine has produced.
+//
+// Returns the colour unchanged where it already reads, and the nearest step
+// that does otherwise — or the plain end of the range if nothing between does.
+function readable(value, ground, need = 4.5, steps = 40) {
+  const from = rgb(value), on = rgb(ground);
+  if (!from || !on) return toHex(value);
+  if (ratio(value, ground) >= need) return toHex(value);
+  const towards = luminance(ground) > 0.5 ? [0, 0, 0] : [255, 255, 255];
+  const hex = (c) => `#${c.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('').toUpperCase()}`;
+  for (let i = 1; i <= steps; i++) {
+    const k = i / steps;
+    const mixed = hex(from.map((v, j) => v + (towards[j] - v) * k));
+    if (ratio(mixed, ground) >= need) return mixed;
+  }
+  return hex(towards);
+}
+
+// The three colours a verdict is written in. Green, amber and red carry the
+// meaning, so they live in one place rather than in each document that prints
+// a verdict — they were written out four times, in chrome.js, emit.js,
+// publish.js and again for the guessed-CMYK marker, all four for a light page.
+// Put them on a ground with `readable`.
+const INK = { ok: '#1B7A4B', warn: '#8A6410', bad: '#C2352B' };
+
 return { ratio, verdict, luminance, matrix, rgb, cmyk, toHex, ratioOfLuminance,
-  channel: channelOf, luminanceOf, greyOf, unit };
+  channel: channelOf, luminanceOf, greyOf, unit, readable, INK };
 }));

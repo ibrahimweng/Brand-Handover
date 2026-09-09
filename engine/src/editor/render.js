@@ -78,6 +78,46 @@
     return b ? b.ratio : null;
   };
 
+  // Words a block draws for itself, in a colour that reads on the page they
+  // land on.
+  //
+  // The palette chips, the contrast rows, the type specimen and the asset index
+  // each draw their own words and named no colour for them, so they took
+  // whichever ink the document around them happened to use. The canvas is dark,
+  // the published page follows the reader's preference, and the page under both
+  // is painted in the identity's own ground — so every chip label in every
+  // package this repository has published came out at 1.02 to 1 on the brand's
+  // paper in dark, and the same the other way round in light for the identities
+  // whose ground is dark. 1326 runs of text across the thirty-two.
+  //
+  // The words are on the identity's page, so they are set in the identity's own
+  // palette: the colour that reads best on that ground.
+  const READS = 4.5;                  // WCAG 2.2 1.4.3 for text this size
+  function wordsOn(bundle, ground) {
+    const seen = {};
+    const pool = [];
+    for (const r of Object.values(bundle.roles || {})) if (r && r.hex) pool.push(r.hex);
+    for (const c of Object.values(bundle.colours || {})) if (c && c.hex) pool.push(c.hex);
+    let best = null;
+    for (const hex of pool) {
+      if (seen[hex]) continue;
+      seen[hex] = 1;
+      const r = CO ? CO.ratio(hex, ground) : null;
+      if (r != null && (!best || r > best.r)) best = { hex, r };
+    }
+    if (best && best.r >= READS) return best.hex;
+    // Nothing in the palette reads on its own page, which happens: an identity
+    // of one ink on one paper has nothing else to set a caption in. Take the
+    // ink it does have and move it until it can be read, the way a verdict is.
+    const from = (best && best.hex) || ((bundle.roles || {}).primary || {}).hex || '#111111';
+    return CO && CO.readable ? CO.readable(from, ground, READS) : from;
+  }
+  // A verdict is green, amber or red because that is what those words mean, so
+  // it keeps its hue and moves until it reads. src/contrast.js holds the three.
+  const verdictInk = (level, ground) => (CO && CO.readable
+    ? CO.readable((CO.INK || {})[level] || '#111111', ground, READS)
+    : '#111111');
+
   // Which colourway to actually draw.
   //
   // A block asks for one by role — "the ground colourway" — and nothing says a
@@ -153,8 +193,15 @@
   // coordinates, nothing clipped it to the artboard, and clear space was drawn
   // as a square around artwork that is not one. One block, two renderers, and
   // only one of them ever taught.
-  function construction(bundle, ink, line) {
+  // `on` is the ground the block paints, and the labels are measured against it.
+  // They were drawn in the accent and in the guide colour, neither of which is
+  // chosen to be read at 8 px: Meridian's accent is 2.09 to 1 on its paper, and
+  // the caption saying what the mark fills was drawn in it in every package.
+  // The hue is the point — it ties the caption to the dashed box it describes —
+  // so it keeps the hue and moves until it reads.
+  function construction(bundle, ink, line, on) {
     const vb = bundle.measured.markViewBox, ink2 = bundle.measured.markInk;
+    const say = (hex) => (on && CO && CO.readable ? CO.readable(hex, on, READS) : hex);
     const S = 260, pad = 30, k = (S - pad * 2) / Math.max(vb.w, vb.h);
     const clip = `k${Math.abs(Math.round(vb.x * 7 + vb.y * 13 + vb.w * 3 + vb.h))}`;
     const X = (v) => r3(pad + (v - vb.x) * k), Y = (v) => r3(pad + (v - vb.y) * k);
@@ -169,12 +216,13 @@
       <rect x="${X(vb.x)}" y="${Y(vb.y)}" width="${r3(vb.w * k)}" height="${r3(vb.h * k)}" fill="none" stroke="${line}" stroke-width=".9" opacity=".55"/>
       <rect x="${X(ink2.x)}" y="${Y(ink2.y)}" width="${r3(ink2.w * k)}" height="${r3(ink2.h * k)}" fill="none" stroke="${bundle.roles.accent.hex}" stroke-width="1" stroke-dasharray="4 3"/>
       <g clip-path="url(#${clip})"><g transform="translate(${X(vb.x)} ${Y(vb.y)}) scale(${r3(k)})${vb.x || vb.y ? ` translate(${-vb.x} ${-vb.y})` : ''}">${bundle.markInner[ink] || ''}</g></g>
-      <text x="${S / 2}" y="16" font-family="ui-monospace,Menlo,monospace" font-size="8" fill="${line}" text-anchor="middle">${vb.w} unit box</text>
-      <text x="${S / 2}" y="${S + 16}" font-family="ui-monospace,Menlo,monospace" font-size="8" fill="${bundle.roles.accent.hex}" text-anchor="middle">fills ${ink2.w} × ${ink2.h} · stroke ${bundle.measured.minimumSize.thinnestStroke}</text>
+      <text x="${S / 2}" y="16" font-family="ui-monospace,Menlo,monospace" font-size="8" fill="${say(line)}" text-anchor="middle">${vb.w} unit box</text>
+      <text x="${S / 2}" y="${S + 16}" font-family="ui-monospace,Menlo,monospace" font-size="8" fill="${say(bundle.roles.accent.hex)}" text-anchor="middle">fills ${ink2.w} × ${ink2.h} · stroke ${bundle.measured.minimumSize.thinnestStroke}</text>
     </svg>`;
   }
 
-  function clearSpace(bundle, ink, line) {
+  function clearSpace(bundle, ink, line, on) {
+    const say = (hex) => (on && CO && CO.readable ? CO.readable(hex, on, READS) : hex);
     const b = bundle.measured.markInk, x = bundle.measured.clearSpace;
     // clear space is x on every side of the ink box, so the box it makes is the
     // ink box grown by 2x — not a square. Drawn square it showed a rule nobody
@@ -188,8 +236,8 @@
       <g transform="translate(${PX(x)} ${PY(x)}) scale(${r3(k)}) translate(${-b.x} ${-b.y})">${bundle.markInner[ink] || ''}</g>
       <g stroke="${bundle.roles.accent.hex}" stroke-width="1.1">
         <path d="M${PX(0)} ${PY(th / 2)}H${PX(x)}"/><path d="M${PX(0)} ${PY(th / 2) - 5}v10"/><path d="M${PX(x)} ${PY(th / 2) - 5}v10"/></g>
-      <text x="${PX(x / 2)}" y="${PY(th / 2) - 9}" font-family="ui-monospace,Menlo,monospace" font-size="8" fill="${bundle.roles.accent.hex}" text-anchor="middle">x</text>
-      <text x="${S / 2}" y="${S + 14}" font-family="ui-monospace,Menlo,monospace" font-size="8" fill="${line}" text-anchor="middle">x = ${x} units · ${bundle.clearSpaceRatio} of the mark's height</text>
+      <text x="${PX(x / 2)}" y="${PY(th / 2) - 9}" font-family="ui-monospace,Menlo,monospace" font-size="8" fill="${say(bundle.roles.accent.hex)}" text-anchor="middle">x</text>
+      <text x="${S / 2}" y="${S + 14}" font-family="ui-monospace,Menlo,monospace" font-size="8" fill="${say(line)}" text-anchor="middle">x = ${x} units · ${bundle.clearSpaceRatio} of the mark's height</text>
     </svg>`;
   }
 
@@ -292,8 +340,8 @@
     // three painted one and asked about the other, so the one step that picks a
     // colourway a reader can see was handed nothing to see it against, and
     // Thornbury's canvas opened with all three drawn in its ink on its moss.
-    construction: (b, bu) => `<div style="width:100%;height:100%;background:${colour(bu, b.props.on || 'ground')}">${construction(bu, cwName(bu, b.props.colourway || 'primary', b.props.on || 'ground'), colour(bu, b.props.line || 'neutral'))}</div>`,
-    clearSpace: (b, bu) => `<div style="width:100%;height:100%;background:${colour(bu, b.props.on || 'ground')}">${clearSpace(bu, cwName(bu, b.props.colourway || 'primary', b.props.on || 'ground'), colour(bu, b.props.line || 'neutral'))}</div>`,
+    construction: (b, bu) => `<div style="width:100%;height:100%;background:${colour(bu, b.props.on || 'ground')}">${construction(bu, cwName(bu, b.props.colourway || 'primary', b.props.on || 'ground'), colour(bu, b.props.line || 'neutral'), colour(bu, b.props.on || 'ground'))}</div>`,
+    clearSpace: (b, bu) => `<div style="width:100%;height:100%;background:${colour(bu, b.props.on || 'ground')}">${clearSpace(bu, cwName(bu, b.props.colourway || 'primary', b.props.on || 'ground'), colour(bu, b.props.line || 'neutral'), colour(bu, b.props.on || 'ground'))}</div>`,
 
     // The steps are worked out in the engine and read here, because this block
     // is drawn twice — the manual draws the other one — and when the caption
@@ -316,7 +364,12 @@
       // promise once the block stops using the page's colour.
       const on = colour(bu, b.props.on || 'ground');
       const ink = bestInk(bu, cw, on);
-      return `<div class="hb-sizes" style="background:${on}${ink ? `;color:${ink.hex}` : ''}">${steps.map((s) =>
+      // and moved until it reads, because "the ink the specimen is drawn in"
+      // is 1.00 when the specimen cannot be seen either — Cusp is one colour,
+      // and a sizes block dropped on its page with nothing changed had captions
+      // in its ink on its ink.
+      const said = ink && CO && CO.readable ? CO.readable(ink.hex, on, READS) : (ink && ink.hex);
+      return `<div class="hb-sizes" style="background:${on}${said ? `;color:${said}` : ''}">${steps.map((s) =>
         `<figure><div class="cell">
          <span style="display:block;width:min(${s.px}px,${r3((s.px / big) * 100)}%)">${fitSvg(svg, 0, t(bu, 'cvArtAtSize', { px: s.px, label: s.label }))}</span></div>
          <figcaption>${esc(iso(bu, s.caption))} · ${esc(s.label)}</figcaption></figure>`).join('')}</div>`;
@@ -324,21 +377,28 @@
 
     // a guessed CMYK is marked, because a chip that shows given and guessed the
     // same way is how a guess ends up on a press
-    palette: (b, bu) => `<div class="hb-chips">${Object.entries(bu.colours).map(([n, c]) =>
-      `<div><div class="sw" style="background:${c.hex}"></div><b>${esc(n)}</b>
-       <span>${c.hex}</span><span>${(c.rgb || []).join(' ')}</span>
-       <span class="${c.cmykDeclared ? '' : 'guess'}">${(c.cmyk || []).join(' ')}${c.cmykDeclared ? '' : ' ?'}</span>
-       ${c.pantone ? `<span class="pms">${esc(c.pantone)}</span>` : ''}</div>`).join('')}</div>`,
+    palette: (b, bu) => {
+      const on = bu.roles.ground.hex;
+      const ink = wordsOn(bu, on), guess = verdictInk('warn', on);
+      return `<div class="hb-chips" style="color:${ink}">${Object.entries(bu.colours).map(([n, c]) =>
+        `<div><div class="sw" style="background:${c.hex}"></div><b>${esc(n)}</b>
+         <span>${c.hex}</span><span>${(c.rgb || []).join(' ')}</span>
+         <span class="${c.cmykDeclared ? '' : 'guess'}"${c.cmykDeclared ? '' : ` style="color:${guess}"`}>${(c.cmyk || []).join(' ')}${c.cmykDeclared ? '' : ' ?'}</span>
+         ${c.pantone ? `<span class="pms">${esc(c.pantone)}</span>` : ''}</div>`).join('')}</div>`;
+    },
 
     contrast: (b, bu) => {
       const cls = { AAA: 'ok', AA: 'ok', 'AA-large': 'warn', fail: 'bad' };
-      return `<div class="hb-ctab">${bu.contrast.slice(0, b.props.limit || 6).map((p) =>
+      const on = bu.roles.ground.hex;
+      const ink = wordsOn(bu, on);
+      const said = { ok: verdictInk('ok', on), warn: verdictInk('warn', on), bad: verdictInk('bad', on) };
+      return `<div class="hb-ctab" style="color:${ink}">${bu.contrast.slice(0, b.props.limit || 6).map((p) =>
         `<div class="r"><span class="cp" style="background:${p.bgHex};color:${p.fgHex}">Aa</span>
          <span class="n">${esc(p.fg)} on ${esc(p.bg)}</span><em>${p.ratio}:1</em>
-         <i class="${cls[p.level]}">${esc(p.use)}</i></div>`).join('')}</div>`;
+         <i class="${cls[p.level]}" style="color:${said[cls[p.level]]}">${esc(p.use)}</i></div>`).join('')}</div>`;
     },
 
-    typeSpecimen: (b, bu) => `<div class="hb-faces">${Object.entries((bu.type || {}).families || {}).map(([role, f]) =>
+    typeSpecimen: (b, bu) => `<div class="hb-faces" style="color:${wordsOn(bu, bu.roles.ground.hex)}">${Object.entries((bu.type || {}).families || {}).map(([role, f]) =>
       `<div><p class="fl">${esc(f.family)} · ${esc(role)}</p>
        <p style="font-family:'${esc(f.family)}',${esc(f.fallback || 'serif')};font-weight:${(f.weights || [400])[0]};font-size:30px;line-height:1.2;margin:6px 0 0">${esc(t(bu, 'cvAlphabet'))}</p></div>`).join('')}</div>`,
 
@@ -381,6 +441,9 @@
     iconGrid: (b, bu) => {
       const r = (bu.system || {}).icons; if (!r) return `<div class="hb-missing">${esc(t(bu, 'cvNoIcons'))}</div>`;
       const line = colour(bu, b.props.line || 'neutral'), ink = colour(bu, b.props.colourway || 'primary');
+      // the caption is words, so it is measured against the ground like words;
+      // the guide lines keep the colour they were given, which is a rule
+      const said = CO && CO.readable ? CO.readable(line, colour(bu, b.props.on || 'ground'), READS) : line;
       const S = 240, pad = 26, k = (S - pad * 2) / r.box;
       const X = (v) => r3(pad + v * k);
       let grid = '';
@@ -400,7 +463,7 @@
             <path d="M${X(m)} ${X(r.box * 0.66)} A${r3(r.curveRadius * k)} ${r3(r.curveRadius * k)} 0 0 1 ${X(r.box - m)} ${X(r.box * 0.66)}"/>
           </g>
         </svg>
-        ${b.props.caption === false ? '' : ruleCaption(t(bu, 'cvIconRule', { box: r.box, live: r.live, stroke: r.stroke, curve: r.curveRadius }), line)}</div>`;
+        ${b.props.caption === false ? '' : ruleCaption(t(bu, 'cvIconRule', { box: r.box, live: r.live, stroke: r.stroke, curve: r.curveRadius }), said)}</div>`;
     },
 
     motion: (b, bu) => {
@@ -440,7 +503,11 @@
           : stated
             ? t(bu, 'cvMotionStated', { out: ms(draw), through: ms(rise), a: draw.part, b: rise.part })
             : t(bu, 'cvMotionUnstated', { out: ms(draw), through: ms(rise) }),
-          colour(bu, b.props.colourway));
+          // the caption is words. It was drawn in the colourway the mark is
+          // drawn in, which for Hallward is its paper, on its paper.
+          (CO && CO.readable
+            ? CO.readable(colour(bu, b.props.colourway), colour(bu, b.props.on), READS)
+            : colour(bu, b.props.colourway)));
       return `<div style="width:100%;height:100%;background:${colour(bu, b.props.on)};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;overflow:hidden">
         <style>
           @keyframes ${id}-rise{from{transform:translateY(${r3(box.h)}px)}to{transform:translateY(0)}}
@@ -465,7 +532,9 @@
       if (!r || !r.declared) {
         return `<div class="hb-missing">${esc(t(bu, 'cvNoPhotography'))}</div>`;
       }
-      const ink = colour(bu, 'primary'), on = colour(bu, b.props.on);
+      // the primary role is not a text colour just because it is the primary
+      // role: Fathom's is its paper, and this set the whole panel in it
+      const on = colour(bu, b.props.on), ink = wordsOn(bu, on);
       const steps = 9;
       const swatches = [];
       for (let i = 0; i < steps; i++) {
@@ -489,7 +558,7 @@
     assetIndex: (b, bu) => {
       const g = new Map();
       for (const f of bu.files || []) { const d = f.path.includes('/') ? f.path.split('/')[0] : '(root)'; g.set(d, (g.get(d) || 0) + 1); }
-      return `<div class="hb-atab">${[...g.entries()].sort().map(([d, n]) =>
+      return `<div class="hb-atab" style="color:${wordsOn(bu, bu.roles.ground.hex)}">${[...g.entries()].sort().map(([d, n]) =>
         `<div class="r"><code>${esc(d)}</code><em>${n}</em></div>`).join('')}
         <div class="r total"><code>${esc(t(bu, 'cvTotal'))}</code><em>${(bu.files || []).length}</em></div></div>`;
     },
@@ -524,5 +593,5 @@
     `<div class="hb-page" data-page="${p.id}" style="position:relative;width:${size.w}px;height:${size.h}px;background:${bundle.roles.ground.hex};overflow:hidden">`
     + p.blocks.map((b) => positioned(b, bundle)).join('') + `</div>`;
 
-  return { block, positioned, page, colour, cwName, readsAt, bestInk, SEEN, typeStyle, esc, construction, clearSpace, publishing, BLOCK, t };
+  return { block, positioned, page, colour, cwName, readsAt, bestInk, wordsOn, SEEN, READS, typeStyle, esc, construction, clearSpace, publishing, BLOCK, t };
 }));

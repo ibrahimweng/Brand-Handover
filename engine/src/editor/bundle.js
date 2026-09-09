@@ -249,10 +249,16 @@ function starterDoc(bu) {
   const step = (st) => (((bu.type || {}).scale) || []).find((x) => x.name === st) || { size: 17, leading: 27 };
   const ledeStyle = M.textLines(lede, step('H1'), 700) > 3 ? 'H2' : 'H1';
   const ledeH = Math.max(120, M.textFits(lede, step(ledeStyle), 700, 0).needs);
+  // The words on the cover were set in the ground role, because the cover was
+  // painted in the primary one. The round that taught the cover to choose its
+  // own ground left this behind, so Hallward — whose readable cover is its
+  // paper — got its own name set in paper on paper, at 36 px. The cover is
+  // chosen; so is what is written on it.
+  const coverInk = shot ? 'ground' : R.wordsOn(bu, R.colour(bu, coverOn));
   add('text', { x: 124, y: 420, w: 700, h: ledeH,
-    props: { text: lede, style: ledeStyle, align: 'left', colour: 'ground' } });
+    props: { text: lede, style: ledeStyle, align: 'left', colour: coverInk } });
   add('text', { x: 124, y: 420 + ledeH + 20, w: 520, h: 40,
-    props: { text: `${bu.brand} ${bu.version} · ${L.t('deckBuilt')}`, style: 'Caption', align: 'left', colour: 'ground' } });
+    props: { text: `${bu.brand} ${bu.version} · ${L.t('deckBuilt')}`, style: 'Caption', align: 'left', colour: coverInk } });
 
   const p2 = M.makePage(L.t('chMark'));
   doc.pages.push(p2);

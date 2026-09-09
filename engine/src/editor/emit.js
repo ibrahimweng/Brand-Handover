@@ -158,13 +158,15 @@ button,input,select,textarea{font:inherit;color:inherit}
    the same on the canvas and on the page it publishes. */
 .hb-atab .r code,.hb-atab .r em{direction:ltr}
 .hb-chips .pms{font-style:italic}
-.hb-chips .guess{color:#8A6410;font-style:italic}
+.hb-chips .guess{font-style:italic}
 .hb-ctab{width:100%;height:100%;font-size:12px}
 .hb-ctab .r{display:grid;grid-template-columns:40px 1fr 54px 96px;gap:10px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(128,128,128,.22)}
 .hb-ctab .cp{display:flex;align-items:center;justify-content:center;height:26px;font-weight:600;font-size:11px}
 .hb-ctab em{font-family:var(--mono);font-style:normal;font-size:11px;text-align:end;direction:ltr}
 .hb-ctab i{font-family:var(--mono);font-style:normal;font-size:9px;letter-spacing:.05em;text-transform:uppercase;text-align:end}
-.hb-ctab .ok{color:#1B7A4B}.hb-ctab .warn{color:#8A6410}.hb-ctab .bad{color:#C2352B}
+/* the verdict and the guess marker take their colour from the page they are
+   drawn on, which is the identity's ground rather than this document's. Set by
+   the renderer, per block. See editor/render.js. */
 .hb-faces{display:grid;gap:14px;width:100%;height:100%}
 .hb-faces .fl{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;opacity:.55;margin:0}
 .hb-atab{width:100%;height:100%;font-family:var(--mono);font-size:11.5px}

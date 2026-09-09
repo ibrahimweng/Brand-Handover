@@ -307,7 +307,12 @@ function construction(ctx, opts = {}) {
     <rect x="${X(ink.x)}" y="${Y(ink.y)}" width="${svgu.round(ink.w * k)}" height="${svgu.round(ink.h * k)}" fill="none" stroke="${ctx.accent.hex}" stroke-width="1" stroke-dasharray="4 3"/>
     <g clip-path="url(#${clip})"><g transform="translate(${X(vb.x)} ${Y(vb.y)}) scale(${svgu.round(k, 6)})${vb.x || vb.y ? ` translate(${-vb.x} ${-vb.y})` : ''}">${svgu.innerXML(svgu.parse(inked(ctx, paint)))}</g></g>
     <text x="${W / 2}" y="16" ${TXT} fill="${line}" text-anchor="middle">${esc(boxText)}</text>
-    <text x="${W / 2}" y="${H + 16}" ${TXT} fill="${ctx.accent.hex}" text-anchor="middle">${esc(capText)}</text>
+    <!-- The caption is set in the ink around it, not in the identity's accent.
+         An accent is chosen to be an accent: Meridian's is 2.09 to 1 on its own
+         paper, and this drew the line saying what the mark fills in it, at 8 px,
+         in every manual this engine has written. The dashed box it describes
+         keeps the accent, because a rule is a graphical object and is asked 3. -->
+    <text x="${W / 2}" y="${H + 16}" ${TXT} fill="${line}" text-anchor="middle">${esc(capText)}</text>
   </svg>`;
 }
 
@@ -334,7 +339,7 @@ function clearSpace(ctx, opts = {}) {
     <g stroke="${ctx.accent.hex}" stroke-width="1.1">
       <path d="M${PX(0)} ${PY(th / 2)}H${PX(x)}"/><path d="M${PX(0)} ${PY(th / 2) - 5}v10"/><path d="M${PX(x)} ${PY(th / 2) - 5}v10"/>
     </g>
-    <text x="${PX(x / 2)}" y="${PY(th / 2) - 9}" ${TXT} fill="${ctx.accent.hex}" text-anchor="middle">x</text>
+    <text x="${PX(x / 2)}" y="${PY(th / 2) - 9}" ${TXT} fill="${line}" text-anchor="middle">x</text>
     <text x="${W / 2}" y="${H + 14}" ${TXT} fill="${line}" text-anchor="middle">${esc(csCap)}</text>
   </svg>`;
 }
@@ -1028,7 +1033,7 @@ function iconSpec(ctx) {
         <g stroke="currentColor" stroke-width="${svgu.round(r.stroke * k, 2)}" stroke-linecap="${esc(r.cap)}" stroke-linejoin="${esc(r.join)}" fill="none">
           <path d="M${svgu.round(30 + m * k)} ${svgu.round(6 + m * k)}L${svgu.round(30 + (r.box / 2) * k)} ${svgu.round(6 + (r.box - m) * k)}L${svgu.round(30 + (r.box - m) * k)} ${svgu.round(6 + m * k)}"/>
         </g>
-        <text x="${(200 + 60) / 2}" y="${200 + 20}" ${TXT} fill="${line}" text-anchor="middle">${esc(L.t('capIconGrid',
+        <text x="${(200 + 60) / 2}" y="${200 + 20}" ${TXT} fill="currentColor" text-anchor="middle">${esc(L.t('capIconGrid',
           { box: r.box, live: r.live, stroke: r.stroke }))}</text>
       </svg></div><figcaption>${esc(L.t('iconFigure'))}</figcaption></figure>
     <p class="note">${esc(L.t('iconA', { noun: nounIn(ctx, L), vb: r.derivedFrom.viewBox,

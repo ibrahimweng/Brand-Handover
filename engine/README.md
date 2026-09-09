@@ -5772,6 +5772,80 @@ where the message became the headline and the engine's own why and how were
 replaced by two sentences about stopping. Every build failure in the hosted app
 has come out that way. Take findings where there are findings.
 
+## Every document drew words in a colour it never checked
+
+The round before this one left two things measured and named. Measuring them
+properly found four, and then a fifth underneath. In all: **1326 runs of text,
+across all thirty-two identities, in two of the four documents**, set in a
+colour nobody had checked against the ground it landed on.
+
+    published.html  dark   13px  #E9EBEC on #EFEDE4  1.02:1  b.       "deep"
+    published.html  dark   12px  #E9EBEC on #EFEDE4  1.02:1  span.n   "deep on chalk"
+    guidelines.html dark   10px  #C2352B on #0C0D0F  3.55:1  i.v-bad  "Never for text"
+    guidelines.html light   8px  #B08D3F on #FCFCFB  3.04:1  text     "24 unit box · 15.2 live"
+    published.html  light  36px  #FBFAF7 on #FBFAF7     1:1  div      "Hallward Press"
+
+Four ways of not checking.
+
+### A block that names no colour takes the document's
+
+`palette`, `contrast`, `typeSpecimen` and `assetIndex` each lay their words out
+in a wrapper and set no colour on it, so the words came out in whatever ink the
+document around them uses. The canvas is dark; the published page follows the
+reader's preference; and the page underneath both is painted in the **identity's**
+ground. So every chip label, contrast row, specimen line and asset row in every
+package this repository has published came out at 1.02 to 1 on the brand's paper
+in dark — and at 1.2 on the brand's ink, in light, for the twelve identities
+whose ground is dark.
+
+The words are on the identity's page, so they are set from the identity's own
+palette: `wordsOn(bundle, ground)` takes the colour that reads best on it, and
+where nothing in the palette does — an identity of one ink on one paper has
+nothing else to set a caption in — moves the ink it has until it can be read.
+
+### An accent is not a text colour
+
+    <text … font-size="8" fill="${bundle.roles.accent.hex}">fills 109 × 109 · stroke 9</text>
+
+The construction and clear space diagrams drew their captions in the identity's
+accent, at 8 px, in both the manual and the canvas. Meridian's accent is 2.09 to
+1 on its own paper. The hue is the point — it ties the caption to the dashed box
+it describes — so in the canvas it keeps the hue and moves until it reads; in the
+manual, where the ground follows the reader's theme and a baked hex cannot, the
+captions are set in the ink around them, and the dashed box keeps the accent
+because a rule is a graphical object and is asked 3 rather than 4.5.
+
+### A verdict written once, for a light page
+
+`#1B7A4B`, `#8A6410` and `#C2352B` were written out four times — `chrome.js`,
+`emit.js`, `publish.js`, and again for the guessed-CMYK marker — all four for a
+white page. On the dark one they printed at 3.55, 3.62 and 3.64 to 1, under a
+heading in the same document asking 4.5 of the client's palette.
+
+Green has to stay green, so `contrast.readable(value, ground, need)` keeps the
+hue and moves only how light it is, stopping at the first step that reads. The
+three live in `contrast.INK` now, and the manual declares them as tokens beside
+its page ground — which means the engine's own check measures them from here on.
+It found one the same minute: the guessed-CMYK marker sits on a card rather than
+the page, a shade off it, at 4.35. Each verdict is measured against every ground
+it lands on.
+
+### And a cover that chose its ground and not its words
+
+The round before taught the starter document to choose a cover the artwork can
+be seen on. It left the words: they were set in the ground role, because the
+cover used to be the primary one. Hallward's readable cover is its paper, so its
+own name came out in paper on paper, at 36 px. The cover is chosen; so is what
+is written on it.
+
+### After
+
+26010 runs of text, four documents, thirty-two identities, both themes, measured
+in Chromium: **0 under the standard**. The suite asks the same question of the
+markup — every colour a block writes has to read on the ground it is drawn on,
+and the four that lay words out in a wrapper have to write one at all, because a
+block that names nothing has nothing to measure, which is how this got here.
+
 ## What it does not do yet
 
 - **The door cannot write in Japanese.** It offers the language and marks it

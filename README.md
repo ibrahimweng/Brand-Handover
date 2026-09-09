@@ -2132,10 +2132,41 @@ is not allowed to change what colour a brand is. A hundred rules are measured
 across the three documents in both themes, four failed, and the statement prints
 a table per page.
 
-Still to do: the manual's three verdict colours are picked for a light page and
-sit at 3.55 to 1 on the dark one, and the published page's chrome ink lands at
-1.02 to 1 on a page painted in the identity's own ground. Both are measured by
-`test/chrome-check.mjs`, both are named, and both are the next one.
+Those two were the next one, and measuring them properly found four.
+
+---
+
+**Every document drew words in a colour it never checked**
+
+1326 runs of text, across all thirty-two identities, in two of the four
+documents, set in a colour nobody had checked against the ground under it.
+
+    published.html  dark   13px  #E9EBEC on #EFEDE4  1.02:1  "deep"
+    guidelines.html dark   10px  #C2352B on #0C0D0F  3.55:1  "Never for text"
+    guidelines.html light   8px  #B08D3F on #FCFCFB  3.04:1  "24 unit box"
+    published.html  light  36px  #FBFAF7 on #FBFAF7     1:1  "Hallward Press"
+
+Four ways of not checking. **A block that names no colour takes the document's**
+— the palette chips, the contrast rows, the type specimen and the asset index
+each set none, so they came out in the canvas's dark ink, or the published
+page's, on a page painted in the identity's ground. **An accent is not a text
+colour** — the construction and clear space diagrams drew their 8 px captions in
+it, and Meridian's accent is 2.09 to 1 on Meridian's paper. **A verdict written
+once, for a light page** — green, amber and red were written out four times, all
+four for white, and printed at 3.55 to 1 on the dark one. **And a cover that
+chose its ground and not its words** — the round before taught the cover to pick
+a ground the artwork can be seen on and left the writing set in the old one, so
+Hallward's own name came out in paper on paper at 36 px.
+
+Green has to stay green, so a colour that cannot be read keeps its hue and moves
+only how light it is, stopping at the first step that reads. Words a block draws
+for itself come from the identity's own palette, measured against the page they
+land on. The three verdict colours live in one place and the manual declares them
+as tokens beside its page ground, which means the engine's own check measures
+them from here on — it found one the same minute, on a card a shade off the page.
+
+26010 runs of text, four documents, thirty-two identities, both themes, measured
+in Chromium: none under the standard.
 
 ---
 
