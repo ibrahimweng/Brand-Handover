@@ -971,10 +971,83 @@ was chosen and why, and the full parameters for each tile — so a rebuild retur
 the same bytes and the studio the client is given starts from what the engine
 chose rather than from nothing.
 
+### The studio in the package
+
+`src/patterns/emit.js` assembles `pattern-studio.html` the way
+`src/editor/emit.js` assembles the canvas: everything inlined, no server, no
+build step, no network. `src/patterns/studio.js` is the application.
+
+What travels is the **recipe**, not the pictures — the measurements taken off
+the mark, what was chosen and why, the parameters of every tile the build wrote,
+and the identity's colours. Under 6 KB of it, checked by a test, because a
+pattern is arithmetic and a palette: the master, the documents and the typefaces
+are elsewhere in the package and would triple the file.
+
+    generators and their controls        every colourway the project declares
+    SVG and PNG export at any size       the client's own kept variations
+    why the engine chose what it chose   the size the pattern holds from
+
+The last of those is the one rule the studio will not quietly let go of. Push a
+control finer than twice the thinnest thing in the mark and it says so, and
+gives the size at which the pattern stops holding — rather than refusing. The
+client owns the identity; an engine that silently overrules them is worse than
+one that tells them what they are doing.
+
+### It has to be the same drawing
+
+Two copies of a generator is two patterns waiting to disagree, and the studio is
+exactly where that would happen: the build draws through the SVG recorder in
+Node, the studio through the same recorder in a browser.
+
+So `palette.js`, `index.js` and both generators became UMD, joining `rand.js`,
+`noise.js` and `surface.js`. `index.js` asks for two of its five dependencies
+late on purpose — `mark.js` parses SVG and `seam.js` rasterises it, both reach
+for packages that exist only in Node, and the browser needs neither because the
+measurements arrive already taken.
+
+Three tests hold the line:
+
+- every module is in the studio **byte for byte as it is on disk, exactly once**
+- all seven load into a bare sandbox with no `require`, and the tile the browser
+  side draws is **the same string** the Node side draws
+- the tile on screen has the same shapes as the tile in `07-pattern/`
+
+### Driven in a browser
+
+`test/studio-check.mjs` builds a package and uses the file in Chromium — switch
+generator, move a slider, change colourway, keep one, reload — and measures
+eighteen things, including that it fetches nothing and throws nothing.
+
+Five reversions, to see whether it can fail:
+
+    as shipped                                     0 of 18 wrong
+    switching generator keeps the old parameters   2
+    it forgets what you were working on            1
+    the colourway is ignored                       1
+    a slider does not reach the parameters         1
+    revert does not revert                         1
+
+The first of those got through the first version of the check. Carrying the old
+parameters across leaves the new generator holding a style it does not own —
+weave's `plaid` handed to `zigzag`, which falls through to a straight stripe and
+looks entirely deliberate. "It drew something different" passes that. The check
+now asks whether the parameters *belong* to the generator showing, and whether
+it holds every control that generator has and no other.
+
+### One ban, narrowed
+
+`Math.random` and the clock are banned in `src/patterns/`, and the ban fired on
+`studio.js` — correctly, and too widely. It reads a clock to stamp the name of a
+download, which is a filename and not artwork; it never runs in a build and
+never writes a file into a package. The exemption is one file, and the test
+checks it stays narrow: one clock in it, on the line that makes the stamp.
+
 ### Reproducibility
 
 `Math.random()` and the clock are banned in `src/patterns/`, and `test/run.js`
-checks the files rather than trusting anyone to remember. Randomness comes from
+checks every file there rather than trusting anyone to remember — with one
+exemption, `studio.js`, which stamps a download filename and is checked to stay
+that narrow. Randomness comes from
 named streams off one seed — `stream(seed, 'colour')` and `stream(seed,
 'coverage')` are independent, so moving one slider does not re-deal the other,
 which is the difference between a control and a shuffle button.

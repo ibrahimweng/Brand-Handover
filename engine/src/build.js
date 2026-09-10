@@ -1214,6 +1214,16 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // one without the engine having to pick again somewhere else.
   const patternChoice = PATTERNS.suits(patternMark);
   const patternPick = generated.find((g) => g.name === patternChoice) || generated[0];
+  // And the studio, so the pattern is a thing the client keeps making rather
+  // than a folder of finished files. Same discipline as editor.html: one file,
+  // everything inlined, nothing fetched, opens from a USB stick. It draws the
+  // same generators this build just drew, from the same source, starting from
+  // what was chosen here.
+  if (generated.length) {
+    write('pattern-studio.html', require('./patterns/emit').studioHtml(
+      project, measured, generated.map((g) => ({ generator: g.name, colourway: g.colourway,
+        params: g.tile.params })), patternChoice, sys.pattern.tile));
+  }
   if (gen.ok) {
     for (const t of gen.tiles) {
       write(`07-pattern/pattern-${naming.slug(t.density)}-${naming.slug(t.colourway)}.svg`, t.tile);
@@ -1656,8 +1666,11 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       // the reasoning is a sentence and the read me is a fixed column, so it
       // is folded here rather than running off the side of somebody's terminal
       ...wrapTo(patternPick.tile.why, 58).map((l) => `                  ${l}`),
-      '                  Every one is a seamless repeat. brand.json carries the',
-      '                  parameters, so any of them can be rebuilt or changed.'] : []),
+      '                  Every one is a seamless repeat.',
+      '                  Open pattern-studio.html to change them: the same',
+      '                  generators, the same parameters, offline, and it',
+      '                  exports SVG and PNG at any size. brand.json carries',
+      '                  every recipe if you would rather rebuild.'] : []),
     // The one rule anybody reads before doing something to a mark, and it was in
     // the manual only. Each line is the sentence the manual prints under the
     // picture of that treatment, so the two cannot say different things.

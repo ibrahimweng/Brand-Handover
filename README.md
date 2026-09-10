@@ -2847,7 +2847,58 @@ Every package now carries both kinds: the mark tiled seven ways, and one
 generated tile per generator per colourway, with the parameters in `brand.json`
 so any of them can be rebuilt or changed.
 
-Round B of six. Next is the studio, in the package.
+Round B of six.
+
+---
+
+**The studio, in the package**
+
+A brand package is a folder of finished files: whatever the engine decided,
+frozen. The pattern is the one part of an identity a client genuinely keeps
+making — a quieter one behind type, a louder one on a van, a finer one for an
+endpaper — and handing over twelve SVGs makes every one of those a phone call.
+
+So the parameters ship, not only the pictures. `pattern-studio.html` goes into
+every package beside `editor.html`, and it runs the same generator files this
+build ran, starting from the parameters this build chose. One file, 86 KB,
+nothing fetched, opens from a drive in five years.
+
+It has the generators and their controls, every colourway the project declares,
+SVG and PNG export at any size, and a strip along the bottom of the client's own
+kept variations. It says **why** the engine chose what it chose, in the same
+sentence the manual prints. And it says the size the pattern holds from — the
+one rule it will not quietly let go of:
+
+    Holds from 48 px and 12.8 mm, which is the size the mark itself
+    holds at or larger.
+
+Push a control past what the mark allows and that becomes a sentence rather than
+a refusal. The client owns the identity; an engine that silently overrules them
+is worse than one that tells them what they are doing.
+
+**The claim worth checking is that it is the same drawing.** Two copies of a
+generator is two patterns waiting to disagree, and this is exactly where that
+would happen: the build draws through the SVG recorder in Node, the studio
+through the same recorder in a browser. So the modules are UMD and the studio
+inlines the files themselves — a test finds each one byte for byte in the HTML,
+exactly once — and another loads all seven into a bare sandbox with no `require`
+at all, draws a tile, and compares it with the tile Node draws. Same bytes.
+
+`test/studio-check.mjs` builds a package and drives the file in Chromium: switch
+generator, move a slider, change colourway, keep one, reload. Eighteen things
+measured, including that the tile on screen has the same shapes as the tile in
+`07-pattern/`, that nothing is fetched, and that nothing throws.
+
+**And two things it caught.** Not carrying the engine's parameters across when
+you switch generator leaves the new one holding a style it does not own —
+weave's "plaid" handed to zigzag, which falls through to a straight stripe and
+looks deliberate. "It drew something different" passes that, so the check now
+asks whether the parameters *belong* to the generator showing. And the ban on
+clocks in `src/patterns/` fired on the studio, correctly and too widely: it
+stamps a download filename, which is not artwork. The exemption is one file,
+one line, and the test checks it stays that narrow.
+
+Round C of six. Next are the field generators.
 
 ---
 

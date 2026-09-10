@@ -369,6 +369,7 @@ test('the file count is exactly what the rules ask for', () => {
                                                             // and ACCESSIBILITY.txt
     + require('../src/typefaces').embed(project.tokens.type, null).used.length + 1  // 09-type and its OFL
     + (r.documents === false ? 0 : 5)                       // manual, deck, editor, document.json, published.html
+    + (generatedTiles() ? 1 : 0)                            // pattern-studio.html
     + (r.zip === false ? 0 : 1);                            // the package itself
   assert.strictEqual(result.written.length, expected, `expected ${expected} files, got ${result.written.length}`);
 });
@@ -929,19 +930,40 @@ test('a raster field encodes to the same bytes twice', () => {
   assert.ok(at.mm > 5 && at.mm < 20, `120 px at 300 dpi came out as ${at.mm} mm`);
 });
 
-test('nothing in the pattern engine calls Math.random', () => {
-  // A generator that reaches for it builds a package whose artwork changes on
-  // every rebuild, and thirty-two identities here are checked byte for byte.
+test('nothing that draws a pattern calls Math.random or reads a clock', () => {
+  // A generator that reaches for either builds a package whose artwork changes
+  // on every rebuild, and thirty-two identities here are checked byte for byte.
+  //
+  // studio.js is the one exemption and it is a narrow one: it never runs in a
+  // build and never writes a file into a package — it runs in the client's
+  // browser, and it stamps the name of a download. That is a filename and not
+  // artwork. The exemption is checked rather than trusted: one clock in the
+  // file, on the line that makes the stamp.
   const dir = path.join(__dirname, '..', 'src', 'patterns');
+  const strip = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  const files = [];
+  const walk = (d, prefix) => {
+    for (const f of fs.readdirSync(d)) {
+      const full = path.join(d, f);
+      if (fs.statSync(full).isDirectory()) walk(full, `${prefix}${f}/`);
+      else if (f.endsWith('.js')) files.push([`${prefix}${f}`, full]);
+    }
+  };
+  walk(dir, '');
+  assert.ok(files.length >= 8, `only ${files.length} files found in src/patterns`);
   const bad = [];
-  for (const f of fs.readdirSync(dir).filter((n) => n.endsWith('.js'))) {
-    const src = fs.readFileSync(path.join(dir, f), 'utf8');
-    // the ban is stated in the comments of rand.js, so look at code only
-    const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
-    if (/Math\.random\s*\(/.test(code)) bad.push(f);
-    if (/\bnew Date\b|Date\.now\s*\(/.test(code)) bad.push(`${f} (a clock)`);
+  for (const [name, full] of files) {
+    const code = strip(fs.readFileSync(full, 'utf8'));
+    if (/Math\.random\s*\(/.test(code)) bad.push(name);
+    if (name === 'studio.js') continue;
+    if (/\bnew Date\b|Date\.now\s*\(/.test(code)) bad.push(`${name} (a clock)`);
   }
   assert.deepStrictEqual(bad, [], `${bad.join(', ')} would re-deal the artwork on a rebuild`);
+  // and the exemption stays narrow
+  const studio = strip(fs.readFileSync(path.join(dir, 'studio.js'), 'utf8'));
+  const clocks = studio.split('\n').filter((l) => /\bnew Date\b|Date\.now\s*\(/.test(l));
+  assert.strictEqual(clocks.length, 1, `studio.js reads a clock on ${clocks.length} lines`);
+  assert.ok(/stamp/.test(clocks[0]), `studio.js reads a clock somewhere other than its filename stamp: ${clocks[0].trim()}`);
 });
 
 console.log('\nthe pattern engine: the generators');
@@ -1208,6 +1230,101 @@ test('a tile built twice is the same bytes', () => {
   const two = PENG.tile({ markSource: src, measured: mm, rules: pr.rules, colours: pr.tokens.colour, colourway: pr.rules.colourways[0] });
   assert.strictEqual(one.tile, two.tile, 'the same identity built two different tiles');
   assert.deepStrictEqual(one.params, two.params);
+});
+
+console.log('\nthe pattern engine: the studio');
+const PEMIT = require('../src/patterns/emit');
+
+test('the studio carries the recipe, not the pictures', () => {
+  // A brand package is usually whatever the engine decided, frozen. The pattern
+  // is the one part a client genuinely keeps making — a quieter one behind
+  // type, a louder one on a van — and handing over twelve SVGs makes every one
+  // of those a phone call. So the parameters ship.
+  const bu = PEMIT.bundle(project, m, [{ generator: 'weave', colourway: 'deep',
+    params: { cells: 20, chunk: 1, style: 'plaid', seed: 1 } }], 'weave');
+  assert.strictEqual(bu.brand, project.brand);
+  assert.ok(bu.measured && bu.measured.fineness > 0, 'it carries no measurement of the mark');
+  assert.ok(bu.colourways.length === project.rules.colourways.length, 'it lost a colourway');
+  assert.ok(Object.keys(bu.colours).length > 1, 'it carries no colours');
+  assert.strictEqual(bu.made[0].params.cells, 20, 'it lost the parameters the build used');
+  assert.ok(PENG.NAMES.indexOf(bu.chose) > -1);
+  // and it carries nothing it does not need. A pattern is arithmetic and a
+  // palette; the master, the documents and the typefaces are all somewhere
+  // else in the package and would triple the file.
+  const text = JSON.stringify(bu);
+  assert.ok(text.indexOf('<svg') === -1, 'the bundle carries SVG source');
+  assert.ok(text.indexOf('base64') === -1, 'the bundle carries a font');
+  assert.ok(text.length < 6000, `the bundle is ${text.length} bytes, which is more than a recipe`);
+});
+
+test('the studio opens with no network at all', () => {
+  const html = PEMIT.studioHtml(project, m, [{ generator: 'weave', colourway: 'deep',
+    params: { cells: 20, chunk: 1, style: 'plaid', seed: 1 } }], 'weave', 100);
+  // The same rule the rest of the package follows: a client opens this in five
+  // years off a drive, and anything fetched is a thing that will not be there.
+  const fetched = (html.match(/(?:src|href)="(?!data:)[a-z]+:\/\/[^"]*"/g) || []);
+  assert.deepStrictEqual(fetched, [], fetched.join(', '));
+  assert.ok(!/<script[^>]+src=/.test(html), 'a script is loaded rather than inlined');
+  assert.ok(!/<link[^>]+stylesheet/.test(html), 'a stylesheet is loaded rather than inlined');
+  // and it holds the generators themselves, not a copy of them
+  for (const g of PENG.NAMES) {
+    assert.ok(html.indexOf(`key: '${g}'`) > -1, `${g} is not in the file`);
+  }
+});
+
+test('the studio runs the same generator files the build ran', () => {
+  // Two drawings of one pattern is the fault the surface contract exists to
+  // prevent. The studio must not carry its own copy of a generator, so the
+  // check is that each one appears in the file exactly once and byte for byte
+  // as it is on disk.
+  const html = PEMIT.studioHtml(project, m, [], 'weave', 100);
+  for (const rel of ['rand.js', 'noise.js', 'surface.js', 'palette.js', 'index.js',
+    'generators/weave.js', 'generators/zigzag.js']) {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'patterns', rel), 'utf8');
+    const first = html.indexOf(src);
+    assert.ok(first > -1, `${rel} is not in the studio as it is on disk`);
+    assert.strictEqual(html.indexOf(src, first + 1), -1, `${rel} is in the studio twice`);
+  }
+});
+
+test('every module the studio inlines can be loaded twice over', () => {
+  // The studio runs these in a browser, where there is no `module`. They are
+  // UMD, and the way that goes wrong is silently: a file that only ever ran in
+  // Node keeps working here and defines nothing on `window`, so the studio
+  // opens to a blank panel. Loading each one into a bare object is the same
+  // question the browser asks.
+  const vm = require('vm');
+  const wanted = { 'rand.js': 'PatternRand', 'noise.js': 'PatternNoise',
+    'surface.js': 'PatternSurface', 'palette.js': 'PatternPalette',
+    'generators/weave.js': 'PatternWeave', 'generators/zigzag.js': 'PatternZigzag',
+    'index.js': 'PatternEngine' };
+  const root = { HandoverContrast: require('../src/contrast') };
+  const sandbox = { self: root, window: root, console };
+  sandbox.self = root;
+  vm.createContext(sandbox);
+  for (const [rel, name] of Object.entries(wanted)) {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'patterns', rel), 'utf8');
+    vm.runInContext(src, sandbox, { filename: rel });
+    assert.ok(root[name], `${rel} defined nothing on window as ${name} — it is not UMD`);
+  }
+  // and the whole thing works from there: a tile, drawn with no require at all
+  const pal = root.PatternPalette.of(project.tokens.colour, project.rules.colourways[0]);
+  const s = root.PatternSurface.svg({ width: 100, height: 100, id: 'x' });
+  root.PatternEngine.GENERATORS.weave.paint(s, 100, 100,
+    { cells: 20, chunk: 1, style: 'basket', seed: 1 }, pal);
+  assert.ok(s.body().length > 200, 'the browser side drew nothing');
+  // and it draws the identical bytes the Node side does
+  const node = require('../src/patterns/surface').svg({ width: 100, height: 100, id: 'x' });
+  require('../src/patterns').GENERATORS.weave.paint(node, 100, 100,
+    { cells: 20, chunk: 1, style: 'basket', seed: 1 },
+    require('../src/patterns/palette').of(project.tokens.colour, project.rules.colourways[0]));
+  assert.strictEqual(s.body(), node.body(), 'the same generator drew two different tiles in two runtimes');
+});
+
+test('a package carries the studio, and the read me says it is there', () => {
+  assert.ok(result.written.some((f) => f.path === 'pattern-studio.html'), 'no studio was written');
+  const readme = fs.readFileSync(path.join(out, 'README.txt'), 'utf8');
+  assert.ok(/pattern-studio\.html/.test(readme), 'the read me does not mention the studio');
 });
 
 console.log('\nrule blocks: the pattern');
