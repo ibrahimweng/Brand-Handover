@@ -126,7 +126,7 @@ The engine runs. `engine/` takes one master SVG and a project file and writes
 150 files: every lockup in every colourway as SVG, PDF, `.ai` and PNG, icons,
 favicons, social crops, the brand pattern at every density, `brand.json`, the
 manual, the deck, a self contained canvas editor, and any document published out
-of it. 600 tests.
+of it. 606 tests.
 
 The claim the whole thing rests on is checked in the suite. Thicken the ring in
 `mark.svg` from 9 to 14, rebuild, and the ink box goes 109 to 114, clear space
@@ -2549,7 +2549,64 @@ A format that cannot be drawn drops out now, and the build finishes:
 It is the first thing the last screen says, because it is the one thing about
 that package which is not in it.
 
-Still to do: nothing named. The next one is whatever the next measurement finds.
+---
+
+**The instrument, before the fix**
+
+The last round found the smallest usable size measured off the pixel grid — a
+plain triangle told it needs 3600 px on screen and 1012 mm in print — and shipped
+nothing, because four rules were tried and every one broke something this suite
+already checks. There was nothing to test a rule against. This builds that.
+
+`src/thickness.js` asks the question a floor is *for*, of the whole drawing:
+rendered this big, what share of the ink is thinner than the rule the project
+states? It is a morphological opening with a disc — erode by half the rule,
+grow back, and whatever did not come back was thinner — on an exact Euclidean
+distance transform. A tapering tip costs almost nothing; a hairline across the
+mark costs everything. It decides nothing: `geometry.js` still states the floor.
+
+Two things had to be right before it could be believed.
+
+**The size asked about is never the size rendered.** A 10 unit bar in a 120 unit
+box, drawn 60 px wide, should be 5 px of ink and comes out 6, because the edge
+pixels clear the threshold — ask about a 5 px stroke that way and you get an
+answer about a 6 px one. The question is a ratio, so the artwork is rendered
+once, large, and the rule moves instead.
+
+**And every case has an answer worked out on paper first.** A 10 unit bar is
+under 10.5 units and not under 9.5. A 30 unit bar beside a 6 unit one is 16.7%
+thin at 10 units, which is six thirty-sixths. A 60 unit disc is not thin at 10
+and entirely thin at 70. Three render sizes give the same answer. Fourteen of
+those, and four ways of breaking the instrument that each fail them.
+
+What it says, on the whole repository:
+
+    a ring stroked 9 units    100%  100%  100%  100%  0.3%  0.0%  0.0%   at 8…64 px
+    a solid triangle         13.6%  6.0%  3.4%  1.5%  0.9%  0.4%  0.2%
+
+That is the difference a single number cannot hold. The ring *is* its stroke: it
+falls off a cliff of 99.7% between 24 and 32 px, which is its floor. The triangle
+has no cliff — it loses the tip of a corner and goes on being a triangle.
+
+    142 drawings measured, against the size each one's package states
+      9 state a size at which more than 2% of their ink is under the rule
+      8 state a size at least twice the size they hold from
+      stated against measured: median 0.97x, worst 5.3x
+
+The median says the existing statistic is right for most drawings, which is why
+a fix has to be surgical and why all four of last round's were not. And the
+instrument found something no one was looking for — **nine floors that are too
+small**, where the last round only knew about ones that were too large:
+
+    northline/master     says 48 px and 38% of its ink is under the rule there
+    ancroft/wordmark     says 169 px and 4.4%
+    pagrin/stacked       says 505 px, holds from 96 px — 5.3x the other way
+
+`test/floor-check.mjs` prints that table for every identity in a minute. Next
+is the fix, tested against it.
+
+Still to do: the floor itself, now that there is something to test a rule
+against.
 
 ---
 

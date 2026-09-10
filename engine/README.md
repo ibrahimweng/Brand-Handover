@@ -6619,6 +6619,120 @@ The second test runs a real build in a child process started with
 `--no-experimental-require-module`, because the only honest way to have the PDF
 writer fail is to start Node the way the host did.
 
+## The instrument, before the fix
+
+The round before this one found that the smallest usable size is measured off
+the pixel grid rather than the drawing: a plain triangle told it cannot be used
+below 3600 px on screen or 1012 mm in print, and Beaumont's horizontal lockup
+stating 2581 px from a 0.64 unit stem in artwork whose parts are tens of units
+across. It shipped nothing. Four rules were tried, and every one of them broke
+something this suite already checks:
+
+    stem must recur globally        69 of 142 floors moved, 30 of them upward
+    two-resolution stability         marlow certified a size it cannot hold
+    one-sided shrink guard           Harbourne's Yard endorsement 797 -> 92 px
+    recurrence on the re-render      Maritime 854 -> 109, and nothing else moved
+
+Every one of those was caught by a check that already existed, which is the
+system working. What did not exist was anything to test a rule *against* — a way
+to ask what a drawing actually does at a size, rather than what one statistic
+says about one place in it.
+
+### What a floor is really asking
+
+`src/thickness.js` asks it of the whole drawing: rendered this big, what share of
+the ink is thinner than the rule the project states?
+
+It is a morphological opening with a disc. Erode the ink by half the rule, grow
+it back, and whatever did not come back was thinner than the disc — wherever it
+is and whatever shape it is. Both steps are exact Euclidean distance transforms
+(Felzenszwalb and Huttenlocher, linear and exact), so the answer is a real
+distance rather than a count of grid steps. A tapering tip costs almost nothing
+because it is almost no ink. A hairline across the mark costs everything.
+
+It decides nothing. `geometry.js` still states the floor; this reports what the
+drawing does at it.
+
+### Two things it had to get right first
+
+**The size asked about is never the size rendered.** A 10 unit bar in a 120 unit
+box, drawn 60 px wide, should be 5 px of ink and comes out 6: the edge pixels
+clear the alpha threshold. Ask about a 5 px stroke that way and the answer is
+about a 6 px one. The question — "is this ink at least S px thick when the
+drawing is W px wide" — is a ratio, so the artwork is rendered once, large, and
+it is the rule that moves. The reversion that renders at the size asked about
+smears the ring's cliff from 99.7% to 84%, which is the measurement of an
+instrument rather than of a drawing.
+
+**And every case has an answer worked out on paper before it is run.** A 10 unit
+bar is under 10.5 units and not under 9.5. A 30 unit bar beside a 6 unit one is
+16.7% thin at 10 units, which is six thirty-sixths of the ink. A 60 unit disc is
+not thin at 10 and entirely thin at 70. A ring stroked 9 is not under 7 and is
+under 12. Three render sizes give the same answer to the same question. An empty
+drawing is nothing measured, not a division by zero.
+
+Four ways of breaking it, each failing those:
+
+    erode but never grow back          every edge is thin: 0 of 6 pass
+    the radius is the rule, not half   a 10 unit bar is thin at 6
+    city-block distance                a bar is not under a rule wider than it
+    render at the size asked about     the cliff softens from 99.7% to 84%
+
+### The curve is the answer, not a number
+
+    share of ink under a 2.4 px rule, at 8 12 16 24 32 48 64 px wide
+      a ring stroked 9 units    100%  100%  100%  100%  0.3%  0.0%  0.0%
+      a solid triangle         13.6%  6.0%  3.4%  1.5%  0.9%  0.4%  0.2%
+      a solid square            2.7%  1.2%  0.7%  0.3%  0.2%  0.1%  0.0%
+
+A ring *is* its stroke, so above the size where the stroke clears the rule almost
+none of its ink is under it and below almost all of it is: a cliff of 99.7%
+between 24 and 32 px, and that cliff is its floor. A triangle has no cliff at any
+size. It loses the tip of a corner and goes on being a triangle, which is exactly
+what the single-number statistic cannot express and why it produced 3600 px.
+
+### What it says about this repository
+
+`test/floor-check.mjs` runs it over every drawing every package states a floor
+for — the master and every lockup, 142 of them — in under a minute. The answer
+is a search rather than the whole curve, because the share only falls as the
+drawing grows; that is seven measurements instead of twenty-six, and it gives
+the same answer as the exhaustive scan, drawing for drawing.
+
+    142 drawings measured, against the size each one's package states
+      9 state a size at which more than 2% of their ink is under the rule
+      8 state a size at least twice the size they hold from
+      stated against measured: median 0.97x, worst 5.3x
+
+**The median is the important number.** The existing statistic is right for the
+great majority of drawings here, which is why a fix has to be surgical — and why
+all four of last round's, which each moved dozens of floors, were not.
+
+**And it found the direction nobody was looking in.** Last round knew about
+floors that are too large. Nine are too *small*, and the largest of those is not
+close:
+
+    northline/master     says  48 px and 38% of its ink is under the rule there
+    northline/mark       says  48 px and 38%
+    ancroft/wordmark     says 169 px and 4.4%
+    oriel/wordmark       says 109 px and 3.1%
+    verdon/wordmark      says 176 px and 2.9%
+
+A floor that is too large costs a client an argument about whether their icons
+will read. A floor that is too small is a package certifying a size at which
+more than a third of the mark is under the rule the same package states. Nothing
+in this repository could see that until now.
+
+The eight in the other direction are the ones the last round found, now with a
+measured figure beside each:
+
+    pagrin/stacked       says  505 px, holds from   96 px — 5.3x
+    perigee/mark         says   39 px, holds from    8 px — 4.9x, off the stroke
+    pagrin/horizontal    says  864 px, holds from  192 px — 4.5x
+    hallward/horizontal  says 5206 px, holds from 1536 px — 3.4x
+
+Next is the floor itself, and now there is something to test a rule against.
+
 ## What it does not do yet
 
 - **The door cannot write in Japanese.** It offers the language and marks it
@@ -6663,6 +6777,7 @@ writer fail is to start Node the way the host did.
     src/strings.js    every word both documents set, and what a language can write
     src/previous.js   what moved since the last version, in both languages
     src/access.js     the documents measured, and the canvas asked different things
+    src/thickness.js  how much of a drawing is too thin to survive, at a size
     test/canvas-check.mjs  the canvas driven by keyboard in a real browser
     test/hosted-check.mjs  the app as deployed: static page, functions, no disk
     test/rtl-check.mjs     every value, drawn against the way it is written
@@ -6671,6 +6786,7 @@ writer fail is to start Node the way the host did.
     test/seen-check.mjs    the artwork the canvas opens with, counted in pixels
     test/chrome-check.mjs  every run of text against what is actually behind it
     test/typst-check.mjs   the printed piece against the published page, in ink
+    test/floor-check.mjs   what a drawing does at the size it says it holds at
     src/documents/    blocks.js, chrome.js, index.js (manual), deck.js
     projects/meridian/  the first identity: one stroked mark, one ink
     projects/halyard/   the second: filled artwork, two inks, four faults left in

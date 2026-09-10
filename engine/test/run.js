@@ -51,6 +51,94 @@ test('minimum size moves when the rule moves', () => {
   const loose = geo.minimumSize(project.assets.mark.source, { minStrokePx: 1.2, minStrokeMm: 0.675 });
   assert.strictEqual(loose.screenPx, 16, 'halving the stroke floor should halve the minimum size');
 });
+// ---- the instrument, before anything is measured with it ----
+//
+// The floor a package states is worked out by dividing the box by the narrowest
+// run of ink in the drawing, which is one number about one place. On a shape
+// that comes to a point it measures the pixel grid: a plain triangle comes out
+// of it needing 3600 px on screen and 1012 mm in print. Four rules were tried
+// against that and every one of them broke something this suite already checks,
+// because there was nothing to test a rule against.
+//
+// src/thickness.js is that something. It asks the question the floor is for, of
+// the whole drawing: rendered this big, what share of the ink is thinner than
+// the rule? It decides nothing — geometry.js still states the floor — so what
+// it has to be is right, and every case below has an answer worked out on paper
+// before it was run.
+const THICK = require('../src/thickness');
+const thBox = (inner, w = 120) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${w}" viewBox="0 0 ${w} ${w}">${inner}</svg>`;
+const BAR = thBox('<rect x="55" y="0" width="10" height="120" fill="#000"/>');
+
+test('a bar ten units wide is ten units wide', () => {
+  const bar = THICK.drawing(BAR, 120);
+  for (const units of [6, 9.5]) {
+    assert.ok(THICK.underUnits(bar, units).share < 0.02,
+      `asked for ${units} units, ${(THICK.underUnits(bar, units).share * 100).toFixed(1)}% of a 10 unit bar was under it`);
+  }
+  for (const units of [10.5, 20]) {
+    assert.ok(THICK.underUnits(bar, units).share > 0.98,
+      `asked for ${units} units, only ${(THICK.underUnits(bar, units).share * 100).toFixed(1)}% of a 10 unit bar was under it`);
+  }
+});
+
+test('the same bar, said as a size on a screen', () => {
+  // 10 units of a 120 unit box drawn W px wide is 10W/120 px, so it clears a
+  // 2.4 px rule from W = 28.8 px up and not below it
+  const bar = THICK.drawing(BAR, 120);
+  assert.ok(THICK.atWidth(bar, 24, 2.4).share > 0.98, 'at 24 px the bar paints 2 px and should fail');
+  assert.ok(THICK.atWidth(bar, 40, 2.4).share < 0.02, 'at 40 px it paints 3.3 px and should pass');
+  assert.ok(THICK.atWidth(bar, 200, 2.4).share < 0.02);
+});
+
+test('what is thin is a share of the ink, not a place in the drawing', () => {
+  // a 30 unit bar beside a 6 unit bar: asked for 10 units, exactly the thin one
+  // fails, and it is six thirty-sixths of the ink
+  const two = THICK.drawing(thBox('<rect x="20" y="0" width="30" height="120" fill="#000"/>'
+    + '<rect x="80" y="0" width="6" height="120" fill="#000"/>'), 120);
+  const got = THICK.underUnits(two, 10).share;
+  assert.ok(Math.abs(got - 6 / 36) < 0.03, `${(got * 100).toFixed(1)}% against ${(600 / 36).toFixed(1)}%`);
+});
+
+test('a disc is as thick as it is wide, and a ring is as thick as its stroke', () => {
+  const disc = THICK.drawing(thBox('<circle cx="60" cy="60" r="30" fill="#000"/>'), 120);
+  assert.ok(THICK.underUnits(disc, 10).share < 0.06, 'a 60 unit disc is not thin at 10 units');
+  assert.ok(THICK.underUnits(disc, 70).share > 0.98, 'and all of it is thinner than 70');
+  const ring = THICK.drawing(thBox('<circle cx="60" cy="60" r="45" fill="none" stroke="#000" stroke-width="9"/>'), 120);
+  assert.ok(THICK.underUnits(ring, 7).share < 0.12, 'a 9 unit stroke is not under 7');
+  assert.ok(THICK.underUnits(ring, 12).share > 0.88, 'and is under 12');
+});
+
+test('the answer is about the drawing, not about how big it was rendered', () => {
+  const at = [400, 900, 1600].map((r) => THICK.underUnits(THICK.drawing(BAR, 120, r), 8).share);
+  assert.ok(Math.max(...at) - Math.min(...at) < 0.02, `three renders gave ${at.join(', ')}`);
+  const nothing = THICK.underUnits(THICK.drawing(thBox(''), 120), 10);
+  assert.strictEqual(nothing.ink, 0);
+  assert.strictEqual(nothing.share, 0);
+});
+
+test('a stem falls off a cliff and a taper does not, which is the whole question', () => {
+  // This is what a floor is really asking, and what the number geometry.js
+  // states cannot express. A ring is its stroke: above the size where the
+  // stroke clears the rule almost none of its ink is under it, below almost
+  // all of it is. A solid triangle has no such size — it loses the tip of its
+  // corner and goes on being a triangle.
+  const sizes = [8, 12, 16, 24, 32, 48, 64, 96, 128];
+  const ring = THICK.curve(thBox('<circle cx="60" cy="60" r="45" fill="none" stroke="#000" stroke-width="9"/>'),
+    120, 2.4, sizes);
+  const tri = THICK.curve(thBox('<path d="M60 10L110 110H10Z" fill="#000"/>'), 120, 2.4, sizes);
+  const rc = THICK.steepest(ring), tc = THICK.steepest(tri);
+  assert.ok(rc.drop > 0.9, `the ring's worst fall is only ${(rc.drop * 100).toFixed(0)}%`);
+  assert.deepStrictEqual(rc.between, [24, 32], 'and it should be where its stroke crosses the rule');
+  assert.ok(tc.drop < 0.2, `the triangle falls off a cliff of ${(tc.drop * 100).toFixed(0)}%`);
+  // and at every size the triangle loses a little more of its tip and no more
+  assert.ok(tri[0].share < 0.2 && tri[0].share > 0.02,
+    `a triangle 8 px wide has ${(tri[0].share * 100).toFixed(1)}% of its ink under the rule`);
+  for (let i = 1; i < tri.length; i++) {
+    assert.ok(tri[i].share <= tri[i - 1].share + 0.001, 'the share should only fall as the drawing grows');
+  }
+});
+
 test('clear space is a fraction of measured ink height', () => {
   assert.strictEqual(m.clearSpace, svgu.round(m.markInk.h * project.rules.clearSpaceRatio));
 });
@@ -8777,8 +8865,15 @@ test('a check that could not run says so, and signs off on nothing', () => {
       said.push(`${f} did not exit cleanly with nothing installed: ${out.split('\n')[0]}`);
       continue;
     }
-    if (!/nothing was measured|could not run|not installed|skipped/i.test(out)) {
-      said.push(`${f} ran with nothing installed and never said what it could not do`);
+    // Either it says what it could not do, or it did it. The second half is
+    // there because a check need not depend on anything optional: floor-check
+    // measures the engine's own projects with the engine's own renderer and
+    // always runs, so it has nothing to excuse and says so by reporting a
+    // count. "nothing was measured" is not a count, so it does not pass here.
+    const excused = /nothing was measured|could not run|not installed|skipped/i.test(out);
+    const worked = /\b\d+\s+[a-z]+\s+measured\b/i.test(out);
+    if (!excused && !worked) {
+      said.push(`${f} ran with nothing installed, did nothing, and said nothing about it`);
     }
   }
   assert.deepStrictEqual(said, [], said.join('\n'));
