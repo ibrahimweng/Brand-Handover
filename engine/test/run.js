@@ -1455,6 +1455,290 @@ test('every generator draws every identity, and the tile never runs finer than t
   assert.ok(reached.size >= 4, `32 identities between them opened on only ${reached.size} of the ${PENG.NAMES.length} generators`);
 });
 
+console.log('\nthe pattern engine: measuring a pattern');
+const PMEAS = require('../src/patterns/measure');
+
+// A picture built to have a known answer. Every check below states what it
+// built and what that means the measurement must say — because a measurement
+// nobody has checked against a known answer is a number, not a measurement.
+function picture(w, h, fn) {
+  const f = PRAST.field(w, h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const c = fn(x, y), i = (y * w + x) * 4;
+      f.data[i] = c[0]; f.data[i + 1] = c[1]; f.data[i + 2] = c[2]; f.data[i + 3] = 255;
+    }
+  }
+  return f;
+}
+const INK = [0, 0, 0], PAPER = [255, 255, 255], RED = [200, 40, 40];
+const striped = (period, down) => picture(480, 480, (x, y) =>
+  (Math.floor((down ? y : x) / (period / 2)) % 2 ? INK : PAPER));
+
+test('the period a picture was built with is the period that comes back', () => {
+  for (const built of [20, 40, 60, 120]) {
+    const r = PMEAS.scale(striped(built));
+    assert.ok(Math.abs(r.period - built) <= built * 0.06,
+      `stripes built at ${built} px measured ${r.period}`);
+    assert.strictEqual(r.axis, 'x', `vertical stripes were found running down`);
+    assert.ok(r.found, `a period of ${built} was not found at all`);
+    assert.ok(r.across > 0 && Math.abs(r.across - 480 / built) < 1,
+      `${built} px across 480 is ${(480 / built).toFixed(1)} repeats, measured ${r.across}`);
+  }
+  // and down, which is a different axis and a different failure
+  for (const built of [40, 80]) {
+    const r = PMEAS.scale(striped(built, true));
+    assert.strictEqual(r.axis, 'y', 'horizontal stripes were found running across');
+    assert.ok(Math.abs(r.period - built) <= built * 0.06, `measured ${r.period} for ${built}`);
+  }
+  // The axis is not chosen by which correlates highest. Stripes running down
+  // correlate *perfectly* at every vertical lag, because sliding a column of
+  // one colour down changes nothing at all — 1.00 against the real period's
+  // 0.97. Whether a peak was found has to decide first, and this is the case
+  // that says so.
+  const v = PMEAS.scale(striped(40));
+  assert.ok(v.both.y.height >= v.both.x.height - 0.05,
+    'the degenerate axis no longer scores at least as high, so this is testing nothing');
+  assert.strictEqual(v.axis, 'x');
+});
+
+test('a picture with no period says so rather than naming one', () => {
+  let seed = 12345;
+  const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  const noise = picture(480, 480, () => { const v = Math.floor(rnd() * 256); return [v, v, v]; });
+  const r = PMEAS.scale(noise);
+  assert.strictEqual(r.found, false, `noise was given a period of ${r.period}`);
+  assert.ok(r.regularity < 0.1, `noise measured ${r.regularity} regular`);
+  // against a real repeat, which must not be called noise
+  assert.ok(PMEAS.scale(striped(60)).regularity > 0.8, 'a perfect repeat did not measure regular');
+});
+
+test('which way a pattern runs, in a frame that is written down', () => {
+  // Degrees with y downwards: 0 runs left-right, 90 top-bottom, 135 from the
+  // top-right corner. y-up and y-down disagree about which diagonal is 45 and
+  // both look right on their own, so the frame is stated and checked.
+  const near = (a, b) => Math.min(Math.abs(a - b), 180 - Math.abs(a - b));
+  assert.ok(near(PMEAS.orientation(striped(40)).angle, 90) < 2, 'vertical stripes are not at 90');
+  assert.ok(near(PMEAS.orientation(striped(40, true)).angle, 0) < 2, 'horizontal stripes are not at 0');
+  const plus = picture(480, 480, (x, y) => (Math.floor((x + y) / 28) % 2 ? INK : PAPER));
+  const minus = picture(480, 480, (x, y) => (Math.floor((x - y + 480) / 28) % 2 ? INK : PAPER));
+  assert.ok(near(PMEAS.orientation(plus).angle, 135) < 3, 'x+y is not at 135');
+  assert.ok(near(PMEAS.orientation(minus).angle, 45) < 3, 'x-y is not at 45');
+  // strength: one direction only against no direction at all
+  assert.ok(PMEAS.orientation(striped(40)).strength > 0.9, 'stripes did not read as lined');
+  let seed = 99;
+  const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  const noise = picture(480, 480, () => { const v = Math.floor(rnd() * 256); return [v, v, v]; });
+  const o = PMEAS.orientation(noise);
+  assert.ok(o.strength < 0.1, `noise leaned ${o.strength}`);
+  assert.strictEqual(o.kind, 'even');
+  assert.ok(o.angle >= 0 && o.angle < 180, `${o.angle} is not an angle modulo 180`);
+});
+
+test('how sharp an edge is, and not how many edges there are', () => {
+  // Ramps built to a stated width. The measurement reports that width in
+  // pixels, so the check is against the number the picture was drawn with.
+  const ramp = (k) => picture(480, 480, (x) => {
+    const t = x % 200;
+    const v = t < k ? Math.round(255 * t / k)
+      : t < 100 ? 255
+        : t < 100 + k ? Math.round(255 * (1 - (t - 100) / k)) : 0;
+    return [v, v, v];
+  });
+  const got = [1, 2, 4, 8].map((k) => PMEAS.hardness(ramp(k)).width);
+  for (let i = 0; i < 4; i++) {
+    const built = [1, 2, 4, 8][i];
+    assert.ok(Math.abs(got[i] - built) <= Math.max(0.5, built * 0.1),
+      `a ramp built ${built} px wide measured ${got[i]}`);
+  }
+  // The first version of this measured how much of the picture's change sat in
+  // its steepest tenth, which is a count of edges wearing the name of their
+  // sharpness: identical knife edges read 0.56 at period 40 and 0.93 at 200.
+  // Four periods, one edge, one answer.
+  const flat = [20, 40, 100, 200].map((p) => PMEAS.hardness(striped(p)).value);
+  assert.deepStrictEqual([...new Set(flat)], [1],
+    `identical hard edges measured ${flat.join(', ')} at four different periods`);
+  assert.strictEqual(PMEAS.hardness(ramp(20)).kind, 'soft');
+  assert.strictEqual(PMEAS.hardness(striped(40)).kind, 'hard');
+});
+
+test('the colours counted are colours that are in the picture', () => {
+  // One red pixel in four on white. Sampling that on a lattice of two lands on
+  // one phase of it and only one: the first version reported 100% red and 0%
+  // white, and the ink share of a ten-column pattern at exactly double. A
+  // pattern can be relied on to be in step with any lattice laid over it.
+  const dots = picture(480, 480, (x, y) => ((x % 2 === 0 && y % 2 === 0) ? RED : PAPER));
+  const pal = PMEAS.palette(dots, 3);
+  assert.strictEqual(pal.length, 2, `${pal.length} colours in a picture with two`);
+  assert.strictEqual(pal[0].hex, '#ffffff');
+  assert.strictEqual(pal[1].hex, '#c82828');
+  assert.ok(Math.abs(pal[0].share - 0.75) < 0.01, `white covers ${pal[0].share}, not 0.75`);
+  assert.ok(Math.abs(pal[1].share - 0.25) < 0.01, `red covers ${pal[1].share}, not 0.25`);
+  // and no colour is invented: every one reported is one the picture holds
+  for (const c of pal) assert.ok(c.hex === '#ffffff' || c.hex === '#c82828', `${c.hex} is not in the picture`);
+  // ink share is what is not the ground, and the ground is what there is most of
+  assert.ok(Math.abs(PMEAS.coverage(dots) - 0.25) < 0.01);
+  assert.ok(Math.abs(PMEAS.coverage(striped(40)) - 0.5) < 0.01);
+  const tenth = picture(480, 480, (x) => (x % 10 === 0 ? INK : PAPER));
+  assert.ok(Math.abs(PMEAS.coverage(tenth) - 0.1) < 0.01, `a tenth of the ink measured ${PMEAS.coverage(tenth)}`);
+});
+
+test('the same picture measures the same twice, and the six come back together', () => {
+  const im = striped(40);
+  const a = PMEAS.all(im), b = PMEAS.all(im);
+  assert.deepStrictEqual(a, b, 'two readings of one picture differed');
+  for (const key of ['palette', 'coverage', 'scale', 'orientation', 'hardness', 'size']) {
+    assert.ok(a[key] != null, `all() did not report ${key}`);
+  }
+  assert.strictEqual(a.size.width, 480);
+});
+
+console.log('\nthe pattern engine: matching a pattern the client has');
+const PMATCH = require('../src/patterns/match');
+
+// One identity's tile-maker, so a match can be asked to recover a pattern this
+// engine drew. That is the strongest check available: the answer is known
+// because the picture was made to have it.
+const matchAgainst = (name) => {
+  const pr = projectLoader.load(path.join(__dirname, '..', 'projects', name, 'project.json'));
+  const mm = measure(pr);
+  const src = pr.assets[pr.master || (pr.assets.mark ? 'mark' : 'wordmark')].source;
+  const mk = PMARK.read(src, mm, pr.rules);
+  return {
+    project: pr,
+    make: (g, params) => PENG.tile({ mark: mk, generator: g, params: params || undefined,
+      colours: pr.tokens.colour, colourway: pr.rules.colourways[0] }),
+  };
+};
+
+test('a pattern this engine drew is matched back to the generator that drew it', () => {
+  // What twenty runs say, over two identities at two resolutions:
+  //
+  //   weave, zigzag        right every time, by 0.026 to 0.465
+  //   field, thread, terrace   right seven times in ten, by 0.004 to 0.021
+  //
+  // So the claim is not "the matcher names the generator". It is that the two
+  // hard-edged generators are recovered exactly, and that the three field
+  // generators are one family under these six measurements — which is a fact
+  // about the measurements, not a fault in the search, and is the reason `fit`
+  // reports every generator that ties with the winner instead of one answer.
+  const { make } = matchAgainst('meridian');
+  const FAMILY = ['field', 'thread', 'terrace'];
+  for (const truth of PENG.NAMES) {
+    const ref = PMATCH.asField(make(truth, null), 384);
+    const r = PMATCH.fit(ref, make, { px: 256, rounds: 2 });
+    if (truth === 'weave' || truth === 'zigzag') {
+      assert.strictEqual(r.generator, truth, `${truth} was matched as ${r.generator}`);
+      assert.ok(r.alsoFits.every((a) => a.generator !== truth),
+        `${truth} tied with itself, which cannot happen`);
+    } else {
+      assert.ok(FAMILY.indexOf(r.generator) > -1,
+        `${truth} was matched as ${r.generator}, which is not one of the field generators`);
+      // and the right one is either the winner or tied with it
+      assert.ok(r.generator === truth || r.alsoFits.some((a) => a.generator === truth),
+        `${truth} was not even tied with the winner ${r.generator}`);
+    }
+    assert.ok(r.score <= 0.05, `${truth} matched itself at only ${r.score}`);
+    assert.ok(r.rendered > 20 && r.rendered < 400, `${r.rendered} renders is not a small search`);
+  }
+});
+
+test('the two columns are read off both pictures with one ruler', () => {
+  // A period is in pixels and pixels are not a property of a pattern. The
+  // reference here is 512 px and the tile it is matched against is rendered at
+  // 256, so the same pattern read 64 px and 32 px and the table said the match
+  // was half the size it was. Both columns are stated at the reference's width.
+  const { make } = matchAgainst('meridian');
+  // A reference whose period is known because it was built with one — 64 px in
+  // a 512 px picture — rather than whichever tile happens to have a findable
+  // one. This check is about the ruler, so the thing being measured has to be
+  // beyond argument.
+  const ref = picture(512, 512, (x) => (Math.floor(x / 32) % 2 ? INK : PAPER));
+  assert.strictEqual(PMEAS.scale(ref).period, 64, 'the reference is not what it was built to be');
+  const r = PMATCH.fit(ref, make, { px: 256, rounds: 1 });
+  assert.strictEqual(r.table.ruler, 512, 'the table is not ruled by the reference');
+  const row = r.table.rows.find((x) => x[0] === 'Repeats every');
+  const theirs = parseInt(row[1], 10), mine = parseInt(row[2], 10);
+  assert.ok(Number.isFinite(theirs) && Number.isFinite(mine), `unreadable row ${row.join(' | ')}`);
+  assert.ok(Math.abs(theirs - mine) <= theirs * 0.25,
+    `one pattern read ${theirs} px and ${mine} px in the two columns`);
+  // and the table never says "no repeat" beside "a repeat" about one picture
+  for (const t of [r.theirs, r.mine]) {
+    if (!t.scale.found) assert.strictEqual(t.scale.regularity, 0,
+      'a picture with no period was given a regularity, which prints as "a repeat"');
+  }
+});
+
+test('a logo is not scored on the rows a logo does not have', () => {
+  // A mark is one drawing, not a repeat, so its autocorrelation reports the
+  // width of a stroke or nothing; and its ink share is the share inside its own
+  // box, which is not the share a pattern from it should carry. kvist's mark is
+  // 6% ink, and matching that row drove every sparse mark to the same answer at
+  // 0.40. Dropping the two rows a logo does not have took it to 0.14.
+  const { project, make } = matchAgainst('kvist');
+  const t0 = PENG.tile({ markSource: project.assets[project.master || 'mark'].source,
+    measured: measure(project), rules: project.rules,
+    colours: project.tokens.colour, colourway: project.rules.colourways[0] });
+  const src = project.assets[project.master || 'mark'].source;
+  const logo = PMATCH.logoField(src, 384, t0.pal.ground);
+  const r = PMATCH.fit(logo, make, { px: 256, rounds: 1, against: 'logo' });
+  assert.strictEqual(r.against, 'logo');
+  assert.deepStrictEqual(r.scored.sort(), ['coverage', 'hardness', 'orientation'],
+    `a logo was scored on ${r.scored.join(', ')}`);
+  assert.ok(r.score < 0.25, `the logo matched at only ${r.score}`);
+  // the rows it did not try to match say so, rather than reading as misses
+  const unscored = r.table.rows.filter((x) => x[3] === 'not matched').map((x) => x[0]);
+  assert.ok(unscored.indexOf('Repeats every') > -1 && unscored.indexOf('Repeat or tendency') > -1,
+    `the unmatched rows are ${unscored.join(', ')}`);
+  // and scoring it as a pattern is what was worse, which is why this exists
+  const asPattern = PMATCH.fit(logo, make, { px: 256, rounds: 1 });
+  assert.ok(asPattern.score > r.score,
+    `scoring a logo on all six was no worse (${asPattern.score} against ${r.score}), so this is testing nothing`);
+});
+
+test('direction is compared as a direction, not as a number', () => {
+  // Two pictures with no direction at all are not 90° apart because one
+  // rounded to 0 and the other to 90; and a picture that leans hard against one
+  // that does not lean at all is the plainest mismatch there is, which
+  // weighting the angle by the *weaker* of the two scored as agreement.
+  const even = { orientation: { angle: 0, strength: 0.02 }, coverage: 0.5, scale: { across: 8, regularity: 0.9 }, hardness: { value: 1 } };
+  const alsoEven = { orientation: { angle: 90, strength: 0.02 }, coverage: 0.5, scale: { across: 8, regularity: 0.9 }, hardness: { value: 1 } };
+  const lined = { orientation: { angle: 0, strength: 0.95 }, coverage: 0.5, scale: { across: 8, regularity: 0.9 }, hardness: { value: 1 } };
+  assert.ok(PMATCH.distance(even, alsoEven).parts.orientation < 0.05,
+    'two pictures with no direction were called a quarter turn apart');
+  assert.ok(PMATCH.distance(even, lined).parts.orientation > 0.4,
+    'a strong lean against no lean scored as agreement');
+  const across = { orientation: { angle: 90, strength: 0.95 }, coverage: 0.5, scale: { across: 8, regularity: 0.9 }, hardness: { value: 1 } };
+  assert.ok(PMATCH.distance(lined, across).parts.orientation > 0.8,
+    'two strong leans a quarter turn apart scored as close');
+});
+
+test('the same reference matches the same way twice', () => {
+  const { make } = matchAgainst('meridian');
+  const ref = PMATCH.asField(make('zigzag', null), 256);
+  const a = PMATCH.fit(ref, make, { px: 192, rounds: 1 });
+  const b = PMATCH.fit(ref, make, { px: 192, rounds: 1 });
+  assert.strictEqual(a.generator, b.generator);
+  assert.strictEqual(a.score, b.score);
+  assert.deepStrictEqual(a.params, b.params);
+  assert.deepStrictEqual(a.ranked, b.ranked);
+});
+
+test('a raster generator is measured through its own renderer, not its SVG', () => {
+  // terrace draws per pixel; its `paint` exists so a tile can go on a page and
+  // is at the lattice, not the pixel. Measuring the SVG would measure the
+  // coarse stand-in and match against a picture the package never ships.
+  const { make } = matchAgainst('meridian');
+  const t = make('terrace', null);
+  assert.strictEqual(t.vector, false, 'terrace claims to be vector');
+  const f = PMATCH.asField(t, 128);
+  assert.strictEqual(f.width, 128);
+  const g = PENG.GENERATORS.terrace;
+  const direct = g.render(128, 128, t.params, t.pal);
+  assert.strictEqual(Buffer.compare(Buffer.from(f.data), Buffer.from(direct.data)), 0,
+    'asField did not read terrace through terrace');
+});
+
 console.log('\nthe pattern engine: the studio');
 const PEMIT = require('../src/patterns/emit');
 
