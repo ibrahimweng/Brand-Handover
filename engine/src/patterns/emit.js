@@ -72,6 +72,7 @@ background:#23272A;cursor:pointer;padding:0;font-size:12px}
 .quiet{color:var(--dim);font-size:11px}
 #said{color:var(--dim);font-size:11px;min-width:160px;text-align:right}
 label.px{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim)}
+.tiny{font-size:11px;color:var(--dim);margin:6px 0 0;line-height:1.5}
 label.px input{width:72px;background:#23272A;border:1px solid var(--line);border-radius:3px;padding:4px 6px}
 @media (max-width:1100px){.app{grid-template-columns:230px 1fr}.side{grid-column:1/-1;border-left:0;border-top:1px solid var(--line)}}
 `;
@@ -134,6 +135,7 @@ function studioHtml(project, measured, made, chose, tile) {
     <h2>Its parameters</h2>
     <pre id="code"></pre>
     <div class="row"><button class="btn" id="copy">Copy them</button></div>
+    <p class="tiny">Paste this into project.json and every rebuild returns this pattern.</p>
   </aside>
 
   <footer class="bottom" aria-label="Kept patterns"><div id="kept"></div></footer>

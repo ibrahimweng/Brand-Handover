@@ -1202,9 +1202,27 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // pattern they can recolour, re-scale and regenerate, rather than the one
   // they already had with our name on it. Both columns go in the manual, so
   // the claim is one they can check rather than one they have to accept.
+  // A pattern somebody chose, written into the project file.
+  //
+  // This is the last of the three places the pattern can be decided, and the
+  // first in precedence: a person opened the studio, moved the controls until
+  // it was right, copied the parameters and put them in project.json. That is a
+  // decision, and a decision beats both a measurement of somebody's reference
+  // and a derivation from the mark. Every rebuild from then on returns it.
+  const SET = ((project.system || {}).patterns) || null;
+  const setGenerator = SET && PATTERNS.GENERATORS[SET.generator] ? SET.generator : null;
+  if (SET && SET.generator && !setGenerator) {
+    warnings.push(`system.patterns names "${SET.generator}", which is not one of the `
+      + `${PATTERNS.NAMES.length} generators (${PATTERNS.NAMES.join(', ')}). `
+      + 'The pattern was chosen from the artwork instead.');
+  }
+
   const MATCH = require('./patterns/match');
   let matched = null;
-  if (project.assets.patternReference) {
+  // A reference is measured only where nothing has been chosen by hand. Running
+  // the match anyway would cost thirteen seconds a build to produce an answer
+  // that is then thrown away.
+  if (project.assets.patternReference && !setGenerator) {
     const ref = MATCH.referenceField(project.assets.patternReference);
     const cw0 = rules.colourways[0];
     const make = (g, params) => PATTERNS.tile({ mark: patternMark, generator: g,
@@ -1231,7 +1249,8 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
           // every colourway. The others keep the ones the mark chose, so the
           // studio still opens on five real patterns rather than on one and
           // four that have been bent towards somebody else's.
-          params: matched && matched.generator === name ? matched.params : undefined,
+          params: setGenerator === name ? Object.assign({}, SET.params)
+            : matched && matched.generator === name ? matched.params : undefined,
           colours: project.tokens.colour, colourway: cw, size: sys.pattern.tile,
           id: `${name}-${naming.slug(cw.name)}` });
         // Where the match chose the parameters, the reason has to say so. The
@@ -1240,7 +1259,10 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
         // across, so a stripe is 5% of the tile" reads as the mark deciding,
         // when a picture the client supplied decided. brand.json, the studio
         // and the manual all print this one string, so it is corrected once.
-        if (matched && matched.generator === name) {
+        if (setGenerator === name) {
+          t.why = `this one was chosen by hand and written into project.json under `
+            + `system.patterns, so every rebuild returns it. ${t.why}`;
+        } else if (matched && matched.generator === name) {
           t.why = `this one is generated to measure like ${project.assets.patternReference.file}, `
             + `the pattern this brand already uses: ${matched.verdict.says}. `
             + `The mark still sets what it can — ${t.why.charAt(0).toLowerCase()}${t.why.slice(1)}`;
@@ -1273,7 +1295,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // one without the engine having to pick again somewhere else.
   // What the mark asks for, unless the brand brought a pattern — in which case
   // the one that measures like theirs is the one they should be given.
-  const patternChoice = matched ? matched.generator : PATTERNS.suits(patternMark);
+  const patternChoice = setGenerator || (matched ? matched.generator : PATTERNS.suits(patternMark));
   const patternPick = generated.find((g) => g.name === patternChoice) || generated[0];
   // And the studio, so the pattern is a thing the client keeps making rather
   // than a folder of finished files. Same discipline as editor.html: one file,
@@ -1507,6 +1529,9 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
         // just its conclusion: what was measured off theirs, what was measured
         // off ours, how close it came, and which other generators measured the
         // same as the one chosen.
+        // What was set by hand, if anything, so brand.json says which of the
+        // three decided: a person, a reference, or the artwork.
+        set: setGenerator ? { generator: setGenerator, params: SET.params || {} } : null,
         matched: matched ? {
           reference: project.assets.patternReference.file,
           generator: matched.generator, params: matched.params,
@@ -1837,9 +1862,15 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     const { bundle: mkBundle, starterDoc } = require('./editor/bundle');
     const EM = require('./editor/model');
     const { publish } = require('./editor/publish');
-    const bu = mkBundle(project, measured, wholePackage());
+    // The canvas is handed the pattern the build actually chose, parameters and
+    // all. Working them out again from the mark would give a different pattern
+    // for any identity whose own reference chose them — the same fault the
+    // manual page had, one file along.
+    const genForCanvas = { chose: patternChoice,
+      made: generated.map((g) => ({ generator: g.name, colourway: g.colourway, params: g.tile.params })) };
+    const bu = mkBundle(project, measured, wholePackage(), genForCanvas);
     const document = starterDoc(bu);
-    write('editor.html', editorHtml(project, measured, wholePackage()));
+    write('editor.html', editorHtml(project, measured, wholePackage(), genForCanvas));
     // a document carries the photographs it uses, or it opens with empty slots
     const IMG = require('./editor/images');
     const keep = IMG.used(document);

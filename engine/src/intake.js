@@ -340,6 +340,15 @@ function toProject(answers, seen) {
 
   // and then only what the six answers actually decide
   base.style = a.style && D.DIRECTIONS[a.style] ? a.style : undefined;
+  // A pattern chosen at the door, if one was. This is the step the pattern
+  // plan asks for: the parameters go into project.json rather than into one
+  // build's output, so every rebuild from that file returns the same pattern —
+  // and so what the client is handed is the recipe rather than the picture.
+  if (a.pattern && a.pattern.generator) {
+    base.system = Object.assign({}, base.system, {
+      patterns: { generator: a.pattern.generator, params: a.pattern.params || {} },
+    });
+  }
   base.rules.formats = formats;
   base.rules.pngWidths = pngWidths;
   if (favicons) base.rules.faviconSizes = favicons;

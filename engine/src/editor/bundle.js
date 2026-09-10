@@ -9,7 +9,13 @@ const system = require('../system');
 const pattern = require('../pattern');
 const IMG = require('./images');
 
-function bundle(project, measured, files = []) {
+// `generated` is the pattern engine's recipe — which generator, with what
+// parameters, in which colourway. It is passed in rather than worked out here,
+// because a project that brought a pattern of its own had its parameters chosen
+// by a *match* against that picture, and re-deriving them from the mark would
+// quietly hand the canvas a different pattern from the one in 07-pattern and in
+// the manual. The build knows the answer; this takes it.
+function bundle(project, measured, files = [], generated = null) {
   const cols = project.tokens.colour || {};
   const colours = {};
   for (const [name, c] of Object.entries(cols)) {
@@ -127,8 +133,21 @@ function bundle(project, measured, files = []) {
     patternRefused.push(...gen.refused);
   }
 
+  // Everything the canvas needs to draw a generated pattern and to keep
+  // drawing it after somebody has retouched it: the mark's measurements, the
+  // colours, and what was chosen. Under 6 KB, the same recipe the studio
+  // travels with — a pattern is arithmetic and a palette.
+  const PEMIT = require('../patterns/emit');
+  let genRecipe = null;
+  try {
+    genRecipe = PEMIT.bundle(project, measured,
+      (generated && generated.made) || [], generated && generated.chose,
+      rules.pattern && rules.pattern.tile);
+  } catch (e) { genRecipe = null; }
+
   return {
     brand: project.brand, version: project.version,
+    generated: genRecipe,
     language: project.language || 'en', direction: project.direction || 'ltr',
     system: {
       icons: rules.icons,

@@ -1872,6 +1872,145 @@ test('a reference that cannot be read is refused in words, not in a stack trace'
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
+test('the canvas carries the pattern engine, byte for byte, and the recipe the build chose', () => {
+  const EMIT = require('../src/editor/emit');
+  const html = EMIT.editorHtml(project, m, [], { chose: 'zigzag',
+    made: [{ generator: 'zigzag', colourway: project.rules.colourways[0].name, params: { style: 'ricrac', stripe: 0.11 } }] });
+  // Two copies of a generator is two patterns waiting to disagree, and the
+  // canvas is now the third place one could hide — after the build and the
+  // studio. Same files, byte for byte, exactly once.
+  const files = ['rand.js', 'noise.js', 'surface.js', 'palette.js', 'index.js',
+    'generators/weave.js', 'generators/zigzag.js', 'generators/field.js',
+    'generators/thread.js', 'generators/terrace.js'];
+  for (const f of files) {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'patterns', f), 'utf8');
+    const at = html.indexOf(src);
+    assert.ok(at > -1, `editor.html does not carry src/patterns/${f} as it is on disk`);
+    assert.strictEqual(html.indexOf(src, at + 1), -1, `editor.html carries src/patterns/${f} twice`);
+  }
+  // and the recipe it was handed, not one worked out again from the mark
+  const at = html.indexOf('HANDOVER_BUNDLE');
+  assert.ok(at > -1, 'the canvas has no bundle');
+  const bu = EMIT.bundle ? null : null;
+  assert.ok(/"chose"\s*:\s*"zigzag"/.test(html), 'the canvas was not told which generator the build chose');
+  assert.ok(/"ricrac"/.test(html), 'the canvas was not given the parameters the build wrote');
+});
+
+test('a project whose pattern was matched hands the canvas the matched parameters', async () => {
+  // The manual had this fault and it was fixed there; the canvas is the same
+  // fault one file along. Re-deriving from the mark gives salvage terrace,
+  // while its reference chose weave — so the canvas would draw a pattern that
+  // is in no other part of the package.
+  const p2 = projectLoader.load(path.join(__dirname, '..', 'projects', 'salvage', 'project.json'));
+  const m2 = measure(p2);
+  const out2 = fs.mkdtempSync(path.join(os.tmpdir(), 'canvasgen-'));
+  try {
+    await build(p2, out2);
+    const bj = JSON.parse(fs.readFileSync(path.join(out2, 'brand.json'), 'utf8'));
+    const chose = bj.system.patterns.chose;
+    const html = fs.readFileSync(path.join(out2, 'editor.html'), 'utf8');
+    assert.ok(new RegExp(`"chose"\\s*:\\s*"${chose}"`).test(html),
+      `the package chose ${chose} and the canvas was told something else`);
+    // and that is not what the mark alone would have said, or this proves nothing
+    const mk = PMARK.read(p2.assets[p2.master || 'mark'].source, m2, p2.rules);
+    assert.notStrictEqual(PENG.suits(mk), chose,
+      'the mark and the match agree for this fixture, so this check cannot fail');
+  } finally { fs.rmSync(out2, { recursive: true, force: true }); }
+});
+
+test('the generated pattern draws on a published page, where there is no browser', () => {
+  // This renderer draws the canvas *and* the page publish.js writes. The first
+  // version reached for window.PatternEngine, which in Node is undefined — so
+  // every published document would have had a hole exactly where the pattern
+  // was, and the canvas would have looked fine the whole time. "every block
+  // type renders without a DOM" caught it.
+  const EB = require('../src/editor/bundle');
+  const EM = require('../src/editor/model');
+  const ER = require('../src/editor/render');
+  const bu2 = EB.bundle(project, m, []);
+  const html = ER.block(EM.makeBlock('generated'), bu2);
+  assert.ok(html && !html.includes('hb-missing'), 'the block drew nothing outside a browser');
+  assert.ok(html.indexOf('<pattern ') > -1, 'no tile was laid');
+  // and it names the style the generator actually built, not the one it was
+  // handed — which is empty when nothing has been retouched
+  const label = /aria-label="([^"]*)"/.exec(html);
+  assert.ok(label && /\w,\s*\w/.test(label[1]), `the label has no style in it: ${label && label[1]}`);
+});
+
+test('retouching the pattern is one decision, so it lives on the document', () => {
+  // A brand pattern that is different on page 4 from page 9 is not a brand
+  // pattern. The parameters are on the document rather than on any one block,
+  // which is what makes retouching one change every one of them — the claim the
+  // canvas check drives in a browser, and this is its shape in the model.
+  const EM = require('../src/editor/model');
+  assert.ok(EM.KINDS.indexOf('generated') > -1, 'the canvas has no generated-pattern block');
+  assert.strictEqual(EM.kindOf('generated'), 'rule',
+    'the generated pattern is not a rule block, so it would be redrawn per page');
+  const props = EM.DEFAULTS.generated;
+  assert.ok(props, 'the block has no defaults');
+  for (const k of ['generator', 'params', 'style']) {
+    assert.strictEqual(props[k], undefined,
+      `a generated block carries "${k}" in its own props, so two of them could disagree`);
+  }
+  assert.ok(EM.SIZES.generated, 'the block has no size');
+});
+
+test('a pattern chosen by hand is written into the project and returned by every rebuild', async () => {
+  // Three things can decide the pattern, and they are in an order: a person who
+  // opened the studio and chose one, a picture the brand already uses, and the
+  // artwork. A decision beats a measurement.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'setpat-'));
+  const out2 = fs.mkdtempSync(path.join(os.tmpdir(), 'setout-'));
+  try {
+    const from = path.join(__dirname, '..', 'projects', 'salvage');
+    for (const f of ['mark.svg', 'wordmark.svg', 'pattern.png']) {
+      fs.copyFileSync(path.join(from, f), path.join(dir, f));
+    }
+    const raw = JSON.parse(fs.readFileSync(path.join(from, 'project.json'), 'utf8'));
+    raw.system = { patterns: { generator: 'thread', params: { style: 'curl', grain: 'close', weight: 7 } } };
+    fs.writeFileSync(path.join(dir, 'project.json'), JSON.stringify(raw, null, 2));
+    const p2 = projectLoader.load(path.join(dir, 'project.json'));
+    await build(p2, out2);
+    const bj = JSON.parse(fs.readFileSync(path.join(out2, 'brand.json'), 'utf8'));
+    assert.strictEqual(bj.system.patterns.chose, 'thread',
+      `the hand-set generator lost to ${bj.system.patterns.chose}`);
+    // salvage has a reference that chooses something else, so this is a real
+    // contest rather than two answers that happen to agree
+    assert.strictEqual(bj.system.patterns.matched, null,
+      'the reference was measured even though the pattern was already chosen');
+    const made = bj.system.patterns.made.filter((x) => x.generator === 'thread');
+    assert.ok(made.length, 'the chosen generator wrote no tile');
+    for (const one of made) {
+      assert.strictEqual(one.params.style, 'curl');
+      assert.strictEqual(one.params.grain, 'close');
+      assert.strictEqual(one.params.weight, 7);
+      assert.ok(/chosen by hand/.test(one.why), `the reason does not say who chose it: ${one.why}`);
+    }
+    assert.deepStrictEqual(bj.system.patterns.set,
+      { generator: 'thread', params: { style: 'curl', grain: 'close', weight: 7 } });
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(out2, { recursive: true, force: true });
+  }
+});
+
+test('a generator the engine does not have is refused at the door and in the file', () => {
+  // Named, not silently ignored: a project that says "spiral" and gets whatever
+  // the mark suggested has been overruled without being told.
+  const INT = require('../src/intake');
+  const seen = { master: 'mark', hasBoth: false, lockups: ['mark'], slots: [], colours: [
+    { name: 'ink', hex: '#111111', role: 'primary' }, { name: 'paper', hex: '#FFFFFF', role: 'ground' }] };
+  const withPattern = INT.toProject({ brand: 'Door', places: ['screen'],
+    pattern: { generator: 'thread', params: { style: 'curl' } } }, seen);
+  assert.deepStrictEqual(withPattern.system.patterns,
+    { generator: 'thread', params: { style: 'curl' } },
+    'the door did not write the chosen pattern into the project');
+  // and a door that was not asked writes nothing, so the engine's own choice stands
+  const without = INT.toProject({ brand: 'Door', places: ['screen'] }, seen);
+  assert.ok(!without.system || !without.system.patterns,
+    'the door invented a pattern nobody chose');
+});
+
 console.log('\nthe pattern engine: the studio');
 const PEMIT = require('../src/patterns/emit');
 
@@ -2570,7 +2709,8 @@ test('a tile is written for every density in every colourway, and for every gene
 
 console.log('\nrule blocks: on the page');
 test('the model knows a third kind', () => {
-  assert.deepStrictEqual(EM.RULE, ['pattern', 'iconGrid', 'motion', 'photography']);
+  assert.deepStrictEqual(EM.RULE, ['pattern', 'generated', 'iconGrid', 'motion', 'photography']);
+  assert.strictEqual(EM.kindOf('generated'), 'rule');
   assert.strictEqual(EM.kindOf('pattern'), 'rule');
   assert.strictEqual(EM.kindOf('lockup'), 'derived');
   assert.strictEqual(EM.kindOf('text'), 'plain');

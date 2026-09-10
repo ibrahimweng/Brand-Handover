@@ -18,7 +18,7 @@ const DERIVED = ['mark', 'lockup', 'construction', 'clearSpace', 'minimumSize', 
 // Rule blocks are the third kind. One decision, made once, generating every
 // instance after that. You place one and choose which instance to show; you
 // never redraw it and you never restate the rule.
-const RULE = ['pattern', 'iconGrid', 'motion', 'photography'];
+const RULE = ['pattern', 'generated', 'iconGrid', 'motion', 'photography'];
 const KINDS = [...PLAIN, ...DERIVED, ...RULE];
 const kindOf = (type) => (RULE.includes(type) ? 'rule' : DERIVED.includes(type) ? 'derived' : 'plain');
 
@@ -145,6 +145,9 @@ const DEFAULTS = {
   construction: {}, clearSpace: {}, minimumSize: { colourway: 'primary', on: 'ground' },
   palette: {}, contrast: { limit: 6 }, typeSpecimen: {}, assetIndex: {},
   pattern: { density: 'medium', colourway: 'ground', on: 'primary', caption: false },
+  // No generator or parameters here: they live on the document, so retouching
+  // one generated block changes every one of them. See render.js.
+  generated: { colourway: 'primary', on: 'ground', caption: false },
   iconGrid: { colourway: 'primary', on: 'ground', line: 'neutral', caption: true },
   motion: { colourway: 'ground', on: 'primary', caption: true },
   photography: { on: 'ground', caption: true },
@@ -155,7 +158,7 @@ const SIZES = {
   construction: { w: 380, h: 400 }, clearSpace: { w: 380, h: 400 }, minimumSize: { w: 640, h: 240 },
   palette: { w: 900, h: 260 }, contrast: { w: 820, h: 300 }, typeSpecimen: { w: 820, h: 300 },
   assetIndex: { w: 560, h: 320 },
-  pattern: { w: 620, h: 280 }, iconGrid: { w: 560, h: 420 }, motion: { w: 360, h: 360 },
+  pattern: { w: 620, h: 280 }, generated: { w: 620, h: 280 }, iconGrid: { w: 560, h: 420 }, motion: { w: 360, h: 360 },
   photography: { w: 560, h: 300 },
 };
 

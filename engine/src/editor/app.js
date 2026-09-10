@@ -32,8 +32,16 @@
   images.prune(doc);
   const syncImages = () => { BUNDLE.images = images.all(); };
   syncImages();
+  // The generated pattern's parameters live on the document rather than on any
+  // one block, because a brand pattern that is different on page 4 from page 9
+  // is not a brand pattern. The renderer is handed them, the way it is handed
+  // the images.
+  const syncPattern = () => { BUNDLE.docPattern = (H.get() || {}).pattern || null; };
+  // and once at the start, or a document reopened after a retouch draws what
+  // the engine chose rather than what the person left
 
   const H = M.history(doc);
+  BUNDLE.docPattern = (doc || {}).pattern || null;
   let pageId = H.get().pages[0].id;
   let selection = [];
   let scale = 1;
@@ -59,7 +67,28 @@
     }
   }
 
-  function change(fn) { H.apply(fn); persist(); draw(); }
+  function change(fn) { H.apply(fn); persist(); syncPattern(); draw(); }
+
+  // Retouching the pattern. One decision for the whole document, so it is
+  // written on the document and every generated block redraws.
+  function retouch(next) {
+    change((d) => {
+      const g = (BUNDLE.generated || {});
+      const now = Object.assign({ generator: g.chose, params: {} }, d.pattern || {});
+      if (next.generator && next.generator !== now.generator) {
+        // A style belongs to the generator that has it: weave's "plaid" handed
+        // to zigzag is not plaid, it is whatever zigzag does when it does not
+        // recognise a style, and it looks deliberate. Switching generator drops
+        // the parameters rather than carrying them across.
+        now.generator = next.generator; now.params = {};
+      } else if (next.params) {
+        now.params = Object.assign({}, now.params, next.params);
+      }
+      d.pattern = now;
+    });
+  }
+  const patternNow = () => Object.assign({ generator: (BUNDLE.generated || {}).chose, params: {} },
+    (H.get() || {}).pattern || {});
 
   // ------------------------------------------------------------- notices
   // The engine says what is wrong in words a designer uses, and the editor
@@ -485,7 +514,7 @@
     construction: 'cvBlockConstruction', clearSpace: 'cvBlockClearSpace',
     minimumSize: 'cvBlockMinimumSize', palette: 'cvBlockPalette',
     contrast: 'cvBlockContrast', typeSpecimen: 'cvBlockTypeSpecimen',
-    assetIndex: 'cvBlockAssetIndex', pattern: 'cvBlockPattern', iconGrid: 'cvBlockIconGrid',
+    assetIndex: 'cvBlockAssetIndex', pattern: 'cvBlockPattern', generated: 'cvBlockGenerated', iconGrid: 'cvBlockIconGrid',
     motion: 'cvBlockMotion', photography: 'cvBlockPhotography',
   };
   const nameOf = (t) => (NAME[t] ? T(NAME[t]) : t);
@@ -567,6 +596,36 @@
     // Tiles are cut per role and only where the ink can be seen on its ground,
     // so seven of meridian's ten menu entries had no tile behind them and the
     // block quietly drew a different colourway.
+    generated: (b) => {
+      const G = BUNDLE.generated;
+      const PE = typeof window !== 'undefined' ? window.PatternEngine : null;
+      if (!G || !PE) return `<p class="hint">${esc(T('cvNoGenerated'))}</p>`;
+      const now = patternNow();
+      const gen = PE.GENERATORS[now.generator] || PE.GENERATORS[G.chose];
+      const built = (G.made || []).find((m) => m.generator === now.generator) || {};
+      const p = Object.assign({}, built.params, now.params);
+      // Its own controls, declared by the generator, so a control this panel
+      // has never heard of still appears — the studio and the canvas offer the
+      // same rig because they read the same declaration.
+      const controls = (gen.controls || []).map((c) => {
+        if (c.type === 'chips') {
+          const list = c.key === 'style' ? gen.styles : (c.options || []);
+          return field(c.label, `<select data-pat="${c.key}">${opts(list, p[c.key])}</select>`);
+        }
+        if (c.type === 'range') {
+          return field(c.label, `<input type="range" data-pat="${c.key}" data-pat-num="1"`
+            + ` min="${c.min}" max="${c.max}" step="${c.step}" value="${Number(p[c.key]) || c.min}">`);
+        }
+        return '';
+      }).join('');
+      return `<p class="hint">${esc(T('cvRetouchAll'))}</p>`
+        + field(T('cvRetouch'), `<select data-pat="generator">${opts(PE.NAMES, now.generator)}</select>`)
+        + controls
+        + field(T('cvInk'), sel('colourway', COLOURS(), b.props.colourway))
+        + field(T('cvOn'), sel('on', COLOURS(), b.props.on))
+        + field(T('cvStateRule'), chk('caption', b.props.caption))
+        + `<button class="ghost" id="patback">${esc(T('cvRetouchBack'))}</button>`;
+    },
     pattern: (b) => field(T('cvDensity'), sel('density', Object.keys((BUNDLE.system.pattern || {}).densities || { medium: 1 }), b.props.density))
       + field(T('cvInk'), sel('colourway', PATTERN_INKS(), b.props.colourway)) + field(T('cvOn'), sel('on', COLOURS(), b.props.on))
       + field(T('cvStateRule'), chk('caption', b.props.caption)),
@@ -630,6 +689,17 @@
     if (clear) clear.onclick = () => { change((d) => M.ops.setProps(d, pageId, b.id, { image: null })); persistImages(); draw(); };
     const rq = $('#resetquad', box);
     if (rq) rq.onclick = () => change((d) => M.ops.setProps(d, pageId, b.id, { quad: M.clone(SU.DEFAULT) }));
+    // The pattern's own controls write to the document, not to this block.
+    box.querySelectorAll('[data-pat]').forEach((i) => {
+      const send = () => {
+        const key = i.dataset.pat;
+        const v = i.dataset.patNum ? Number(i.value) : i.value;
+        retouch(key === 'generator' ? { generator: v } : { params: { [key]: v } });
+      };
+      i.addEventListener(i.type === 'range' ? 'input' : 'change', send);
+    });
+    const pb = $('#patback', box);
+    if (pb) pb.onclick = () => change((d) => { delete d.pattern; });
   }
 
   // ------------------------------------------------------------- editing
@@ -853,7 +923,7 @@
   const INSERT = [
     [T('cvPlain'), ['text', 'rule', 'fill', 'slot', 'surface']],
     [T('badgeSystem'), ['mark', 'lockup', 'construction', 'clearSpace', 'minimumSize', 'palette', 'contrast', 'typeSpecimen', 'assetIndex']],
-    [T('badgeOnce'), ['pattern', 'iconGrid', 'motion', 'photography']],
+    [T('badgeOnce'), ['pattern', 'generated', 'iconGrid', 'motion', 'photography']],
   ];
   function drawInsert() {
     const box = $('#insert'); box.innerHTML = '';

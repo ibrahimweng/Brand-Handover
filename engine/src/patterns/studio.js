@@ -93,8 +93,15 @@
         + `where the mark allows ${(f.allowed * 100).toFixed(2)}%. It holds from ${f.px} px and ${f.mm} mm — `
         + 'below that the pattern goes before the mark does.'
       : `Holds from ${f.px} px and ${f.mm} mm, which is the size the mark itself holds at or larger.`;
-    $('#code').textContent = JSON.stringify({ generator: state.generator, colourway: state.colourway,
-      params: state.params }, null, 2);
+    // Exactly what goes in project.json, and nothing else.
+    //
+    // It used to print the colourway alongside, which is not part of the
+    // decision — a pattern is chosen once and drawn in every colourway the
+    // project cuts. Pasting it back in would have said "this pattern, and only
+    // in this one colour", which is not what anybody meant by copying it.
+    $('#code').textContent = JSON.stringify({
+      system: { patterns: { generator: state.generator, params: state.params } },
+    }, null, 2);
     // The SVG button is not offered for a pattern that has no vector form, and
     // the note says which kind this is rather than leaving it to be discovered.
     const vector = isVector();

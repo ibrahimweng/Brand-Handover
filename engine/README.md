@@ -1442,6 +1442,82 @@ said in those words. ネットワーク is one of the casualties: the subset has
 ワ, so the line says 回線 instead. Nothing about that is discoverable by
 reading; it is discoverable by a check that opens the font and asks.
 
+## Where the pattern is decided, and where it is changed
+
+Three things can decide it, and they are in an order, because a decision beats
+a measurement:
+
+    system.patterns in project.json    somebody opened the studio and chose
+    assets.patternReference            the brand already had a pattern
+    the artwork                        derive(), which has been the route since Round B
+
+A project that sets `system.patterns` is not asked about again: the reference is
+not even measured, which saves the thirteen seconds the match costs and, more to
+the point, does not produce an answer that would then be thrown away. The read
+me and `brand.json` say which of the three decided, and the tile's own reason
+says it in words — *"this one was chosen by hand and written into project.json
+under system.patterns, so every rebuild returns it."*
+
+The studio prints exactly what goes in the file, and nothing else:
+
+    { "system": { "patterns": { "generator": "thread",
+        "params": { "style": "curl", "grain": "close", "weight": 7 } } } }
+
+It used to print the colourway alongside. That is not part of the decision — a
+pattern is chosen once and drawn in every colourway the project cuts — and
+pasting it back would have said "this pattern, and only in this one colour",
+which is not what anybody meant by copying it.
+
+### Retouching it on the page
+
+`editor.html` has a **generated pattern** block, and this is the piece that came
+from a plain request: while a guide is being put together, the person putting it
+together should be able to change the pattern where they can see it, rather than
+export, reopen the studio, re-export and re-import.
+
+So the canvas carries the pattern engine — the same ten files the build drew
+`07-pattern/` from and the same ones `pattern-studio.html` carries, byte for
+byte, checked to appear exactly once. Two copies of a generator is two patterns
+waiting to disagree, and the canvas is the third place one could have hidden.
+
+**It is still a rule block.** The parameters live on the document, not on any
+one block, so retouching one changes every generated pattern in the document and
+the panel says so in those words. A brand pattern that is different on page 4
+from page 9 is not a brand pattern, and a canvas that quietly allowed it would
+be handing somebody a way to break their own system. Switching generator drops
+the parameters rather than carrying them across — weave's `plaid` handed to
+zigzag is not plaid, it is whatever zigzag does with a style it does not know,
+and it looks deliberate. That fault was found in Round C and is not repeated
+here.
+
+`test/canvas-check.mjs` drives it in Chromium: place two, retouch one, and see
+whether both follow, whether it lands on the document, and whether it is still
+there after a reload.
+
+    ok    a generated pattern can be placed        The terrace pattern, ridge | The terrace pattern, ridge
+    ok    its controls are on the page it is on    weave
+    ok    retouching one retouches every one       The weave pattern, diamond | The weave pattern, diamond
+    ok    it is written on the document, not on the block   {"generator":"weave","params":{}}
+    ok    and it is still there after a reload     The weave pattern, diamond | The weave pattern, diamond
+
+### The hole a check found
+
+The first version of the block reached for `window.PatternEngine`, which in a
+browser is the engine and in Node is undefined. The canvas looked right the
+whole time — and **every published document would have had a hole exactly where
+the pattern was**, because this renderer draws the canvas *and* the page
+`publish.js` writes. The suite said `generated did not render`, from a check
+called "every block type renders without a DOM" that has been there since long
+before any of this. The engine now arrives through the same UMD factory as
+`photography`, `print`, `surface` and `contrast`, which is how the other four
+have always crossed that line.
+
+And the canvas is **handed** the recipe rather than working it out again. That
+is the same fault the manual page had, one file along: re-deriving from the mark
+gives salvage `terrace`, while its reference chose `weave`, so the canvas would
+have drawn a pattern that appears nowhere else in the package. The check asserts
+the two disagree for that fixture, or it would be proving nothing.
+
 ## Rule blocks, the third kind
 
 A derived block reads a measurement. A rule block reads a **decision**. You make

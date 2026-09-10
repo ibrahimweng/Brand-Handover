@@ -175,8 +175,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 .hb-atab em{font-style:normal;opacity:.6}
 `;
 
-function editorHtml(project, measured, files) {
-  const bu = bundle(project, measured, files);
+function editorHtml(project, measured, files, generated = null) {
+  const bu = bundle(project, measured, files, generated);
   const doc = starterDoc(bu);
   // The canvas is an application, and its chrome is the engine's own words. It
   // carries the language it is written in, like the documents beside it — and
@@ -238,6 +238,20 @@ ${fontLink(bu)}
 <script>${read('../photography.js')}</script>
 <script>${read('../print.js')}</script>
 <script>${read('../surface.js')}</script>
+<!-- The pattern engine, so the canvas can draw a generated pattern and keep
+     drawing it after somebody has retouched it. The same files 07-pattern was
+     drawn from and the same files pattern-studio.html carries, byte for byte:
+     two copies of a generator is two patterns waiting to disagree. -->
+<script>${read('../patterns/rand.js')}</script>
+<script>${read('../patterns/noise.js')}</script>
+<script>${read('../patterns/surface.js')}</script>
+<script>${read('../patterns/palette.js')}</script>
+<script>${read('../patterns/generators/weave.js')}</script>
+<script>${read('../patterns/generators/zigzag.js')}</script>
+<script>${read('../patterns/generators/field.js')}</script>
+<script>${read('../patterns/generators/thread.js')}</script>
+<script>${read('../patterns/generators/terrace.js')}</script>
+<script>${read('../patterns/index.js')}</script>
 <script>${read('model.js')}</script>
 <script>${read('images.js')}</script>
 <script>${read('render.js')}</script>

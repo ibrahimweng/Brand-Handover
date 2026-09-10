@@ -3,9 +3,9 @@
    and no measuring at draw time. Everything expensive already happened in the
    engine; this only lays it out. */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('../photography'), require('../print'), require('../surface'), require('../contrast'));
-  else root.HandoverRender = factory(root.HandoverPhotography, root.HandoverPrint, root.HandoverSurface, root.HandoverContrast);
-}(typeof self !== 'undefined' ? self : this, function (PH, PR, SU, CO) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('../photography'), require('../print'), require('../surface'), require('../contrast'), require('../patterns'));
+  else root.HandoverRender = factory(root.HandoverPhotography, root.HandoverPrint, root.HandoverSurface, root.HandoverContrast, root.PatternEngine);
+}(typeof self !== 'undefined' ? self : this, function (PH, PR, SU, CO, PATENG) {
   'use strict';
 
   const esc = (s) => String(s == null ? '' : s)
@@ -436,6 +436,60 @@
       const rule = t(bu, 'cvPatternRule', { w: tile.width, h: tile.height, density: tile.density });
       return `<div style="width:100%;height:100%;display:flex;flex-direction:column;gap:6px">
         <div style="flex:1;min-height:0">${field}</div>${ruleCaption(rule, colour(bu, b.props.colourway))}</div>`;
+    },
+
+    // The generated pattern, drawn on the page and retouchable there.
+    //
+    // The other pattern block draws the tile cut from the mark. This one draws
+    // what src/patterns/ generates — and it exists because of a plain request:
+    // while a guide is being put together, the person putting it together
+    // should be able to retouch the pattern where they can see it, rather than
+    // export, reopen the studio, re-export and re-import.
+    //
+    // It is still a rule block. The parameters live on the document, not on the
+    // block, so retouching one changes every generated pattern in the document
+    // and the panel says so. A brand pattern that is different on page 4 from
+    // page 9 is not a brand pattern, and a canvas that quietly allowed it would
+    // be handing somebody a way to break their own system.
+    generated: (b, bu) => {
+      // The same engine on both sides. This renderer draws the canvas *and* the
+      // page publish.js writes, so a block that only worked in a browser would
+      // leave a hole in every published document — which is what "every block
+      // type renders without a DOM" is for, and what it caught.
+      const PE = PATENG;
+      const g = bu.generated;
+      if (!PE || !g) return `<div class="hb-missing">${esc(t(bu, 'cvNoGenerated'))}</div>`;
+      // What the person has retouched, if anything. It arrives on the bundle
+      // the way images do — the renderer is handed state, it does not reach for
+      // the document.
+      const want = bu.docPattern || {};
+      const name = want.generator || g.chose;
+      const gen = PE.GENERATORS[name];
+      if (!gen) return `<div class="hb-missing">${esc(t(bu, 'cvNoGenerated'))}</div>`;
+      const way = cwName(bu, b.props.colourway || 'primary', b.props.on || 'ground');
+      const cw = (g.colourways || []).find((c) => c.name === way) || (g.colourways || [])[0];
+      // Where the person has retouched it, those parameters. Otherwise the ones
+      // the build wrote, for this generator, so the canvas opens on the pattern
+      // in 07-pattern rather than on a fresh derivation of it.
+      const built = (g.made || []).find((m) => m.generator === name
+        && (!cw || m.colourway === cw.name)) || (g.made || []).find((m) => m.generator === name);
+      const params = Object.assign({}, built && built.params, want.params);
+      let tile;
+      try {
+        tile = PE.tile({ mark: g.measured, generator: name, params,
+          colours: g.colours, colourway: cw, size: g.tile, id: 'g' + b.id });
+      } catch (e) { return `<div class="hb-missing">${esc(t(bu, 'cvNoGenerated'))}</div>`; }
+      const pid = 'g' + esc(b.id);
+      const S = g.tile || 100;
+      const field = `<svg viewBox="0 0 ${b.w} ${b.h}" preserveAspectRatio="none" style="width:100%;height:100%;display:block" role="img" aria-label="${esc(t(bu, 'cvArtGenerated', { generator: name, style: (tile.params || params).style || '' }))}">
+        <defs><pattern id="${pid}" width="${S}" height="${S}" patternUnits="userSpaceOnUse">${tile.body}</pattern></defs>
+        <rect width="${b.w}" height="${b.h}" fill="${colour(bu, b.props.on)}"/>
+        <rect width="${b.w}" height="${b.h}" fill="url(#${pid})"/></svg>`;
+      if (!b.props.caption) return field;
+      return `<div style="width:100%;height:100%;display:flex;flex-direction:column;gap:6px">
+        <div style="flex:1;min-height:0">${field}</div>${ruleCaption(
+        t(bu, 'cvGeneratedRule', { generator: name, style: (tile.params || params).style || '' }),
+        colour(bu, b.props.colourway))}</div>`;
     },
 
     iconGrid: (b, bu) => {

@@ -202,6 +202,58 @@ for (const p of painted) {
 check('the application meets its own standard', fails.length === 0,
   fails.length ? fails.slice(0, 4).join(' | ') : `${painted.length} pieces of text measured on the ground each is actually on`);
 
+// ------------------------------------------- retouching the pattern in place
+//
+// The reason this block exists is a plain request: while a guide is being put
+// together, the person putting it together should be able to change the pattern
+// where they can see it, rather than export, reopen the studio, re-export and
+// re-import. And a brand pattern that is different on page 4 from page 9 is not
+// a brand pattern — so the claim is that retouching one changes every one, and
+// that it survives a reload. Neither is checkable by reading.
+console.log('\nretouching the pattern');
+const addGenerated = async () => {
+  await page.evaluate(() => {
+    const b = [...document.querySelectorAll('button')].find((x) => /generated pattern/i.test(x.textContent));
+    if (b) b.click();
+  });
+  await page.waitForTimeout(200);
+};
+const patternLabels = () => page.evaluate(() => [...document.querySelectorAll('#sheet svg')]
+  .map((s) => s.getAttribute('aria-label')).filter((x) => x && / pattern,/.test(x)));
+await addGenerated();
+await addGenerated();
+const placed = await patternLabels();
+check('a generated pattern can be placed', placed.length === 2,
+  placed.length ? placed.join(' | ') : 'nothing was drawn');
+const swap = await page.evaluate(() => {
+  const el = [...document.querySelectorAll('#sheet [data-id]')].pop();
+  if (el) { el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true })); }
+  return true;
+});
+await page.waitForTimeout(200);
+const picked = await page.evaluate(() => {
+  const s = document.querySelector('[data-pat="generator"]');
+  if (!s) return null;
+  const want = [...s.options].map((o) => o.value).find((v) => v !== s.value);
+  s.value = want; s.dispatchEvent(new Event('change', { bubbles: true }));
+  return want;
+});
+check('its controls are on the page it is on', !!picked, picked || 'no generator control in the panel');
+await page.waitForTimeout(300);
+const after = await patternLabels();
+check('retouching one retouches every one',
+  after.length === 2 && after[0] === after[1] && !!picked && after[0].includes(picked),
+  after.join(' | '));
+const onDoc = await page.evaluate(() => JSON.stringify((window.__handover.doc || {}).pattern || null));
+check('it is written on the document, not on the block', /"generator"/.test(onDoc || ''), onDoc || 'nothing');
+await page.reload();
+await page.waitForFunction(() => window.__handover);
+await page.waitForTimeout(300);
+const back = await patternLabels();
+check('and it is still there after a reload',
+  back.length === 2 && !!picked && back[0].includes(picked), back.join(' | ') || 'nothing came back');
+
 // ------------------------------------------------------------------ the rest
 console.log('\nthe rest');
 const live = await page.evaluate(() => ({

@@ -3111,3 +3111,61 @@ the block directly now, with a list whose first entry is deliberately not the
 chosen one.
 
 Round E of six. Next is the last one: the front-door step and the editor block.
+
+
+---
+
+**The pattern, where the client actually changes it**
+
+The last round of six, and the one that makes the pattern a thing the client
+keeps using rather than a folder of files they were sent.
+
+**Three things can decide the pattern, and they are in an order.** A person who
+opened the studio and chose one beats a picture the brand already had, which
+beats the artwork. A project that sets `system.patterns` is not asked again —
+the reference is not even measured, which saves the thirteen seconds the match
+costs and, more to the point, avoids producing an answer that is then discarded.
+The read me and `brand.json` say which of the three decided, and the tile's own
+reason says it in words.
+
+The studio prints exactly what goes in `project.json` and nothing else. It used
+to print the colourway alongside; that is not part of the decision — a pattern is
+chosen once and drawn in every colourway the project cuts — and pasting it back
+would have meant "this pattern, and only in this one colour", which is not what
+anybody meant by copying it.
+
+**And the pattern can be retouched on the page it is on.** `editor.html` has a
+generated-pattern block now, because exporting, reopening the studio,
+re-exporting and re-importing is not a way to lay out a guide. The canvas
+carries the pattern engine — the same ten files the build drew `07-pattern/`
+from and the same ones the studio carries, byte for byte, checked to appear
+exactly once. Two copies of a generator is two patterns waiting to disagree, and
+the canvas was the third place one could have hidden.
+
+It is still one decision. The parameters live on the document rather than on any
+one block, so retouching one changes every generated pattern in the document and
+the panel says so. A brand pattern that is different on page 4 from page 9 is
+not a brand pattern, and a canvas that quietly allowed it would be handing
+somebody a way to break their own system. Driven in Chromium: place two, retouch
+one, both follow, it lands on the document, and it survives a reload.
+
+    ok    a generated pattern can be placed        terrace, ridge | terrace, ridge
+    ok    retouching one retouches every one       weave, diamond | weave, diamond
+    ok    and it is still there after a reload     weave, diamond | weave, diamond
+
+**And a hole a check found.** The first version of the block reached for
+`window.PatternEngine` — the engine in a browser, undefined in Node. The canvas
+looked right the whole time, and every published document would have had a hole
+exactly where the pattern was, because this renderer draws the canvas *and* the
+page `publish.js` writes. A check called "every block type renders without a
+DOM", there since long before any of this, said `generated did not render`.
+
+The canvas is **handed** the recipe rather than working it out again — the same
+fault the manual page had, one file along. Re-deriving from the mark gives
+salvage `terrace` while its reference chose `weave`, so the canvas would have
+drawn a pattern that appears nowhere else in the package. The check asserts
+those two disagree for that fixture, or it would be proving nothing.
+
+Six reversions, six caught. That is six rounds of six: the surface contract, two
+generators, the studio, the field family, measuring and matching, and the two
+places a pattern is changed.
