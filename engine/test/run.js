@@ -117,6 +117,122 @@ test('the answer is about the drawing, not about how big it was rendered', () =>
   assert.strictEqual(nothing.share, 0);
 });
 
+test('a stroke over the rule is over it, however fine the rule is', () => {
+  // The reading that used to move. A ring stroked eleven units, asked whether
+  // it is under ten, is not: it is a tenth over. Measured with the rule at four
+  // pixels of the render it came back 71% under, at six 3%, at eight 52%, at
+  // nine and up 0%. The drawing never changed. What changed was whether the
+  // core — the ink left after eroding by half the rule — was a continuous
+  // thing on the grid or a dotted line, and the core is only as wide as the
+  // ink exceeds the rule.
+  //
+  // So the render is chosen from the question: asking about a finer rule draws
+  // the artwork larger, and the rule stays at least THICK.GRID pixels of it
+  // whatever is asked. Here the ring is shrunk against a fixed box, which is
+  // the same thing as asking about a bigger and bigger size on a screen.
+  const ring = (w) => thBox(`<circle cx="60" cy="60" r="45" fill="none" stroke="#000" stroke-width="${w}"/>`);
+  const pc = (x) => `${(x * 100).toFixed(0)}%`;
+  for (const k of [1, 0.5, 0.25, 0.1]) {
+    const rule = 10 * k;
+    const half = THICK.under(ring(15 * k), 120, rule);      // half again over
+    const third = THICK.under(ring(6.7 * k), 120, rule);    // a third under
+    assert.ok(half.seen && third.seen, `a rule of ${rule} units should be visible`);
+    assert.ok(half.most < 0.05, `a stroke half again over the rule read ${pc(half.most)} under it at ${rule}`);
+    assert.ok(third.least > 0.95, `a stroke a third under the rule read only ${pc(third.least)} under it at ${rule}`);
+    // A tenth either way is inside what the grid can resolve at the coarsest
+    // render this allows, so a stroke a tenth over may come back "on the rule"
+    // — but a stroke a tenth under has to be called under it. Measured from
+    // pixel middles it would not be: every stroke reads half a pixel thicker
+    // than it is at each edge, which is the whole of a tenth when the rule is
+    // twelve pixels, and the instrument would pass artwork that will not hold.
+    assert.ok(THICK.under(ring(11 * k), 120, rule).least < 0.05, `a tenth over read ${rule} as under`);
+    assert.ok(THICK.under(ring(9 * k), 120, rule).least > 0.5,
+      `a stroke a tenth under a rule of ${rule} was not called under it`);
+  }
+});
+
+test('and when the rule is finer than the grid, the answer is that there was none', () => {
+  // A rule is a share of the width, so the bigger the size asked about the
+  // smaller the share, and past a point no render this will make can hold it.
+  // The number it would give there is a confident nothing — an opening with a
+  // disc smaller than a pixel erodes nothing, so everything survives and every
+  // drawing is thick enough. That is the whole reason for saying so instead.
+  const fine = THICK.under(thBox('<circle cx="60" cy="60" r="45" fill="none" stroke="#000" stroke-width="0.45"/>'),
+    120, 0.5);
+  assert.strictEqual(fine.seen, false, 'a rule of 0.5 units in a 120 unit box cannot be seen');
+  assert.ok(fine.most < 0.01,
+    `and the number it would have given is ${(fine.most * 100).toFixed(1)}%, of a stroke that is under the rule`);
+  // said as a size on a screen, with a 3 px minimum, that is everything past
+  const bar = THICK.at(BAR, 120, 4096, 3);
+  assert.strictEqual(bar.seen, false);
+  assert.ok(THICK.at(BAR, 120, Math.floor(THICK.seesUpTo(3) * 0.9), 3).seen, 'and everything below it can');
+});
+
+test('the smallest size that holds is the smallest size that holds', () => {
+  // Asked of every size from the bottom, so the answer is the first one that
+  // holds and the size below it does not. The first version of this strode up
+  // the list and narrowed, on the reasoning that the share only falls as the
+  // drawing grows. That was true of one fixed render and is not true now the
+  // render follows the question: checked against asking every size it gave a
+  // different answer for 30 of the 142 drawings in projects/, and sometimes a
+  // smaller one — a size at which the drawing does not hold at all.
+  const sizes = [8, 10, 12, 16, 20, 24, 32, 40, 48, 64, 80, 96, 128, 160, 192, 256, 320, 384, 512];
+  const bar = (w) => thBox(`<rect x="${60 - w / 2}" y="10" width="${w}" height="100" fill="#000"/>`);
+  for (const w of [40, 20, 10, 6, 4, 3, 2, 1.5, 1.2, 1, 0.8]) {
+    const svg = bar(w);
+    const eye = THICK.looker(svg, 120);
+    const got = THICK.holdsFrom(svg, 120, 3, 0.02, sizes, eye);
+    if (got.at == null) {
+      for (const s of sizes.filter((x) => x <= THICK.seesUpTo(3))) {
+        const r = eye.holdsAt(s, 3);
+        assert.ok(!r.seen || r.share > 0.02, `a bar ${w} wide holds at ${s} px, and it said never`);
+      }
+      continue;
+    }
+    assert.ok(eye.holdsAt(got.at, 3).share <= 0.02, `a bar ${w} wide does not hold at the ${got.at} it named`);
+    const below = sizes[sizes.indexOf(got.at) - 1];
+    if (below) assert.ok(eye.holdsAt(below, 3).share > 0.02,
+      `a bar ${w} wide named ${got.at} but holds at ${below} too`);
+  }
+});
+
+test('a stroke exactly on the rule is on it, and is not given a number', () => {
+  // The case every stated floor is: the size a package prints is the size at
+  // which its thinnest stroke is exactly the minimum, so the rule lands on the
+  // stroke it came from and the answer depends on the render and nothing else.
+  // A ring stroked ten units, asked whether it is under ten:
+  //
+  //     render      600    700    800    900   1100   1400
+  //     one number  100%    74%    86%    82%   100%    83%
+  //
+  // Read once, any of those is a finding. So it is not read once.
+  const ring = thBox('<circle cx="60" cy="60" r="45" fill="none" stroke="#000" stroke-width="10"/>');
+  for (const r of [600, 700, 900, 1400]) {
+    const d = THICK.drawing(ring, 120, r);
+    const b = THICK.around(d.img, 10 * (d.img.width / 120));
+    assert.ok(b.onRule, `at ${r} px it said ${(b.least * 100).toFixed(0)}% to ${(b.most * 100).toFixed(0)}%, which is a number`);
+  }
+  // and a stroke that is not on the rule is not called on it
+  const clear = thBox('<circle cx="60" cy="60" r="45" fill="none" stroke="#000" stroke-width="20"/>');
+  assert.strictEqual(THICK.under(clear, 120, 10).onRule, false);
+});
+
+test('a size list that runs past what can be seen says so, rather than holding', () => {
+  // A hairline in a big box holds at no size anybody uses. The list of sizes
+  // runs to 4096, the rule goes finer with every step of it, and the last few
+  // steps are past seeing. Answering "holds from 1024" off those would be
+  // reading the grid.
+  const hair = thBox('<rect x="59.8" y="10" width="0.4" height="100" fill="#000"/>'
+    + '<rect x="20" y="10" width="20" height="100" fill="#000"/>');
+  const sizes = [8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096];
+  const held = THICK.holdsFrom(hair, 120, 3, 0.02, sizes);
+  assert.strictEqual(held.at, null, `it said the hairline holds from ${held.at} px`);
+  assert.strictEqual(held.seen, false, 'and it should say it stopped looking, not that it looked everywhere');
+  // the same drawing without the hairline holds, and inside what can be seen
+  const solid = THICK.holdsFrom(thBox('<rect x="20" y="10" width="20" height="100" fill="#000"/>'), 120, 3, 0.02, sizes);
+  assert.ok(solid.at != null && solid.seen, `the bar alone holds from ${solid.at}`);
+});
+
 test('a stem falls off a cliff and a taper does not, which is the whole question', () => {
   // This is what a floor is really asking, and what the number geometry.js
   // states cannot express. A ring is its stroke: above the size where the
@@ -127,9 +243,21 @@ test('a stem falls off a cliff and a taper does not, which is the whole question
   const ring = THICK.curve(thBox('<circle cx="60" cy="60" r="45" fill="none" stroke="#000" stroke-width="9"/>'),
     120, 2.4, sizes);
   const tri = THICK.curve(thBox('<path d="M60 10L110 110H10Z" fill="#000"/>'), 120, 2.4, sizes);
-  const rc = THICK.steepest(ring), tc = THICK.steepest(tri);
-  assert.ok(rc.drop > 0.9, `the ring's worst fall is only ${(rc.drop * 100).toFixed(0)}%`);
-  assert.deepStrictEqual(rc.between, [24, 32], 'and it should be where its stroke crosses the rule');
+  const tc = THICK.steepest(tri);
+  // The ring's stroke is 9 units, and a 2.4 px rule is 9 units at exactly 32 px
+  // wide — so 32 px is the size at which the stroke *is* the rule, and the ring
+  // is neither over it nor under it there. The fall is on either side of that
+  // size and not across a single step of the list:
+  //
+  //     8     12     16     24     32     48     64
+  //   100%   100%   100%   100%    78%     0%     0%
+  //
+  // which is the cliff, with the one honest reading in the middle of it.
+  const share = (w) => ring[sizes.indexOf(w)].share;
+  assert.ok(share(24) - share(48) > 0.9,
+    `the ring falls only ${((share(24) - share(48)) * 100).toFixed(0)}% either side of its own rule`);
+  assert.ok(share(32) > 0.05 && share(32) < 0.95,
+    `at the size where its stroke is exactly the rule it read ${(share(32) * 100).toFixed(0)}%`);
   assert.ok(tc.drop < 0.2, `the triangle falls off a cliff of ${(tc.drop * 100).toFixed(0)}%`);
   // and at every size the triangle loses a little more of its tip and no more
   assert.ok(tri[0].share < 0.2 && tri[0].share > 0.02,
@@ -211,11 +339,21 @@ before(async () => { result = await build(project, out); });
 // A rule block is set once and generates every instance, so its file count is
 // arithmetic too: one tile per density per colourway, less any the contrast
 // check refused.
-function patternTiles() {
+// Two kinds of pattern go into 07-pattern now. The repeated one — a shape cut
+// from the mark, tiled at each density — and the generated ones, one per
+// generator per colourway, built from the mark's measurements. Counted
+// separately because they are two different things and a change to either
+// should be visible here rather than absorbed into one number.
+function repeatedTiles() {
   const dens = Object.keys(require('../src/system').patternRules((project.system || {}).pattern).densities).length;
   const refused = result.warnings.filter((w) => /^pattern .+ was not written/.test(w)).length;
   return dens * project.rules.colourways.length - refused;
 }
+function generatedTiles() {
+  const refused = result.warnings.filter((w) => /^the \w+ pattern was not built/.test(w)).length;
+  return require('../src/patterns').NAMES.length * project.rules.colourways.length - refused;
+}
+const patternTiles = () => repeatedTiles() + generatedTiles();
 test('the file count is exactly what the rules ask for', () => {
   const r = project.rules;
   const perVariant = ['svg', 'pdf', 'ai'].filter((f) => r.formats.includes(f)).length
@@ -225,7 +363,8 @@ test('the file count is exactly what the rules ask for', () => {
     + (r.iconSizes || []).length                            // app and touch icons
     + (r.faviconSizes || []).length + ((r.faviconSizes || []).length ? 1 : 0)  // favicons plus the .ico
     + Object.keys(r.social || {}).length                    // social crops
-    + patternTiles()                                        // the pattern, at every density, in every colourway
+    + repeatedTiles()                                       // the mark, tiled at every density in every colourway
+    + generatedTiles()                                      // and one generated tile per generator per colourway
     + 5                                                     // brand.json, README.txt, LICENCE.txt, usage.json
                                                             // and ACCESSIBILITY.txt
     + require('../src/typefaces').embed(project.tokens.type, null).used.length + 1  // 09-type and its OFL
@@ -593,6 +732,482 @@ test('every finding says what, why and how, in words a designer uses', () => {
     assert.ok(f.what && f.why && f.how, 'a finding was missing one of its three parts');
     assert.ok(!/viewBox|stroke-width=|nodeName/.test(f.what), `"${f.what}" is written in code, not English`);
   }
+});
+
+console.log('\nthe pattern engine: seeds, noise and surfaces');
+const PRAND = require('../src/patterns/rand');
+const PNOISE = require('../src/patterns/noise');
+const PSURF = require('../src/patterns/surface');
+const PSEAM = require('../src/patterns/seam');
+const PRAST = require('../src/patterns/raster');
+
+// Rendered ink, so a claim about where a shape landed is checked against
+// pixels rather than against the string that was supposed to draw it.
+function pixelsOf(svgString, widthPx) {
+  const { Resvg } = require('@resvg/resvg-js');
+  const r = new Resvg(svgString, { fitTo: { mode: 'width', value: widthPx },
+    background: 'rgba(255,255,255,255)' }).render();
+  const at = (x, y) => {
+    const i = ((y | 0) * r.width + (x | 0)) * 4;
+    return [r.pixels[i], r.pixels[i + 1], r.pixels[i + 2]];
+  };
+  return { at, w: r.width, h: r.height };
+}
+const near = (got, want, tol) => got.every((c, i) => Math.abs(c - want[i]) <= (tol == null ? 12 : tol));
+
+test('a seed gives the same numbers every time, and a name gives its own stream', () => {
+  const a = PRAND.stream(7, 'colour'), b = PRAND.stream(7, 'colour'), c = PRAND.stream(7, 'coverage');
+  const A = [a(), a(), a(), a()], B = [b(), b(), b(), b()], C = [c(), c(), c(), c()];
+  assert.deepStrictEqual(A, B, 'the same seed and name gave two different sequences');
+  assert.notDeepStrictEqual(A, C, 'two names off one seed gave the same sequence, so a slider re-deals everything');
+  assert.ok(A.every((x) => x >= 0 && x < 1), 'a value fell outside [0,1)');
+  // and it is not degenerate: 200k draws should sit on a half
+  let s = 0; const r = PRAND.stream(1, 'x');
+  for (let i = 0; i < 200000; i++) s += r();
+  assert.ok(Math.abs(s / 200000 - 0.5) < 0.005, `the mean of 200k draws was ${(s / 200000).toFixed(4)}`);
+});
+
+test('the noise comes back round exactly, not nearly', () => {
+  // A tile is seamless because the field is periodic, and periodic here means
+  // equal in the last bit — not smoothed at the join, not cross-faded. If this
+  // ever reads 1e-9 instead of 0 something has started interpolating across
+  // the boundary and the seam will be findable at some size.
+  const r = PRAND.stream(99, 'probe');
+  let worstN = 0, worstF = 0, worstW = 0;
+  for (let i = 0; i < 1500; i++) {
+    const x = r.range(-50, 50), y = r.range(-50, 50);
+    const px = 8, py = 5, kx = r.int(9) - 4, ky = r.int(9) - 4;
+    worstN = Math.max(worstN, Math.abs(
+      PNOISE.noise2(x, y, px, py, 3) - PNOISE.noise2(x + kx * px, y + ky * py, px, py, 3)));
+    worstF = Math.max(worstF, Math.abs(
+      PNOISE.fbm2(x, y, px, py, 6, 3) - PNOISE.fbm2(x + kx * px, y + ky * py, px, py, 6, 3)));
+    const a = PNOISE.warp2(x, y, px, py, 1.3, 3, 3);
+    const b = PNOISE.warp2(x + kx * px, y + ky * py, px, py, 1.3, 3, 3);
+    worstW = Math.max(worstW, Math.abs(
+      PNOISE.fbm2(a[0], a[1], px, py, 4, 7) - PNOISE.fbm2(b[0], b[1], px, py, 4, 7)));
+  }
+  assert.strictEqual(worstN, 0, `plain noise differed by ${worstN} a whole period away`);
+  assert.strictEqual(worstF, 0, `six octaves differed by ${worstF} a whole period away — an octave is not wrapping`);
+  // the warp adds a period to a coordinate before sampling, so it carries the
+  // rounding of that addition and nothing more
+  assert.ok(worstW < 1e-9, `a warped field differed by ${worstW} a whole period away`);
+});
+
+test('summed octaves pile up in the middle, and the flattening is arithmetic not a fudge', () => {
+  // Six octaves sampled into ten bins come out 0.0 0.8 5.1 21.4 31.9 25.7 12.0
+  // 3.0 0.1 0.0. Posterise that into ten colours and two never appear and one
+  // takes a third of the tile. It is the central limit theorem, so it has an
+  // exact answer: the octaves are independent, so the sum's spread is the root
+  // of the sum of their squared amplitudes over their sum.
+  const P = 8, G = 300;
+  const field = (oct) => {
+    const raw = []; let s = 0, s2 = 0;
+    for (let y = 0; y < G; y++) {
+      for (let x = 0; x < G; x++) {
+        const v = PNOISE.fbm2(x / G * P, y / G * P, P, P, oct, 1);
+        raw.push(v); s += v; s2 += v * v;
+      }
+    }
+    const mean = s / raw.length;
+    return { raw, mean, sd: Math.sqrt(s2 / raw.length - mean * mean) };
+  };
+  const bins = (values, f) => {
+    const b = new Array(10).fill(0);
+    for (const v of values) b[Math.max(0, Math.min(9, Math.floor(f(v) * 10)))]++;
+    return b.map((n) => (n / values.length) * 100);
+  };
+  for (const oct of [1, 2, 4, 6]) {
+    const f = field(oct);
+    // the arithmetic, against the field
+    assert.ok(Math.abs(PNOISE.sdOf(oct) - f.sd) < 0.004,
+      `${oct} octaves measured a spread of ${f.sd.toFixed(4)} and the arithmetic says ${PNOISE.sdOf(oct).toFixed(4)}`);
+    // and the flattening does what it is for
+    const flat = bins(f.raw, (v) => PNOISE.evenly(v, oct, f.mean, f.sd));
+    assert.ok(Math.max(...flat) < 15,
+      `${oct} octaves flattened still put ${Math.max(...flat).toFixed(0)}% of the field in one tenth`);
+    assert.ok(Math.min(...flat) > 5,
+      `${oct} octaves flattened left a tenth with only ${Math.min(...flat).toFixed(1)}% in it`);
+  }
+  // and the raw field really is as lopsided as that says — otherwise the
+  // flattening is fixing nothing and this test would pass either way
+  const six = field(6);
+  const raw = bins(six.raw, (v) => v);
+  assert.ok(Math.max(...raw) > 25, `the raw six-octave field was already even: worst bin ${Math.max(...raw).toFixed(0)}%`);
+  assert.ok(Math.min(...raw) < 1, 'the raw six-octave field reached every bin');
+});
+
+test('the recorder puts a shape where the arithmetic says it is', () => {
+  const s = PSURF.svg({ width: 100, height: 100, id: 't' });
+  s.fillStyle = '#CC0000'; s.fillRect(10, 10, 30, 20);
+  const p = pixelsOf(s.toSVG(), 100);
+  assert.ok(near(p.at(25, 20), [204, 0, 0]), `inside the rect was ${p.at(25, 20)}`);
+  assert.ok(near(p.at(5, 5), [255, 255, 255]), `outside it was ${p.at(5, 5)}`);
+  assert.ok(near(p.at(45, 20), [255, 255, 255]), 'the rect ran past its width');
+  assert.ok(near(p.at(25, 35), [255, 255, 255]), 'the rect ran past its height');
+});
+
+test('a transform is baked into the coordinates, not left as an attribute', () => {
+  // A tile is a file somebody opens and recolours. Nested transforms are the
+  // reason that is usually miserable, and they also stop a run of cells being
+  // merged into one rectangle.
+  const s = PSURF.svg({ width: 100, height: 100, id: 't' });
+  s.save(); s.translate(70, 30); s.rotate(Math.PI / 4); s.fillStyle = '#0000CC';
+  s.fillRect(-10, -10, 20, 20); s.restore();
+  const out = s.toSVG();
+  assert.ok(!/transform=/.test(out), 'the recorder emitted a transform attribute');
+  // a square turned 45° about (70,30) has its corners on the axes through it
+  assert.ok(/M70 15.858/.test(out), `the rotated corners came out as ${out.match(/d="[^"]*"/)}`);
+  const p = pixelsOf(out, 200);
+  assert.ok(near(p.at(140, 60), [0, 0, 204]), 'the centre of the turned square is not painted');
+  assert.ok(near(p.at(124, 44), [255, 255, 255]), 'the corner the square no longer occupies is painted');
+});
+
+test('a stroke keeps the weight it was given when the transform scales', () => {
+  // The recorder bakes the transform into the coordinates, so the stroke width
+  // has to be scaled by hand. Forgetting leaves every scaled generator drawing
+  // hairlines, which is only visible at export size.
+  const s = PSURF.svg({ width: 100, height: 100, id: 't' });
+  s.save(); s.scale(3, 3); s.lineWidth = 2; s.strokeStyle = '#000';
+  s.beginPath(); s.moveTo(5, 5); s.lineTo(25, 5); s.stroke(); s.restore();
+  assert.ok(/stroke-width="6"/.test(s.toSVG()), `it emitted ${s.toSVG().match(/stroke-width="[^"]*"/)}`);
+});
+
+test('a circle drawn as an arc is round', () => {
+  const s = PSURF.svg({ width: 100, height: 100, id: 't' });
+  s.fillStyle = '#000'; s.beginPath(); s.arc(50, 50, 30, 0, Math.PI * 2); s.fill();
+  const p = pixelsOf(s.toSVG(), 200);
+  for (const a of [0, 1, 2, 3, 4, 5]) {
+    const th = a * Math.PI / 3;
+    const inX = 100 + Math.cos(th) * 50, inY = 100 + Math.sin(th) * 50;   // r=25 in tile units
+    const outX = 100 + Math.cos(th) * 70, outY = 100 + Math.sin(th) * 70; // r=35
+    assert.ok(near(p.at(inX, inY), [0, 0, 0], 40), `inside the circle at ${a}/6 turn was ${p.at(inX, inY)}`);
+    assert.ok(near(p.at(outX, outY), [255, 255, 255], 40), `outside it at ${a}/6 turn was ${p.at(outX, outY)}`);
+  }
+});
+
+test('the seam is measured, and a tile that does not repeat is caught', () => {
+  // The whole claim of a pattern engine is that its tile repeats. This lays the
+  // tile out the way a designer does — an SVG <pattern> filling a rectangle —
+  // and asks where the boundary columns sit in the distribution of ordinary
+  // columns. Built on the periodic noise the boundary is unremarkable; built on
+  // the same noise with the wrap taken out it is the largest value there is.
+  const tile = (wrapIt) => (s, W, H) => {
+    const cells = 60, c = W / cells, P = 6;
+    for (let gy = 0; gy < cells; gy++) {
+      for (let gx = 0; gx < cells; gx++) {
+        const n = wrapIt
+          ? PNOISE.fbm2(gx / cells * P, gy / cells * P, P, P, 4, 5)
+          : PNOISE.fbm2(gx / cells * P, gy / cells * P, 9999, 9999, 4, 5);
+        const t = Math.round(n * 255);
+        s.fillStyle = `rgb(${t},${t},${t})`;
+        s.fillRect(gx * c, gy * c, c, c);
+      }
+    }
+  };
+  const good = PSEAM.check(tile(true), 120, 120);
+  const bad = PSEAM.check(tile(false), 120, 120);
+  assert.ok(good.beyond <= 1.2, `a periodic field showed a seam ${good.beyond.toFixed(2)}x beyond its worst ordinary band`);
+  assert.ok(bad.beyond > 2, `a field with no wrap in it showed no seam: ${bad.beyond.toFixed(2)}x`);
+});
+
+test('a raster field encodes to the same bytes twice', () => {
+  const make = () => {
+    const f = PRAST.field(120, 120);
+    for (let y = 0; y < 120; y++) {
+      for (let x = 0; x < 120; x++) {
+        const v = PNOISE.fbm2(x / 120 * 6, y / 120 * 6, 6, 6, 4, 11);
+        const t = Math.round(Math.floor(v * 5) / 4 * 255);
+        f.set(x, y, t, t, t, 255);
+      }
+    }
+    return f;
+  };
+  const a = PRAST.png(make()), b = PRAST.png(make());
+  assert.strictEqual(Buffer.compare(a, b), 0, 'two encodings of the same field differed');
+  assert.ok(a.length > 200 && a[0] === 0x89 && a[1] === 0x50, 'that is not a PNG');
+  const at = PRAST.printedAt(make());
+  assert.ok(at.mm > 5 && at.mm < 20, `120 px at 300 dpi came out as ${at.mm} mm`);
+});
+
+test('nothing in the pattern engine calls Math.random', () => {
+  // A generator that reaches for it builds a package whose artwork changes on
+  // every rebuild, and thirty-two identities here are checked byte for byte.
+  const dir = path.join(__dirname, '..', 'src', 'patterns');
+  const bad = [];
+  for (const f of fs.readdirSync(dir).filter((n) => n.endsWith('.js'))) {
+    const src = fs.readFileSync(path.join(dir, f), 'utf8');
+    // the ban is stated in the comments of rand.js, so look at code only
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    if (/Math\.random\s*\(/.test(code)) bad.push(f);
+    if (/\bnew Date\b|Date\.now\s*\(/.test(code)) bad.push(`${f} (a clock)`);
+  }
+  assert.deepStrictEqual(bad, [], `${bad.join(', ')} would re-deal the artwork on a rebuild`);
+});
+
+console.log('\nthe pattern engine: the generators');
+const PENG = require('../src/patterns');
+const PWEAVE = require('../src/patterns/generators/weave');
+const PZIG = require('../src/patterns/generators/zigzag');
+const PPAL = require('../src/patterns/palette');
+const PMARK = require('../src/patterns/mark');
+
+test('every weave style repeats exactly, at every cell count, in both directions', () => {
+  // Not measured in pixels and not looked at: a style is an integer expression
+  // on the cell coordinates, defined outside the tile as well as inside it, so
+  // "it repeats" is a thing to prove. cellAt(x, y) and cellAt(x + C, y) are the
+  // same value or they are not.
+  //
+  // Two faults were found this way and neither was visible in a small render.
+  // `bands` hashes a colour per row and alternates bricks by parity, so an odd
+  // number of rows or of bricks flips the colour where the tile meets itself;
+  // `basket` alternates its over-and-under by block parity and needs an even
+  // number of blocks. Both are now taken from divisors that leave an even
+  // count, and this is what says so.
+  const bad = [];
+  for (const style of PWEAVE.styles) {
+    for (const cells of [8, 12, 20, 28, 36, 44, 52, 60, 72]) {
+      for (const chunk of [0.6, 1, 1.5, 2]) {
+        for (const seed of [1, 7, 99]) {
+          const q = PWEAVE.plan({ cells, chunk, style, seed });
+          for (let t = 0; t < 40; t++) {
+            const x = (t * 37) % (cells * 3) - cells, y = (t * 53) % (cells * 3) - cells;
+            if (PWEAVE.cellAt(x, y, q) !== PWEAVE.cellAt(x + cells, y, q)) bad.push(`${style} across, ${cells} cells`);
+            if (PWEAVE.cellAt(x, y, q) !== PWEAVE.cellAt(x, y + cells, q)) bad.push(`${style} down, ${cells} cells`);
+          }
+        }
+      }
+    }
+  }
+  assert.deepStrictEqual([...new Set(bad)], [], [...new Set(bad)].slice(0, 6).join('\n'));
+});
+
+test('what makes a weave tile repeat is the wrap, and nothing else does', () => {
+  // There was a `divisorNearEven` in weave.js and a test here asserting it
+  // mattered. It did not. The reasoning was that a style whose colour
+  // alternates on a parity needs an even number of bricks or the colour flips
+  // where the tile meets itself — true of a grid walked from zero to C, and
+  // untrue of this one, because every style wraps its coordinates with
+  // mod(x, C) first. The tile *is* the period.
+  //
+  // Both checks say so. The values repeat at every brick count, and the seam
+  // measurement reads 1.00x for an odd count against 0.89x for an even one.
+  // The helper is gone; this is what replaced it, and it is a stronger claim:
+  // the wrap alone carries the repeat.
+  const pal = PPAL.of({ paper: { hex: '#EFEFEC', role: 'ground' }, ink: { hex: '#15161A' },
+    two: { hex: '#B4632A' }, three: { hex: '#5C6B4A' } }, null);
+  const withCount = (brick) => (s, W, H) => {
+    const q = Object.assign(PWEAVE.plan({ cells: 36, chunk: 1, style: 'bands', seed: 7 }), { brick });
+    const cw = W / 36, ch = H / 36;
+    for (let y = 0; y < 36; y++) {
+      for (let x = 0; x < 36; x++) {
+        const v = PWEAVE.cellAt(x, y, q);
+        s.fillStyle = v === 0 ? pal.ground : pal.ink(v - 1);
+        s.fillRect(Math.round(x * cw * 1000) / 1000, Math.round(y * ch * 1000) / 1000,
+          Math.round(cw * 1000) / 1000, Math.round(ch * 1000) / 1000);
+      }
+    }
+  };
+  for (const brick of [9, 12, 4, 18]) {
+    const q = Object.assign(PWEAVE.plan({ cells: 36, chunk: 1, style: 'bands', seed: 7 }), { brick });
+    for (let t = 0; t < 60; t++) {
+      const x = t % 36, y = (t * 7) % 36;
+      assert.strictEqual(PWEAVE.cellAt(x, y, q), PWEAVE.cellAt(x + 36, y, q),
+        `a brick count of ${brick} did not repeat its values`);
+    }
+    const r = PSEAM.check(withCount(brick), 100, 100);
+    assert.ok(r.beyond <= 1.2,
+      `a brick count of ${brick} showed a join ${r.beyond.toFixed(2)}x beyond its worst ordinary band`);
+  }
+  // and the negative control: a shift that is *not* a whole tile has to move
+  // something, or the equality above is a fact about the style being flat
+  // rather than about the tile repeating. One position is not enough — any two
+  // cells can agree by chance — so it is the whole grid.
+  for (const style of PWEAVE.styles) {
+    const q = PWEAVE.plan({ cells: 36, chunk: 1, style, seed: 7 });
+    let moved = 0;
+    for (let y = 0; y < 36; y++) for (let x = 0; x < 36; x++) {
+      if (PWEAVE.cellAt(x, y, q) !== PWEAVE.cellAt(x + 37, y, q)) moved++;
+    }
+    assert.ok(moved > 36, `${style} was unchanged by a shift of 37 in ${1296 - moved} of 1296 cells, `
+      + 'so its repeating at 36 says nothing');
+  }
+});
+
+test('every zigzag chain closes along its run and across the tile', () => {
+  // A chain is a boundary between two stripes. It has to come back to itself
+  // after one tile down its own run, and it has to land exactly one tile over
+  // after a whole number of stripes. Both are arithmetic.
+  const bad = [];
+  for (const style of PZIG.styles) {
+    for (const stripe of [0.04, 0.08, 0.15, 0.24]) {
+      for (const length of [0.06, 0.16, 0.3]) {
+        const q = PZIG.plan({ style, stripe, length, depth: 0.9, rounding: 0.7 });
+        assert.strictEqual(q.stripes % 2, 0, `${style} laid out an odd number of stripes, so the two colours meet themselves`);
+        for (let k = 0; k < 30; k++) {
+          const i = k % 7, t = (k * 91.3) % q.H;
+          if (Math.abs(PZIG.chain(i, t, q) - PZIG.chain(i, t + q.H, q)) > 1e-9) bad.push(`${style} along its run`);
+          if (Math.abs((PZIG.chain(i + q.stripes, t, q) - PZIG.chain(i, t, q)) - q.W) > 1e-9) bad.push(`${style} across the tile`);
+        }
+      }
+    }
+  }
+  assert.deepStrictEqual([...new Set(bad)], [], [...new Set(bad)].join('\n'));
+});
+
+test('the six zigzag styles are six different shapes', () => {
+  // They were not. `teeth` was a triangle wave and `stairs` a square one
+  // sampled twice per tooth, and the straight lines between the samples turned
+  // the square into the same trapezoid — two rows of a rounding sweep that
+  // were the same picture. A style is only a style if it draws something the
+  // others do not.
+  const shapes = {};
+  for (const style of PZIG.styles) {
+    const q = PZIG.plan({ style, stripe: 0.12, length: 0.18, depth: 0.9, rounding: 0 });
+    // one whole tooth of the first boundary, sampled finely and rounded, is
+    // the shape's fingerprint
+    // both boundaries of a stripe, because waves and scales differ in how the
+    // two move against each other and not in either one alone
+    shapes[style] = [];
+    for (let s = 0; s <= 40; s++) {
+      const t = (s / 40) * q.tp;
+      shapes[style].push(Math.round(PZIG.chain(0, t, q) * 100) / 100);
+      shapes[style].push(Math.round(PZIG.chain(1, t, q) * 100) / 100);
+    }
+  }
+  const same = [];
+  const keys = Object.keys(shapes);
+  for (let a = 0; a < keys.length; a++) {
+    for (let b = a + 1; b < keys.length; b++) {
+      if (JSON.stringify(shapes[keys[a]]) === JSON.stringify(shapes[keys[b]])) same.push(`${keys[a]} and ${keys[b]}`);
+    }
+  }
+  // teeth and chevron are the same chain drawn the other way round, which is
+  // the one pair that is allowed to match
+  assert.deepStrictEqual(same, ['teeth and chevron'], same.join(', '));
+});
+
+test('a stripe keeps its width where it should, and swells where it should', () => {
+  // waves moves both boundaries of a stripe together, so the band never
+  // narrows; scales moves them against each other, so it pinches. That
+  // difference is the whole reason both exist, and it was lost for a while
+  // behind a rounding radius the size of the sample spacing, which turned both
+  // of them into a column of lozenges.
+  const w = PZIG.plan({ style: 'waves', stripe: 0.12, length: 0.18, depth: 0.9, rounding: 0.7 });
+  const c = PZIG.plan({ style: 'scales', stripe: 0.12, length: 0.18, depth: 0.9, rounding: 0.7 });
+  let wLo = Infinity, wHi = -Infinity, cLo = Infinity, cHi = -Infinity;
+  for (let s = 0; s <= 40; s++) {
+    const t = (s / 40) * w.tp;
+    const dw = PZIG.chain(2, t, w) - PZIG.chain(1, t, w);
+    const dc = PZIG.chain(2, t, c) - PZIG.chain(1, t, c);
+    wLo = Math.min(wLo, dw); wHi = Math.max(wHi, dw);
+    cLo = Math.min(cLo, dc); cHi = Math.max(cHi, dc);
+  }
+  assert.ok(wHi - wLo < 1e-9, `a wave's stripe changed width by ${(wHi - wLo).toFixed(2)}`);
+  assert.ok(cHi - cLo > c.bw * 0.5, `a scale's stripe only changed width by ${(cHi - cLo).toFixed(0)} of ${c.bw}`);
+});
+
+test('the palette hands over the ground and orders the inks by what reads on it', () => {
+  const cols = { paper: { hex: '#EFE9DD', role: 'ground' }, ink: { hex: '#1A1A1A' },
+    quiet: { hex: '#C9C4BA' }, loud: { hex: '#B4632A' } };
+  const p = PPAL.of(cols, null);
+  assert.strictEqual(p.ground, '#EFE9DD');
+  assert.strictEqual(p.ink(0), '#1A1A1A', 'the ink that reads best on the paper is not first');
+  assert.strictEqual(p.inks[p.inks.length - 1].hex, '#C9C4BA', 'the quietest ink is not last');
+  // and it never runs out, because a generator asking for a fifth thread on a
+  // three-colour identity should draw something
+  assert.strictEqual(p.ink(3), p.ink(0));
+  assert.strictEqual(p.ink(-1), p.inks[p.inks.length - 1].hex);
+  // a colourway says what it sits on, and that wins over the table's own role
+  const on = PPAL.of(cols, { on: 'ink' });
+  assert.strictEqual(on.ground, '#1A1A1A');
+  assert.strictEqual(on.ink(0), '#EFE9DD');
+});
+
+test('the pattern is measured off the mark, not typed', () => {
+  // The old module had tile: 100 and weight: 3 — numbers describing no
+  // particular drawing, which is why every identity got the same pattern. Three
+  // measurements decide everything here, and they have to actually discriminate
+  // or this is the same fault with more steps.
+  const seen = [];
+  for (const name of ['kvist', 'meridian', 'halyard', 'ancroft']) {
+    const pr = projectLoader.load(path.join(__dirname, '..', 'projects', name, 'project.json'));
+    const mm = measure(pr);
+    const src = pr.assets[pr.master || (pr.assets.mark ? 'mark' : 'wordmark')].source;
+    seen.push(Object.assign({ name }, PMARK.read(src, mm, pr.rules)));
+  }
+  const fine = seen.map((s) => s.fineness);
+  const curve = seen.map((s) => s.curviness);
+  assert.ok(Math.max(...fine) / Math.min(...fine) > 4,
+    `four identities span only ${Math.min(...fine).toFixed(1)} to ${Math.max(...fine).toFixed(1)} narrowest runs across`);
+  assert.ok(Math.max(...curve) - Math.min(...curve) > 0.5,
+    'four identities have nearly the same share of curve in them, so the measurement is not measuring');
+  // a ring is round and a wordmark of straight strokes is not
+  const ring = seen.find((s) => s.name === 'meridian'), timber = seen.find((s) => s.name === 'kvist');
+  assert.ok(ring.curviness > 0.9, `a mark drawn as a circle measured ${(ring.curviness * 100).toFixed(0)}% curved`);
+  assert.ok(timber.curviness < 0.1, `a mark drawn with straight strokes measured ${(timber.curviness * 100).toFixed(0)}% curved`);
+});
+
+test('the pattern is never finer than twice the thinnest thing in the mark', () => {
+  // The rule that sets the scale of both generators, and the reason for it: a
+  // pattern printed beside the mark at the size the mark's own floor allows
+  // must not be the thing that fails first.
+  const names = fs.readdirSync(path.join(__dirname, '..', 'projects'))
+    .filter((d) => fs.existsSync(path.join(__dirname, '..', 'projects', d, 'project.json'))).sort();
+  const over = [];
+  for (const name of names) {
+    const pr = projectLoader.load(path.join(__dirname, '..', 'projects', name, 'project.json'));
+    const mm = measure(pr);
+    const src = pr.assets[pr.master || (pr.assets.mark ? 'mark' : 'wordmark')].source;
+    const mk = PMARK.read(src, mm, pr.rules);
+    const t = PENG.tile({ mark: mk, generator: PENG.suits(mk), colours: pr.tokens.colour,
+      colourway: pr.rules.colourways[0] });
+    // the finest thing the tile draws, as a share of the tile
+    const finest = t.generator === 'weave' ? 1 / t.params.cells : t.params.stripe;
+    const allowed = 1 / Math.max(2, mk.fineness / PENG.FINEST);
+    // A mark heavy enough to be allowed a quarter of the tile per stripe is
+    // held at the cap instead, because a tile with three stripes in it is a
+    // flag. That is a judgement, it is named in index.js, and where it binds
+    // the manual says the cap decided rather than the mark — so it is allowed
+    // here and nothing else is.
+    const atCap = t.generator === 'zigzag' && Math.abs(finest - PENG.COARSEST_STRIPE) < 1e-9;
+    if (finest < allowed - 1e-9 && !atCap) {
+      over.push(`${name}: ${t.generator} draws ${(finest * 100).toFixed(2)}% of the tile, `
+        + `and the mark allows ${(allowed * 100).toFixed(2)}%`);
+    }
+  }
+  assert.deepStrictEqual(over, [], over.join('\n'));
+});
+
+test('every identity gets a tile, and no two identities get the same one', () => {
+  // The fault this engine exists to fix is a pattern chapter that hands every
+  // client the same seven answers. If the measurements do not reach the
+  // generators, that is what happens again with more code in the way.
+  const names = fs.readdirSync(path.join(__dirname, '..', 'projects'))
+    .filter((d) => fs.existsSync(path.join(__dirname, '..', 'projects', d, 'project.json'))).sort();
+  const chosen = new Set(), tiles = new Set();
+  for (const name of names) {
+    const pr = projectLoader.load(path.join(__dirname, '..', 'projects', name, 'project.json'));
+    const mm = measure(pr);
+    const src = pr.assets[pr.master || (pr.assets.mark ? 'mark' : 'wordmark')].source;
+    const t = PENG.tile({ markSource: src, measured: mm, rules: pr.rules,
+      colours: pr.tokens.colour, colourway: pr.rules.colourways[0] });
+    assert.ok(t.tile.indexOf('<svg') === 0, `${name} produced no tile`);
+    assert.ok(t.why.length > 40, `${name} got a pattern with no reason given`);
+    chosen.add(`${t.generator}/${t.params.style}`);
+    tiles.add(t.tile);
+  }
+  assert.ok(chosen.size >= 8, `${names.length} identities between them reached only ${chosen.size} of the fourteen styles`);
+  assert.strictEqual(tiles.size, names.length, `${names.length - tiles.size} identities got a tile identical to another's`);
+});
+
+test('a tile built twice is the same bytes', () => {
+  const pr = projectLoader.load(path.join(__dirname, '..', 'projects', 'kvist', 'project.json'));
+  const mm = measure(pr);
+  const src = pr.assets.mark ? pr.assets.mark.source : pr.assets.wordmark.source;
+  const one = PENG.tile({ markSource: src, measured: mm, rules: pr.rules, colours: pr.tokens.colour, colourway: pr.rules.colourways[0] });
+  const two = PENG.tile({ markSource: src, measured: mm, rules: pr.rules, colours: pr.tokens.colour, colourway: pr.rules.colourways[0] });
+  assert.strictEqual(one.tile, two.tile, 'the same identity built two different tiles');
+  assert.deepStrictEqual(one.params, two.params);
 });
 
 console.log('\nrule blocks: the pattern');
@@ -1179,11 +1794,18 @@ test('the rules reach brand.json, so a developer reads the same numbers', () => 
   assert.strictEqual(bj.system.pattern.seamless, true);
   assert.strictEqual(bj.system.motion.durations.considered, 480);
 });
-test('a tile is written for every density in every colourway', () => {
+test('a tile is written for every density in every colourway, and for every generator', () => {
   const tiles = result.written.filter((f) => f.path.startsWith('07-pattern/'));
-  assert.strictEqual(tiles.length, patternTiles());
-  assert.ok(tiles.every((f) => /pattern-(fine|medium|coarse)-[a-z]+\.svg$/.test(f.path)),
-    'a tile is named something other than its density and colourway');
+  const repeated = tiles.filter((f) => /pattern-(fine|medium|coarse)-[a-z]+\.svg$/.test(f.path));
+  const made = tiles.filter((f) => !/^07-pattern\/pattern-/.test(f.path));
+  assert.strictEqual(repeated.length, repeatedTiles(), 'the tiled mark is not written at every density');
+  assert.strictEqual(made.length, generatedTiles(), 'a generator did not write a tile in every colourway');
+  assert.strictEqual(repeated.length + made.length, tiles.length,
+    `${tiles.length - repeated.length - made.length} files in 07-pattern are named as neither`);
+  const names = require('../src/patterns').NAMES;
+  for (const g of names) {
+    assert.ok(made.some((f) => f.path.indexOf(`/${g}-`) > -1), `${g} wrote no tile at all`);
+  }
 });
 
 console.log('\nrule blocks: on the page');
@@ -3155,7 +3777,14 @@ test('a rule set once still follows the master, because it was derived from it',
   // the point: the check moves with the mark rather than with a memory of it
   const f = sys.checkIcon(iconGood, bj.system.icons);
   assert.ok(f.some((x) => x.level === 'blocker'), 'an icon drawn to the old stroke still passes');
-  assert.strictEqual(r2.written.filter((x) => x.path.startsWith('07-pattern/')).length, patternTiles());
+  // The count is the same because a thicker stroke changes what the patterns
+  // *look* like, not how many there are — and it does change what they look
+  // like, which is the whole claim of measuring off the mark.
+  const before = result.written.filter((x) => x.path.startsWith('07-pattern/')).length;
+  assert.strictEqual(r2.written.filter((x) => x.path.startsWith('07-pattern/')).length, before);
+  assert.notStrictEqual(bj.system.patterns.measured.fineness, JSON.parse(
+    fs.readFileSync(path.join(out, 'brand.json'), 'utf8')).system.patterns.measured.fineness,
+  'a mark drawn five units thicker produced a pattern measured the same');
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
@@ -5314,12 +5943,19 @@ test('the pattern this project sets is cut at every density', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-yw-'));
   const r = await build(YW, dir);
   const tiles = r.written.map((f) => f.path).filter((f) => /^07-pattern\//.test(f));
-  assert.strictEqual(tiles.length, 9, `${tiles.length} tiles, where three densities in three colourways is nine`);
+  const cut = tiles.filter((f) => /^07-pattern\/pattern-/.test(f));
+  const made = tiles.filter((f) => !/^07-pattern\/pattern-/.test(f));
+  assert.strictEqual(cut.length, 9, `${cut.length} tiles cut from the mark, where three densities in three colourways is nine`);
+  assert.strictEqual(made.length, 2 * 3, `${made.length} generated tiles, where two generators in three colourways is six`);
   for (const d of ['fine', 'medium', 'coarse']) {
-    assert.ok(tiles.some((f) => f.includes(`-${d}-`)), `nothing was cut at ${d}`);
+    assert.ok(cut.some((f) => f.includes(`-${d}-`)), `nothing was cut at ${d}`);
   }
   const bj = JSON.parse(fs.readFileSync(path.join(dir, 'brand.json'), 'utf8'));
   assert.strictEqual(bj.system.pattern.tile, 120, 'the tile size it set was lost');
+  // and the generated tiles are cut at the size this project set, not at the
+  // default — the one number the pattern rules still leave as a decision
+  assert.ok(/viewBox="0 0 120 120"/.test(fs.readFileSync(path.join(dir, made[0].replace(/^07-pattern\//, '07-pattern/')), 'utf8')),
+    'a generated tile ignored the tile size the project set');
   assert.deepStrictEqual(Object.keys(bj.system.motion.durations).sort(),
     ['base', 'considered', 'quick', 'slow']);
   fs.rmSync(dir, { recursive: true, force: true });

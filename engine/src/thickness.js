@@ -73,20 +73,72 @@ function inkAt(svgString, widthPx) {
   return { on, width, height };
 }
 
+// The ink stops half a pixel outside the last pixel of it.
+//
+// The transform measures from one pixel's middle to another's, so a run of
+// three pixels reads two deep and not one and a half. Every depth here is
+// therefore half a pixel more than the drawing's, at both edges of a stroke
+// and so once in a width. Left in, that half pixel is a stroke passing a rule
+// it is exactly on — which is every stroke a floor is worked out from, because
+// the floor is the size at which the thinnest stroke is exactly the minimum.
+const EDGE = 0.5;
+
+// How thin the rule may get, in pixels of the render, before the answer stops
+// being about the drawing.
+//
+// Below about eight the readings jump: a ring stroked eleven units, asked
+// whether it is under ten, came back 71% under at a rule of four pixels, 3% at
+// six, 52% at eight and 0% from nine up. What moves is not the drawing but
+// whether the core — the ink left after eroding — is wide enough to be a
+// continuous thing on the grid rather than a dotted line, and the core is only
+// as wide as the ink exceeds the rule. Twelve pixels of rule leaves a stroke
+// that is a tenth over it more than a pixel of core to stand on. Every case
+// worked out on paper is right from twelve up and stays right to thirty-two,
+// so twelve it is, with the arithmetic shown in test/run.js.
+const GRID = 12;
+
+// The size asked about is never the size rendered.
+//
+// "Is this drawing's ink at least S pixels thick when it is W pixels wide" is a
+// ratio, and the same ratio can be asked of any render by moving the rule. So
+// the render is chosen to put the rule at GRID pixels, whatever size the
+// question is about, and the drawing is drawn at that size rather than at the
+// one under discussion — which would quantise: a 10 unit bar in a 120 unit box,
+// drawn 60 px wide, should be 5 px of ink and comes out 6, because the edge
+// pixels clear the threshold.
+//
+// Never finer than FINEST, because a whole logo rendered forty pixels wide is
+// not a logo. Never coarser than COARSEST, because a render is quadratic and
+// this has to finish. Past COARSEST the rule falls under GRID and the answer is
+// that there was no answer — see `seen`.
+const FINEST = 600;
+const COARSEST = 2048;
+const RENDER = 900;   // when a caller picks the size itself
+
+const renderFor = (box, units) =>
+  Math.min(COARSEST, Math.max(FINEST, Math.round(GRID * box / units)));
+
+// A drawing, rendered once, ready to be asked about.
+function drawing(svgString, viewBoxWidth, renderPx = RENDER) {
+  return { img: inkAt(svgString, renderPx), box: viewBoxWidth, px: renderPx };
+}
+
 // What share of the ink is thinner than `thick` pixels, in this render.
 //
 // An opening with a disc of radius thick/2: the ink that survives being eroded
 // by that radius and grown back is the ink that is at least that thick. The
 // rest is thinner than the rule, wherever it is and whatever shape it is.
-function thinShare(svgString, widthPx, thick) {
-  return share(inkAt(svgString, widthPx), thick);
-}
-
+//
+// `seen` is false when the rule was finer than the grid can hold. The share is
+// still returned, because a caller may want to see what it was, but it is a
+// fact about the pixels and not about the artwork and nothing may be decided
+// on it.
 function share(img, thick) {
   const { on, width, height } = img;
   let ink = 0;
   for (let i = 0; i < on.length; i++) ink += on[i];
-  if (!ink) return { ink: 0, thin: 0, share: 0, width, height };
+  const seen = thick >= GRID;
+  if (!ink) return { ink: 0, thin: 0, share: 0, seen, thick, width, height };
   const r = thick / 2;
   // How deep the ink is at every pixel is a fact about the drawing and not
   // about the rule, so it is worked out once however many sizes are asked
@@ -100,38 +152,107 @@ function share(img, thick) {
   const depth = img.depth;
   const core = new Uint8Array(on.length);
   let cores = 0;
-  for (let i = 0; i < on.length; i++) { if (on[i] && depth[i] >= r) { core[i] = 1; cores++; } }
-  if (!cores) return { ink, thin: ink, share: 1, width, height };
+  for (let i = 0; i < on.length; i++) { if (on[i] && depth[i] - EDGE >= r) { core[i] = 1; cores++; } }
+  if (!cores) return { ink, thin: ink, share: 1, seen, thick, width, height };
   const back = distanceTo(core, width, height);
   let thin = 0;
-  for (let i = 0; i < on.length; i++) if (on[i] && back[i] > r) thin++;
-  return { ink, thin, share: thin / ink, width, height };
+  for (let i = 0; i < on.length; i++) if (on[i] && back[i] - EDGE > r) thin++;
+  return { ink, thin, share: thin / ink, seen, thick, width, height };
 }
 
-// The size under test is never the size rendered.
-//
-// A drawing rendered at the size being asked about quantises: a 10 unit bar in
-// a 120 unit box, drawn 60 px wide, should be 5 px of ink and comes out 6,
-// because the edge pixels clear the threshold. Ask a question about a 5 px
-// stroke that way and the answer is about a 6 px one.
-//
-// The question does not need it. "Is this drawing's ink at least S pixels thick
-// when it is W pixels wide" is a ratio, and the same ratio can be measured in
-// one large render by asking for S x R / W pixels there. So the artwork is
-// rendered once, large, and it is the rule that moves.
-const RENDER = 900;
-
-// A drawing, rendered once, ready to be asked about at any size.
-function drawing(svgString, viewBoxWidth, renderPx = RENDER) {
-  return { img: inkAt(svgString, renderPx), box: viewBoxWidth, px: renderPx };
-}
+// What share of the ink is thinner than `thick` pixels, rendered this wide.
+const thinShare = (svgString, widthPx, thick) => share(inkAt(svgString, widthPx), thick);
 
 // What share of this drawing's ink is thinner than `units` of its own artwork.
 const underUnits = (d, units) => share(d.img, units * (d.img.width / d.box));
 
-// And the same question the floor asks: drawn `widthPx` wide on a screen, what
-// share of the ink is under the rule the project states?
+// And the question a floor asks: drawn `widthPx` wide on a screen, what share
+// of the ink is under the minimum stroke the project states?
 const atWidth = (d, widthPx, minStrokePx) => underUnits(d, minStrokePx * d.box / widthPx);
+
+// A rule that falls exactly on a stroke does not have one answer.
+//
+// The size a package states is worked out from its own thinnest stroke — it is
+// the size at which that stroke is exactly the minimum — so at the stated size
+// the rule lands exactly on the stroke it was taken from. Which side of it the
+// stroke comes down on is then decided by the render: northline's mark read
+// 1.8% of its ink under the rule drawn 600 px across and 38.3% drawn 900 px,
+// and neither is a mistake. A rendered edge lands within half a pixel of where
+// the artwork puts it, twice across a stroke, and the transform between them
+// quantises again.
+//
+// So the rule is asked either side of itself instead of on it. `least` is what
+// is under the kindest rule the measurement allows and `most` what is under
+// the harshest; when they agree the drawing is nowhere near an edge, and when
+// they do not it is sitting on the rule — which is a thing worth knowing about
+// a floor, and not a failure to measure.
+//
+// The width comes from the grid, and it was chosen by measuring rather than by
+// taste. Every drawing in the repository was read at three render sizes with
+// the pair taken at half a pixel, one, one and a half, two and three:
+//
+//     half-width          0.5     1     1.5      2      3
+//     same verdict at
+//     all three renders    67    78      87     90     91   of 108
+//     called on the rule   25    63      86     87     94
+//
+// No width ever called a drawing over the rule at one render and under it at
+// another, so nothing here is chosen to avoid a contradiction. What a wider
+// pair buys is agreement, and what it costs is that more drawings come back
+// with no number. One and a half is where the agreement stops climbing
+// steeply and before the pair swallows the whole repository.
+const BLUR = 1.5;
+
+function around(img, thick) {
+  const kind = share(img, Math.max(0.5, thick - BLUR));
+  const harsh = share(img, thick + BLUR);
+  return { least: kind.share, most: harsh.share, ink: kind.ink, thick,
+    seen: thick >= GRID, onRule: harsh.share - kind.share > 0.02 };
+}
+
+// The two entry points: what a drawing does under a rule of so many of its own
+// box units, and what it does at a size on a screen. Both render at the size
+// that can see the answer, and both come back as a pair.
+// Asking one drawing several things means rendering it several times, because
+// the render follows the question. Rendering it twice at the same size does
+// not have to happen, and a floor check asks every drawing at least twice.
+function looker(svgString, box) {
+  const made = new Map();
+  const draw = (px) => {
+    if (!made.has(px)) made.set(px, drawing(svgString, box, px));
+    return made.get(px);
+  };
+  const under = (units) => {
+    const px = renderFor(box, units);
+    // Asked about a rule the coarsest render allowed cannot hold: say so
+    // without drawing anything. Rendering it would cost a second and return a
+    // zero that means nothing.
+    if (units * (px / box) < GRID) {
+      return { least: null, most: null, ink: null, thick: units * (px / box), seen: false, onRule: false };
+    }
+    const d = draw(px);
+    return around(d.img, units * (d.img.width / d.box));
+  };
+  // Whether a drawing holds at a size is only the harsh end of the pair — if
+  // the strictest reading is inside the tolerance the kind one is too — so the
+  // search does not pay for a half it would not look at.
+  const harshestUnder = (units) => {
+    const px = renderFor(box, units);
+    if (units * (px / box) < GRID) return { share: null, seen: false };
+    const d = draw(px);
+    return { share: share(d.img, units * (d.img.width / d.box) + BLUR).share, seen: true };
+  };
+  return { draw, under, harshestUnder,
+    at: (widthPx, minStrokePx) => under(minStrokePx * box / widthPx),
+    holdsAt: (widthPx, minStrokePx) => harshestUnder(minStrokePx * box / widthPx) };
+}
+
+const under = (svgString, box, units) => looker(svgString, box).under(units);
+const at = (svgString, box, widthPx, minStrokePx) => under(svgString, box, minStrokePx * box / widthPx);
+
+// The largest size this can answer about at all: past it the rule is finer
+// than the grid even at the coarsest render allowed.
+const seesUpTo = (minStrokePx) => COARSEST * minStrokePx / GRID;
 
 // The same question asked across a range of sizes: the curve, not a number.
 //
@@ -147,45 +268,59 @@ const atWidth = (d, widthPx, minStrokePx) => underUnits(d, minStrokePx * d.box /
 // That difference is a property of the drawing and it is what a floor is
 // really asking about, so the curve is the answer and any single number read
 // off it is a summary of one.
-function curve(svgString, viewBoxWidth, minStrokePx, sizes, renderPx = RENDER) {
-  const d = drawing(svgString, viewBoxWidth, renderPx);
+function curve(svgString, viewBoxWidth, minStrokePx, sizes) {
+  const seen = {};
   return sizes.map((w) => {
-    const m = atWidth(d, w, minStrokePx);
-    return { at: w, share: m.share, ink: m.ink };
+    const px = renderFor(viewBoxWidth, minStrokePx * viewBoxWidth / w);
+    if (!seen[px]) seen[px] = drawing(svgString, viewBoxWidth, px);
+    const m = atWidth(seen[px], w, minStrokePx);
+    return { at: w, share: m.share, ink: m.ink, seen: m.seen, renderPx: px };
   });
 }
 
 // The smallest of the sizes given at which no more than `tolerance` of the ink
 // is under the rule, with the sample below it, so a reader can see how sharp
 // the answer is rather than being handed a number to trust.
-function smallestThatHolds(svgString, viewBoxWidth, minStrokePx, tolerance, sizes, renderPx = RENDER) {
-  const rows = curve(svgString, viewBoxWidth, minStrokePx, sizes.slice().sort((a, b) => a - b), renderPx);
+function smallestThatHolds(svgString, viewBoxWidth, minStrokePx, tolerance, sizes) {
+  const rows = curve(svgString, viewBoxWidth, minStrokePx, sizes.slice().sort((a, b) => a - b));
   for (let i = 0; i < rows.length; i++) {
+    if (!rows[i].seen) break;
     if (rows[i].share <= tolerance) {
       return { at: rows[i].at, share: rows[i].share, below: i ? rows[i - 1] : null, rows };
     }
   }
-  return { at: null, share: rows.length ? rows[rows.length - 1].share : 1, below: null, rows };
+  return { at: null, share: null, below: null, rows };
 }
 
-// The same answer as smallestThatHolds, without drawing the whole curve.
+// The smallest size on the list at which the drawing holds — asked of every
+// size from the bottom until one does.
 //
-// The share only falls as the drawing grows — the ink gets thicker and the rule
-// does not move — so the sizes are sorted and the answer can be looked for
-// rather than computed everywhere. Seven measurements instead of twenty-six,
-// which is the difference between a check somebody runs and one they do not.
-function holdsFrom(svgString, viewBoxWidth, minStrokePx, tolerance, sizes, renderPx = RENDER) {
-  const list = sizes.slice().sort((a, b) => a - b);
-  const d = drawing(svgString, viewBoxWidth, renderPx);
-  const at = (i) => atWidth(d, list[i], minStrokePx).share;
-  if (!list.length) return { at: null, share: 1, drawing: d };
-  if (at(list.length - 1) > tolerance) return { at: null, share: at(list.length - 1), drawing: d };
-  let lo = 0, hi = list.length - 1;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (at(mid) <= tolerance) hi = mid; else lo = mid + 1;
+// The first version of this strode up the list and then narrowed, on the
+// reasoning that the share only falls as a drawing grows: the ink gets thicker
+// and the rule does not move. That was true when one render answered every
+// question. It is not true now that the render follows the question, because
+// each size is measured on a different grid and the grids do not agree to
+// better than a pixel. Checked against asking every size, the search returned a
+// different answer for **30 of the 142 drawings** here, and not always a larger
+// one — it claimed 160 px for drawings that hold at no size on the list.
+//
+// So it asks. Starting from the smallest, which is where the answer usually is,
+// and stopping at the first size that holds, which is what the phrase means.
+function holdsFrom(svgString, viewBoxWidth, minStrokePx, tolerance, sizes, eye) {
+  const all = sizes.slice().sort((a, b) => a - b);
+  const list = all.filter((w) => w <= seesUpTo(minStrokePx));
+  const look = eye || looker(svgString, viewBoxWidth);
+  if (!list.length) return { at: null, share: null, seen: false, asked: 0 };
+  let last = null;
+  for (const w of list) {
+    const r = look.holdsAt(w, minStrokePx);
+    last = r.share;
+    if (r.seen && r.share <= tolerance) return { at: w, share: r.share, seen: true };
   }
-  return { at: list[lo], share: at(lo), drawing: d };
+  // Nothing on the list holds. Whether that means the drawing never holds or
+  // only that the looking stopped short is the difference between a finding and
+  // a guess, so it is said.
+  return { at: null, share: last, seen: list.length === all.length, asked: list[list.length - 1] };
 }
 
 // How sharply it falls: the largest jump in share between neighbouring sizes.
@@ -193,11 +328,13 @@ function holdsFrom(svgString, viewBoxWidth, minStrokePx, tolerance, sizes, rende
 function steepest(rows) {
   let worst = 0, where = null;
   for (let i = 1; i < rows.length; i++) {
+    if (!rows[i].seen || !rows[i - 1].seen) continue;
     const d = rows[i - 1].share - rows[i].share;
     if (d > worst) { worst = d; where = [rows[i - 1].at, rows[i].at]; }
   }
   return { drop: worst, between: where };
 }
 
-module.exports = { thinShare, share, drawing, underUnits, atWidth,
-  curve, smallestThatHolds, holdsFrom, steepest, distanceTo, inkAt, RENDER };
+module.exports = { thinShare, share, around, drawing, looker, underUnits, under, atWidth, at, curve,
+  smallestThatHolds, holdsFrom, steepest, distanceTo, inkAt, seesUpTo, renderFor,
+  RENDER, GRID, FINEST, COARSEST, EDGE, BLUR };

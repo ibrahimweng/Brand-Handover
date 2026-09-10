@@ -710,6 +710,275 @@ it generates. Inlined into the editor that closed the editor's own script block
 early and took the rest of the file with it, so it is escaped in the source. The
 test refuses a raw closing tag in any file that gets inlined.
 
+## The pattern engine
+
+`src/pattern.js` makes one kind of pattern: a shape cut from the master,
+repeated seven ways. `src/patterns/` is the other kind — parametric generators
+in the manner of PLAYGRND, with the controls handed to the client. The plan for
+all six rounds is in `docs/pattern-engine-plan.md`; this is the floor they
+stand on.
+
+### One paint function, every surface
+
+    paint(surface, W, H, state, frame)
+
+pure with respect to its state and its seed, and drawn by whichever surface it
+is handed. `src/patterns/surface.js` has two:
+
+- **`canvas(ctx)`** — a real 2-D context. The studio's preview, and its PNG
+  export at any size.
+- **`svg(opts)`** — records the same calls as SVG elements. The build, in Node.
+
+The contract is deliberately small: `save restore · translate rotate scale ·
+beginPath moveTo lineTo quadraticCurveTo bezierCurveTo arc closePath · fill
+stroke clip · fillRect`, plus six style properties. Anything a generator needs
+beyond that gets added to both surfaces or it is not in the contract.
+
+The recorder **bakes the transform into the coordinates** rather than emitting
+`transform` attributes. A pattern tile is a file somebody opens in Illustrator
+and recolours, and nested transforms are the reason that is usually miserable.
+A rect under an axis-aligned matrix stays a `<rect>`; under a turn it becomes a
+path of four corners. Flat coordinates also make run-length merging possible,
+which is what keeps a ten-thousand-cell grid from being ten thousand elements.
+
+### Noise that comes back round
+
+A brand pattern has to tile, which PLAYGRND never had to do — and the answer is
+the one it already uses for closing an animation loop. Value noise on an integer
+lattice is exactly periodic if the index is taken modulo the period: x and x + P
+interpolate the same corners with the same weights.
+
+    1500 points, each compared with itself up to four periods away
+      plain noise                       differ by 0
+      six octaves of fBm                differ by 0
+      a domain-warped field             differ by 1.2 × 10⁻¹⁴
+
+The 4-D form wraps x and y and leaves z and w free, because those two trace a
+circle and a circle already comes back to itself. One function, both jobs.
+
+### Flattening the field
+
+Summed octaves tend to their mean. Six of them into ten bins:
+
+    raw          0.0   0.8   5.1  21.4  31.9  25.7  12.0   3.0   0.1   0.0
+
+Two bins never appear and one takes a third of the tile, so a ten-band
+posterisation reads as one colour with flecks. Every field generator would need
+the same workaround, so it is solved once — and it has an exact answer rather
+than a fudge, because the octaves are independent and the sum's spread is the
+root of the sum of their squared amplitudes over their sum:
+
+    octaves        1        2        4        6
+    measured  0.1977   0.1484   0.1225   0.1170
+    arithmetic 0.1993   0.1485   0.1225   0.1169
+
+Pass the field through the normal distribution of that spread:
+
+    flattened    9.3  11.1  11.2  10.8   9.9   8.2   9.0   9.8   9.4  11.3
+
+Monotone, nothing clipped, one measured constant in the whole thing — one
+octave's own spread, 0.1993, over 360,000 lattice points.
+
+### Is the seam findable?
+
+`src/patterns/seam.js` lays the tile out as an SVG `<pattern>` filling a
+rectangle — which is what a designer drops on an artboard — renders it, and asks
+where the boundary columns sit in the distribution of ordinary neighbouring
+columns. The answer is a z-score, reported for the vertical seams and the
+horizontal ones separately, because a tile can be periodic in one axis and not
+the other and the two failures look nothing alike.
+
+    a field built on the periodic noise      z = 0.76
+    the same field with the wrap taken out   z = 8.73
+
+The boundary columns are left out of the distribution they are compared against.
+Including them would let a bad seam raise the bar it has to clear, which is how
+a check ends up unable to fail.
+
+### Do the two surfaces actually agree?
+
+`test/surface-check.mjs`. One drawing, using nothing outside the contract,
+painted on a real canvas in Chromium and recorded to SVG in Node, both
+rasterised at 480 px and compared pixel by pixel.
+
+    mean difference per pixel            0.49 of 255
+    pixels differing by more than 8      2.19%
+    pixels differing by more than 48     0.04%
+
+A perfect match is not the bar and could not be: two rasterisers antialias a
+diagonal differently and will disagree about its edge by a few counts. A shape
+in one and not the other is a different thing, and it shows up as whole regions
+differing.
+
+**The first version of this check was passing for nothing.** With the stroke
+scaling reverted it passed. With the arc join reverted it passed. With the
+transforms composed the other way round it returned *identical numbers* — three
+of the four faults it existed to catch, and the drawing reached none of them,
+because every stroke in it was at the identity transform and every arc began its
+own path. Rebuilt as six panels, one per part of the contract, each under a
+transform of its own:
+
+    as shipped                                          0.49    0.04%
+    the stroke width no longer scaled by the matrix     6.70    3.27%
+    fillRect ignoring the matrix                       20.39    9.81%
+    an arc that jumps to its start instead of joining   2.86    1.29%
+    translate composed the other way round              3.09    1.56%
+    clip not opening a group                           38.81   19.25%
+
+The bar had been 3.0 and 1.5%, guessed before any of it was measured, and it let
+two of the five through. It is 1.5 and 0.4% now, which is where the gap is.
+
+### The generators
+
+`src/patterns/generators/` — two of the six, both pure vector.
+
+**`weave`** — index-grid blankets, after PLAYGRND's Quilt. Eight styles: bands,
+plaid, basket, dither, steps, diamond, cross, gingham. Quilt measures each cell
+from the centre of the frame so its compositions are mirror-symmetric, which is
+right for a picture and wrong for a repeat — a mirrored block tiles, but along a
+mirror line, and the eye finds a mirror line as fast as a join. Here every style
+is `cellAt(x, y)`, an integer expression defined for every integer, with every
+period a divisor of the cell count. Painted by run-length merging each row: a
+36-square tile is 1,296 cells and comes out as a few hundred rectangles.
+
+**`zigzag`** — interlocking rounded stripes, after Zig. Six styles: teeth,
+chevron, stairs, ricrac, waves, scales. A stripe is a pair of neighbouring
+boundary chains; only alternate stripes are painted, so the unpainted ones are
+the ground and the two colours interlock exactly rather than being drawn over
+each other. Two colours per tile and no more.
+
+### Seamlessness is proved, not inspected
+
+Every period divides the tile, so the claim is arithmetic:
+
+    cellAt(x, y) === cellAt(x + C, y)          8 styles × 9 cell counts
+    cellAt(x, y) === cellAt(x, y + C)          × 4 coarsenesses × 3 seeds
+
+    chain(i, t + H) === chain(i, t)            6 styles × 4 stripe widths
+    chain(i + n, t) === chain(i, t) + W        × 3 tooth lengths
+
+with a negative control on each — a shift that is *not* a whole tile has to move
+something, across the whole grid rather than at one position, or the equality
+above is a fact about the style being flat.
+
+`seam.js` stays as the backstop, for the raster family in a later round and for
+faults in the *drawing* that the index arithmetic cannot see. It caught one:
+see below.
+
+### Four checks that were checking nothing
+
+**The seam check was measuring the renderer, not the tile.** It laid the tile
+out as an SVG `<pattern>` filling a rectangle. A renderer draws `<pattern>` by
+rasterising the tile once into its own bitmap and repeating that, and the
+bitmap's edges are antialiased against nothing, so every repeat boundary carries
+a hairline that belongs to the renderer. Stripes at a period of ten on a
+hundred-unit tile — seamless by arithmetic — read **2.88** against a bar of 4.
+The tile is drawn nine times into one surface now and rasterised once. The same
+stripes read **0.00**.
+
+**Then it was calling every edge a seam.** Column-to-column change is bimodal:
+almost every column is flat, a few are the edge of a shape. A seam landing on an
+edge is invisible; an edge landing on the seam scores three standard deviations
+and is nothing. It also missed rhythm entirely — stripes at a period of thirteen
+on a hundred-unit tile leave a gap of nine at the join, every transition there is
+an ordinary edge, and no single column knows about rhythm. Smoothed over a band
+an eighth of the tile wide before anything is compared:
+
+    solid colour                     z = 0.00     beyond 0.00x
+    stripes, period 10 (divides)     z = 0.54     beyond 0.29x
+    stripes, period 13 (does not)    z = 15.51    beyond 4.19x
+    a 36-cell plaid grid             z = 0.39     beyond 0.15x
+    a noise field, wrapped           z = 3.17     beyond 1.16x
+    the same field, not wrapped      z = 6.10     beyond 2.44x
+
+`beyond` is the number that needs no threshold: how far past the *most unusual
+ordinary band* the seam gets. At or under 1 there is nothing at the join the
+pattern does not do elsewhere. A z alone is not enough, because a pattern with
+real large-scale structure has bands that honestly differ, and the seam has to
+be judged against those rather than against a mean.
+
+**`ricrac` seamed at eleven standard deviations while its arithmetic was exactly
+periodic.** A stripe is a closed polygon — one boundary down, the next back up,
+a straight edge across each end. Those end edges meet the chain at a corner, the
+corner is rounded like every other, and the rounding makes a notch that exists
+nowhere else in the run. At the tile boundary two notches meet. The chain runs
+one whole tooth past each end now, so both caps fall outside the clip and the
+geometry at the boundary is the geometry everywhere: **11.11 → 2.38**, beyond
+6.52x → 1.00x.
+
+**And `divisorNearEven` did nothing.** It kept brick and block counts even, on
+the reasoning that a colour alternating on a parity flips where the tile meets
+itself — true of a grid walked from zero to C, untrue of this one, because every
+style wraps its coordinates with `mod(x, C)` first, so the tile *is* the period.
+Both checks say so: the values repeat at every count, and the seam reads 1.00x
+for an odd brick count against 0.89x for an even one. Removed, and the test that
+replaced it makes the stronger claim — the wrap alone carries the repeat.
+
+### Six styles have to be six shapes
+
+`teeth` was a triangle wave and `stairs` a square one sampled twice per tooth,
+and the straight lines between samples turned the square into the same
+trapezoid. Two rows of a rounding sweep that were the same picture. And `waves`
+and `scales` were both sent through the corner-rounder at a radius the size of
+their own sample spacing, which turns a smooth curve into a column of lozenges —
+so the one difference between them, that a wave keeps its stripe width and a
+scale pinches it, was invisible.
+
+Now each style says where its samples go, the smooth pair get a curve through
+their samples instead of a rounded polygon, and a test fingerprints all six and
+requires five distinct shapes — `teeth` and `chevron` being the one pair allowed
+to match, since chevron is teeth drawn the other way round.
+
+### What makes it this identity's pattern
+
+`src/patterns/mark.js` measures three things off the artwork, and each answers a
+question a generator actually has.
+
+| | measured by | kvist | meridian | halyard | ancroft |
+|---|---|---:|---:|---:|---:|
+| how fine | box ÷ narrowest run | 36.4 | 13.3 | 10.0 | 80.0 |
+| how round | share of path commands that curve | 0% | 100% | 33% | 24% |
+| how wide | the ink box's proportion | 4.65 | 1.00 | 0.96 | 0.86 |
+
+One rule sets the scale of both generators, and it is the same rule the minimum
+size is: **nothing is drawn finer than twice the thinnest thing in the mark**.
+A pattern printed beside the mark, at the size the mark's own floor allows,
+cannot then be the thing that fails first. The first version said "about three
+stems wide", which was a number with no argument behind it, and it gave a mark
+of ten stems a tile with four stripes in it.
+
+Where a mark is heavy enough that the rule would leave under four stripes, a cap
+overrules it. That is a judgement rather than a measurement, so it is named
+(`COARSEST_STRIPE`), kept apart from the rule, and where it binds the manual says
+the cap decided rather than the mark.
+
+Style comes from two axes, because two things were measured, and every style is
+reachable — a rule that sent nine identities in ten to the same style would be
+the fault this engine exists to fix, in a new place.
+
+    32 identities, each choosing for itself
+      9 of the 14 styles reached
+      32 different tiles — no two identities got the same one
+      worst join 1.00x — no tile reaches even the most unusual
+      band its own pattern already contains
+
+### In the package
+
+Every package now carries both kinds in `07-pattern/`: the mark tiled at each
+density in each colourway, and one generated tile per generator per colourway.
+`brand.json` carries the recipe under `system.patterns` — the measurements, what
+was chosen and why, and the full parameters for each tile — so a rebuild returns
+the same bytes and the studio the client is given starts from what the engine
+chose rather than from nothing.
+
+### Reproducibility
+
+`Math.random()` and the clock are banned in `src/patterns/`, and `test/run.js`
+checks the files rather than trusting anyone to remember. Randomness comes from
+named streams off one seed — `stream(seed, 'colour')` and `stream(seed,
+'coverage')` are independent, so moving one slider does not re-deal the other,
+which is the difference between a control and a shuffle button.
+
 ## Rule blocks, the third kind
 
 A derived block reads a measurement. A rule block reads a **decision**. You make
@@ -6704,34 +6973,150 @@ the same answer as the exhaustive scan, drawing for drawing.
       8 state a size at least twice the size they hold from
       stated against measured: median 0.97x, worst 5.3x
 
-**The median is the important number.** The existing statistic is right for the
-great majority of drawings here, which is why a fix has to be surgical — and why
-all four of last round's, which each moved dozens of floors, were not.
-
-**And it found the direction nobody was looking in.** Last round knew about
-floors that are too large. Nine are too *small*, and the largest of those is not
-close:
-
     northline/master     says  48 px and 38% of its ink is under the rule there
     northline/mark       says  48 px and 38%
     ancroft/wordmark     says 169 px and 4.4%
     oriel/wordmark       says 109 px and 3.1%
     verdon/wordmark      says 176 px and 2.9%
 
-A floor that is too large costs a client an argument about whether their icons
-will read. A floor that is too small is a package certifying a size at which
-more than a third of the mark is under the rule the same package states. Nothing
-in this repository could see that until now.
+**Every number above is withdrawn by the section that follows**, and so is the
+paragraph before them. They were read once each, off a single render, at exactly
+the size where the rule falls on the stroke it was taken from — the one place
+where a single reading settles nothing. northline reads 1.8% at a render of 600
+and 38.3% at 900. The search "seven measurements instead of twenty-six" rested
+on the share only falling as a drawing grows, which was true of one fixed render
+and is not true now the render follows the question; it is a plain walk up the
+list. The corrected table is below.
 
-The eight in the other direction are the ones the last round found, now with a
-measured figure beside each:
+### The instrument was blind, and reported a number instead of saying so
 
-    pagrin/stacked       says  505 px, holds from   96 px — 5.3x
-    perigee/mark         says   39 px, holds from    8 px — 4.9x, off the stroke
-    pagrin/horizontal    says  864 px, holds from  192 px — 4.5x
-    hallward/horizontal  says 5206 px, holds from 1536 px — 3.4x
+Everything above was measured with a disc that was sometimes smaller than a
+pixel. An opening erodes the ink by half the rule and grows it back; a disc of
+radius under one pixel erodes nothing, so everything comes back, so nothing is
+thin — and the value returned for that is `0`, indistinguishable from a drawing
+with no thin ink in it at all. Between about two pixels of rule and about nine
+the reading wanders instead of failing. A ring stroked eleven units, asked
+whether any of it is under ten, which it is not:
 
-Next is the floor itself, and now there is something to test a rule against.
+    rule, in pixels of the render      4      6      8      9     12     16     24     32
+    share of the ring said to be     71%     3%    52%     0%     0%     0%     0%     0%
+    under it
+
+The drawing is the same drawing at every column. What changes is whether the
+core — the ink left standing after the erosion — is a continuous shape on the
+grid or a dotted line, and the core is only as wide as the ink exceeds the rule.
+At twelve pixels a stroke a tenth over the rule has more than a pixel of core to
+stand on, and every case worked out on paper is right from twelve up and stays
+right to thirty-two. So twelve is the floor, and `src/thickness.js` will not
+answer below it.
+
+Three faults, one root:
+
+**Distances were measured between pixel middles.** The transform reports how far
+an inked pixel's centre is from the nearest empty one, so a run of three pixels
+comes back two deep rather than one and a half. Every stroke measured half a
+pixel thicker than it is — and a stroke exactly on the rule is exactly what every
+stated floor is made of, because the floor is the size at which the thinnest
+stroke is the minimum. `EDGE` takes the half pixel back, at the erosion and at
+the growing back.
+
+**The render was fixed and the question was not.** The rule is a share of the
+width, so the larger the size asked about the finer the rule, and one render
+cannot hold every question. The render is now chosen from the question — always
+the size that puts the rule at `GRID` pixels, never finer than `FINEST` or
+coarser than `COARSEST` — and where the question falls outside that, `seen` is
+false and there is no number.
+
+**The question was asked on the edge.** A package's stated size is the size at
+which its thinnest stroke is exactly the minimum. At that size the rule falls
+exactly on the stroke it was taken from, and which side it lands on is decided
+by the render:
+
+    a ring stroked exactly 10 units, asked whether it is under 10 units
+    render      600    700    800    900   1100   1400
+    one number  100%    74%    86%    82%   100%    83%
+
+So it is no longer read once. `around()` asks a pixel and a half either side of
+the rule and returns the pair: the kindest reading and the harshest. Where they
+disagree the drawing is **on the rule**, which is a fact about the floor worth
+printing, and not a failure to measure. The width was measured, not chosen:
+
+    half-width                          0.5     1    1.5      2      3
+    same verdict at all three renders    67    78     87     90     91   of 108
+    called on the rule                   25    63     86     87     94
+
+No width ever called a drawing over the rule at one render and under it at
+another, so nothing here is picked to avoid a contradiction. A wider pair buys
+agreement and costs answers. One and a half is where the agreement stops
+climbing steeply and before the pair swallows the repository.
+
+### What it says about this repository, corrected
+
+    142 drawings, against the size each one's package states
+      37 state a size past what a render can see, and were not measured
+       5 state a size at which more than 2% of their ink is under the rule,
+         on the kindest reading the measurement allows
+      80 state a size where the rule falls on the stroke it was taken from
+       5 state a size at least twice the size they hold from
+      stated against measured: median 0.84x, worst 4.9x
+
+**Last round's headline is withdrawn.** "Nine state a size at which more than 2%
+of their ink is under the rule", and northline at 38%, were one side of a coin
+toss read once — the same drawing reads 1.8% at a render of 600 and 38.3% at 900,
+and the cliff between them sits within a pixel of the rule at every render.
+northline is not on the corrected list at all. Five drawings are, and they are
+short on the kindest reading available, which is the only way this should ever
+say a package is wrong:
+
+    ancroft/wordmark     says 169 px and at least 2.8% of its ink is under the rule there
+    oriel/wordmark       says 109 px and at least 2.8%
+    farne/wordmark       says  86 px and at least 2.1%
+    vesper/master        says  30 px and at least 2.2%
+    vesper/mark          says  30 px and at least 2.2%
+
+**The 80 are the real shape of the thing.** A stated floor is the size at which
+the thinnest stroke is exactly the minimum, so at that size the rule sits exactly
+on that stroke, with no margin either way. That is what the number means, and it
+is worth saying in those words rather than as a percentage that moves with the
+render.
+
+The 37 that cannot be seen are not a limitation to apologise for. A package
+stating 5206 px is stating that its finest feature is 0.058% of its width; no
+render this will make can check such a claim, and a promise no measurement can
+reach is itself the finding.
+
+### And the floors that look absurd are arithmetically right
+
+The next thing to fix was supposed to be the floor, and the measurement says the
+floor is not wrong in the way it looked wrong. Beaumont's horizontal lockup
+states 2581 px, which comes from a feature 0.64 units wide in a 550 unit box. The
+suspicion was that this was a taper being cut off by the grid — that the answer
+would keep halving as the render grew. Followed down, it does not:
+
+    the same feature, scanned at five render widths
+    render           600     1200     2400     4800     7200
+    beaumont/horiz  1.09     0.92     0.69     0.66     0.65   units
+    the floor that  1515     1795     2393     2502     2541   px
+    would give
+    saltmarsh/horiz 0.90     0.68     0.62     0.59     0.59
+    hallward/horiz 23.81     7.60     7.60     7.61     7.61
+
+It converges. Beaumont really does have a line a ninth of a percent of its width,
+and 2541 px really is the size at which that line paints three pixels. The
+arithmetic is right and the answer is useless, which is a different fault: what
+is wrong is that a feature carrying **0.10% of the drawing's ink** is allowed to
+set the rule for the whole drawing. hallward's carries 0.00%.
+
+The instrument cannot simply take over, either. Asked for the smallest size at
+which no more than 2% of the ink is under the rule on the harshest reading, it
+finds no size at all up to 512 px for 23 of the 142 — a shape with corners
+keeps a percent or two under any rule, because a corner is a tip — and where it
+does answer, the stated floor is already the smaller of the two more often than
+not: median 0.84x. Swapping it in would raise most of the floors here to fix
+five of them.
+
+So the floor is next, and it is a question about which feature is entitled to set
+it rather than about how to measure one.
 
 ## What it does not do yet
 
