@@ -2689,6 +2689,83 @@ measure a thin place, but which thin place is entitled to set the rule.
 
 ---
 
+**A pattern engine, and the floor it stands on**
+
+`src/pattern.js` tiles a shape cut from the master — seven constructions, the
+shape ranked and chosen by measurement. It works, and every identity gets the
+same seven answers. What it cannot make is a pattern that is a thing in its own
+right rather than the logo repeated.
+
+PLAYGRND is forty-three generative tools, and what is worth taking from it is
+not the pictures but the method. One `paint()` function, drawn by every surface
+— screen, export, vector recorder — so the raster and the vector cannot drift,
+because there is only one of them. Every dimension derived from one unit, so a
+generator is resolution-free by construction. Seeded, never random. And
+four-dimensional noise, so an animation closes exactly: the two extra axes trace
+a circle and after one turn you are where you began.
+
+**That last one solves a problem PLAYGRND never had.** It makes pictures; a
+brand pattern has to tile. It is the same problem and it takes the same answer —
+value noise on an integer lattice is exactly periodic if the lattice index is
+taken modulo the period, so sampling at x and at x + P interpolates the same
+four corners with the same weights. Equal in the last bit, not blurred at the
+join. Every octave doubles the frequency and doubles the period with it, so an
+fBm stays periodic however deep it goes, and a domain warp survives it because a
+periodic displacement of a periodic field is periodic.
+
+Measured rather than asserted: fifteen hundred points, each compared with itself
+up to four periods away.
+
+    plain noise, six octaves of fBm      differ by 0
+    a domain-warped field                differ by 1.2 × 10⁻¹⁴
+
+And a check that a tile actually repeats, since the claim is cheap and the
+failure is a wall covered in a visible join. Lay the tile out the way a designer
+does — an SVG `<pattern>` filling a rectangle — and ask where the boundary
+columns sit in the distribution of ordinary columns. Built on the periodic
+noise the boundary is unremarkable; built on the same noise with the wrap taken
+out it is the largest value there is.
+
+    a field that wraps           z = 0.76
+    the same field, unwrapped    z = 8.73
+
+**Summed octaves pile up in the middle**, and the more octaves the worse. Six of
+them, sampled into ten bins, come out `0.0 0.8 5.1 21.4 31.9 25.7 12.0 3.0 0.1
+0.0` — posterise that into ten colours and two never appear and one takes a
+third of the tile. It is the central limit theorem, so it has an exact answer
+rather than a fitted constant: the octaves are independent, so the sum's spread
+is the root of the sum of their squared amplitudes over their sum. That agrees
+with a measurement of ninety thousand samples to four decimal places at every
+octave count from one to six, and passing the field through the normal
+distribution of that spread gives `9.3 11.1 11.2 10.8 9.9 8.2 9.0 9.8 9.4 11.3`.
+One measured number in it — one octave's own spread, 0.1993.
+
+**Then the claim that the two surfaces agree.** Not by reading the code: one
+drawing, using nothing outside the contract, painted on a real canvas in
+Chromium and recorded to SVG in Node, both rasterised at 480 px and compared
+pixel by pixel. 0.49 of 255 mean difference, 0.04% of pixels differing by more
+than 48 — the edges of diagonals, which two rasterisers will never agree about.
+
+**And the check was passing for nothing.** Reverted the stroke scaling: passed.
+Reverted the arc join: passed. Composed the transforms the other way round:
+*identical numbers*. Three of the four things it existed to check, and the
+drawing reached none of them — every stroke was at the identity transform, every
+arc began its own path. A test drawing has to go where the code is. Rebuilt as
+six panels, one per part of the contract, each under a transform of its own:
+
+    the stroke width no longer scaled by the matrix     6.70    3.27%
+    fillRect ignoring the matrix                       20.39    9.81%
+    an arc that jumps to its start instead of joining   2.86    1.29%
+    translate composed the other way round              3.09    1.56%
+    clip not opening a group                           38.81   19.25%
+
+The bar was 3.0 and 1.5%, guessed before any of that was measured, and it let
+two of the five through. It sits in the gap now.
+
+Round A of six. Next are the generators.
+
+---
+
 **A bug report, from use: "Build the package" answered with a require()**
 
     require() of ES Module /var/task/node_modules/@exodus/bytes/encoding-lite.js

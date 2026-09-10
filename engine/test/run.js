@@ -723,6 +723,218 @@ test('every finding says what, why and how, in words a designer uses', () => {
   }
 });
 
+console.log('\nthe pattern engine: seeds, noise and surfaces');
+const PRAND = require('../src/patterns/rand');
+const PNOISE = require('../src/patterns/noise');
+const PSURF = require('../src/patterns/surface');
+const PSEAM = require('../src/patterns/seam');
+const PRAST = require('../src/patterns/raster');
+
+// Rendered ink, so a claim about where a shape landed is checked against
+// pixels rather than against the string that was supposed to draw it.
+function pixelsOf(svgString, widthPx) {
+  const { Resvg } = require('@resvg/resvg-js');
+  const r = new Resvg(svgString, { fitTo: { mode: 'width', value: widthPx },
+    background: 'rgba(255,255,255,255)' }).render();
+  const at = (x, y) => {
+    const i = ((y | 0) * r.width + (x | 0)) * 4;
+    return [r.pixels[i], r.pixels[i + 1], r.pixels[i + 2]];
+  };
+  return { at, w: r.width, h: r.height };
+}
+const near = (got, want, tol) => got.every((c, i) => Math.abs(c - want[i]) <= (tol == null ? 12 : tol));
+
+test('a seed gives the same numbers every time, and a name gives its own stream', () => {
+  const a = PRAND.stream(7, 'colour'), b = PRAND.stream(7, 'colour'), c = PRAND.stream(7, 'coverage');
+  const A = [a(), a(), a(), a()], B = [b(), b(), b(), b()], C = [c(), c(), c(), c()];
+  assert.deepStrictEqual(A, B, 'the same seed and name gave two different sequences');
+  assert.notDeepStrictEqual(A, C, 'two names off one seed gave the same sequence, so a slider re-deals everything');
+  assert.ok(A.every((x) => x >= 0 && x < 1), 'a value fell outside [0,1)');
+  // and it is not degenerate: 200k draws should sit on a half
+  let s = 0; const r = PRAND.stream(1, 'x');
+  for (let i = 0; i < 200000; i++) s += r();
+  assert.ok(Math.abs(s / 200000 - 0.5) < 0.005, `the mean of 200k draws was ${(s / 200000).toFixed(4)}`);
+});
+
+test('the noise comes back round exactly, not nearly', () => {
+  // A tile is seamless because the field is periodic, and periodic here means
+  // equal in the last bit — not smoothed at the join, not cross-faded. If this
+  // ever reads 1e-9 instead of 0 something has started interpolating across
+  // the boundary and the seam will be findable at some size.
+  const r = PRAND.stream(99, 'probe');
+  let worstN = 0, worstF = 0, worstW = 0;
+  for (let i = 0; i < 1500; i++) {
+    const x = r.range(-50, 50), y = r.range(-50, 50);
+    const px = 8, py = 5, kx = r.int(9) - 4, ky = r.int(9) - 4;
+    worstN = Math.max(worstN, Math.abs(
+      PNOISE.noise2(x, y, px, py, 3) - PNOISE.noise2(x + kx * px, y + ky * py, px, py, 3)));
+    worstF = Math.max(worstF, Math.abs(
+      PNOISE.fbm2(x, y, px, py, 6, 3) - PNOISE.fbm2(x + kx * px, y + ky * py, px, py, 6, 3)));
+    const a = PNOISE.warp2(x, y, px, py, 1.3, 3, 3);
+    const b = PNOISE.warp2(x + kx * px, y + ky * py, px, py, 1.3, 3, 3);
+    worstW = Math.max(worstW, Math.abs(
+      PNOISE.fbm2(a[0], a[1], px, py, 4, 7) - PNOISE.fbm2(b[0], b[1], px, py, 4, 7)));
+  }
+  assert.strictEqual(worstN, 0, `plain noise differed by ${worstN} a whole period away`);
+  assert.strictEqual(worstF, 0, `six octaves differed by ${worstF} a whole period away — an octave is not wrapping`);
+  // the warp adds a period to a coordinate before sampling, so it carries the
+  // rounding of that addition and nothing more
+  assert.ok(worstW < 1e-9, `a warped field differed by ${worstW} a whole period away`);
+});
+
+test('summed octaves pile up in the middle, and the flattening is arithmetic not a fudge', () => {
+  // Six octaves sampled into ten bins come out 0.0 0.8 5.1 21.4 31.9 25.7 12.0
+  // 3.0 0.1 0.0. Posterise that into ten colours and two never appear and one
+  // takes a third of the tile. It is the central limit theorem, so it has an
+  // exact answer: the octaves are independent, so the sum's spread is the root
+  // of the sum of their squared amplitudes over their sum.
+  const P = 8, G = 300;
+  const field = (oct) => {
+    const raw = []; let s = 0, s2 = 0;
+    for (let y = 0; y < G; y++) {
+      for (let x = 0; x < G; x++) {
+        const v = PNOISE.fbm2(x / G * P, y / G * P, P, P, oct, 1);
+        raw.push(v); s += v; s2 += v * v;
+      }
+    }
+    const mean = s / raw.length;
+    return { raw, mean, sd: Math.sqrt(s2 / raw.length - mean * mean) };
+  };
+  const bins = (values, f) => {
+    const b = new Array(10).fill(0);
+    for (const v of values) b[Math.max(0, Math.min(9, Math.floor(f(v) * 10)))]++;
+    return b.map((n) => (n / values.length) * 100);
+  };
+  for (const oct of [1, 2, 4, 6]) {
+    const f = field(oct);
+    // the arithmetic, against the field
+    assert.ok(Math.abs(PNOISE.sdOf(oct) - f.sd) < 0.004,
+      `${oct} octaves measured a spread of ${f.sd.toFixed(4)} and the arithmetic says ${PNOISE.sdOf(oct).toFixed(4)}`);
+    // and the flattening does what it is for
+    const flat = bins(f.raw, (v) => PNOISE.evenly(v, oct, f.mean, f.sd));
+    assert.ok(Math.max(...flat) < 15,
+      `${oct} octaves flattened still put ${Math.max(...flat).toFixed(0)}% of the field in one tenth`);
+    assert.ok(Math.min(...flat) > 5,
+      `${oct} octaves flattened left a tenth with only ${Math.min(...flat).toFixed(1)}% in it`);
+  }
+  // and the raw field really is as lopsided as that says — otherwise the
+  // flattening is fixing nothing and this test would pass either way
+  const six = field(6);
+  const raw = bins(six.raw, (v) => v);
+  assert.ok(Math.max(...raw) > 25, `the raw six-octave field was already even: worst bin ${Math.max(...raw).toFixed(0)}%`);
+  assert.ok(Math.min(...raw) < 1, 'the raw six-octave field reached every bin');
+});
+
+test('the recorder puts a shape where the arithmetic says it is', () => {
+  const s = PSURF.svg({ width: 100, height: 100, id: 't' });
+  s.fillStyle = '#CC0000'; s.fillRect(10, 10, 30, 20);
+  const p = pixelsOf(s.toSVG(), 100);
+  assert.ok(near(p.at(25, 20), [204, 0, 0]), `inside the rect was ${p.at(25, 20)}`);
+  assert.ok(near(p.at(5, 5), [255, 255, 255]), `outside it was ${p.at(5, 5)}`);
+  assert.ok(near(p.at(45, 20), [255, 255, 255]), 'the rect ran past its width');
+  assert.ok(near(p.at(25, 35), [255, 255, 255]), 'the rect ran past its height');
+});
+
+test('a transform is baked into the coordinates, not left as an attribute', () => {
+  // A tile is a file somebody opens and recolours. Nested transforms are the
+  // reason that is usually miserable, and they also stop a run of cells being
+  // merged into one rectangle.
+  const s = PSURF.svg({ width: 100, height: 100, id: 't' });
+  s.save(); s.translate(70, 30); s.rotate(Math.PI / 4); s.fillStyle = '#0000CC';
+  s.fillRect(-10, -10, 20, 20); s.restore();
+  const out = s.toSVG();
+  assert.ok(!/transform=/.test(out), 'the recorder emitted a transform attribute');
+  // a square turned 45° about (70,30) has its corners on the axes through it
+  assert.ok(/M70 15.858/.test(out), `the rotated corners came out as ${out.match(/d="[^"]*"/)}`);
+  const p = pixelsOf(out, 200);
+  assert.ok(near(p.at(140, 60), [0, 0, 204]), 'the centre of the turned square is not painted');
+  assert.ok(near(p.at(124, 44), [255, 255, 255]), 'the corner the square no longer occupies is painted');
+});
+
+test('a stroke keeps the weight it was given when the transform scales', () => {
+  // The recorder bakes the transform into the coordinates, so the stroke width
+  // has to be scaled by hand. Forgetting leaves every scaled generator drawing
+  // hairlines, which is only visible at export size.
+  const s = PSURF.svg({ width: 100, height: 100, id: 't' });
+  s.save(); s.scale(3, 3); s.lineWidth = 2; s.strokeStyle = '#000';
+  s.beginPath(); s.moveTo(5, 5); s.lineTo(25, 5); s.stroke(); s.restore();
+  assert.ok(/stroke-width="6"/.test(s.toSVG()), `it emitted ${s.toSVG().match(/stroke-width="[^"]*"/)}`);
+});
+
+test('a circle drawn as an arc is round', () => {
+  const s = PSURF.svg({ width: 100, height: 100, id: 't' });
+  s.fillStyle = '#000'; s.beginPath(); s.arc(50, 50, 30, 0, Math.PI * 2); s.fill();
+  const p = pixelsOf(s.toSVG(), 200);
+  for (const a of [0, 1, 2, 3, 4, 5]) {
+    const th = a * Math.PI / 3;
+    const inX = 100 + Math.cos(th) * 50, inY = 100 + Math.sin(th) * 50;   // r=25 in tile units
+    const outX = 100 + Math.cos(th) * 70, outY = 100 + Math.sin(th) * 70; // r=35
+    assert.ok(near(p.at(inX, inY), [0, 0, 0], 40), `inside the circle at ${a}/6 turn was ${p.at(inX, inY)}`);
+    assert.ok(near(p.at(outX, outY), [255, 255, 255], 40), `outside it at ${a}/6 turn was ${p.at(outX, outY)}`);
+  }
+});
+
+test('the seam is measured, and a tile that does not repeat is caught', () => {
+  // The whole claim of a pattern engine is that its tile repeats. This lays the
+  // tile out the way a designer does — an SVG <pattern> filling a rectangle —
+  // and asks where the boundary columns sit in the distribution of ordinary
+  // columns. Built on the periodic noise the boundary is unremarkable; built on
+  // the same noise with the wrap taken out it is the largest value there is.
+  const tile = (wrapIt) => {
+    const s = PSURF.svg({ width: 120, height: 120, id: 'a' });
+    const cells = 60, c = 120 / cells, P = 6;
+    for (let gy = 0; gy < cells; gy++) {
+      for (let gx = 0; gx < cells; gx++) {
+        const n = wrapIt
+          ? PNOISE.fbm2(gx / cells * P, gy / cells * P, P, P, 4, 5)
+          : PNOISE.fbm2(gx / cells * P, gy / cells * P, 9999, 9999, 4, 5);
+        const t = Math.round(n * 255);
+        s.fillStyle = `rgb(${t},${t},${t})`;
+        s.fillRect(gx * c, gy * c, c, c);
+      }
+    }
+    return s.body();
+  };
+  const good = PSEAM.check(tile(true), 120, 120);
+  const bad = PSEAM.check(tile(false), 120, 120);
+  assert.ok(good.z < 4, `a periodic field showed a seam at z=${good.z.toFixed(2)}`);
+  assert.ok(bad.z > 4, `a field with no wrap in it showed no seam: z=${bad.z.toFixed(2)}`);
+});
+
+test('a raster field encodes to the same bytes twice', () => {
+  const make = () => {
+    const f = PRAST.field(120, 120);
+    for (let y = 0; y < 120; y++) {
+      for (let x = 0; x < 120; x++) {
+        const v = PNOISE.fbm2(x / 120 * 6, y / 120 * 6, 6, 6, 4, 11);
+        const t = Math.round(Math.floor(v * 5) / 4 * 255);
+        f.set(x, y, t, t, t, 255);
+      }
+    }
+    return f;
+  };
+  const a = PRAST.png(make()), b = PRAST.png(make());
+  assert.strictEqual(Buffer.compare(a, b), 0, 'two encodings of the same field differed');
+  assert.ok(a.length > 200 && a[0] === 0x89 && a[1] === 0x50, 'that is not a PNG');
+  const at = PRAST.printedAt(make());
+  assert.ok(at.mm > 5 && at.mm < 20, `120 px at 300 dpi came out as ${at.mm} mm`);
+});
+
+test('nothing in the pattern engine calls Math.random', () => {
+  // A generator that reaches for it builds a package whose artwork changes on
+  // every rebuild, and thirty-two identities here are checked byte for byte.
+  const dir = path.join(__dirname, '..', 'src', 'patterns');
+  const bad = [];
+  for (const f of fs.readdirSync(dir).filter((n) => n.endsWith('.js'))) {
+    const src = fs.readFileSync(path.join(dir, f), 'utf8');
+    // the ban is stated in the comments of rand.js, so look at code only
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    if (/Math\.random\s*\(/.test(code)) bad.push(f);
+    if (/\bnew Date\b|Date\.now\s*\(/.test(code)) bad.push(`${f} (a clock)`);
+  }
+  assert.deepStrictEqual(bad, [], `${bad.join(', ')} would re-deal the artwork on a rebuild`);
+});
+
 console.log('\nrule blocks: the pattern');
 const pat = require('../src/pattern');
 const PR = sys.patternRules();

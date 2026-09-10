@@ -710,6 +710,132 @@ it generates. Inlined into the editor that closed the editor's own script block
 early and took the rest of the file with it, so it is escaped in the source. The
 test refuses a raw closing tag in any file that gets inlined.
 
+## The pattern engine
+
+`src/pattern.js` makes one kind of pattern: a shape cut from the master,
+repeated seven ways. `src/patterns/` is the other kind — parametric generators
+in the manner of PLAYGRND, with the controls handed to the client. The plan for
+all six rounds is in `docs/pattern-engine-plan.md`; this is the floor they
+stand on.
+
+### One paint function, every surface
+
+    paint(surface, W, H, state, frame)
+
+pure with respect to its state and its seed, and drawn by whichever surface it
+is handed. `src/patterns/surface.js` has two:
+
+- **`canvas(ctx)`** — a real 2-D context. The studio's preview, and its PNG
+  export at any size.
+- **`svg(opts)`** — records the same calls as SVG elements. The build, in Node.
+
+The contract is deliberately small: `save restore · translate rotate scale ·
+beginPath moveTo lineTo quadraticCurveTo bezierCurveTo arc closePath · fill
+stroke clip · fillRect`, plus six style properties. Anything a generator needs
+beyond that gets added to both surfaces or it is not in the contract.
+
+The recorder **bakes the transform into the coordinates** rather than emitting
+`transform` attributes. A pattern tile is a file somebody opens in Illustrator
+and recolours, and nested transforms are the reason that is usually miserable.
+A rect under an axis-aligned matrix stays a `<rect>`; under a turn it becomes a
+path of four corners. Flat coordinates also make run-length merging possible,
+which is what keeps a ten-thousand-cell grid from being ten thousand elements.
+
+### Noise that comes back round
+
+A brand pattern has to tile, which PLAYGRND never had to do — and the answer is
+the one it already uses for closing an animation loop. Value noise on an integer
+lattice is exactly periodic if the index is taken modulo the period: x and x + P
+interpolate the same corners with the same weights.
+
+    1500 points, each compared with itself up to four periods away
+      plain noise                       differ by 0
+      six octaves of fBm                differ by 0
+      a domain-warped field             differ by 1.2 × 10⁻¹⁴
+
+The 4-D form wraps x and y and leaves z and w free, because those two trace a
+circle and a circle already comes back to itself. One function, both jobs.
+
+### Flattening the field
+
+Summed octaves tend to their mean. Six of them into ten bins:
+
+    raw          0.0   0.8   5.1  21.4  31.9  25.7  12.0   3.0   0.1   0.0
+
+Two bins never appear and one takes a third of the tile, so a ten-band
+posterisation reads as one colour with flecks. Every field generator would need
+the same workaround, so it is solved once — and it has an exact answer rather
+than a fudge, because the octaves are independent and the sum's spread is the
+root of the sum of their squared amplitudes over their sum:
+
+    octaves        1        2        4        6
+    measured  0.1977   0.1484   0.1225   0.1170
+    arithmetic 0.1993   0.1485   0.1225   0.1169
+
+Pass the field through the normal distribution of that spread:
+
+    flattened    9.3  11.1  11.2  10.8   9.9   8.2   9.0   9.8   9.4  11.3
+
+Monotone, nothing clipped, one measured constant in the whole thing — one
+octave's own spread, 0.1993, over 360,000 lattice points.
+
+### Is the seam findable?
+
+`src/patterns/seam.js` lays the tile out as an SVG `<pattern>` filling a
+rectangle — which is what a designer drops on an artboard — renders it, and asks
+where the boundary columns sit in the distribution of ordinary neighbouring
+columns. The answer is a z-score, reported for the vertical seams and the
+horizontal ones separately, because a tile can be periodic in one axis and not
+the other and the two failures look nothing alike.
+
+    a field built on the periodic noise      z = 0.76
+    the same field with the wrap taken out   z = 8.73
+
+The boundary columns are left out of the distribution they are compared against.
+Including them would let a bad seam raise the bar it has to clear, which is how
+a check ends up unable to fail.
+
+### Do the two surfaces actually agree?
+
+`test/surface-check.mjs`. One drawing, using nothing outside the contract,
+painted on a real canvas in Chromium and recorded to SVG in Node, both
+rasterised at 480 px and compared pixel by pixel.
+
+    mean difference per pixel            0.49 of 255
+    pixels differing by more than 8      2.19%
+    pixels differing by more than 48     0.04%
+
+A perfect match is not the bar and could not be: two rasterisers antialias a
+diagonal differently and will disagree about its edge by a few counts. A shape
+in one and not the other is a different thing, and it shows up as whole regions
+differing.
+
+**The first version of this check was passing for nothing.** With the stroke
+scaling reverted it passed. With the arc join reverted it passed. With the
+transforms composed the other way round it returned *identical numbers* — three
+of the four faults it existed to catch, and the drawing reached none of them,
+because every stroke in it was at the identity transform and every arc began its
+own path. Rebuilt as six panels, one per part of the contract, each under a
+transform of its own:
+
+    as shipped                                          0.49    0.04%
+    the stroke width no longer scaled by the matrix     6.70    3.27%
+    fillRect ignoring the matrix                       20.39    9.81%
+    an arc that jumps to its start instead of joining   2.86    1.29%
+    translate composed the other way round              3.09    1.56%
+    clip not opening a group                           38.81   19.25%
+
+The bar had been 3.0 and 1.5%, guessed before any of it was measured, and it let
+two of the five through. It is 1.5 and 0.4% now, which is where the gap is.
+
+### Reproducibility
+
+`Math.random()` and the clock are banned in `src/patterns/`, and `test/run.js`
+checks the files rather than trusting anyone to remember. Randomness comes from
+named streams off one seed — `stream(seed, 'colour')` and `stream(seed,
+'coverage')` are independent, so moving one slider does not re-deal the other,
+which is the difference between a control and a shuffle button.
+
 ## Rule blocks, the third kind
 
 A derived block reads a measurement. A rule block reads a **decision**. You make
