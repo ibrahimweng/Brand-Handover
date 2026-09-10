@@ -272,6 +272,7 @@ function guidelines(ctx) {
     // project has. A section only where there is something to show.
     const parts = [
       [T('secPattern'), b.patternSpec(ctx)],
+      [T('secGenerated'), b.generatedSpec(ctx)],
       [T('secPhotography'), b.photographySpec(ctx)],
       // Only where there will be icons. Two projects shipped a chapter
       // specifying the icon grid — box, stroke, curve radius, the lot — into a

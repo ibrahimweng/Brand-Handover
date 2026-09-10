@@ -1657,9 +1657,10 @@ test('the two columns are read off both pictures with one ruler', () => {
   assert.strictEqual(PMEAS.scale(ref).period, 64, 'the reference is not what it was built to be');
   const r = PMATCH.fit(ref, make, { px: 256, rounds: 1 });
   assert.strictEqual(r.table.ruler, 512, 'the table is not ruled by the reference');
-  const row = r.table.rows.find((x) => x[0] === 'Repeats every');
-  const theirs = parseInt(row[1], 10), mine = parseInt(row[2], 10);
-  assert.ok(Number.isFinite(theirs) && Number.isFinite(mine), `unreadable row ${row.join(' | ')}`);
+  const row = r.table.rows.find((x) => x.key === 'repeatEvery');
+  const theirs = row.theirs.n, mine = row.ours.n;
+  assert.ok(Number.isFinite(theirs) && Number.isFinite(mine),
+    `unreadable row ${JSON.stringify(row)}`);
   assert.ok(Math.abs(theirs - mine) <= theirs * 0.25,
     `one pattern read ${theirs} px and ${mine} px in the two columns`);
   // and the table never says "no repeat" beside "a repeat" about one picture
@@ -1687,8 +1688,8 @@ test('a logo is not scored on the rows a logo does not have', () => {
     `a logo was scored on ${r.scored.join(', ')}`);
   assert.ok(r.score < 0.25, `the logo matched at only ${r.score}`);
   // the rows it did not try to match say so, rather than reading as misses
-  const unscored = r.table.rows.filter((x) => x[3] === 'not matched').map((x) => x[0]);
-  assert.ok(unscored.indexOf('Repeats every') > -1 && unscored.indexOf('Repeat or tendency') > -1,
+  const unscored = r.table.rows.filter((x) => x.note === 'notMatched').map((x) => x.key);
+  assert.ok(unscored.indexOf('repeatEvery') > -1 && unscored.indexOf('repeatKind') > -1,
     `the unmatched rows are ${unscored.join(', ')}`);
   // and scoring it as a pattern is what was worse, which is why this exists
   const asPattern = PMATCH.fit(logo, make, { px: 256, rounds: 1 });
@@ -1737,6 +1738,138 @@ test('a raster generator is measured through its own renderer, not its SVG', () 
   const direct = g.render(128, 128, t.params, t.pal);
   assert.strictEqual(Buffer.compare(Buffer.from(f.data), Buffer.from(direct.data)), 0,
     'asField did not read terrace through terrace');
+});
+
+test('a brand that brings its own pattern gets one measured against it', async () => {
+  const p2 = projectLoader.load(path.join(__dirname, '..', 'projects', 'salvage', 'project.json'));
+  assert.ok(p2.assets.patternReference, 'salvage lost its reference');
+  assert.strictEqual(p2.assets.patternReference.mime, 'image/png');
+  assert.ok(Buffer.isBuffer(p2.assets.patternReference.bytes), 'the reference was not read as bytes');
+  // read as bytes, not as text: a PNG through UTF-8 is a different file
+  assert.strictEqual(p2.assets.patternReference.source, null,
+    'a PNG reference was given a text source, which means it went through a decoder as a string');
+  assert.strictEqual(p2.assets.patternReference.bytes[0], 0x89, 'the bytes are not a PNG');
+
+  // The reference is built to have a known answer, so the measurement is
+  // checked against the picture rather than against itself.
+  const ref = PMATCH.referenceField(p2.assets.patternReference);
+  const read = PMEAS.all(ref);
+  assert.strictEqual(read.scale.period, 96, `the reference measured ${read.scale.period}, not the 96 it was drawn with`);
+  assert.ok(Math.abs(read.orientation.angle - 135) < 3, `it measured ${read.orientation.angle}°, not 135`);
+  assert.ok(read.hardness.width > 3, `its edges measured ${read.hardness.width} px, and it was drawn soft`);
+
+  const out2 = fs.mkdtempSync(path.join(os.tmpdir(), 'salvage-'));
+  try {
+    const r = await build(p2, out2);
+    const bj = JSON.parse(fs.readFileSync(path.join(out2, 'brand.json'), 'utf8'));
+    const m = bj.system.patterns.matched;
+    assert.ok(m, 'a project with a reference recorded no match');
+    assert.strictEqual(m.reference, 'pattern.png');
+    assert.strictEqual(bj.system.patterns.chose, m.generator,
+      'the package chose one generator and matched another');
+    // the tile actually written uses the matched parameters, not the derived ones
+    const made = bj.system.patterns.made.filter((x) => x.generator === m.generator);
+    assert.ok(made.length, 'the matched generator wrote no tile');
+    for (const one of made) {
+      assert.deepStrictEqual(one.params, m.params,
+        'the matched generator was written with parameters the match did not choose');
+      assert.ok(/generated to measure like pattern\.png/.test(one.why),
+        `the reason does not say the reference decided: ${one.why}`);
+    }
+    // and the other generators keep what the mark chose, so the studio opens
+    // on five real patterns rather than one and four bent towards a stranger's
+    const others = bj.system.patterns.made.filter((x) => x.generator !== m.generator);
+    assert.ok(others.length && others.every((o) => !/generated to measure like/.test(o.why)),
+      'every generator was bent towards the reference');
+
+    // the two columns, in the manual, in one ruler
+    const html = prose(fs.readFileSync(path.join(out2, 'guidelines.html'), 'utf8'));
+    assert.ok(html.indexOf('The generated pattern') > -1, 'the manual has no generated-pattern page');
+    const at = html.indexOf('The generated pattern');
+    // To the end of the section, not a guessed number of characters. The first
+    // version took 12 000, and a generator whose tile is drawn with more shapes
+    // than another's pushed the table past the end of the window — so the check
+    // failed on the size of a drawing rather than on anything it is about.
+    const next = html.indexOf('class="sec"', at);
+    const sec = html.slice(at, next > -1 ? next : html.length);
+    assert.ok(sec.length > 500, 'the section came out empty');
+    assert.ok(sec.indexOf(`aria-label="${m.generator}"`) > -1,
+      'the page draws a generator other than the one chosen');
+    for (const label of ['Repeats every', 'Ink', 'Runs at', 'Edges over']) {
+      assert.ok(sec.indexOf(label) > -1, `the table has no "${label}" row`);
+    }
+    // both columns present, and the reference's own numbers among them
+    assert.ok(sec.indexOf('96 px') > -1, 'their period is not printed');
+    assert.ok(sec.indexOf('45%') > -1, 'their ink share is not printed');
+    // a row nothing can reach is named as that rather than left as a miss
+    assert.ok(sec.indexOf('beyond what this engine draws') > -1,
+      'the row no generator reaches is not marked');
+    assert.ok(/none of the \d+ generators draws an edge that soft/.test(sec),
+      'the manual does not say why that row cannot be matched');
+    // and the page still asks nothing of the network or of its neighbours
+    assert.ok(sec.indexOf('../07-pattern/') === -1, 'the page points at a sibling file');
+    assert.ok(r.written.some((f) => f.path === 'brand.json'));
+  } finally { fs.rmSync(out2, { recursive: true, force: true }); }
+});
+
+test('the manual draws the generator the package chose, not the first one listed', () => {
+  // Asked of the block directly, with a made[] whose first entry is deliberately
+  // not the chosen one. Through a fixture this claim goes vacuous the moment
+  // the chosen generator happens to be the first in NAMES — which it did, twice,
+  // and the reversion passed both times looking exactly like a check with teeth.
+  const docs2 = require('../src/documents');
+  const b = require('../src/documents/blocks');
+  const p2 = projectLoader.load(path.join(__dirname, '..', 'projects', 'meridian', 'project.json'));
+  const m2 = measure(p2);
+  const mk = PMARK.read(p2.assets.mark.source, m2, p2.rules);
+  const cw = p2.rules.colourways[0];
+  const made = PENG.NAMES.map((g) => {
+    const t = PENG.tile({ mark: mk, generator: g, colours: p2.tokens.colour, colourway: cw });
+    return { generator: g, colourway: cw.name, file: `07-pattern/${g}-${cw.name}.svg`,
+      vector: t.vector, params: t.params, palette: t.palette, why: t.why };
+  });
+  const want = PENG.NAMES[PENG.NAMES.length - 1];
+  assert.notStrictEqual(want, made[0].generator, 'the fixture cannot tell the two apart');
+  const ctx = docs2.context(p2, m2, [], { system: { patterns: { chose: want, made } } });
+  const html = b.generatedSpec(ctx);
+  assert.ok(html, 'the block drew nothing');
+  assert.ok(html.indexOf(`aria-label="${want}"`) > -1,
+    `the page drew something other than ${want}`);
+  assert.ok(html.indexOf(`>${want}<`) > -1 || html.indexOf(want) > -1, `${want} is not named`);
+  assert.strictEqual(html.indexOf(`aria-label="${made[0].generator}"`), -1,
+    `the page drew ${made[0].generator}, which is first in the list and not what was chosen`);
+  // and with nothing chosen it draws nothing rather than guessing
+  const empty = docs2.context(p2, m2, [], { system: { patterns: { made } } });
+  assert.strictEqual(b.generatedSpec(empty), '',
+    'with no generator chosen the page picked one anyway');
+});
+
+test('a reference that cannot be read is refused in words, not in a stack trace', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'badref-'));
+  try {
+    const from = path.join(__dirname, '..', 'projects', 'salvage');
+    for (const f of ['mark.svg', 'wordmark.svg', 'project.json']) {
+      fs.copyFileSync(path.join(from, f), path.join(dir, f));
+    }
+    fs.writeFileSync(path.join(dir, 'pattern.png'), Buffer.from('this is not a png'));
+    let said = null;
+    try { projectLoader.load(path.join(dir, 'project.json')); } catch (e) { said = e; }
+    assert.ok(said, 'a reference that is not a PNG was accepted');
+    assert.ok(said.findings && said.findings.length, 'the refusal carries no finding');
+    const f = said.findings[0];
+    assert.strictEqual(f.level, 'blocker');
+    assert.ok(/could not be read as a PNG/.test(f.what), f.what);
+    assert.ok(f.why && f.how, 'a refusal has to say why and what to do');
+    assert.ok(!/undefined|\[object|Error:/.test(`${f.what}${f.why}${f.how}`), `${f.what} ${f.why} ${f.how}`);
+    // and a kind the engine cannot measure at all is named before it is opened
+    fs.writeFileSync(path.join(dir, 'pattern.gif'), Buffer.from('GIF89a'));
+    const proj = JSON.parse(fs.readFileSync(path.join(dir, 'project.json'), 'utf8'));
+    proj.assets.patternReference = 'pattern.gif';
+    fs.writeFileSync(path.join(dir, 'project.json'), JSON.stringify(proj));
+    let two = null;
+    try { projectLoader.load(path.join(dir, 'project.json')); } catch (e) { two = e; }
+    assert.ok(two && /\.svg or \.png|svg, \.png|\.svg/.test(two.message), two && two.message);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
 console.log('\nthe pattern engine: the studio');

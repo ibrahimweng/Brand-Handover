@@ -1254,6 +1254,194 @@ six times over to prove a check can fail. `test/run.js --only <text>` runs the
 tests whose names contain that text and the setups before the last of them, and
 prints a banner so a subset is never mistaken for a pass. Fifty-six seconds.
 
+## Matching a pattern the client already has
+
+`src/patterns/measure.js` takes six numbers off a picture. `src/patterns/match.js`
+uses them to build one of ours that measures the same.
+
+Not a trace. A trace of a client's pattern *is* their pattern, redrawn: it
+cannot be recoloured for a second colourway, re-scaled for a bag after being
+drawn for a letterhead, or regenerated at all. It is a picture of a decision
+rather than the decision, which is the thing this engine exists not to hand
+over. So: measure theirs, generate ours, measure ours **the same way**, and
+print both columns.
+
+    Yours                Ours
+    Repeats every        96 px          96 px
+    Repeats across       8              8
+    Ink                  45%            53%
+    Runs at              135°           116.3°
+    Edges over           4.4 px         1.1 px    beyond what this engine draws
+    Repeat or tendency   a repeat       a repeat
+
+### The six, and how each one is proved
+
+Every measurement is checked against a picture built to have a known answer —
+stripes of a stated period, ramps of a stated width, a ground with a stated
+share of ink. A measurement nobody has checked against a known answer is a
+number, not a measurement.
+
+    palette      k-means in Lab, reported by the colour most pixels wear
+    scale        autocorrelation, separably, the first peak that stands out
+    orientation  Sobel gradients summed as doubled angles
+    coverage     everything that is not the colour there is most of
+    regularity   how far that peak stands above the run of the series
+    hardness     curvature against slope: the width of a transition, in pixels
+
+Three of them were wrong first, and each was wrong in a way that looked right.
+
+**Hardness counted edges rather than measuring them.** The first version asked
+what share of a picture's change sat in its steepest tenth. That is a count of
+how many edges there are wearing the name of how sharp they are: identical
+knife edges read 0.56 at period 40 and 0.93 at period 200, because a fine
+pattern spends more than a tenth of its pixels on edges and the top tenth can
+then hold only half of them. Sharpness is a local shape, so it is measured
+locally — a ramp rising evenly over k pixels has a constant first derivative
+and almost no second, a step has both at once:
+
+    mean |Laplacian| / mean |gradient|  ~  1/k
+
+Ramps built 1, 2, 4, 8 and 20 px wide measure 1.0, 2.0, 3.9, 7.7 and 14.2, so
+the number **is** the width in pixels. And four periods of identical hard edges
+now measure 1.00, 1.00, 1.00, 1.00.
+
+**Sampling a pattern on a lattice lands on one phase of it.** Red dots one pixel
+in four on white, sampled every second pixel, came back **100% red and 0%
+white**; the ink share of a ten-column pattern came back at exactly double. A
+pattern can be relied on to be in step with any lattice laid over it. Colours
+are counted over every pixel now, or walked with a stride coprime to the pixel
+count — a period that divided the stride would have to divide a number the
+stride shares no factor with.
+
+**The scale measurement picked its axis by which correlated highest.** Stripes
+running down correlate *perfectly* at every vertical lag, because sliding a
+column of one colour down changes nothing: 1.00, against the real period's 0.97
+on the other axis. Whether a peak was found has to decide first.
+
+### What the search does
+
+Each generator says which knobs matching may turn and what values it may try —
+not the whole rig, because a matcher given every control finds a corner that
+scores well and looks nothing like a brand pattern. What inverts directly is
+inverted (a period is a cell count, an ink share is a fill), and from there it
+is coordinate descent: one knob moved at a time, each candidate **rendered and
+measured**, rounds until nothing improves. About 130 renders, thirteen seconds.
+Nothing is scored by reasoning about what it ought to look like.
+
+### What twenty runs say about it
+
+Hand each generator its own output back and ask which one drew it, over two
+identities at two resolutions:
+
+    weave, zigzag            right every time, by margins of 0.026 to 0.465
+    field, thread, terrace   right 7 times in 10, by margins of 0.004 to 0.021
+
+So the claim is not "the matcher names the generator". The two hard-edged
+generators are recovered exactly; the three field generators are **one family**
+under these six measurements, and which of them wins is inside the noise. That
+is a fact about the measurements rather than a fault in the search, so `fit()`
+reports every generator that ties with the winner, the manual names them, and
+the tests assert only what those runs support.
+
+### Two columns, one ruler
+
+A period is in pixels and pixels are not a property of a pattern. The reference
+is 512 px and the tile it is matched against is rendered at 256, so the same
+pattern read 64 px and 32 px and the table said the match was half the size it
+was. Both columns are stated at the reference's own width.
+
+### Rows nothing can reach
+
+Every one of the five generators draws with a knife edge — the softest any of
+them measures is 0.91, where a step is 1.00 — because all five quantise: weave
+and field to a cell, zigzag to a stripe, thread to a stroke, terrace to a band.
+A reference with edges over four pixels therefore loses that row against every
+generator, every time, and a score on its own makes a wall look like a near
+miss.
+
+So the row is named as a wall, beside itself, in a sentence:
+
+    none of the 5 generators draws an edge that soft — they all quantise, to a
+    cell, a stripe, a stroke or a band. Yours softens over 4.4 px; the softest
+    this engine draws is 1.1 px.
+
+A client whose pattern is an airbrushed gradient should be told this engine does
+not draw one, rather than handed a hard-edged pattern and a number.
+
+### Against a logo, the rows are different
+
+A mark is one drawing, not a repeat, so its autocorrelation reports the width of
+a stroke or nothing at all; and its ink share is the share *inside its own box*,
+which is not the share a pattern made from it should carry. kvist's mark is 6%
+ink, and a pattern at 6% ink is a nearly empty page. Matching those two rows
+drove every sparse mark to the same answer and scored it 0.40 — correctly, since
+it was answering a question nobody asked. Scoring a logo on what a logo has
+takes it to 0.14, and the rows that were not scored are marked "not compared"
+rather than left to read as misses. What carries from a mark to its pattern is
+how its edges behave and whether it leans; the rest of the argument is
+`derive()`'s, and always was.
+
+### In the package
+
+`assets.patternReference` takes a PNG or an SVG. It is read as **bytes** and
+kept as bytes — a PNG read as UTF-8 is a different file by the time it reaches a
+decoder, and the error it gives is about a CRC rather than about anybody's
+pattern. It is the one asset the normaliser never touches: every other one is
+artwork this engine redraws and ships, and a reference that has been tidied is
+no longer the thing being matched.
+
+The build measures it, matches it, and uses the matched generator and its
+parameters in **every colourway** — while the other four generators keep what
+the mark chose, so the studio still opens on five real patterns rather than one
+and four bent towards a stranger's. `brand.json` carries the whole argument
+under `system.patterns.matched`: what was measured off theirs, off ours, how
+close it came, which generators tied, and which rows nothing could reach.
+
+`projects/salvage/` is the thirty-third identity and the one that brings a
+pattern of its own. Its mark, left alone, chooses `terrace`; its reference makes
+the package choose `weave`. That disagreement is the point of the fixture — two
+earlier versions of it agreed with the mark by accident, and the reversion that
+should have caught "let the mark decide anyway" passed twice, looking exactly
+like a check with teeth.
+
+### The manual page
+
+Rounds B to D put five generated patterns into every package, into `brand.json`
+and into the read me, and into **no manual**: the client was handed artwork with
+nothing saying where it came from or why that one. `secGenerated` is that page.
+It draws the chosen pattern — drawn there, not linked, because every document
+here opens with no network and no sibling files — says why in the same sentence
+`brand.json` carries, and where a reference was given prints the two columns.
+
+The reason had to be corrected as well. `because()` says what the *mark* asked
+for, and with a reference the mark did not decide: "the mark is 12 of its own
+narrowest runs across, so a stripe is 5% of the tile" reads as the mark
+deciding, when a picture the client supplied decided. It now names the reference
+first and the mark second, in the one string `brand.json`, the studio and the
+manual all print.
+
+Rows carry a **key and a token**, never English prose — a measurement is a
+number and how it is said belongs to a language, and this table is printed in
+four of them.
+
+The plan here was to write English and French and let Hebrew and Japanese fall
+back, on the grounds that a fallback which reports itself beats a translation
+nobody can check. The suite said no, and it was right: `strings.js` claims to
+*write* those two languages, and there is a check that every English key exists
+in both — "a Japanese document would fall back to English mid-sentence" is the
+message, and the fallback exists for a language the engine does not claim,
+not for one it does. All four sets are complete. The Hebrew and Japanese here
+are short measurement labels and three sentences, and they want a native reader
+before anyone ships a package in either.
+
+And the Japanese had to be written **inside a font**. 山彦 ships IPAGothic
+subsetted to the characters its own content sets, so the package opens with no
+network at all — and a subset holds what somebody knew about when it was cut.
+Thirteen characters of the first draft were outside it, which `test/run.js`
+said in those words. ネットワーク is one of the casualties: the subset has no
+ワ, so the line says 回線 instead. Nothing about that is discoverable by
+reading; it is discoverable by a check that opens the font and asks.
+
 ## Rule blocks, the third kind
 
 A derived block reads a measurement. A rule block reads a **decision**. You make
@@ -7492,6 +7680,7 @@ it rather than about how to measure one.
     projects/verdon/  the thirtieth: a French document, because the brand is French
     projects/carrock/ the thirty-first: a mark that turns, and a manual that knows it
     projects/pagrin/  the thirty-second: the first that came out of a real exporter
+    projects/salvage/ the thirty-third: it arrives with a pattern of its own
     src/editor/       model.js, render.js, publish.js, app.js, bundle.js, emit.js
     src/editor/images.js  photographs, kept out of the document and out of undo
     src/naming.js     one naming rule for the whole package, UMD for the page

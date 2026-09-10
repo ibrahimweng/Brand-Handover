@@ -240,6 +240,39 @@ function fit(reference, make, opts) {
   }
   tried.sort((a, b) => a.score - b.score);
   const won = tried[0] || null;
+  // Rows no generator could reach.
+  //
+  // Every one of the five draws with a knife edge — the softest any of them
+  // measures is 0.91, where a step is 1.00 — because all five quantise: weave
+  // and field to a cell, zigzag to a stripe, thread to a stroke, terrace to a
+  // band. So a reference with edges over four pixels loses that row against
+  // every generator, every time, and a score on its own makes a wall look like
+  // a near miss.
+  //
+  // A client whose pattern is an airbrushed gradient should be told this engine
+  // does not draw one, in a sentence, beside the row it is about — rather than
+  // handed a hard-edged pattern and a number. Taken from what the search
+  // actually measured, so it cannot claim a limit the generators do not have.
+  const beyond = [];
+  if (won && tried.length) {
+    const nearest = (pick) => tried.reduce((b, t) => {
+      const d = Math.abs(pick(theirs) - pick(t.mine));
+      return d < b.d ? { d, at: pick(t.mine), generator: t.generator } : b;
+    }, { d: Infinity, at: null, generator: null });
+    const px = (v) => Math.round((1 / Math.max(v, 1e-9)) * 10) / 10;
+    const h = nearest((r) => r.hardness.value);
+    if (h.d > 0.35) {
+      beyond.push({ key: 'edgesOver', says: `none of the ${tried.length} generators draws an `
+        + `edge that soft — they all quantise, to a cell, a stripe, a stroke or a band. Yours `
+        + `softens over ${theirs.hardness.width} px; the softest this engine draws is ${px(h.at)} px.` });
+    }
+    const c = nearest((r) => r.coverage);
+    if (c.d > 0.2) {
+      beyond.push({ key: 'ink', says: `none of the ${tried.length} generators carries that much `
+        + `ink or that little: yours is ${Math.round(theirs.coverage * 100)}% and the nearest `
+        + `this engine reaches is ${Math.round(c.at * 100)}%.` });
+    }
+  }
   // Which other generators measure the same as the winner.
   //
   // This is not hedging, it is what twenty runs say. Handing each generator its
@@ -270,7 +303,9 @@ function fit(reference, make, opts) {
     // Named, not buried: a client shown one answer should be shown the ones
     // that measure the same as it.
     alsoFits,
-    table: won ? columns(theirs, won.mine, o.against === 'logo' ? WEIGHTS.logo : null) : null,
+    // What no generator could reach, named row by row.
+    beyond,
+    table: won ? columns(theirs, won.mine, o.against === 'logo' ? WEIGHTS.logo : null, beyond) : null,
     verdict: Object.assign(verdict(won ? won.score : null),
       alsoFits.length ? {
         tied: alsoFits.map((a) => a.generator),
@@ -278,7 +313,8 @@ function fit(reference, make, opts) {
           + `${alsoFits.length === 1 ? 'measures' : 'measure'} the same as this one, so `
           + `${alsoFits.length === 1 ? 'either' : 'any of them'} would match; this was closest `
           + `by ${(alsoFits[0].score - won.score).toFixed(3)}`,
-      } : {}),
+      } : {},
+      beyond.length ? { beyond: beyond.map((b) => b.says) } : {}),
   };
 }
 
@@ -291,31 +327,49 @@ function fit(reference, make, opts) {
 // and the row said the match was half the size it was. Ours is restated at the
 // width of theirs — which is what "the same size" means when one of the two is
 // a vector that has no size at all.
-function columns(theirs, mine, weights) {
+function columns(theirs, mine, weights, outOfReach) {
   const pc = (v) => `${Math.round(v * 100)}%`;
   const ruler = theirs.size.width;
   const ourPeriod = mine.scale.across > 0 ? Math.round(ruler / mine.scale.across) : null;
+  // Each row carries a key and, where the answer is a word rather than a
+  // number, a token — never the English. A measurement is a number; how it is
+  // said belongs to a language, and this table is printed in four of them. The
+  // English in `label` is for brand.json and the read me, which are English.
+  const mm = (v, u) => ({ n: v, unit: u });
   const rows = [
-    ['Repeats every', theirs.scale.found ? `${theirs.scale.period} px` : 'no repeat',
-      mine.scale.found && ourPeriod ? `${ourPeriod} px` : 'no repeat'],
-    ['Repeats across', theirs.scale.found ? `${theirs.scale.across}` : '—',
-      mine.scale.found ? `${mine.scale.across}` : '—'],
-    ['Ink', pc(theirs.coverage), pc(mine.coverage)],
-    ['Runs at', theirs.orientation.kind === 'even' ? 'no direction' : `${theirs.orientation.angle}°`,
-      mine.orientation.kind === 'even' ? 'no direction' : `${mine.orientation.angle}°`],
-    ['Edges over', `${theirs.hardness.width} px`, `${mine.hardness.width} px`],
-    ['Repeat or tendency', theirs.scale.regularity >= 0.5 ? 'a repeat' : 'a tendency',
-      mine.scale.regularity >= 0.5 ? 'a repeat' : 'a tendency'],
+    { key: 'repeatEvery', label: 'Repeats every',
+      theirs: theirs.scale.found ? mm(theirs.scale.period, 'px') : { say: 'noRepeat' },
+      ours: mine.scale.found && ourPeriod ? mm(ourPeriod, 'px') : { say: 'noRepeat' } },
+    { key: 'repeatAcross', label: 'Repeats across',
+      theirs: theirs.scale.found ? mm(theirs.scale.across, '') : { say: 'none' },
+      ours: mine.scale.found ? mm(mine.scale.across, '') : { say: 'none' } },
+    { key: 'ink', label: 'Ink',
+      theirs: mm(Math.round(theirs.coverage * 100), '%'), ours: mm(Math.round(mine.coverage * 100), '%') },
+    { key: 'runsAt', label: 'Runs at',
+      theirs: theirs.orientation.kind === 'even' ? { say: 'noDirection' } : mm(theirs.orientation.angle, '°'),
+      ours: mine.orientation.kind === 'even' ? { say: 'noDirection' } : mm(mine.orientation.angle, '°') },
+    { key: 'edgesOver', label: 'Edges over',
+      theirs: mm(theirs.hardness.width, 'px'), ours: mm(mine.hardness.width, 'px') },
+    { key: 'repeatKind', label: 'Repeat or tendency',
+      theirs: { say: theirs.scale.regularity >= 0.5 ? 'aRepeat' : 'aTendency' },
+      ours: { say: mine.scale.regularity >= 0.5 ? 'aRepeat' : 'aTendency' } },
   ];
   // Against a logo, the rows that were not scored are marked, so nobody reads a
   // row the engine was not trying to match as one it tried and missed.
   if (weights) {
-    const of = { 'Repeats every': 'scale', 'Repeats across': 'scale', Ink: 'coverage',
-      'Runs at': 'orientation', 'Edges over': 'hardness', 'Repeat or tendency': 'regularity' };
-    for (const r of rows) if (!weights[of[r[0]]]) r.push('not matched');
+    const of = { repeatEvery: 'scale', repeatAcross: 'scale', ink: 'coverage',
+      runsAt: 'orientation', edgesOver: 'hardness', repeatKind: 'regularity' };
+    for (const r of rows) if (!weights[of[r.key]]) r.note = 'notMatched';
+  }
+  // A row this engine cannot reach is marked as that, not as a miss.
+  if (outOfReach) {
+    for (const b of outOfReach) {
+      const row = rows.find((r) => r.key === b.key);
+      if (row) row.note = 'beyond';
+    }
   }
   return {
-    head: ['', 'Yours', 'Ours'], rows, ruler,
+    rows, ruler,
     // Colour is not matched and saying so is the honest thing: the pattern is
     // drawn in the identity's own inks, because a brand pattern in somebody
     // else's colours is somebody else's pattern.
@@ -338,6 +392,45 @@ function verdict(score) {
   if (score <= 0.15) return { kind: 'near', says: 'close on every measurement that matters' };
   if (score <= 0.35) return { kind: 'family', says: 'the same kind of pattern, not the same pattern' };
   return { kind: 'far', says: 'this is the closest of the five, and it is not close' };
+}
+
+// A client's own pattern, whichever way it arrived, as a field the six
+// measurements read exactly as they read one of ours. PNG is decoded; SVG is
+// rasterised. Both come out as RGBA at the same size, because a comparison
+// between two pictures measured different ways is not a comparison.
+function referenceField(asset, px) {
+  const w = px || LOOK;
+  if (!asset) return null;
+  if (asset.mime === 'image/png' || (asset.bytes && !asset.source)) {
+    const { decode } = require('fast-png');
+    const img = decode(asset.bytes);
+    // fast-png gives whatever the file holds — 8 or 16 bits, grey, grey+alpha,
+    // RGB, RGBA, or a palette index. All of it becomes RGBA eight-bit here, in
+    // one place, rather than at each measurement.
+    return toRGBA(img);
+  }
+  const src = asset.source || String(asset);
+  const img = require('./seam').pixels(src, w);
+  return { width: img.w, height: img.h, data: img.px };
+}
+
+function toRGBA(img) {
+  const { width, height, depth, channels, data, palette } = img;
+  const out = new Uint8Array(width * height * 4);
+  const max = depth === 16 ? 65535 : 255;
+  const to8 = (v) => Math.round((v / max) * 255);
+  for (let i = 0; i < width * height; i++) {
+    let r, g, b, a = 255;
+    if (palette && palette.length) {
+      const c = palette[data[i]] || [0, 0, 0];
+      r = c[0]; g = c[1]; b = c[2];
+    } else if (channels === 1) { r = g = b = to8(data[i]); }
+    else if (channels === 2) { r = g = b = to8(data[i * 2]); a = to8(data[i * 2 + 1]); }
+    else if (channels === 3) { r = to8(data[i * 3]); g = to8(data[i * 3 + 1]); b = to8(data[i * 3 + 2]); }
+    else { r = to8(data[i * 4]); g = to8(data[i * 4 + 1]); b = to8(data[i * 4 + 2]); a = to8(data[i * 4 + 3]); }
+    out[i * 4] = r; out[i * 4 + 1] = g; out[i * 4 + 2] = b; out[i * 4 + 3] = a;
+  }
+  return { width, height, data: out };
 }
 
 // With no reference pattern, the logo is the reference. One input swapped and
@@ -367,4 +460,4 @@ const viewBoxOf = (svg) => {
 };
 const inner = (svg) => String(svg).replace(/^[\s\S]*?<svg[^>]*>/i, '').replace(/<\/svg>\s*$/i, '');
 
-module.exports = { fit, distance, columns, verdict, asField, logoField, WEIGHTS, TIE, opening, candidates, KNOBS, LOOK };
+module.exports = { fit, distance, columns, verdict, asField, logoField, referenceField, toRGBA, WEIGHTS, TIE, opening, candidates, KNOBS, LOOK };

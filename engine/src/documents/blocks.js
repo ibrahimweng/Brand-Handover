@@ -966,6 +966,90 @@ function patternSpec(ctx) {
       noun: nounIn(ctx, L), n: gen.tiles.length }))}</p>`;
 }
 
+// The generated pattern, and the argument for it.
+//
+// Rounds B to D put five generated patterns into every package, into brand.json
+// and into the read me, and into no manual: the client was handed artwork with
+// nothing saying where it came from or why that one. This is the page that says
+// so — and where the brand brought a pattern of its own, the two columns that
+// let anybody check the claim that ours measures like theirs.
+//
+// Both columns are read off pictures the same way, by src/patterns/measure.js.
+// That is the whole claim, and it is why a table of numbers is worth a page.
+function generatedSpec(ctx) {
+  const L = lang(ctx);
+  const pats = ctx.brandJson && ctx.brandJson.system && ctx.brandJson.system.patterns;
+  if (!pats || !pats.made || !pats.made.length) return '';
+  const on = showOn(ctx);
+  // `chose`, not `chosen`. Reading a key that is not there fell through to
+  // made[0] silently, so the page named and described a generator the engine
+  // had not picked — with the matched one sitting two rows below it in the very
+  // table meant to be about it.
+  const picked = pats.chose;
+  if (!picked) return '';
+  const chosen = pats.made.find((x) => x.generator === picked && x.colourway === on.colourway)
+    || pats.made.find((x) => x.generator === picked);
+  if (!chosen) return '';
+  const m = pats.matched;
+
+  // A measurement is a number; how it is said belongs to a language. The
+  // matcher hands over numbers and tokens, and the words are chosen here.
+  const cell = (v) => {
+    if (!v) return '';
+    if (v.say) return esc(L.t({ noRepeat: 'genNoRepeat', noDirection: 'genNoDirection',
+      aRepeat: 'genARepeat', aTendency: 'genATendency', none: 'genNone' }[v.say] || 'genNone'));
+    // A degree sign and a per cent sign sit against the number; a unit is a
+    // word and takes a space. "45 %" and "135 °" are not how either is written.
+    const tight = v.unit === '%' || v.unit === '°';
+    const said = `${v.n}${v.unit ? (tight ? v.unit : ` ${v.unit}`) : ''}`;
+    return esc(L.value ? L.value(said) : said);
+  };
+  const table = m && m.table ? `<table class="fig"><thead><tr><th></th>
+      <th>${esc(L.t('genYours'))}</th><th>${esc(L.t('genOurs'))}</th><th></th></tr></thead><tbody>
+      ${m.table.rows.map((r) => `<tr><th scope="row">${esc(L.t(`gen${r.key[0].toUpperCase()}${r.key.slice(1)}`))}</th>
+        <td>${cell(r.theirs)}</td><td>${cell(r.ours)}</td>
+        <td class="note">${r.note ? esc(L.t(r.note === 'beyond' ? 'genBeyond' : 'genNotMatched')) : ''}</td></tr>`).join('')}
+    </tbody></table>` : '';
+
+  // What no generator could reach, said where the row it is about can be seen.
+  // A wall is not a near miss and a score alone cannot tell them apart.
+  const walls = (m && m.verdict && m.verdict.beyond || []).map((w) => `<p class="note">${esc(w)}</p>`).join('');
+  const also = m && m.verdict && m.verdict.tied && m.verdict.tied.length
+    ? `<p class="note">${esc(L.t('genAlso', { names: m.verdict.tied.join(', ') }))}</p>` : '';
+
+  // Drawn here rather than linked. Every document in this package opens with no
+  // network and no sibling files — pointing at ../07-pattern/ would be the one
+  // thing on the page that needs the rest of the folder to still be beside it.
+  // The generators are pure and seeded, so the tile drawn here is the tile in
+  // 07-pattern, which test/run.js checks rather than assumes.
+  const PT = require('../patterns');
+  const master = ctx.project.assets[ctx.measured.master || 'mark'] || ctx.project.assets.mark;
+  let art = '';
+  try {
+    const t = PT.tile({ markSource: master.source, measured: ctx.measured, rules: ctx.project.rules,
+      generator: chosen.generator, params: chosen.params,
+      colours: ctx.project.tokens.colour, colourway: on.colourway
+        ? ctx.project.rules.colourways.find((c) => c.name === on.colourway) || ctx.project.rules.colourways[0]
+        : ctx.project.rules.colourways[0], id: 'gen-man' });
+    // Nine of them, so the page shows a pattern rather than one tile — which is
+    // what the thing is for, and what a single square cannot show.
+    art = `<svg xmlns="${svgu.NS}" viewBox="0 0 300 200" role="img" `
+      + `aria-label="${esc(chosen.generator)}" style="width:100%;height:auto;display:block">`
+      + `<defs><pattern id="genman" width="100" height="100" patternUnits="userSpaceOnUse">`
+      + `${t.body}</pattern></defs>`
+      + `<rect x="0" y="0" width="300" height="200" fill="url(#genman)"/></svg>`;
+  } catch (e) { art = ''; }
+  return `<div class="row2" style="align-items:start;margin-bottom:16px">
+      <div><div class="stage tight" style="background:${on.ground.hex};padding:0;overflow:hidden">
+        ${art}</div>
+        <p class="note" style="margin-top:8px"><b>${esc(chosen.generator)}</b> — ${esc(chosen.why)}</p></div>
+      <div><p class="note" style="margin-top:0">${esc(m
+        ? L.t('genFrom', { file: m.reference }) : L.t('genFromMark'))}</p>
+        ${table}${walls}${also}
+        <p class="note">${esc(L.t('genStudio'))}</p></div>
+    </div>`;
+}
+
 function photographySpec(ctx) {
   const L = lang(ctx);
   const r = ctx.system.photography;
@@ -1178,5 +1262,5 @@ function changes(ctx) {
     + `</p><div class="chgs">${breaking.map(row).join('')}${news.map(row).join('')}</div>`;
 }
 
-module.exports = { TXT, esc, own, changes, floorTable, partnerLockups, colourVision, ladderBlock, fabrication, familyBlock, motionBuild, inked, gradientSpec, inksOf, inkOn, patternSpec, photographySpec, iconSpec, willWriteIcons, motionSpec, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, misuseCells, markSpecimen, lockupRow, construction, clearSpace,
+module.exports = { TXT, esc, own, changes, floorTable, partnerLockups, colourVision, ladderBlock, fabrication, familyBlock, motionBuild, inked, gradientSpec, inksOf, inkOn, patternSpec, generatedSpec, photographySpec, iconSpec, willWriteIcons, motionSpec, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, misuseCells, markSpecimen, lockupRow, construction, clearSpace,
   minimumSize, lockups, misuse, palette, contrastTable, typeSpecimen, typeScale, assetIndex, brandJsonBlock };

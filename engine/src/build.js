@@ -1194,13 +1194,57 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   };
   const PATTERNS = require('./patterns');
   const patternMark = PATTERNS.read(masterOf(project).source, measured, rules);
+
+  // A pattern the brand already has, if it brought one.
+  //
+  // The engine does not redraw it and does not ship it. It measures it, and
+  // generates one of its own that measures the same — so the client gets a
+  // pattern they can recolour, re-scale and regenerate, rather than the one
+  // they already had with our name on it. Both columns go in the manual, so
+  // the claim is one they can check rather than one they have to accept.
+  const MATCH = require('./patterns/match');
+  let matched = null;
+  if (project.assets.patternReference) {
+    const ref = MATCH.referenceField(project.assets.patternReference);
+    const cw0 = rules.colourways[0];
+    const make = (g, params) => PATTERNS.tile({ mark: patternMark, generator: g,
+      params: params || undefined, colours: project.tokens.colour, colourway: cw0,
+      size: sys.pattern.tile, id: `fit-${g}` });
+    try {
+      const r = MATCH.fit(ref, make, { px: 256, rounds: 2 });
+      matched = r && r.generator ? r : null;
+      if (matched) {
+        log(`  matched their pattern: ${matched.generator} — ${matched.verdict.says}`);
+      }
+    } catch (e) {
+      warnings.push(`the pattern ${project.assets.patternReference.file} could not be measured, `
+        + `so the pattern was generated from the mark instead. ${e.message}`);
+    }
+  }
+
   const generated = [];
   for (const cw of rules.colourways) {
     for (const name of PATTERNS.NAMES) {
       try {
         const t = PATTERNS.tile({ mark: patternMark, generator: name,
+          // The matched generator carries the parameters the match found, in
+          // every colourway. The others keep the ones the mark chose, so the
+          // studio still opens on five real patterns rather than on one and
+          // four that have been bent towards somebody else's.
+          params: matched && matched.generator === name ? matched.params : undefined,
           colours: project.tokens.colour, colourway: cw, size: sys.pattern.tile,
           id: `${name}-${naming.slug(cw.name)}` });
+        // Where the match chose the parameters, the reason has to say so. The
+        // mark's own sentence is still true of the numbers and false about how
+        // they were arrived at — "the mark is 12 of its own narrowest runs
+        // across, so a stripe is 5% of the tile" reads as the mark deciding,
+        // when a picture the client supplied decided. brand.json, the studio
+        // and the manual all print this one string, so it is corrected once.
+        if (matched && matched.generator === name) {
+          t.why = `this one is generated to measure like ${project.assets.patternReference.file}, `
+            + `the pattern this brand already uses: ${matched.verdict.says}. `
+            + `The mark still sets what it can — ${t.why.charAt(0).toLowerCase()}${t.why.slice(1)}`;
+        }
         generated.push({ name, colourway: cw.name, tile: t });
       } catch (e) {
         warnings.push(`the ${name} pattern was not built in ${cw.name}. ${e.message}`);
@@ -1227,7 +1271,9 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   }
   // Which one the measurements point at, so the manual and brand.json can name
   // one without the engine having to pick again somewhere else.
-  const patternChoice = PATTERNS.suits(patternMark);
+  // What the mark asks for, unless the brand brought a pattern — in which case
+  // the one that measures like theirs is the one they should be given.
+  const patternChoice = matched ? matched.generator : PATTERNS.suits(patternMark);
   const patternPick = generated.find((g) => g.name === patternChoice) || generated[0];
   // And the studio, so the pattern is a thing the client keeps making rather
   // than a folder of finished files. Same discipline as editor.html: one file,
@@ -1457,6 +1503,17 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
         chose: patternChoice,
         why: patternPick.tile.why,
         generators: PATTERNS.NAMES,
+        // The whole of the match, so the package carries the argument and not
+        // just its conclusion: what was measured off theirs, what was measured
+        // off ours, how close it came, and which other generators measured the
+        // same as the one chosen.
+        matched: matched ? {
+          reference: project.assets.patternReference.file,
+          generator: matched.generator, params: matched.params,
+          score: matched.score, verdict: matched.verdict,
+          alsoFits: matched.alsoFits.map((a) => a.generator),
+          theirs: matched.theirs, mine: matched.mine, table: matched.table,
+        } : null,
         made: generated.map((g) => ({
           generator: g.name, colourway: g.colourway,
           file: `07-pattern/${g.name}-${naming.slug(g.colourway)}.${g.tile.vector ? 'svg' : 'png'}`,

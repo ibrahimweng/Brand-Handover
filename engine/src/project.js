@@ -13,7 +13,15 @@ const FAMILY = require('./family');
 // What an asset key means. One file each, or a list of them — and nothing else,
 // so a kind nobody has thought of yet is a question rather than a stack trace.
 const ASSET_SINGLE = { mark: 'the symbol', wordmark: 'the logotype',
-  icon: 'the simplified drawing icons are cut from' };
+  icon: 'the simplified drawing icons are cut from',
+  // A pattern the brand already has. Every other asset here is artwork the
+  // engine draws with; this one is artwork the engine *measures*, and never
+  // redraws or ships. It is the reference our own pattern is generated to
+  // match — see src/patterns/match.js for why that is a match and not a trace.
+  patternReference: 'the pattern the brand already uses' };
+// The one asset that may be pixels rather than a drawing, because a client's
+// existing pattern usually arrives as an export rather than as source.
+const REFERENCE_KINDS = { '.svg': 'image/svg+xml', '.png': 'image/png' };
 const ASSET_LISTS_ARE = { photography: 'the photography', documents: 'the pieces somebody laid out',
   partners: 'the partners whose marks stand beside yours',
   tiers: 'the simpler drawings the mark steps down to' };
@@ -372,6 +380,22 @@ function load(file) {
     if (ASSET_LISTS.indexOf(key) > -1) continue;
     const p = path.join(dir, rel);
     if (!fs.existsSync(p)) throw new Error(`the project points at ${rel} for the ${key}, and that file is not there`);
+    if (key === 'patternReference') {
+      // Read as bytes and kept as bytes. A PNG read as UTF-8 is a different
+      // file by the time it reaches a decoder, and the error it gives is about
+      // a CRC rather than about anybody's pattern.
+      const ext = path.extname(p).toLowerCase();
+      const mime = REFERENCE_KINDS[ext];
+      if (!mime) {
+        throw new Error(`the project points at ${rel} as the pattern it already uses, and `
+          + `${ext || 'a file with no extension'} is not one this engine can measure. `
+          + `Save it as ${Object.keys(REFERENCE_KINDS).join(' or ')}.`);
+      }
+      const bytes = fs.readFileSync(p);
+      assets[key] = { path: p, file: rel, mime, bytes,
+        source: mime === 'image/svg+xml' ? bytes.toString('utf8') : null };
+      continue;
+    }
     assets[key] = { path: p, source: fs.readFileSync(p, 'utf8') };
   }
   const PHOTO = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
@@ -524,11 +548,48 @@ function load(file) {
   // thing right up until a project has no symbol.
   const master = assets.mark ? 'mark' : 'wordmark';
 
+  // Can the reference be read at all? Asked here, where the answer is a
+  // sentence about somebody's file, rather than in the middle of a build where
+  // it is a stack trace about a CRC.
+  function checkReference(asset) {
+    if (asset.mime === 'image/png') {
+      try {
+        const img = require('fast-png').decode(asset.bytes);
+        if (!img.width || !img.height) throw new Error('it has no size');
+        return [];
+      } catch (e) {
+        const err = new Error(`the pattern at ${asset.file} could not be opened`);
+        err.findings = [{ level: 'blocker', code: 'referenceUnreadable',
+          what: `${asset.file} could not be read as a PNG.`,
+          why: 'The pattern you already use is what ours is generated to match, so it has to be readable.',
+          how: 'Re-export it as a PNG, or point assets.patternReference at an SVG instead.' }];
+        err.asset = 'patternReference';
+        throw err;
+      }
+    }
+    try { svgu.parse(asset.source); return []; } catch (e) {
+      const err = new Error(`the pattern at ${asset.file} could not be opened`);
+      err.findings = [{ level: 'blocker', code: 'referenceUnreadable',
+        what: `${asset.file} is not valid SVG.`,
+        why: 'The pattern you already use is what ours is generated to match, so it has to be readable.',
+        how: 'Re-export it, or save it as a PNG instead.' }];
+      err.asset = 'patternReference';
+      throw err;
+    }
+  }
+
   // Every piece of artwork goes through the normaliser before anything measures
   // it, so a messy export is caught here rather than halfway through a build.
   const tokens = raw.tokens || {};
   const report = {};
   for (const [key, asset] of Object.entries(assets)) {
+    // Not the client's own pattern. Every other asset here is artwork this
+    // engine redraws, recolours and ships, so it is normalised first. The
+    // reference is none of those things: it is measured and then left alone,
+    // and running it through the normaliser both fails on a PNG — which has no
+    // `source` to parse — and would be wrong on an SVG, since a reference that
+    // has been tidied is no longer the thing being matched.
+    if (key === 'patternReference') { report[key] = checkReference(asset); continue; }
     const n = normalise(asset.source, { tokens });
     report[key] = n.findings;
     if (!n.ok) {

@@ -3021,3 +3021,93 @@ banner, so a subset can never be read as a pass.
 
 Round D of six. Next is matching: measuring a client's own pattern and
 regenerating it in this system, and matching the logo when there isn't one.
+
+
+---
+
+**Measuring a pattern, and matching one the client already has**
+
+If a brand arrives with a pattern of its own, the engine does not trace it. A
+trace of their pattern *is* their pattern, redrawn: it cannot be recoloured for
+a second colourway, re-scaled for a bag after being drawn for a letterhead, or
+regenerated at all. So it measures theirs, generates one of ours, measures ours
+the same way, and prints both columns — a claim anybody can check.
+
+    Yours                Ours
+    Repeats every        96 px          96 px
+    Repeats across       8              8
+    Ink                  45%            53%
+    Runs at              135°           116.3°
+    Edges over           4.4 px         1.1 px    beyond what this engine draws
+    Repeat or tendency   a repeat       a repeat
+
+Six measurements: palette, scale, orientation, coverage, regularity, edge
+hardness. Every one is proved against a picture built to have a known answer.
+Three were wrong first, and each was wrong in a way that looked right.
+
+**Hardness counted edges instead of measuring them.** Asking what share of a
+picture's change sits in its steepest tenth is a count of *how many* edges there
+are wearing the name of *how sharp* they are — identical knife edges read 0.56
+at period 40 and 0.93 at period 200. Sharpness is a local shape, so measure it
+locally: curvature against slope is about 1/k for a transition k pixels wide.
+Ramps built 1, 2, 4, 8 and 20 px wide now measure 1.0, 2.0, 3.9, 7.7 and 14.2 —
+the number *is* the width — and four different periods of the same hard edge all
+measure exactly 1.
+
+**Sampling a pattern on a lattice lands on one phase of it.** Red dots one pixel
+in four, sampled every second pixel, came back 100% red and 0% white; a
+ten-column pattern's ink share came back at exactly double. A pattern can be
+relied on to be in step with any lattice laid over it.
+
+**The scale measurement picked its axis by which correlated highest** — and
+stripes running down correlate *perfectly* at every vertical lag, because
+sliding a column of one colour down changes nothing. That scored 1.00 against
+the real period's 0.97. Whether a peak was found has to decide first.
+
+**What twenty runs say about the matcher.** Hand each generator its own output
+back and ask which drew it, over two identities at two resolutions: weave and
+zigzag come back right every time by margins of 0.026 to 0.465; field, thread
+and terrace come back right seven times in ten by margins of 0.004 to 0.021. So
+the claim is not "the matcher names the generator" — the two hard-edged ones are
+recovered exactly, and the three field generators are one family under these six
+measurements, with the winner among them inside the noise. That is a property of
+the measurements, not a fault in the search, so the engine reports every
+generator that ties and the tests assert only what those runs support.
+
+**And a wall is not a near miss.** Every one of the five generators draws with a
+knife edge — the softest any reaches is 0.91 where a step is 1.00 — because all
+five quantise, to a cell, a stripe, a stroke or a band. A soft reference loses
+that row against every generator, every time, and a score alone hides it. The
+table names it: *"none of the 5 generators draws an edge that soft… yours
+softens over 4.4 px; the softest this engine draws is 1.1 px."* A client whose
+pattern is an airbrushed gradient should be told this engine does not draw one.
+
+**Against a logo the rows are different.** A mark is one drawing, not a repeat,
+and its ink share is the share inside its own box: kvist's mark is 6% ink, and a
+pattern at 6% ink is an empty page. Matching those rows drove every sparse mark
+to the same answer at 0.40; scoring a logo on what a logo has takes it to 0.14,
+and the rows that were not scored say so rather than reading as misses.
+
+**In the package.** `assets.patternReference` takes a PNG or an SVG, read as
+bytes and never normalised — every other asset is artwork the engine redraws and
+ships, and a reference that has been tidied is no longer the thing being
+matched. The build measures it and uses the matched generator and parameters in
+every colourway, while the other four keep what the mark chose. `brand.json`
+carries the whole argument. **salvage** is the thirty-third identity and the one
+that brings a pattern of its own: its mark alone chooses `terrace`, and its
+reference makes the package choose `weave`.
+
+**The manual finally has a page for it.** Rounds B to D put five generated
+patterns into every package, into `brand.json`, into the read me — and into no
+manual. The client was handed artwork with nothing saying where it came from.
+
+Two things that had gone vacuous, both caught by reverting rather than by
+reading. The fixture agreed with its own mark by accident, so the reversion for
+"let the mark decide anyway" passed twice looking exactly like a check with
+teeth; the fixture's mark was redrawn until the two genuinely disagree. And the
+manual check went through a fixture whose chosen generator happened to be first
+in the list, so "name whichever is listed first" passed — that claim is asked of
+the block directly now, with a list whose first entry is deliberately not the
+chosen one.
+
+Round E of six. Next is the last one: the front-door step and the editor block.
