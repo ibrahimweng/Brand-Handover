@@ -6704,34 +6704,150 @@ the same answer as the exhaustive scan, drawing for drawing.
       8 state a size at least twice the size they hold from
       stated against measured: median 0.97x, worst 5.3x
 
-**The median is the important number.** The existing statistic is right for the
-great majority of drawings here, which is why a fix has to be surgical — and why
-all four of last round's, which each moved dozens of floors, were not.
-
-**And it found the direction nobody was looking in.** Last round knew about
-floors that are too large. Nine are too *small*, and the largest of those is not
-close:
-
     northline/master     says  48 px and 38% of its ink is under the rule there
     northline/mark       says  48 px and 38%
     ancroft/wordmark     says 169 px and 4.4%
     oriel/wordmark       says 109 px and 3.1%
     verdon/wordmark      says 176 px and 2.9%
 
-A floor that is too large costs a client an argument about whether their icons
-will read. A floor that is too small is a package certifying a size at which
-more than a third of the mark is under the rule the same package states. Nothing
-in this repository could see that until now.
+**Every number above is withdrawn by the section that follows**, and so is the
+paragraph before them. They were read once each, off a single render, at exactly
+the size where the rule falls on the stroke it was taken from — the one place
+where a single reading settles nothing. northline reads 1.8% at a render of 600
+and 38.3% at 900. The search "seven measurements instead of twenty-six" rested
+on the share only falling as a drawing grows, which was true of one fixed render
+and is not true now the render follows the question; it is a plain walk up the
+list. The corrected table is below.
 
-The eight in the other direction are the ones the last round found, now with a
-measured figure beside each:
+### The instrument was blind, and reported a number instead of saying so
 
-    pagrin/stacked       says  505 px, holds from   96 px — 5.3x
-    perigee/mark         says   39 px, holds from    8 px — 4.9x, off the stroke
-    pagrin/horizontal    says  864 px, holds from  192 px — 4.5x
-    hallward/horizontal  says 5206 px, holds from 1536 px — 3.4x
+Everything above was measured with a disc that was sometimes smaller than a
+pixel. An opening erodes the ink by half the rule and grows it back; a disc of
+radius under one pixel erodes nothing, so everything comes back, so nothing is
+thin — and the value returned for that is `0`, indistinguishable from a drawing
+with no thin ink in it at all. Between about two pixels of rule and about nine
+the reading wanders instead of failing. A ring stroked eleven units, asked
+whether any of it is under ten, which it is not:
 
-Next is the floor itself, and now there is something to test a rule against.
+    rule, in pixels of the render      4      6      8      9     12     16     24     32
+    share of the ring said to be     71%     3%    52%     0%     0%     0%     0%     0%
+    under it
+
+The drawing is the same drawing at every column. What changes is whether the
+core — the ink left standing after the erosion — is a continuous shape on the
+grid or a dotted line, and the core is only as wide as the ink exceeds the rule.
+At twelve pixels a stroke a tenth over the rule has more than a pixel of core to
+stand on, and every case worked out on paper is right from twelve up and stays
+right to thirty-two. So twelve is the floor, and `src/thickness.js` will not
+answer below it.
+
+Three faults, one root:
+
+**Distances were measured between pixel middles.** The transform reports how far
+an inked pixel's centre is from the nearest empty one, so a run of three pixels
+comes back two deep rather than one and a half. Every stroke measured half a
+pixel thicker than it is — and a stroke exactly on the rule is exactly what every
+stated floor is made of, because the floor is the size at which the thinnest
+stroke is the minimum. `EDGE` takes the half pixel back, at the erosion and at
+the growing back.
+
+**The render was fixed and the question was not.** The rule is a share of the
+width, so the larger the size asked about the finer the rule, and one render
+cannot hold every question. The render is now chosen from the question — always
+the size that puts the rule at `GRID` pixels, never finer than `FINEST` or
+coarser than `COARSEST` — and where the question falls outside that, `seen` is
+false and there is no number.
+
+**The question was asked on the edge.** A package's stated size is the size at
+which its thinnest stroke is exactly the minimum. At that size the rule falls
+exactly on the stroke it was taken from, and which side it lands on is decided
+by the render:
+
+    a ring stroked exactly 10 units, asked whether it is under 10 units
+    render      600    700    800    900   1100   1400
+    one number  100%    74%    86%    82%   100%    83%
+
+So it is no longer read once. `around()` asks a pixel and a half either side of
+the rule and returns the pair: the kindest reading and the harshest. Where they
+disagree the drawing is **on the rule**, which is a fact about the floor worth
+printing, and not a failure to measure. The width was measured, not chosen:
+
+    half-width                          0.5     1    1.5      2      3
+    same verdict at all three renders    67    78     87     90     91   of 108
+    called on the rule                   25    63     86     87     94
+
+No width ever called a drawing over the rule at one render and under it at
+another, so nothing here is picked to avoid a contradiction. A wider pair buys
+agreement and costs answers. One and a half is where the agreement stops
+climbing steeply and before the pair swallows the repository.
+
+### What it says about this repository, corrected
+
+    142 drawings, against the size each one's package states
+      37 state a size past what a render can see, and were not measured
+       5 state a size at which more than 2% of their ink is under the rule,
+         on the kindest reading the measurement allows
+      80 state a size where the rule falls on the stroke it was taken from
+       5 state a size at least twice the size they hold from
+      stated against measured: median 0.84x, worst 4.9x
+
+**Last round's headline is withdrawn.** "Nine state a size at which more than 2%
+of their ink is under the rule", and northline at 38%, were one side of a coin
+toss read once — the same drawing reads 1.8% at a render of 600 and 38.3% at 900,
+and the cliff between them sits within a pixel of the rule at every render.
+northline is not on the corrected list at all. Five drawings are, and they are
+short on the kindest reading available, which is the only way this should ever
+say a package is wrong:
+
+    ancroft/wordmark     says 169 px and at least 2.8% of its ink is under the rule there
+    oriel/wordmark       says 109 px and at least 2.8%
+    farne/wordmark       says  86 px and at least 2.1%
+    vesper/master        says  30 px and at least 2.2%
+    vesper/mark          says  30 px and at least 2.2%
+
+**The 80 are the real shape of the thing.** A stated floor is the size at which
+the thinnest stroke is exactly the minimum, so at that size the rule sits exactly
+on that stroke, with no margin either way. That is what the number means, and it
+is worth saying in those words rather than as a percentage that moves with the
+render.
+
+The 37 that cannot be seen are not a limitation to apologise for. A package
+stating 5206 px is stating that its finest feature is 0.058% of its width; no
+render this will make can check such a claim, and a promise no measurement can
+reach is itself the finding.
+
+### And the floors that look absurd are arithmetically right
+
+The next thing to fix was supposed to be the floor, and the measurement says the
+floor is not wrong in the way it looked wrong. Beaumont's horizontal lockup
+states 2581 px, which comes from a feature 0.64 units wide in a 550 unit box. The
+suspicion was that this was a taper being cut off by the grid — that the answer
+would keep halving as the render grew. Followed down, it does not:
+
+    the same feature, scanned at five render widths
+    render           600     1200     2400     4800     7200
+    beaumont/horiz  1.09     0.92     0.69     0.66     0.65   units
+    the floor that  1515     1795     2393     2502     2541   px
+    would give
+    saltmarsh/horiz 0.90     0.68     0.62     0.59     0.59
+    hallward/horiz 23.81     7.60     7.60     7.61     7.61
+
+It converges. Beaumont really does have a line a ninth of a percent of its width,
+and 2541 px really is the size at which that line paints three pixels. The
+arithmetic is right and the answer is useless, which is a different fault: what
+is wrong is that a feature carrying **0.10% of the drawing's ink** is allowed to
+set the rule for the whole drawing. hallward's carries 0.00%.
+
+The instrument cannot simply take over, either. Asked for the smallest size at
+which no more than 2% of the ink is under the rule on the harshest reading, it
+finds no size at all up to 512 px for 23 of the 142 — a shape with corners
+keeps a percent or two under any rule, because a corner is a tip — and where it
+does answer, the stated floor is already the smaller of the two more often than
+not: median 0.84x. Swapping it in would raise most of the floors here to fix
+five of them.
+
+So the floor is next, and it is a question about which feature is entitled to set
+it rather than about how to measure one.
 
 ## What it does not do yet
 

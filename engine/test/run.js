@@ -117,6 +117,122 @@ test('the answer is about the drawing, not about how big it was rendered', () =>
   assert.strictEqual(nothing.share, 0);
 });
 
+test('a stroke over the rule is over it, however fine the rule is', () => {
+  // The reading that used to move. A ring stroked eleven units, asked whether
+  // it is under ten, is not: it is a tenth over. Measured with the rule at four
+  // pixels of the render it came back 71% under, at six 3%, at eight 52%, at
+  // nine and up 0%. The drawing never changed. What changed was whether the
+  // core — the ink left after eroding by half the rule — was a continuous
+  // thing on the grid or a dotted line, and the core is only as wide as the
+  // ink exceeds the rule.
+  //
+  // So the render is chosen from the question: asking about a finer rule draws
+  // the artwork larger, and the rule stays at least THICK.GRID pixels of it
+  // whatever is asked. Here the ring is shrunk against a fixed box, which is
+  // the same thing as asking about a bigger and bigger size on a screen.
+  const ring = (w) => thBox(`<circle cx="60" cy="60" r="45" fill="none" stroke="#000" stroke-width="${w}"/>`);
+  const pc = (x) => `${(x * 100).toFixed(0)}%`;
+  for (const k of [1, 0.5, 0.25, 0.1]) {
+    const rule = 10 * k;
+    const half = THICK.under(ring(15 * k), 120, rule);      // half again over
+    const third = THICK.under(ring(6.7 * k), 120, rule);    // a third under
+    assert.ok(half.seen && third.seen, `a rule of ${rule} units should be visible`);
+    assert.ok(half.most < 0.05, `a stroke half again over the rule read ${pc(half.most)} under it at ${rule}`);
+    assert.ok(third.least > 0.95, `a stroke a third under the rule read only ${pc(third.least)} under it at ${rule}`);
+    // A tenth either way is inside what the grid can resolve at the coarsest
+    // render this allows, so a stroke a tenth over may come back "on the rule"
+    // — but a stroke a tenth under has to be called under it. Measured from
+    // pixel middles it would not be: every stroke reads half a pixel thicker
+    // than it is at each edge, which is the whole of a tenth when the rule is
+    // twelve pixels, and the instrument would pass artwork that will not hold.
+    assert.ok(THICK.under(ring(11 * k), 120, rule).least < 0.05, `a tenth over read ${rule} as under`);
+    assert.ok(THICK.under(ring(9 * k), 120, rule).least > 0.5,
+      `a stroke a tenth under a rule of ${rule} was not called under it`);
+  }
+});
+
+test('and when the rule is finer than the grid, the answer is that there was none', () => {
+  // A rule is a share of the width, so the bigger the size asked about the
+  // smaller the share, and past a point no render this will make can hold it.
+  // The number it would give there is a confident nothing — an opening with a
+  // disc smaller than a pixel erodes nothing, so everything survives and every
+  // drawing is thick enough. That is the whole reason for saying so instead.
+  const fine = THICK.under(thBox('<circle cx="60" cy="60" r="45" fill="none" stroke="#000" stroke-width="0.45"/>'),
+    120, 0.5);
+  assert.strictEqual(fine.seen, false, 'a rule of 0.5 units in a 120 unit box cannot be seen');
+  assert.ok(fine.most < 0.01,
+    `and the number it would have given is ${(fine.most * 100).toFixed(1)}%, of a stroke that is under the rule`);
+  // said as a size on a screen, with a 3 px minimum, that is everything past
+  const bar = THICK.at(BAR, 120, 4096, 3);
+  assert.strictEqual(bar.seen, false);
+  assert.ok(THICK.at(BAR, 120, Math.floor(THICK.seesUpTo(3) * 0.9), 3).seen, 'and everything below it can');
+});
+
+test('the smallest size that holds is the smallest size that holds', () => {
+  // Asked of every size from the bottom, so the answer is the first one that
+  // holds and the size below it does not. The first version of this strode up
+  // the list and narrowed, on the reasoning that the share only falls as the
+  // drawing grows. That was true of one fixed render and is not true now the
+  // render follows the question: checked against asking every size it gave a
+  // different answer for 30 of the 142 drawings in projects/, and sometimes a
+  // smaller one — a size at which the drawing does not hold at all.
+  const sizes = [8, 10, 12, 16, 20, 24, 32, 40, 48, 64, 80, 96, 128, 160, 192, 256, 320, 384, 512];
+  const bar = (w) => thBox(`<rect x="${60 - w / 2}" y="10" width="${w}" height="100" fill="#000"/>`);
+  for (const w of [40, 20, 10, 6, 4, 3, 2, 1.5, 1.2, 1, 0.8]) {
+    const svg = bar(w);
+    const eye = THICK.looker(svg, 120);
+    const got = THICK.holdsFrom(svg, 120, 3, 0.02, sizes, eye);
+    if (got.at == null) {
+      for (const s of sizes.filter((x) => x <= THICK.seesUpTo(3))) {
+        const r = eye.holdsAt(s, 3);
+        assert.ok(!r.seen || r.share > 0.02, `a bar ${w} wide holds at ${s} px, and it said never`);
+      }
+      continue;
+    }
+    assert.ok(eye.holdsAt(got.at, 3).share <= 0.02, `a bar ${w} wide does not hold at the ${got.at} it named`);
+    const below = sizes[sizes.indexOf(got.at) - 1];
+    if (below) assert.ok(eye.holdsAt(below, 3).share > 0.02,
+      `a bar ${w} wide named ${got.at} but holds at ${below} too`);
+  }
+});
+
+test('a stroke exactly on the rule is on it, and is not given a number', () => {
+  // The case every stated floor is: the size a package prints is the size at
+  // which its thinnest stroke is exactly the minimum, so the rule lands on the
+  // stroke it came from and the answer depends on the render and nothing else.
+  // A ring stroked ten units, asked whether it is under ten:
+  //
+  //     render      600    700    800    900   1100   1400
+  //     one number  100%    74%    86%    82%   100%    83%
+  //
+  // Read once, any of those is a finding. So it is not read once.
+  const ring = thBox('<circle cx="60" cy="60" r="45" fill="none" stroke="#000" stroke-width="10"/>');
+  for (const r of [600, 700, 900, 1400]) {
+    const d = THICK.drawing(ring, 120, r);
+    const b = THICK.around(d.img, 10 * (d.img.width / 120));
+    assert.ok(b.onRule, `at ${r} px it said ${(b.least * 100).toFixed(0)}% to ${(b.most * 100).toFixed(0)}%, which is a number`);
+  }
+  // and a stroke that is not on the rule is not called on it
+  const clear = thBox('<circle cx="60" cy="60" r="45" fill="none" stroke="#000" stroke-width="20"/>');
+  assert.strictEqual(THICK.under(clear, 120, 10).onRule, false);
+});
+
+test('a size list that runs past what can be seen says so, rather than holding', () => {
+  // A hairline in a big box holds at no size anybody uses. The list of sizes
+  // runs to 4096, the rule goes finer with every step of it, and the last few
+  // steps are past seeing. Answering "holds from 1024" off those would be
+  // reading the grid.
+  const hair = thBox('<rect x="59.8" y="10" width="0.4" height="100" fill="#000"/>'
+    + '<rect x="20" y="10" width="20" height="100" fill="#000"/>');
+  const sizes = [8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096];
+  const held = THICK.holdsFrom(hair, 120, 3, 0.02, sizes);
+  assert.strictEqual(held.at, null, `it said the hairline holds from ${held.at} px`);
+  assert.strictEqual(held.seen, false, 'and it should say it stopped looking, not that it looked everywhere');
+  // the same drawing without the hairline holds, and inside what can be seen
+  const solid = THICK.holdsFrom(thBox('<rect x="20" y="10" width="20" height="100" fill="#000"/>'), 120, 3, 0.02, sizes);
+  assert.ok(solid.at != null && solid.seen, `the bar alone holds from ${solid.at}`);
+});
+
 test('a stem falls off a cliff and a taper does not, which is the whole question', () => {
   // This is what a floor is really asking, and what the number geometry.js
   // states cannot express. A ring is its stroke: above the size where the
@@ -127,9 +243,21 @@ test('a stem falls off a cliff and a taper does not, which is the whole question
   const ring = THICK.curve(thBox('<circle cx="60" cy="60" r="45" fill="none" stroke="#000" stroke-width="9"/>'),
     120, 2.4, sizes);
   const tri = THICK.curve(thBox('<path d="M60 10L110 110H10Z" fill="#000"/>'), 120, 2.4, sizes);
-  const rc = THICK.steepest(ring), tc = THICK.steepest(tri);
-  assert.ok(rc.drop > 0.9, `the ring's worst fall is only ${(rc.drop * 100).toFixed(0)}%`);
-  assert.deepStrictEqual(rc.between, [24, 32], 'and it should be where its stroke crosses the rule');
+  const tc = THICK.steepest(tri);
+  // The ring's stroke is 9 units, and a 2.4 px rule is 9 units at exactly 32 px
+  // wide — so 32 px is the size at which the stroke *is* the rule, and the ring
+  // is neither over it nor under it there. The fall is on either side of that
+  // size and not across a single step of the list:
+  //
+  //     8     12     16     24     32     48     64
+  //   100%   100%   100%   100%    78%     0%     0%
+  //
+  // which is the cliff, with the one honest reading in the middle of it.
+  const share = (w) => ring[sizes.indexOf(w)].share;
+  assert.ok(share(24) - share(48) > 0.9,
+    `the ring falls only ${((share(24) - share(48)) * 100).toFixed(0)}% either side of its own rule`);
+  assert.ok(share(32) > 0.05 && share(32) < 0.95,
+    `at the size where its stroke is exactly the rule it read ${(share(32) * 100).toFixed(0)}%`);
   assert.ok(tc.drop < 0.2, `the triangle falls off a cliff of ${(tc.drop * 100).toFixed(0)}%`);
   // and at every size the triangle loses a little more of its tip and no more
   assert.ok(tri[0].share < 0.2 && tri[0].share > 0.02,
