@@ -2766,6 +2766,91 @@ Round A of six. Next are the generators.
 
 ---
 
+**Two generators, and four checks that were checking nothing**
+
+`weave` makes index-grid blankets, eight styles. `zigzag` makes interlocking
+rounded stripes, six. Both are after PLAYGRND tools, and both carry the one
+change that turns a picture into a brand pattern: **every period is an exact
+divisor of the tile**. A style asks for a rib every eleven cells on a
+forty-eight cell tile and gets twelve, because a pattern that nearly repeats is
+worse than one that obviously does not.
+
+Which makes seamlessness a thing to *prove* rather than look at. A weave style
+is `cellAt(x, y)` — an integer expression defined outside the tile as well as
+in it — so the test asks for the cell at (x, y) and at (x + C, y), for eight
+styles, nine cell counts, four coarsenesses, three seeds, in both directions.
+Same value or not. A zigzag boundary is a chain, and a chain has to come back to
+itself down its own run and land exactly one tile over after a whole number of
+stripes. Both arithmetic, both exact.
+
+**Then the checks. Every one of them was wrong first, and each was wrong in a
+way that let something through.**
+
+*The seam check was measuring the renderer.* It laid the tile out as an SVG
+`<pattern>` filling a rectangle — what a designer actually does — and that is
+the wrong instrument, because a renderer draws `<pattern>` by rasterising the
+tile once into its own bitmap and repeating it, and the bitmap's edges are
+antialiased against nothing. Stripes with a period of ten on a hundred-unit
+tile, seamless by arithmetic, read 2.88 against a bar of 4. Now the tile is
+drawn nine times into one surface and rasterised once: the same stripes read
+0.00.
+
+*Then it was calling every edge a seam.* The change between neighbouring pixel
+columns is bimodal — almost every column is flat and a few are the edge of a
+shape — so a seam landing on an edge is invisible and an edge landing on the
+seam scores three standard deviations while being nothing. It also missed the
+other kind entirely: stripes at a period of thirteen leave a gap of nine at the
+join, every transition there is an ordinary edge, and what is wrong is the
+rhythm. Smoothed over a band an eighth of the tile wide, both kinds read as the
+same number.
+
+*`ricrac` seamed at eleven standard deviations with exactly periodic
+arithmetic.* A stripe is a closed polygon — one boundary down, the next back up,
+a straight edge across each end — and those end edges meet the chain at a corner
+that gets rounded like any other, making a notch that exists nowhere else in the
+run. At the tile boundary two notches meet. The chain runs a whole tooth past
+each end now, so the caps fall outside the clip.
+
+*And a helper that did nothing.* `divisorNearEven` kept brick and block counts
+even, on the reasoning that a colour alternating on a parity flips where the
+tile meets itself. True of a grid walked from zero to C; untrue of this one,
+because every style wraps its coordinates first, so the tile *is* the period.
+Both checks agree — the values repeat at every count, and the seam reads 1.00x
+for an odd count against 0.89x for an even one. It is gone rather than left in
+looking careful.
+
+**Two styles that were one picture.** `teeth` was a triangle wave and `stairs` a
+square one sampled twice per tooth, and the straight lines between samples
+turned the square into the same trapezoid — two rows of a rounding sweep that
+were identical. And `waves` and `scales` were both destroyed by sending an
+already-smooth curve through the corner-rounder at a radius the size of the
+sample spacing, which turns a wave into a column of lozenges. Six styles are six
+shapes now, and a test compares their fingerprints rather than trusting the
+names.
+
+**What makes it this identity's pattern.** Three measurements off the mark —
+how many of its own narrowest runs it is across, what share of its outline is
+curved, which way it runs — and one rule that sets the scale of both generators:
+**nothing is drawn finer than twice the thinnest thing in the mark**. A pattern
+printed beside the mark at the size the mark's own floor allows cannot then be
+the thing that fails first. Where a mark is heavy enough that the rule would
+leave under four stripes in a tile, a cap overrules it, and the manual says the
+cap decided rather than the mark.
+
+    32 identities, each choosing for itself
+      9 of the 14 styles reached
+      32 different tiles — no two identities got the same one
+      worst join 1.00x — no tile reaches even the most unusual band
+      its own pattern already contains
+
+Every package now carries both kinds: the mark tiled seven ways, and one
+generated tile per generator per colourway, with the parameters in `brand.json`
+so any of them can be rebuilt or changed.
+
+Round B of six. Next is the studio, in the package.
+
+---
+
 **A bug report, from use: "Build the package" answered with a require()**
 
     require() of ES Module /var/task/node_modules/@exodus/bytes/encoding-lite.js

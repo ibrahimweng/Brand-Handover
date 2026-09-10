@@ -828,6 +828,149 @@ transform of its own:
 The bar had been 3.0 and 1.5%, guessed before any of it was measured, and it let
 two of the five through. It is 1.5 and 0.4% now, which is where the gap is.
 
+### The generators
+
+`src/patterns/generators/` — two of the six, both pure vector.
+
+**`weave`** — index-grid blankets, after PLAYGRND's Quilt. Eight styles: bands,
+plaid, basket, dither, steps, diamond, cross, gingham. Quilt measures each cell
+from the centre of the frame so its compositions are mirror-symmetric, which is
+right for a picture and wrong for a repeat — a mirrored block tiles, but along a
+mirror line, and the eye finds a mirror line as fast as a join. Here every style
+is `cellAt(x, y)`, an integer expression defined for every integer, with every
+period a divisor of the cell count. Painted by run-length merging each row: a
+36-square tile is 1,296 cells and comes out as a few hundred rectangles.
+
+**`zigzag`** — interlocking rounded stripes, after Zig. Six styles: teeth,
+chevron, stairs, ricrac, waves, scales. A stripe is a pair of neighbouring
+boundary chains; only alternate stripes are painted, so the unpainted ones are
+the ground and the two colours interlock exactly rather than being drawn over
+each other. Two colours per tile and no more.
+
+### Seamlessness is proved, not inspected
+
+Every period divides the tile, so the claim is arithmetic:
+
+    cellAt(x, y) === cellAt(x + C, y)          8 styles × 9 cell counts
+    cellAt(x, y) === cellAt(x, y + C)          × 4 coarsenesses × 3 seeds
+
+    chain(i, t + H) === chain(i, t)            6 styles × 4 stripe widths
+    chain(i + n, t) === chain(i, t) + W        × 3 tooth lengths
+
+with a negative control on each — a shift that is *not* a whole tile has to move
+something, across the whole grid rather than at one position, or the equality
+above is a fact about the style being flat.
+
+`seam.js` stays as the backstop, for the raster family in a later round and for
+faults in the *drawing* that the index arithmetic cannot see. It caught one:
+see below.
+
+### Four checks that were checking nothing
+
+**The seam check was measuring the renderer, not the tile.** It laid the tile
+out as an SVG `<pattern>` filling a rectangle. A renderer draws `<pattern>` by
+rasterising the tile once into its own bitmap and repeating that, and the
+bitmap's edges are antialiased against nothing, so every repeat boundary carries
+a hairline that belongs to the renderer. Stripes at a period of ten on a
+hundred-unit tile — seamless by arithmetic — read **2.88** against a bar of 4.
+The tile is drawn nine times into one surface now and rasterised once. The same
+stripes read **0.00**.
+
+**Then it was calling every edge a seam.** Column-to-column change is bimodal:
+almost every column is flat, a few are the edge of a shape. A seam landing on an
+edge is invisible; an edge landing on the seam scores three standard deviations
+and is nothing. It also missed rhythm entirely — stripes at a period of thirteen
+on a hundred-unit tile leave a gap of nine at the join, every transition there is
+an ordinary edge, and no single column knows about rhythm. Smoothed over a band
+an eighth of the tile wide before anything is compared:
+
+    solid colour                     z = 0.00     beyond 0.00x
+    stripes, period 10 (divides)     z = 0.54     beyond 0.29x
+    stripes, period 13 (does not)    z = 15.51    beyond 4.19x
+    a 36-cell plaid grid             z = 0.39     beyond 0.15x
+    a noise field, wrapped           z = 3.17     beyond 1.16x
+    the same field, not wrapped      z = 6.10     beyond 2.44x
+
+`beyond` is the number that needs no threshold: how far past the *most unusual
+ordinary band* the seam gets. At or under 1 there is nothing at the join the
+pattern does not do elsewhere. A z alone is not enough, because a pattern with
+real large-scale structure has bands that honestly differ, and the seam has to
+be judged against those rather than against a mean.
+
+**`ricrac` seamed at eleven standard deviations while its arithmetic was exactly
+periodic.** A stripe is a closed polygon — one boundary down, the next back up,
+a straight edge across each end. Those end edges meet the chain at a corner, the
+corner is rounded like every other, and the rounding makes a notch that exists
+nowhere else in the run. At the tile boundary two notches meet. The chain runs
+one whole tooth past each end now, so both caps fall outside the clip and the
+geometry at the boundary is the geometry everywhere: **11.11 → 2.38**, beyond
+6.52x → 1.00x.
+
+**And `divisorNearEven` did nothing.** It kept brick and block counts even, on
+the reasoning that a colour alternating on a parity flips where the tile meets
+itself — true of a grid walked from zero to C, untrue of this one, because every
+style wraps its coordinates with `mod(x, C)` first, so the tile *is* the period.
+Both checks say so: the values repeat at every count, and the seam reads 1.00x
+for an odd brick count against 0.89x for an even one. Removed, and the test that
+replaced it makes the stronger claim — the wrap alone carries the repeat.
+
+### Six styles have to be six shapes
+
+`teeth` was a triangle wave and `stairs` a square one sampled twice per tooth,
+and the straight lines between samples turned the square into the same
+trapezoid. Two rows of a rounding sweep that were the same picture. And `waves`
+and `scales` were both sent through the corner-rounder at a radius the size of
+their own sample spacing, which turns a smooth curve into a column of lozenges —
+so the one difference between them, that a wave keeps its stripe width and a
+scale pinches it, was invisible.
+
+Now each style says where its samples go, the smooth pair get a curve through
+their samples instead of a rounded polygon, and a test fingerprints all six and
+requires five distinct shapes — `teeth` and `chevron` being the one pair allowed
+to match, since chevron is teeth drawn the other way round.
+
+### What makes it this identity's pattern
+
+`src/patterns/mark.js` measures three things off the artwork, and each answers a
+question a generator actually has.
+
+| | measured by | kvist | meridian | halyard | ancroft |
+|---|---|---:|---:|---:|---:|
+| how fine | box ÷ narrowest run | 36.4 | 13.3 | 10.0 | 80.0 |
+| how round | share of path commands that curve | 0% | 100% | 33% | 24% |
+| how wide | the ink box's proportion | 4.65 | 1.00 | 0.96 | 0.86 |
+
+One rule sets the scale of both generators, and it is the same rule the minimum
+size is: **nothing is drawn finer than twice the thinnest thing in the mark**.
+A pattern printed beside the mark, at the size the mark's own floor allows,
+cannot then be the thing that fails first. The first version said "about three
+stems wide", which was a number with no argument behind it, and it gave a mark
+of ten stems a tile with four stripes in it.
+
+Where a mark is heavy enough that the rule would leave under four stripes, a cap
+overrules it. That is a judgement rather than a measurement, so it is named
+(`COARSEST_STRIPE`), kept apart from the rule, and where it binds the manual says
+the cap decided rather than the mark.
+
+Style comes from two axes, because two things were measured, and every style is
+reachable — a rule that sent nine identities in ten to the same style would be
+the fault this engine exists to fix, in a new place.
+
+    32 identities, each choosing for itself
+      9 of the 14 styles reached
+      32 different tiles — no two identities got the same one
+      worst join 1.00x — no tile reaches even the most unusual
+      band its own pattern already contains
+
+### In the package
+
+Every package now carries both kinds in `07-pattern/`: the mark tiled at each
+density in each colourway, and one generated tile per generator per colourway.
+`brand.json` carries the recipe under `system.patterns` — the measurements, what
+was chosen and why, and the full parameters for each tile — so a rebuild returns
+the same bytes and the studio the client is given starts from what the engine
+chose rather than from nothing.
+
 ### Reproducibility
 
 `Math.random()` and the clock are banned in `src/patterns/`, and `test/run.js`

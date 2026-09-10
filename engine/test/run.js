@@ -339,11 +339,21 @@ before(async () => { result = await build(project, out); });
 // A rule block is set once and generates every instance, so its file count is
 // arithmetic too: one tile per density per colourway, less any the contrast
 // check refused.
-function patternTiles() {
+// Two kinds of pattern go into 07-pattern now. The repeated one — a shape cut
+// from the mark, tiled at each density — and the generated ones, one per
+// generator per colourway, built from the mark's measurements. Counted
+// separately because they are two different things and a change to either
+// should be visible here rather than absorbed into one number.
+function repeatedTiles() {
   const dens = Object.keys(require('../src/system').patternRules((project.system || {}).pattern).densities).length;
   const refused = result.warnings.filter((w) => /^pattern .+ was not written/.test(w)).length;
   return dens * project.rules.colourways.length - refused;
 }
+function generatedTiles() {
+  const refused = result.warnings.filter((w) => /^the \w+ pattern was not built/.test(w)).length;
+  return require('../src/patterns').NAMES.length * project.rules.colourways.length - refused;
+}
+const patternTiles = () => repeatedTiles() + generatedTiles();
 test('the file count is exactly what the rules ask for', () => {
   const r = project.rules;
   const perVariant = ['svg', 'pdf', 'ai'].filter((f) => r.formats.includes(f)).length
@@ -353,7 +363,8 @@ test('the file count is exactly what the rules ask for', () => {
     + (r.iconSizes || []).length                            // app and touch icons
     + (r.faviconSizes || []).length + ((r.faviconSizes || []).length ? 1 : 0)  // favicons plus the .ico
     + Object.keys(r.social || {}).length                    // social crops
-    + patternTiles()                                        // the pattern, at every density, in every colourway
+    + repeatedTiles()                                       // the mark, tiled at every density in every colourway
+    + generatedTiles()                                      // and one generated tile per generator per colourway
     + 5                                                     // brand.json, README.txt, LICENCE.txt, usage.json
                                                             // and ACCESSIBILITY.txt
     + require('../src/typefaces').embed(project.tokens.type, null).used.length + 1  // 09-type and its OFL
@@ -880,9 +891,8 @@ test('the seam is measured, and a tile that does not repeat is caught', () => {
   // and asks where the boundary columns sit in the distribution of ordinary
   // columns. Built on the periodic noise the boundary is unremarkable; built on
   // the same noise with the wrap taken out it is the largest value there is.
-  const tile = (wrapIt) => {
-    const s = PSURF.svg({ width: 120, height: 120, id: 'a' });
-    const cells = 60, c = 120 / cells, P = 6;
+  const tile = (wrapIt) => (s, W, H) => {
+    const cells = 60, c = W / cells, P = 6;
     for (let gy = 0; gy < cells; gy++) {
       for (let gx = 0; gx < cells; gx++) {
         const n = wrapIt
@@ -893,12 +903,11 @@ test('the seam is measured, and a tile that does not repeat is caught', () => {
         s.fillRect(gx * c, gy * c, c, c);
       }
     }
-    return s.body();
   };
   const good = PSEAM.check(tile(true), 120, 120);
   const bad = PSEAM.check(tile(false), 120, 120);
-  assert.ok(good.z < 4, `a periodic field showed a seam at z=${good.z.toFixed(2)}`);
-  assert.ok(bad.z > 4, `a field with no wrap in it showed no seam: z=${bad.z.toFixed(2)}`);
+  assert.ok(good.beyond <= 1.2, `a periodic field showed a seam ${good.beyond.toFixed(2)}x beyond its worst ordinary band`);
+  assert.ok(bad.beyond > 2, `a field with no wrap in it showed no seam: ${bad.beyond.toFixed(2)}x`);
 });
 
 test('a raster field encodes to the same bytes twice', () => {
@@ -933,6 +942,272 @@ test('nothing in the pattern engine calls Math.random', () => {
     if (/\bnew Date\b|Date\.now\s*\(/.test(code)) bad.push(`${f} (a clock)`);
   }
   assert.deepStrictEqual(bad, [], `${bad.join(', ')} would re-deal the artwork on a rebuild`);
+});
+
+console.log('\nthe pattern engine: the generators');
+const PENG = require('../src/patterns');
+const PWEAVE = require('../src/patterns/generators/weave');
+const PZIG = require('../src/patterns/generators/zigzag');
+const PPAL = require('../src/patterns/palette');
+const PMARK = require('../src/patterns/mark');
+
+test('every weave style repeats exactly, at every cell count, in both directions', () => {
+  // Not measured in pixels and not looked at: a style is an integer expression
+  // on the cell coordinates, defined outside the tile as well as inside it, so
+  // "it repeats" is a thing to prove. cellAt(x, y) and cellAt(x + C, y) are the
+  // same value or they are not.
+  //
+  // Two faults were found this way and neither was visible in a small render.
+  // `bands` hashes a colour per row and alternates bricks by parity, so an odd
+  // number of rows or of bricks flips the colour where the tile meets itself;
+  // `basket` alternates its over-and-under by block parity and needs an even
+  // number of blocks. Both are now taken from divisors that leave an even
+  // count, and this is what says so.
+  const bad = [];
+  for (const style of PWEAVE.styles) {
+    for (const cells of [8, 12, 20, 28, 36, 44, 52, 60, 72]) {
+      for (const chunk of [0.6, 1, 1.5, 2]) {
+        for (const seed of [1, 7, 99]) {
+          const q = PWEAVE.plan({ cells, chunk, style, seed });
+          for (let t = 0; t < 40; t++) {
+            const x = (t * 37) % (cells * 3) - cells, y = (t * 53) % (cells * 3) - cells;
+            if (PWEAVE.cellAt(x, y, q) !== PWEAVE.cellAt(x + cells, y, q)) bad.push(`${style} across, ${cells} cells`);
+            if (PWEAVE.cellAt(x, y, q) !== PWEAVE.cellAt(x, y + cells, q)) bad.push(`${style} down, ${cells} cells`);
+          }
+        }
+      }
+    }
+  }
+  assert.deepStrictEqual([...new Set(bad)], [], [...new Set(bad)].slice(0, 6).join('\n'));
+});
+
+test('what makes a weave tile repeat is the wrap, and nothing else does', () => {
+  // There was a `divisorNearEven` in weave.js and a test here asserting it
+  // mattered. It did not. The reasoning was that a style whose colour
+  // alternates on a parity needs an even number of bricks or the colour flips
+  // where the tile meets itself — true of a grid walked from zero to C, and
+  // untrue of this one, because every style wraps its coordinates with
+  // mod(x, C) first. The tile *is* the period.
+  //
+  // Both checks say so. The values repeat at every brick count, and the seam
+  // measurement reads 1.00x for an odd count against 0.89x for an even one.
+  // The helper is gone; this is what replaced it, and it is a stronger claim:
+  // the wrap alone carries the repeat.
+  const pal = PPAL.of({ paper: { hex: '#EFEFEC', role: 'ground' }, ink: { hex: '#15161A' },
+    two: { hex: '#B4632A' }, three: { hex: '#5C6B4A' } }, null);
+  const withCount = (brick) => (s, W, H) => {
+    const q = Object.assign(PWEAVE.plan({ cells: 36, chunk: 1, style: 'bands', seed: 7 }), { brick });
+    const cw = W / 36, ch = H / 36;
+    for (let y = 0; y < 36; y++) {
+      for (let x = 0; x < 36; x++) {
+        const v = PWEAVE.cellAt(x, y, q);
+        s.fillStyle = v === 0 ? pal.ground : pal.ink(v - 1);
+        s.fillRect(Math.round(x * cw * 1000) / 1000, Math.round(y * ch * 1000) / 1000,
+          Math.round(cw * 1000) / 1000, Math.round(ch * 1000) / 1000);
+      }
+    }
+  };
+  for (const brick of [9, 12, 4, 18]) {
+    const q = Object.assign(PWEAVE.plan({ cells: 36, chunk: 1, style: 'bands', seed: 7 }), { brick });
+    for (let t = 0; t < 60; t++) {
+      const x = t % 36, y = (t * 7) % 36;
+      assert.strictEqual(PWEAVE.cellAt(x, y, q), PWEAVE.cellAt(x + 36, y, q),
+        `a brick count of ${brick} did not repeat its values`);
+    }
+    const r = PSEAM.check(withCount(brick), 100, 100);
+    assert.ok(r.beyond <= 1.2,
+      `a brick count of ${brick} showed a join ${r.beyond.toFixed(2)}x beyond its worst ordinary band`);
+  }
+  // and the negative control: a shift that is *not* a whole tile has to move
+  // something, or the equality above is a fact about the style being flat
+  // rather than about the tile repeating. One position is not enough — any two
+  // cells can agree by chance — so it is the whole grid.
+  for (const style of PWEAVE.styles) {
+    const q = PWEAVE.plan({ cells: 36, chunk: 1, style, seed: 7 });
+    let moved = 0;
+    for (let y = 0; y < 36; y++) for (let x = 0; x < 36; x++) {
+      if (PWEAVE.cellAt(x, y, q) !== PWEAVE.cellAt(x + 37, y, q)) moved++;
+    }
+    assert.ok(moved > 36, `${style} was unchanged by a shift of 37 in ${1296 - moved} of 1296 cells, `
+      + 'so its repeating at 36 says nothing');
+  }
+});
+
+test('every zigzag chain closes along its run and across the tile', () => {
+  // A chain is a boundary between two stripes. It has to come back to itself
+  // after one tile down its own run, and it has to land exactly one tile over
+  // after a whole number of stripes. Both are arithmetic.
+  const bad = [];
+  for (const style of PZIG.styles) {
+    for (const stripe of [0.04, 0.08, 0.15, 0.24]) {
+      for (const length of [0.06, 0.16, 0.3]) {
+        const q = PZIG.plan({ style, stripe, length, depth: 0.9, rounding: 0.7 });
+        assert.strictEqual(q.stripes % 2, 0, `${style} laid out an odd number of stripes, so the two colours meet themselves`);
+        for (let k = 0; k < 30; k++) {
+          const i = k % 7, t = (k * 91.3) % q.H;
+          if (Math.abs(PZIG.chain(i, t, q) - PZIG.chain(i, t + q.H, q)) > 1e-9) bad.push(`${style} along its run`);
+          if (Math.abs((PZIG.chain(i + q.stripes, t, q) - PZIG.chain(i, t, q)) - q.W) > 1e-9) bad.push(`${style} across the tile`);
+        }
+      }
+    }
+  }
+  assert.deepStrictEqual([...new Set(bad)], [], [...new Set(bad)].join('\n'));
+});
+
+test('the six zigzag styles are six different shapes', () => {
+  // They were not. `teeth` was a triangle wave and `stairs` a square one
+  // sampled twice per tooth, and the straight lines between the samples turned
+  // the square into the same trapezoid — two rows of a rounding sweep that
+  // were the same picture. A style is only a style if it draws something the
+  // others do not.
+  const shapes = {};
+  for (const style of PZIG.styles) {
+    const q = PZIG.plan({ style, stripe: 0.12, length: 0.18, depth: 0.9, rounding: 0 });
+    // one whole tooth of the first boundary, sampled finely and rounded, is
+    // the shape's fingerprint
+    // both boundaries of a stripe, because waves and scales differ in how the
+    // two move against each other and not in either one alone
+    shapes[style] = [];
+    for (let s = 0; s <= 40; s++) {
+      const t = (s / 40) * q.tp;
+      shapes[style].push(Math.round(PZIG.chain(0, t, q) * 100) / 100);
+      shapes[style].push(Math.round(PZIG.chain(1, t, q) * 100) / 100);
+    }
+  }
+  const same = [];
+  const keys = Object.keys(shapes);
+  for (let a = 0; a < keys.length; a++) {
+    for (let b = a + 1; b < keys.length; b++) {
+      if (JSON.stringify(shapes[keys[a]]) === JSON.stringify(shapes[keys[b]])) same.push(`${keys[a]} and ${keys[b]}`);
+    }
+  }
+  // teeth and chevron are the same chain drawn the other way round, which is
+  // the one pair that is allowed to match
+  assert.deepStrictEqual(same, ['teeth and chevron'], same.join(', '));
+});
+
+test('a stripe keeps its width where it should, and swells where it should', () => {
+  // waves moves both boundaries of a stripe together, so the band never
+  // narrows; scales moves them against each other, so it pinches. That
+  // difference is the whole reason both exist, and it was lost for a while
+  // behind a rounding radius the size of the sample spacing, which turned both
+  // of them into a column of lozenges.
+  const w = PZIG.plan({ style: 'waves', stripe: 0.12, length: 0.18, depth: 0.9, rounding: 0.7 });
+  const c = PZIG.plan({ style: 'scales', stripe: 0.12, length: 0.18, depth: 0.9, rounding: 0.7 });
+  let wLo = Infinity, wHi = -Infinity, cLo = Infinity, cHi = -Infinity;
+  for (let s = 0; s <= 40; s++) {
+    const t = (s / 40) * w.tp;
+    const dw = PZIG.chain(2, t, w) - PZIG.chain(1, t, w);
+    const dc = PZIG.chain(2, t, c) - PZIG.chain(1, t, c);
+    wLo = Math.min(wLo, dw); wHi = Math.max(wHi, dw);
+    cLo = Math.min(cLo, dc); cHi = Math.max(cHi, dc);
+  }
+  assert.ok(wHi - wLo < 1e-9, `a wave's stripe changed width by ${(wHi - wLo).toFixed(2)}`);
+  assert.ok(cHi - cLo > c.bw * 0.5, `a scale's stripe only changed width by ${(cHi - cLo).toFixed(0)} of ${c.bw}`);
+});
+
+test('the palette hands over the ground and orders the inks by what reads on it', () => {
+  const cols = { paper: { hex: '#EFE9DD', role: 'ground' }, ink: { hex: '#1A1A1A' },
+    quiet: { hex: '#C9C4BA' }, loud: { hex: '#B4632A' } };
+  const p = PPAL.of(cols, null);
+  assert.strictEqual(p.ground, '#EFE9DD');
+  assert.strictEqual(p.ink(0), '#1A1A1A', 'the ink that reads best on the paper is not first');
+  assert.strictEqual(p.inks[p.inks.length - 1].hex, '#C9C4BA', 'the quietest ink is not last');
+  // and it never runs out, because a generator asking for a fifth thread on a
+  // three-colour identity should draw something
+  assert.strictEqual(p.ink(3), p.ink(0));
+  assert.strictEqual(p.ink(-1), p.inks[p.inks.length - 1].hex);
+  // a colourway says what it sits on, and that wins over the table's own role
+  const on = PPAL.of(cols, { on: 'ink' });
+  assert.strictEqual(on.ground, '#1A1A1A');
+  assert.strictEqual(on.ink(0), '#EFE9DD');
+});
+
+test('the pattern is measured off the mark, not typed', () => {
+  // The old module had tile: 100 and weight: 3 — numbers describing no
+  // particular drawing, which is why every identity got the same pattern. Three
+  // measurements decide everything here, and they have to actually discriminate
+  // or this is the same fault with more steps.
+  const seen = [];
+  for (const name of ['kvist', 'meridian', 'halyard', 'ancroft']) {
+    const pr = projectLoader.load(path.join(__dirname, '..', 'projects', name, 'project.json'));
+    const mm = measure(pr);
+    const src = pr.assets[pr.master || (pr.assets.mark ? 'mark' : 'wordmark')].source;
+    seen.push(Object.assign({ name }, PMARK.read(src, mm, pr.rules)));
+  }
+  const fine = seen.map((s) => s.fineness);
+  const curve = seen.map((s) => s.curviness);
+  assert.ok(Math.max(...fine) / Math.min(...fine) > 4,
+    `four identities span only ${Math.min(...fine).toFixed(1)} to ${Math.max(...fine).toFixed(1)} narrowest runs across`);
+  assert.ok(Math.max(...curve) - Math.min(...curve) > 0.5,
+    'four identities have nearly the same share of curve in them, so the measurement is not measuring');
+  // a ring is round and a wordmark of straight strokes is not
+  const ring = seen.find((s) => s.name === 'meridian'), timber = seen.find((s) => s.name === 'kvist');
+  assert.ok(ring.curviness > 0.9, `a mark drawn as a circle measured ${(ring.curviness * 100).toFixed(0)}% curved`);
+  assert.ok(timber.curviness < 0.1, `a mark drawn with straight strokes measured ${(timber.curviness * 100).toFixed(0)}% curved`);
+});
+
+test('the pattern is never finer than twice the thinnest thing in the mark', () => {
+  // The rule that sets the scale of both generators, and the reason for it: a
+  // pattern printed beside the mark at the size the mark's own floor allows
+  // must not be the thing that fails first.
+  const names = fs.readdirSync(path.join(__dirname, '..', 'projects'))
+    .filter((d) => fs.existsSync(path.join(__dirname, '..', 'projects', d, 'project.json'))).sort();
+  const over = [];
+  for (const name of names) {
+    const pr = projectLoader.load(path.join(__dirname, '..', 'projects', name, 'project.json'));
+    const mm = measure(pr);
+    const src = pr.assets[pr.master || (pr.assets.mark ? 'mark' : 'wordmark')].source;
+    const mk = PMARK.read(src, mm, pr.rules);
+    const t = PENG.tile({ mark: mk, generator: PENG.suits(mk), colours: pr.tokens.colour,
+      colourway: pr.rules.colourways[0] });
+    // the finest thing the tile draws, as a share of the tile
+    const finest = t.generator === 'weave' ? 1 / t.params.cells : t.params.stripe;
+    const allowed = 1 / Math.max(2, mk.fineness / PENG.FINEST);
+    // A mark heavy enough to be allowed a quarter of the tile per stripe is
+    // held at the cap instead, because a tile with three stripes in it is a
+    // flag. That is a judgement, it is named in index.js, and where it binds
+    // the manual says the cap decided rather than the mark — so it is allowed
+    // here and nothing else is.
+    const atCap = t.generator === 'zigzag' && Math.abs(finest - PENG.COARSEST_STRIPE) < 1e-9;
+    if (finest < allowed - 1e-9 && !atCap) {
+      over.push(`${name}: ${t.generator} draws ${(finest * 100).toFixed(2)}% of the tile, `
+        + `and the mark allows ${(allowed * 100).toFixed(2)}%`);
+    }
+  }
+  assert.deepStrictEqual(over, [], over.join('\n'));
+});
+
+test('every identity gets a tile, and no two identities get the same one', () => {
+  // The fault this engine exists to fix is a pattern chapter that hands every
+  // client the same seven answers. If the measurements do not reach the
+  // generators, that is what happens again with more code in the way.
+  const names = fs.readdirSync(path.join(__dirname, '..', 'projects'))
+    .filter((d) => fs.existsSync(path.join(__dirname, '..', 'projects', d, 'project.json'))).sort();
+  const chosen = new Set(), tiles = new Set();
+  for (const name of names) {
+    const pr = projectLoader.load(path.join(__dirname, '..', 'projects', name, 'project.json'));
+    const mm = measure(pr);
+    const src = pr.assets[pr.master || (pr.assets.mark ? 'mark' : 'wordmark')].source;
+    const t = PENG.tile({ markSource: src, measured: mm, rules: pr.rules,
+      colours: pr.tokens.colour, colourway: pr.rules.colourways[0] });
+    assert.ok(t.tile.indexOf('<svg') === 0, `${name} produced no tile`);
+    assert.ok(t.why.length > 40, `${name} got a pattern with no reason given`);
+    chosen.add(`${t.generator}/${t.params.style}`);
+    tiles.add(t.tile);
+  }
+  assert.ok(chosen.size >= 8, `${names.length} identities between them reached only ${chosen.size} of the fourteen styles`);
+  assert.strictEqual(tiles.size, names.length, `${names.length - tiles.size} identities got a tile identical to another's`);
+});
+
+test('a tile built twice is the same bytes', () => {
+  const pr = projectLoader.load(path.join(__dirname, '..', 'projects', 'kvist', 'project.json'));
+  const mm = measure(pr);
+  const src = pr.assets.mark ? pr.assets.mark.source : pr.assets.wordmark.source;
+  const one = PENG.tile({ markSource: src, measured: mm, rules: pr.rules, colours: pr.tokens.colour, colourway: pr.rules.colourways[0] });
+  const two = PENG.tile({ markSource: src, measured: mm, rules: pr.rules, colours: pr.tokens.colour, colourway: pr.rules.colourways[0] });
+  assert.strictEqual(one.tile, two.tile, 'the same identity built two different tiles');
+  assert.deepStrictEqual(one.params, two.params);
 });
 
 console.log('\nrule blocks: the pattern');
@@ -1519,11 +1794,18 @@ test('the rules reach brand.json, so a developer reads the same numbers', () => 
   assert.strictEqual(bj.system.pattern.seamless, true);
   assert.strictEqual(bj.system.motion.durations.considered, 480);
 });
-test('a tile is written for every density in every colourway', () => {
+test('a tile is written for every density in every colourway, and for every generator', () => {
   const tiles = result.written.filter((f) => f.path.startsWith('07-pattern/'));
-  assert.strictEqual(tiles.length, patternTiles());
-  assert.ok(tiles.every((f) => /pattern-(fine|medium|coarse)-[a-z]+\.svg$/.test(f.path)),
-    'a tile is named something other than its density and colourway');
+  const repeated = tiles.filter((f) => /pattern-(fine|medium|coarse)-[a-z]+\.svg$/.test(f.path));
+  const made = tiles.filter((f) => !/^07-pattern\/pattern-/.test(f.path));
+  assert.strictEqual(repeated.length, repeatedTiles(), 'the tiled mark is not written at every density');
+  assert.strictEqual(made.length, generatedTiles(), 'a generator did not write a tile in every colourway');
+  assert.strictEqual(repeated.length + made.length, tiles.length,
+    `${tiles.length - repeated.length - made.length} files in 07-pattern are named as neither`);
+  const names = require('../src/patterns').NAMES;
+  for (const g of names) {
+    assert.ok(made.some((f) => f.path.indexOf(`/${g}-`) > -1), `${g} wrote no tile at all`);
+  }
 });
 
 console.log('\nrule blocks: on the page');
@@ -3495,7 +3777,14 @@ test('a rule set once still follows the master, because it was derived from it',
   // the point: the check moves with the mark rather than with a memory of it
   const f = sys.checkIcon(iconGood, bj.system.icons);
   assert.ok(f.some((x) => x.level === 'blocker'), 'an icon drawn to the old stroke still passes');
-  assert.strictEqual(r2.written.filter((x) => x.path.startsWith('07-pattern/')).length, patternTiles());
+  // The count is the same because a thicker stroke changes what the patterns
+  // *look* like, not how many there are — and it does change what they look
+  // like, which is the whole claim of measuring off the mark.
+  const before = result.written.filter((x) => x.path.startsWith('07-pattern/')).length;
+  assert.strictEqual(r2.written.filter((x) => x.path.startsWith('07-pattern/')).length, before);
+  assert.notStrictEqual(bj.system.patterns.measured.fineness, JSON.parse(
+    fs.readFileSync(path.join(out, 'brand.json'), 'utf8')).system.patterns.measured.fineness,
+  'a mark drawn five units thicker produced a pattern measured the same');
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
@@ -5654,12 +5943,19 @@ test('the pattern this project sets is cut at every density', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-yw-'));
   const r = await build(YW, dir);
   const tiles = r.written.map((f) => f.path).filter((f) => /^07-pattern\//.test(f));
-  assert.strictEqual(tiles.length, 9, `${tiles.length} tiles, where three densities in three colourways is nine`);
+  const cut = tiles.filter((f) => /^07-pattern\/pattern-/.test(f));
+  const made = tiles.filter((f) => !/^07-pattern\/pattern-/.test(f));
+  assert.strictEqual(cut.length, 9, `${cut.length} tiles cut from the mark, where three densities in three colourways is nine`);
+  assert.strictEqual(made.length, 2 * 3, `${made.length} generated tiles, where two generators in three colourways is six`);
   for (const d of ['fine', 'medium', 'coarse']) {
-    assert.ok(tiles.some((f) => f.includes(`-${d}-`)), `nothing was cut at ${d}`);
+    assert.ok(cut.some((f) => f.includes(`-${d}-`)), `nothing was cut at ${d}`);
   }
   const bj = JSON.parse(fs.readFileSync(path.join(dir, 'brand.json'), 'utf8'));
   assert.strictEqual(bj.system.pattern.tile, 120, 'the tile size it set was lost');
+  // and the generated tiles are cut at the size this project set, not at the
+  // default — the one number the pattern rules still leave as a decision
+  assert.ok(/viewBox="0 0 120 120"/.test(fs.readFileSync(path.join(dir, made[0].replace(/^07-pattern\//, '07-pattern/')), 'utf8')),
+    'a generated tile ignored the tile size the project set');
   assert.deepStrictEqual(Object.keys(bj.system.motion.durations).sort(),
     ['base', 'considered', 'quick', 'slow']);
   fs.rmSync(dir, { recursive: true, force: true });

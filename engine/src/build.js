@@ -1172,6 +1172,48 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // is its pattern; it would have been cut from the wrong file and nothing would
   // have said so.
   const gen = pattern.everyTile(masterOf(project).source, sys.pattern, ways, pairs);
+
+  // The other kind of pattern.
+  //
+  // src/pattern.js repeats a shape cut from the mark, seven ways. It is the
+  // pattern that *is* the logo, and every identity gets the same seven answers
+  // because there are only seven. src/patterns/ generates one from the mark's
+  // measurements instead — how fine the drawing is, how much of it is curved,
+  // which way it runs — so two identities get two patterns rather than one
+  // pattern in two palettes.
+  //
+  // Both go into the package. They answer different questions and a designer
+  // should see both rather than be given whichever the engine preferred.
+  const wrapTo = (text, width) => {
+    const words = String(text).split(/\s+/); const out = []; let line = '';
+    for (const w of words) {
+      if (line && (line + ' ' + w).length > width) { out.push(line); line = w; } else line = line ? `${line} ${w}` : w;
+    }
+    if (line) out.push(line);
+    return out;
+  };
+  const PATTERNS = require('./patterns');
+  const patternMark = PATTERNS.read(masterOf(project).source, measured, rules);
+  const generated = [];
+  for (const cw of rules.colourways) {
+    for (const name of PATTERNS.NAMES) {
+      try {
+        const t = PATTERNS.tile({ mark: patternMark, generator: name,
+          colours: project.tokens.colour, colourway: cw, size: sys.pattern.tile,
+          id: `${name}-${naming.slug(cw.name)}` });
+        generated.push({ name, colourway: cw.name, tile: t });
+      } catch (e) {
+        warnings.push(`the ${name} pattern was not built in ${cw.name}. ${e.message}`);
+      }
+    }
+  }
+  for (const g of generated) {
+    write(`07-pattern/${g.name}-${naming.slug(g.colourway)}.svg`, g.tile.tile);
+  }
+  // Which one the measurements point at, so the manual and brand.json can name
+  // one without the engine having to pick again somewhere else.
+  const patternChoice = PATTERNS.suits(patternMark);
+  const patternPick = generated.find((g) => g.name === patternChoice) || generated[0];
   if (gen.ok) {
     for (const t of gen.tiles) {
       write(`07-pattern/pattern-${naming.slug(t.density)}-${naming.slug(t.colourway)}.svg`, t.tile);
@@ -1381,6 +1423,21 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
         alternatives: { motifs: gen.ranked || gen.choices, constructions: require('./pattern').NAMES },
         tiles: gen.tiles.length, seamless: true,
       }) : null,
+      // The generated patterns, with the recipe for each rather than only the
+      // file. A tile is a picture; these are the parameters that made it, so a
+      // rebuild returns the same bytes and the studio the client is given can
+      // start from what the engine chose rather than from nothing.
+      patterns: patternPick ? {
+        measured: patternMark,
+        chose: patternChoice,
+        why: patternPick.tile.why,
+        generators: PATTERNS.NAMES,
+        made: generated.map((g) => ({
+          generator: g.name, colourway: g.colourway,
+          file: `07-pattern/${g.name}-${naming.slug(g.colourway)}.svg`,
+          params: g.tile.params, palette: g.tile.palette, why: g.tile.why,
+        })),
+      } : null,
       motion: sys.motion,
       photography: sys.photography,
     },
@@ -1593,6 +1650,14 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       `                  ${require('./pattern').CONSTRUCTIONS[gen.construction].draws}.`,
       `                  ${gen.tiles.length} tiles in 07-pattern, every one seamless in both`,
       '                  directions. Use them as a fill; do not scale one on its own.'] : []),
+    ...(patternPick ? [
+      `  And generated   ${generated.length} more tiles in 07-pattern, built from the mark's own`,
+      '                  measurements rather than from a shape cut out of it.',
+      // the reasoning is a sentence and the read me is a fixed column, so it
+      // is folded here rather than running off the side of somebody's terminal
+      ...wrapTo(patternPick.tile.why, 58).map((l) => `                  ${l}`),
+      '                  Every one is a seamless repeat. brand.json carries the',
+      '                  parameters, so any of them can be rebuilt or changed.'] : []),
     // The one rule anybody reads before doing something to a mark, and it was in
     // the manual only. Each line is the sentence the manual prints under the
     // picture of that treatment, so the two cannot say different things.
