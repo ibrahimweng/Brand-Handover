@@ -24,26 +24,36 @@
   if (typeof module === 'object' && module.exports) {
     module.exports = factory(require('./surface'), require('./palette'),
       require('./generators/weave'), require('./generators/zigzag'),
-      (name) => require(`./${name}`));
+      require('./generators/field'), require('./generators/thread'),
+      require('./generators/terrace'), (name) => require(`./${name}`));
   } else {
     root.PatternEngine = factory(root.PatternSurface, root.PatternPalette,
-      root.PatternWeave, root.PatternZigzag, () => null);
+      root.PatternWeave, root.PatternZigzag, root.PatternField, root.PatternThread,
+      root.PatternTerrace, () => null);
   }
-}(typeof self !== 'undefined' ? self : this, function (surface, palette, weave, zigzag, late) {
+}(typeof self !== 'undefined' ? self : this, function (surface, palette, weave, zigzag, field, thread, terrace, late) {
   'use strict';
 
-  const GENERATORS = { weave, zigzag };
+  const GENERATORS = { weave, zigzag, field, thread, terrace };
   const NAMES = Object.keys(GENERATORS);
 
   // Which generator suits a mark that measures like this.
   //
-  // Not a preference: a mark of straight lines and a fine stem has a lot of
-  // detail to answer, and an index grid can carry detail that a stripe cannot. A
-  // mark that is round and heavy has almost nothing to say at the density a grid
-  // works at, and reads better as a stripe. The rule is one line and it is
-  // checkable, which is the most that should be claimed for it.
+  // Five now, and the rule has to place a mark rather than sort it into two
+  // buckets. Three measurements, and each one points somewhere real:
+  //
+  //   a heavy mark of straight lines      an interlocking stripe carries it
+  //   a fine mark of straight lines       a grid can hold that much detail
+  //   a curved mark                       a line field is the same gesture
+  //   a curved, heavy mark                bands, because a stripe would fight it
+  //
+  // Four lines, and checkable, which is the most that should be claimed for it.
+  // Every generator draws every identity; this only decides which one the
+  // package opens on, and a client changes it with one click in the studio.
   function suits(m) {
-    return m.curviness > 0.5 || m.fineness < 16 ? 'zigzag' : 'weave';
+    if (m.curviness > 0.66) return m.fineness < 14 ? 'terrace' : 'thread';
+    if (m.curviness > 0.33) return m.fineness > 30 ? 'field' : 'zigzag';
+    return m.fineness > 40 ? 'field' : m.fineness < 16 ? 'zigzag' : 'weave';
   }
 
   // The parameters this identity's own artwork asks for.
@@ -67,6 +77,24 @@
   // rule that is measured.
   const COARSEST_STRIPE = 0.25;
   const FINEST_STRIPE = 0.03;
+  // And the same argument at the other end, for the grids. A tile of more than
+  // this many cells across is a texture rather than a pattern: at any size
+  // anybody prints it, the cells are under a pixel and it reads as static.
+  //
+  // It binds on exactly the two identities the floor work found have hairlines
+  // carrying almost none of their ink — pagrin at 167 of its own narrowest runs
+  // across, hallward at 267. The pattern engine inherits that problem from the
+  // same measurement, and the cap is what stops it becoming a tile nobody can
+  // see. Where it binds, `why` says the cap decided and not the mark, because
+  // the alternative is a client wondering why their pattern is grey.
+  const COARSEST_GRID = 72;
+  const FINEST_GRID = 108;
+  // And a floor at the other end, for the same kind of reason. A blanket of
+  // six cells is a flag and a field of eight is a chequerboard; below these
+  // there is no pattern left to be a pattern. Where the floor binds, the mark
+  // would have allowed something coarser still, and `why` says so.
+  const LEAST_WEAVE = 8;
+  const LEAST_FIELD = 12;
 
   // Which of a generator's styles suits a mark that measures like this.
   //
@@ -84,39 +112,68 @@
     ['chevron', 'stairs', 'scales'],      // wider than tall
     ['teeth', 'ricrac', 'waves'],         // square or upright
   ];
+  const FIELD_LOOKS = [
+    ['quilt', 'patchwork', 'bloom'],      // coarse
+    ['patchwork', 'drift', 'bloom'],      // medium
+    ['scatter', 'drift', 'bloom'],        // fine
+  ];
+  const THREAD_STYLES = ['weft', 'flow', 'curl'];
+  const TERRACE_STYLES = ['strata', 'basin', 'ridge'];
   const bandOf = (v, edges) => { let i = 0; while (i < edges.length && v > edges[i]) i++; return i; };
 
   function derive(generator, m) {
     const curve = bandOf(m.curviness, [0.33, 0.66]);
+    const scale = scaleFrom(m);
     if (generator === 'weave') {
-      // Rounded *down* to a multiple of four, never up: rounding up makes the
-      // cells finer than the rule allows, and the rule is the whole argument.
-      const cells = Math.max(8, Math.min(72, Math.floor(scaleFrom(m) / 4) * 4));
-      return {
-        cells,
-        // A round mark gets a coarser motif, because a fine motif made of
-        // rectangles fights a drawing made of arcs.
+      const cells = Math.max(LEAST_WEAVE, Math.min(COARSEST_GRID, Math.floor(scale / 4) * 4));
+      return { cells,
         chunk: Math.round((0.7 + m.curviness * 0.8) * 20) / 20,
         style: WEAVE_STYLES[bandOf(m.fineness, [20, 40])][curve],
-        seed: 1,
-      };
+        seed: 1 };
+    }
+    if (generator === 'field') {
+      // A cell is the finest thing it draws, so the same rule sets the grid.
+      const cells = Math.max(LEAST_FIELD, Math.min(FINEST_GRID, Math.floor(scale / 4) * 4));
+      // The look's name is the parameter, not just the way its preset was
+      // found: the studio shows it as the selected chip and brand.json records
+      // it. Spreading the preset and dropping the name left `style` undefined
+      // for this generator alone, which read as five identities sharing one
+      // look rather than as a missing value.
+      const style = FIELD_LOOKS[bandOf(m.fineness, [20, 40])][curve];
+      return Object.assign({ cells, spread: 0, mark: 'none', markAmount: 0, markSize: 0.52, seed: 1 },
+        GENERATORS.field.looks[style], { style });
+    }
+    if (generator === 'thread') {
+      // A stroke is the finest thing it draws, in the thousand-unit box the
+      // field works in — so the same rule, in those units.
+      const weight = Math.max(1, Math.min(20, Math.round((1000 / scale) * 0.1 * 2) / 2));
+      return { style: THREAD_STYLES[curve], grain: m.fineness > 24 ? 'close' : 'open',
+        curl: Math.round(m.curviness * 100) / 100, density: 1, spread: 0.05,
+        length: 190, step: 4.2, weight, hierarchy: 0.55, seed: 1 };
+    }
+    if (generator === 'terrace') {
+      // Its finest feature is one cell of its own grain lattice.
+      // Coarser than the mark would strictly allow, because a contour field
+      // needs enough lattice under it to carry its own octaves — see
+      // octavesFor in the generator. Four times the rule, which still leaves
+      // its finest feature well over twice the mark's thinnest.
+      const grid = Math.max(48, Math.min(240, Math.round((scale * 4) / 8) * 8));
+      return { style: TERRACE_STYLES[curve], scale: Math.max(1, Math.min(8, Math.round(m.fineness / 8))),
+        warp: 1, contrast: 1, bands: 6, dither: 0.3, grid, spread: 0, seed: 1 };
     }
     // Rounded *up* to the nearest two-hundredth: a stripe rounded down is finer
     // than the mark allows.
     //
-    // And then capped, which is the one place the scale rule is overruled and it
-    // is overruled out loud. A very heavy mark — spire is seven of its own runs
-    // across — would be allowed a stripe of 27% of the tile, and a tile with
-    // three and a half stripes in it is not a pattern, it is a flag. COARSEST is
-    // the floor on how few stripes will do, and where it binds, `why` says the
-    // cap decided rather than the mark.
-    const wanted = Math.ceil((1 / scaleFrom(m)) * 200) / 200;
+    // And then capped, which is the one place the scale rule is overruled and
+    // it is overruled out loud. A very heavy mark would be allowed a stripe of
+    // 27% of the tile, and a tile with three and a half stripes in it is not a
+    // pattern, it is a flag.
+    const wanted = Math.ceil((1 / scale) * 200) / 200;
     const stripe = Math.max(FINEST_STRIPE, Math.min(COARSEST_STRIPE, wanted));
     return {
       stripe,
       depth: 0.9,
       length: Math.max(0.05, Math.min(0.4, Math.round(stripe * 1.6 * 100) / 100)),
-      // Straight artwork gets corners, round artwork gets none.
       rounding: Math.round(m.curviness * 100) / 100,
       style: ZIGZAG_STYLES[m.aspect > 2 ? 0 : 1][curve],
     };
@@ -127,11 +184,55 @@
     const round = `${Math.round(m.curviness * 100)}% of the drawing's outline is curved`;
     const fine = `the mark is ${m.fineness.toFixed(1)} of its own narrowest runs across, `
       + `so nothing here is drawn finer than ${(m.fineness / FINEST).toFixed(1)} of anything`;
+    // Where a cap decided instead of the mark, it says so. A mark with a
+    // hairline in it asks for a grid nobody could see, and a client should be
+    // told that rather than left wondering why their pattern is grey.
+    const capped = (limit) => Math.floor(scaleFrom(m) / 4) * 4 > limit;
+    const floored = (limit) => Math.floor(scaleFrom(m) / 4) * 4 < limit;
     if (generator === 'weave') {
+      if (floored(LEAST_WEAVE)) {
+        return `the mark is heavy enough to allow a blanket of ${Math.floor(scaleFrom(m) / 4) * 4} cells, `
+          + `which is a flag rather than a pattern, so it is held at ${params.cells}. `
+          + `And ${round}, so the motif is ${params.style}.`;
+      }
+      if (capped(COARSEST_GRID)) {
+        return `the mark is ${m.fineness.toFixed(0)} of its own narrowest runs across, which would `
+          + `ask for a grid of ${Math.floor(scaleFrom(m) / 4) * 4} — finer than anything anybody `
+          + `prints. It is held at ${params.cells} cells. And ${round}, so the motif is ${params.style}.`;
+      }
       return `${fine} — ${params.cells} cells. And ${round}, so the motif is ${params.style}.`;
     }
-    const capped = params.stripe >= COARSEST_STRIPE && 1 / scaleFrom(m) > COARSEST_STRIPE;
-    const scale = capped
+    if (generator === 'field') {
+      // The other four name their style here. This one describes what the
+      // parameters are doing instead, on purpose: the look is a preset, and a
+      // client who moves `blockiness` in the studio without changing the chip
+      // would make the name stale while "in blocks" stays true. The name is
+      // not lost — it is `params.style`, and the studio shows it as the
+      // selected chip and brand.json records it.
+      if (floored(LEAST_FIELD)) {
+        return `the mark is heavy enough to allow a grid of ${Math.floor(scaleFrom(m) / 4) * 4}, which is a `
+          + `chequerboard rather than a field, so it is held at ${params.cells}. `
+          + `And ${round}, so it is worked ${params.blockiness > 0.6 ? 'in blocks' : 'evenly'}.`;
+      }
+      if (capped(FINEST_GRID)) {
+        return `the mark is ${m.fineness.toFixed(0)} of its own narrowest runs across, which would `
+          + `ask for a grid of ${Math.floor(scaleFrom(m) / 4) * 4} — finer than anything anybody `
+          + `prints. It is held at ${params.cells}. And ${round}, so it is worked `
+          + `${params.blockiness > 0.6 ? 'in blocks' : 'evenly'}.`;
+      }
+      return `${fine} — a grid of ${params.cells}. And ${round}, so it is worked `
+        + `${params.blockiness > 0.6 ? 'in blocks' : params.speckle > 0.15 ? 'loosely' : 'evenly'}.`;
+    }
+    if (generator === 'thread') {
+      return `${fine} — a thread is ${params.weight} of the thousand the field works in. `
+        + `And ${round}, so it runs ${params.style}, on the ${params.grain} field.`;
+    }
+    if (generator === 'terrace') {
+      return `${fine} — the grain is ${params.grid} across. And ${round}, so the ground `
+        + `is ${params.style}. This one is raster: it prints sharp to the size the package states.`;
+    }
+    const heldWide = params.stripe >= COARSEST_STRIPE && 1 / scaleFrom(m) > COARSEST_STRIPE;
+    const scale = heldWide
       ? `the mark is heavy enough to allow a stripe of ${((1 / scaleFrom(m)) * 100).toFixed(0)}% of the tile, `
         + `which would leave under four of them, so it is held at ${(COARSEST_STRIPE * 100).toFixed(0)}%`
       : `${fine} — a stripe is ${(params.stripe * 100).toFixed(1)}% of the tile`;
@@ -151,12 +252,31 @@
     g.paint(s, W, H, params, pal);
     return {
       generator, params, why: because(generator, m, params), mark: m,
+    vector: !!g.vector, pal,
       palette: { ground: pal.ground, inks: pal.inks.map((i) => i.hex) },
       tile: s.toSVG(),
       body: s.body(),
       // the same paint, for anything that wants to draw it rather than read it
       paint: (surf, w, h) => g.paint(surf, w, h, params, pal),
     };
+  }
+
+  // The raster a generator that is not vector actually ships.
+  //
+  // `terrace` decides per pixel, so its file is pixels. The size is a decision
+  // — how large the client will print it — and `printedAt` says what that size
+  // is worth in millimetres, so the manual can state it rather than leave a
+  // client to find out on a press. Node only: it needs an encoder, and the
+  // studio in the browser draws the same field through the ordinary surface.
+  function sheet(t, widthPx) {
+    const g = GENERATORS[t.generator];
+    if (g.vector || !g.render) return null;
+    const R = late('raster');
+    const w = Math.max(64, Math.round(widthPx || 2400));
+    const img = g.render(w, w, t.params, t.pal);
+    const f = R.field(img.width, img.height);
+    f.data.set(img.data);
+    return { png: R.png(f), width: img.width, height: img.height, printedAt: R.printedAt(f) };
   }
 
   // What a tile does when it is laid next to itself. Reported, not asserted:
@@ -168,6 +288,7 @@
   // handed what this already worked out rather than working it out again.
   const read = (markSource, measured, rules) => late('mark').read(markSource, measured, rules);
 
-  return { GENERATORS, NAMES, suits, derive, because, tile, joins, read,
-    FINEST, COARSEST_STRIPE, FINEST_STRIPE, WEAVE_STYLES, ZIGZAG_STYLES };
+  return { GENERATORS, NAMES, suits, derive, because, tile, sheet, joins, read,
+    FINEST, COARSEST_STRIPE, FINEST_STRIPE, COARSEST_GRID, FINEST_GRID, LEAST_WEAVE, LEAST_FIELD,
+    WEAVE_STYLES, ZIGZAG_STYLES, FIELD_LOOKS, THREAD_STYLES, TERRACE_STYLES };
 }));

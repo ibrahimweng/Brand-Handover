@@ -34,6 +34,11 @@
   const keep = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (_) {} };
 
   const gen = () => PE.GENERATORS[state.generator];
+  // One question, asked one way. Two spellings of it — `vector !== false` where
+  // the button is enabled and `!vector` where the click is handled — agree on
+  // every generator that declares the flag and disagree on one that forgets it,
+  // which is an enabled button that refuses.
+  const isVector = () => gen().vector !== false;
   const way = () => B.colourways.find((c) => c.name === state.colourway) || B.colourways[0];
   const pal = () => PAL.of(B.colours, way());
 
@@ -90,6 +95,15 @@
       : `Holds from ${f.px} px and ${f.mm} mm, which is the size the mark itself holds at or larger.`;
     $('#code').textContent = JSON.stringify({ generator: state.generator, colourway: state.colourway,
       params: state.params }, null, 2);
+    // The SVG button is not offered for a pattern that has no vector form, and
+    // the note says which kind this is rather than leaving it to be discovered.
+    const vector = isVector();
+    $('#svg').disabled = !vector;
+    $('#svg').title = vector ? '' : 'this pattern is raster — use PNG';
+    $('#kind').textContent = vector
+      ? 'Vector. It prints at any size.'
+      : `Raster. At ${Number($('#px').value) || 2400} px it prints sharp to `
+        + `${Math.round(((Number($('#px').value) || 2400) / (300 / 25.4)) * 10) / 10} mm at 300 dpi.`;
     keep();
   }
 
@@ -235,9 +249,15 @@
   }
 
   // -------------------------------------------------------------------- wire
-  $('#svg').addEventListener('click', () => download(
-    `${B.slug}-${state.generator}-${state.colourway}-${stamp()}.svg`, tileSVG(B.tile).toSVG()));
+  $('#svg').addEventListener('click', () => {
+    // Four of the five generators are vector; one decides per pixel and has no
+    // honest vector form. Rather than hand over an SVG that is not the picture,
+    // it says so and offers the PNG instead.
+    if (!isVector()) { say('this one is a raster pattern — use PNG'); return; }
+    download(`${B.slug}-${state.generator}-${state.colourway}-${stamp()}.svg`, tileSVG(B.tile).toSVG());
+  });
   $('#png').addEventListener('click', exportPNG);
+  $('#px').addEventListener('input', draw);
   $('#copy').addEventListener('click', () => {
     const text = $('#code').textContent;
     if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => say('parameters copied'), () => say('could not copy'));

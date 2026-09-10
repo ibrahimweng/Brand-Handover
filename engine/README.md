@@ -830,7 +830,8 @@ two of the five through. It is 1.5 and 0.4% now, which is where the gap is.
 
 ### The generators
 
-`src/patterns/generators/` — two of the six, both pure vector.
+`src/patterns/generators/` — five of the six. Four are pure vector; one is not,
+and says so.
 
 **`weave`** — index-grid blankets, after PLAYGRND's Quilt. Eight styles: bands,
 plaid, basket, dither, steps, diamond, cross, gingham. Quilt measures each cell
@@ -846,6 +847,33 @@ chevron, stairs, ricrac, waves, scales. A stripe is a pair of neighbouring
 boundary chains; only alternate stripes are painted, so the unpainted ones are
 the ground and the two colours interlock exactly rather than being drawn over
 each other. Two colours per tile and no more.
+
+**`field`** — pixel compositions, after Oddgrid. Five looks: patchwork, bloom,
+quilt, scatter, drift. weave's styles are arithmetic on the cell index and wrap
+because the index wraps; this one samples a continuous field, so the *field*
+has to be periodic — which is what `noise.js` was for. Three of them: colour at
+two octaves, coverage at three, detail at two. And a fourth thing that is not a
+field — cell coordinates are pulled towards the middle of a block before any of
+them is sampled, so a run of cells shares one answer and the composition
+gathers into patches instead of dissolving into noise. It is one lerp and it is
+most of what the pattern looks like.
+
+**`thread`** — flowing line fields, after Filament. Four styles: flow, weft,
+curl, tangle. A direction field is two noise samples; strands are dropped into
+it in bundles and integrated forward a few hundred small steps each. Nothing
+about the picture is drawn, it is all consequence. This is the one generator
+whose seam a periodic field does not solve on its own, and the two things that
+do solve it are below.
+
+**`terrace`** — posterised contour bands, after Terrain, and **the one
+generator here that is not vector**. A field warped, contrast-stretched,
+dithered and quantised into bands is a decision taken per pixel. The honest
+vector form of it is a hundred thousand little polygons that no designer wants
+to open and no printer thanks you for; the dishonest one is a coarse
+approximation that quietly stops being the picture the studio showed. So it
+ships as raster at a size the package states, and the manual says which
+patterns are which in those words. A client needs to know this one has a size
+beyond which it stops being sharp. Hiding it would be the fault.
 
 ### Seamlessness is proved, not inspected
 
@@ -957,10 +985,27 @@ reachable — a rule that sent nine identities in ten to the same style would be
 the fault this engine exists to fix, in a new place.
 
     32 identities, each choosing for itself
-      9 of the 14 styles reached
       32 different tiles — no two identities got the same one
-      worst join 1.00x — no tile reaches even the most unusual
-      band its own pattern already contains
+      all 5 generators reached, and 8 of the 27 styles
+
+What each of the five does when laid next to itself, across all 32 — the worst
+any identity produces, measured as `beyond`: how far the join reaches past the
+most unusual band the pattern already contains somewhere in its own interior.
+At or under 1 there is nothing at the join the pattern does not do elsewhere.
+
+    generator   worst join   on          opened on by
+    weave         1.65x      pagrin       5 identities
+    zigzag        1.00x      beaumont    12
+    field         1.77x      pagrin       5
+    thread        1.47x      ancroft      3
+    terrace       1.53x      carrock      7
+
+zigzag at 1.00x is exact arithmetic on a wrapped coordinate and has nothing to
+find. The three field generators sit between 1.47 and 1.77, which is a join a
+measurement can see and an eye, on the evidence of looking, cannot — and it is
+worth being plain that "cannot" there is a judgement, not a measurement. The bar
+the suite holds them to is stated where it is used, with a deliberately broken
+tile beside the real one to show the check can tell them apart.
 
 ### In the package
 
@@ -1051,6 +1096,163 @@ that narrow. Randomness comes from
 named streams off one seed — `stream(seed, 'colour')` and `stream(seed,
 'coverage')` are independent, so moving one slider does not re-deal the other,
 which is the difference between a control and a shuffle button.
+
+### Nyquist, and a field that shipped as speckle
+
+`terrace` looked wrong the first time it drew, and "wrong" is not a bug report,
+so: five octaves on a field of period 3 puts the finest octave at 3 x 2^4 = 48
+cycles across the tile, and the lattice it was being sampled on was 24 cells.
+Half a sample per cycle. It was not being drawn coarsely, it was being
+**aliased** — and aliasing a smooth field gives speckle, which looks like a
+deliberate texture rather than like a fault, which is why it nearly shipped.
+
+The rule is Nyquist and it is not a matter of taste: two samples a cycle or it
+is not there.
+
+    function octavesFor(period, grid) {
+      let n = 1;
+      while (period * Math.pow(2, n) * 2 <= grid) n++;
+      return Math.max(1, n);
+    }
+
+The check sweeps four styles by five lattice sizes by three periods and asserts
+the finest octave is sampled at least twice a cycle in every one — and then
+asserts the cap **binds** at some size it is asked about, because a cap that
+never binds is a comment.
+
+### The thread field's scale is two chips, not a slider
+
+`thread` measured 2.09 times its own worst ordinary band on cusp — a real join,
+confirmed against a rolled-tile control. What followed is worth writing down
+because most of it was wrong.
+
+The tile was being drawn nine times over to catch strands leaving the edge; the
+measurement said that was doing nothing (2.90 against 2.91) and it came out.
+Path length was checked and conserved — 0 of 60 strands drew short. Caps,
+overshoot and the clip made no measurable difference. Rendering with one ink
+removed the join entirely, which said the fault was in *what colour went where*
+rather than in the geometry.
+
+So the field's period was swept, four styles by four identities at each scale:
+
+    cycles across the tile   1     2     3     4     5     6     7     8
+    joins that stand out    3/16  4/16  0/16  1/16  8/16  5/16  0/16  3/16
+
+The lattice a periodic field is built on has its nodes at whole fractions of the
+tile, so the tile's edge is always a lattice line. Where the field's largest
+feature happens to sit on that line, every copy shows a band down every join.
+Nothing is discontinuous and nothing is lost — the feature is simply *there*,
+in every tile, at the same place.
+
+Two of the eight are clean, and I do not have a derivation for *which* two —
+the obvious guess, that it is the odd periods, is wrong, because 1 and 5 are odd
+and 5 is the worst of the eight. What there is, is sixteen measurements at each
+scale. So the scale is not a slider: it is a chip, `open` or `close`, and
+`GRAINS = { open: 3, close: 7 }` is the whole of it. **2.09x to 1.47x.**
+
+Shipping two measured constants without the theory behind them is worth being
+uneasy about. The mitigation is that the check pins the two values and the
+control type, so a later slider — or a third grain added on the strength of
+looking fine — fails rather than quietly reintroducing the join.
+
+An offset of 0.37 was fitted first and removed: it made the number smaller
+without making the claim true, which is the definition of a constant fitted to
+a score.
+
+### Raster, on purpose
+
+`terrace` is `vector: false` and everything downstream reads that flag rather
+than knowing about terrace. `build.js` writes `.svg` for the vector generators
+and `.png` for the others; `brand.json` carries `vector`, `pixels` and
+`printedAt` per tile; the read me says how many are raster and at what printed
+size; the studio disables the SVG button for them and says, under the tile,
+which kind it is and how large it prints at the chosen pixel width.
+
+    07-pattern/thread-brass.svg     vector       570 KB
+    07-pattern/terrace-brass.png    raster  2400 px, 203.2 mm at 300 dpi
+
+`sheet(tile, widthPx)` returns the PNG, the size, and the printed size, and
+returns `null` for a vector generator — which the check asserts, because "the
+raster path also handles vectors" is how two code paths become one bug.
+
+### Where a cap decided instead of the mark
+
+The scale rule is that nothing is drawn finer than twice the thinnest thing in
+the mark. Two identities push past what that rule can honestly give: pagrin
+(fineness 167.3) and hallward (266.7).
+
+                       asked for   held at
+    pagrin    weave         80         72
+    pagrin    field         80         80   (not capped)
+    hallward  weave        132         72
+    hallward  field        132        108
+
+So there are four named limits — `COARSEST_GRID`, `FINEST_GRID`, `LEAST_WEAVE`,
+`LEAST_FIELD` — and the point is not that they exist but that **they are
+audible**. Where one binds, `because()` says so, in the sentence the manual
+prints and the studio shows:
+
+    the mark is 267 of its own narrowest runs across, which would ask for a
+    grid of 132 — finer than anything anybody prints. It is held at 108. And
+    63% of the drawing's outline is curved, so it is worked evenly.
+
+A judgement about what the word "pattern" means is allowed to overrule a
+measurement. It is not allowed to do it quietly. The check that guards the scale
+rule lists these four caps by name as the only permitted exemptions, so a fifth
+one added later fails rather than being absorbed.
+
+### Seven reversions
+
+Every check above, against the thing it claims to guard:
+
+    reverted                                                  caught
+    field: the modulo wrap out of cellAt                       yes
+    thread: a noise period the tile does not divide            yes
+    thread: the field scale as a free number again             yes
+    terrace: every octave, whatever the lattice                yes
+    terrace: claiming to be vector                             yes
+    weave: the grid rounded up, past what the mark allows      yes
+    field: the look's name dropped after its preset is spread  yes
+
+### One more check, and why it exists
+
+That last row was not planned. Counting how many styles the 32 identities reach
+— for the table above — printed `field/undefined`, once, among names like
+`weave/basket`. `derive` looked its look up **by name**, spread the preset that
+name pointed at, and dropped the name:
+
+    const look = GENERATORS.field.looks[FIELD_LOOKS[band][curve]];
+    return Object.assign({ cells, ... }, look);
+
+Nothing threw. Every field tile drew correctly, because the preset carries the
+numbers and the numbers are what `plan()` reads. But `params.style` was
+undefined for that one generator: the studio showed no chip selected, brand.json
+recorded no look, and five identities on two different fields counted as one
+style. A value that is only ever spread into an object is invisible until
+something asks it for its name, and the only thing that ever did was a table in
+this read me.
+
+So it is asked directly, for every generator against every identity: the derived
+`style` is a string, and it is one of the styles that generator declares. 160 of
+them.
+
+Two things about how it got there are worth keeping. **The first reversion of it
+passed** — it dropped a trailing `{ style }` while an earlier `style:` in the
+same object literal still supplied the value, so it reverted a redundant clause
+rather than the fault. Removing the name the way the original code did fails it,
+which is the version above; and the redundant clause is gone, since a guard
+against a case that cannot arise is noise.
+
+**And it was written as its own test, which cost the suite 25 minutes.** It
+built all 160 tiles to ask one question about each — and the very next test
+builds the same 160 tiles. Folded into that loop it costs nothing measurable.
+A check earns its place by what it catches; it should not also charge rent.
+
+Running the suite takes the better part of an hour, nearly all of it in twelve
+full builds, which is the right price before a commit and the wrong one to pay
+six times over to prove a check can fail. `test/run.js --only <text>` runs the
+tests whose names contain that text and the setups before the last of them, and
+prints a banner so a subset is never mistaken for a pass. Fifty-six seconds.
 
 ## Rule blocks, the third kind
 
@@ -7231,6 +7433,18 @@ it rather than about how to measure one.
     src/surface.js    the mark mapped into a surface, and whether it reads there
     src/licence.js    plans, signed licences, and what the client owns
     src/pattern.js    seamless tiles cut from the shape you marked
+    src/patterns/     the other kind: patterns generated rather than cut
+    src/patterns/rand.js     named streams off one seed, so a slider is not a shuffle
+    src/patterns/noise.js    value noise that comes back round, so a tile can
+    src/patterns/surface.js  one paint(), drawn by the recorder and by the canvas
+    src/patterns/seam.js     is the join findable? measured, not inspected
+    src/patterns/raster.js   a tile as pixels, at a size the package states
+    src/patterns/palette.js  which ink goes where, from the identity's own colours
+    src/patterns/mark.js     what the artwork says about the pattern it wants
+    src/patterns/index.js    which generator suits a mark, with what, and why
+    src/patterns/studio.js   the application the client is handed
+    src/patterns/emit.js     it, inlined into one file that opens off a drive
+    src/patterns/generators/ weave, zigzag, field, thread, terrace
     src/misuse.js     what not to do, drawn from the artwork rather than described
     src/strings.js    every word both documents set, and what a language can write
     src/previous.js   what moved since the last version, in both languages

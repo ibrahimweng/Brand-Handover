@@ -2929,3 +2929,95 @@ carries `e.findings`. Every build failure in the hosted app fell past it to the
 branch that puts the raw message in the headline and replaces the why and the
 how with two sentences about the engine stopping. The reason was on the error
 the whole time.
+
+
+---
+
+**The field generators, and a texture that was aliasing**
+
+Three more: `field` (pixel compositions, after Oddgrid), `thread` (flowing line
+fields, after Filament) and `terrace` (posterised contour bands, after Terrain).
+Five generators, 27 styles. Every package now writes a tile per generator per
+colourway.
+
+This is the round where the noise built in Round A gets used for what it was
+for. `weave`'s styles are arithmetic on a cell index and repeat because the
+index repeats. These sample a continuous field, so the field itself has to come
+back round — and the same 4-D trick that closes an animation loop closes a tile.
+
+**`terrace` looked wrong, and "wrong" is not a bug report.** Five octaves on a
+field of period 3 puts the finest octave at 48 cycles across the tile, sampled
+on a lattice of 24 cells. Half a sample per cycle. It was not being drawn
+coarsely, it was being *aliased*, and aliasing a smooth field gives speckle —
+which looks like a deliberate texture rather than a fault, which is why it
+nearly shipped. Nyquist is not a matter of taste: two samples a cycle or it is
+not there. The octave count is now derived from the lattice, and the check
+proves the cap actually binds, because a cap that never binds is a comment.
+
+**`thread` had a real join — 2.09 times its own worst ordinary band — and most
+of the diagnosis was wrong.** The nine-times-over draw meant to catch strands
+leaving the edge measured as doing nothing, and came out. Path length was
+conserved. Caps, overshoot and the clip made no difference. Drawing with one ink
+removed the join entirely, which said the fault was in *what colour went where*,
+not in the geometry.
+
+So the field's period was swept, four styles by four identities at each scale:
+
+    cycles across the tile   1     2     3     4     5     6     7     8
+    joins that stand out    3/16  4/16  0/16  1/16  8/16  5/16  0/16  3/16
+
+The lattice has its nodes at whole fractions of the tile, so the tile's edge is
+always a lattice line — and where the field's largest feature sits on that line,
+every copy shows a band down every join. Nothing is discontinuous and nothing is
+lost. The feature is simply there, in every tile, at the same place.
+
+Two of the eight are clean, and I have no derivation for which two: the obvious
+guess, that it is the odd periods, is wrong, since 5 is odd and is the worst of
+the eight. What there is, is sixteen measurements at each scale. So the scale is
+not a slider — it is two chips, `open` and `close`, at periods 3 and 7.
+**2.09x to 1.47x.** An offset fitted first was removed: it made the number
+smaller without making the claim true.
+
+**And one generator is not vector, on purpose.** A field warped, dithered and
+quantised into bands is a decision taken per pixel; the honest vector form is a
+hundred thousand polygons nobody wants to open, and the dishonest one quietly
+stops being the picture the studio showed. `terrace` ships as PNG at a stated
+size, `brand.json` carries `vector` and the printed millimetres per tile, the
+read me says how many are raster, and the studio disables the SVG button and
+says which kind you are looking at. A client needs to know this one has a size
+beyond which it stops being sharp. Hiding it would be the fault.
+
+    07-pattern/thread-brass.svg     vector       570 KB
+    07-pattern/terrace-brass.png    raster  2400 px, 203.2 mm at 300 dpi
+
+**Where a cap overrules the mark, it says so.** The scale rule is that nothing
+is drawn finer than twice the thinnest thing in the mark. Two identities are
+fine enough that it stops being useful — pagrin at 167.3 of its own narrowest
+runs across, hallward at 266.7 — and they ask for grids of 80 and 132 cells.
+A tile of 132 cells is a texture rather than a pattern. Four limits are named, and where one binds it
+is audible in the sentence the manual prints: *"which would ask for a grid of
+132 — finer than anything anybody prints. It is held at 108."* A judgement about
+what the word "pattern" means may overrule a measurement. It may not do it
+quietly.
+
+**And a defect the read me found, not the suite.** Counting how many styles the
+32 identities reach — for a table in this file — printed `field/undefined` once,
+among names like `weave/basket`. `derive` looked the look up by name, spread the
+preset that name pointed at, and dropped the name. Nothing threw and every tile
+drew correctly, because the preset carries the numbers; but `params.style` was
+undefined for that one generator, so the studio showed no chip selected and
+brand.json recorded no look. A value that is only ever spread into an object is
+invisible until something asks it for its name. All five generators are now
+asked it, against all 32 identities. Two notes on getting there: the first
+reversion of that check *passed*, because I reverted a redundant clause rather
+than the fault; and I wrote it as its own test, which cost the suite 25 minutes
+building 160 tiles that the very next test already builds. Folded into that
+loop it costs nothing. A check earns its place by what it catches, and should
+not also charge rent.
+
+Seven reversions, seven caught. Running the suite takes the better part of an
+hour, so `test/run.js --only <text>` now runs a named subset — and prints a
+banner, so a subset can never be read as a pass.
+
+Round D of six. Next is matching: measuring a client's own pattern and
+regenerating it in this system, and matching the logo when there isn't one.

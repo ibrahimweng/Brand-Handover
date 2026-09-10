@@ -50,6 +50,7 @@ h2+*{margin-bottom:6px}
 .seed{width:72px;background:#23272A;border:1px solid var(--line);border-radius:3px;padding:4px 6px}
 .btn{flex:1;background:#23272A;border:1px solid var(--line);border-radius:3px;padding:4px 8px;cursor:pointer;font-size:11px}
 .btn:hover{border-color:#3B4145}
+.btn:disabled{opacity:.4;cursor:not-allowed}
 #stage{position:relative;overflow:hidden;background:#0E1012}
 #preview{position:absolute;inset:0}
 #preview svg{width:100%;height:100%}
@@ -125,6 +126,7 @@ function studioHtml(project, measured, made, chose, tile) {
     <h2 id="one-h">One tile</h2><div id="one" aria-labelledby="one-h"></div>
     <p id="why"></p>
     <p id="holds" class="note"></p>
+    <p id="kind" class="note"></p>
     <h2>Take it away</h2>
     <div class="row"><button class="btn" id="svg">SVG</button><button class="btn" id="png">PNG</button></div>
     <div class="row"><label class="px">at <input id="px" type="number" value="2400" min="200" max="8000" step="100"> px</label></div>
@@ -143,6 +145,9 @@ function studioHtml(project, measured, made, chose, tile) {
 <script>${read('palette.js')}</script>
 <script>${read('generators/weave.js')}</script>
 <script>${read('generators/zigzag.js')}</script>
+<script>${read('generators/field.js')}</script>
+<script>${read('generators/thread.js')}</script>
+<script>${read('generators/terrace.js')}</script>
 <script>${read('index.js')}</script>
 <script>window.PATTERN_BUNDLE=${JSON.stringify(bu)};</script>
 <script>${read('studio.js')}</script>

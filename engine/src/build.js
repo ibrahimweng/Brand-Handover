@@ -1207,8 +1207,23 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       }
     }
   }
+  // Four of the five generators are vector and write an SVG. `terrace` decides
+  // per pixel and writes a PNG, because the honest vector form of a posterised
+  // noise field is a hundred thousand polygons nobody wants. Which is which is
+  // in brand.json and in the read me, in those words: a client needs to know
+  // that one of their patterns has a size beyond which it stops being sharp.
+  const RASTER_PX = 2400;
   for (const g of generated) {
-    write(`07-pattern/${g.name}-${naming.slug(g.colourway)}.svg`, g.tile.tile);
+    const stem = `07-pattern/${g.name}-${naming.slug(g.colourway)}`;
+    if (g.tile.vector) { write(`${stem}.svg`, g.tile.tile); continue; }
+    const r = PATTERNS.sheet(g.tile, RASTER_PX);
+    // A generator that says it is not vector and cannot produce pixels either
+    // is a fault in the engine, not a case to fall back from: writing the SVG
+    // anyway would ship a file that is not the picture the studio showed, under
+    // a name that says nothing is wrong. There is no silent branch here.
+    if (!r) throw new Error(`${g.name} says it is not vector but produced no raster`);
+    write(`${stem}.png`, r.png);
+    g.raster = Object.assign({ mm: r.printedAt.mm }, r);
   }
   // Which one the measurements point at, so the manual and brand.json can name
   // one without the engine having to pick again somewhere else.
@@ -1444,7 +1459,12 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
         generators: PATTERNS.NAMES,
         made: generated.map((g) => ({
           generator: g.name, colourway: g.colourway,
-          file: `07-pattern/${g.name}-${naming.slug(g.colourway)}.svg`,
+          file: `07-pattern/${g.name}-${naming.slug(g.colourway)}.${g.tile.vector ? 'svg' : 'png'}`,
+          vector: !!g.tile.vector,
+          // A raster pattern has a largest size, and it is a fact a client
+          // needs rather than one to leave them to find.
+          printedAt: g.raster ? g.raster.printedAt : null,
+          pixels: g.raster ? g.raster.width : null,
           params: g.tile.params, palette: g.tile.palette, why: g.tile.why,
         })),
       } : null,
@@ -1667,6 +1687,10 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       // is folded here rather than running off the side of somebody's terminal
       ...wrapTo(patternPick.tile.why, 58).map((l) => `                  ${l}`),
       '                  Every one is a seamless repeat.',
+      ...(generated.some((g) => !g.tile.vector) ? [
+        `                  ${generated.filter((g) => !g.tile.vector).length} of them are raster and the rest vector. A raster`,
+        `                  pattern prints sharp to ${generated.find((g) => g.raster).raster.mm} mm and no further; the`,
+        '                  vector ones have no such size. brand.json says which.'] : []),
       '                  Open pattern-studio.html to change them: the same',
       '                  generators, the same parameters, offline, and it',
       '                  exports SVG and PNG at any size. brand.json carries',

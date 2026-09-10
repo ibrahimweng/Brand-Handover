@@ -23,9 +23,29 @@ function test(name, fn) { queue.push({ name, fn }); }
 // chance in a 300 KB base64 blob, and did.
 const prose = (html) => String(html).replace(/url\(data:[^)]*\)/g, 'url()');
 function before(fn) { queue.push({ setup: fn }); }
+
+// Running the whole suite takes the better part of an hour, most of it in the
+// twelve full builds the setups do. That is the right cost to pay before a
+// commit and the wrong one to pay eleven times over while proving that a new
+// check fails when you break the thing it checks. `--only <text>` runs the
+// tests whose names contain that text, and the setups before the last of them,
+// because a later test may read what an earlier setup left behind. It prints a
+// banner so a subset can never be mistaken for a pass.
+const ONLY = (() => {
+  const i = process.argv.indexOf('--only');
+  return i > -1 ? process.argv[i + 1] : null;
+})();
 async function drain() {
-  for (const item of queue) {
-    if (item.setup) { await item.setup(); continue; }
+  let last = -1;
+  if (ONLY != null) {
+    queue.forEach((item, i) => { if (item.name && item.name.indexOf(ONLY) > -1) last = i; });
+    if (last < 0) { console.log(`\nno test's name contains ${JSON.stringify(ONLY)}`); process.exit(1); }
+    console.log(`\n  ---- a subset: only tests whose name contains ${JSON.stringify(ONLY)} ----`);
+  }
+  for (let i = 0; i < queue.length; i++) {
+    const item = queue[i];
+    if (item.setup) { if (ONLY == null || i < last) await item.setup(); continue; }
+    if (ONLY != null && item.name.indexOf(ONLY) === -1) continue;
     try { await item.fn(); console.log(`  ok    ${item.name}`); passed++; }
     catch (e) { console.log(`  FAIL  ${item.name}\n        ${e.message}`); failed++; }
   }
@@ -352,6 +372,12 @@ function repeatedTiles() {
 function generatedTiles() {
   const refused = result.warnings.filter((w) => /^the \w+ pattern was not built/.test(w)).length;
   return require('../src/patterns').NAMES.length * project.rules.colourways.length - refused;
+}
+// Four of the five write an SVG and one writes a PNG, which is the point of
+// having a raster family at all.
+function rasterTiles() {
+  const PT = require('../src/patterns');
+  return PT.NAMES.filter((g) => PT.GENERATORS[g].vector === false).length * project.rules.colourways.length;
 }
 const patternTiles = () => repeatedTiles() + generatedTiles();
 test('the file count is exactly what the rules ask for', () => {
@@ -1218,7 +1244,9 @@ test('every identity gets a tile, and no two identities get the same one', () =>
     chosen.add(`${t.generator}/${t.params.style}`);
     tiles.add(t.tile);
   }
-  assert.ok(chosen.size >= 8, `${names.length} identities between them reached only ${chosen.size} of the fourteen styles`);
+  const allStyles = PENG.NAMES.reduce((a, g) => a + PENG.GENERATORS[g].styles.length, 0);
+  assert.ok(chosen.size >= 6,
+    `${names.length} identities between them reached only ${chosen.size} of the ${allStyles} styles`);
   assert.strictEqual(tiles.size, names.length, `${names.length - tiles.size} identities got a tile identical to another's`);
 });
 
@@ -1230,6 +1258,201 @@ test('a tile built twice is the same bytes', () => {
   const two = PENG.tile({ markSource: src, measured: mm, rules: pr.rules, colours: pr.tokens.colour, colourway: pr.rules.colourways[0] });
   assert.strictEqual(one.tile, two.tile, 'the same identity built two different tiles');
   assert.deepStrictEqual(one.params, two.params);
+});
+
+console.log('\nthe pattern engine: the field family');
+const PFIELD = require('../src/patterns/generators/field');
+const PTHREAD = require('../src/patterns/generators/thread');
+const PTERRACE = require('../src/patterns/generators/terrace');
+
+test('every field look repeats exactly, at every grid size, in both directions', () => {
+  const bad = [];
+  for (const look of PFIELD.styles) {
+    for (const cells of [12, 24, 36, 48, 72, 108]) {
+      for (const seed of [1, 7]) {
+        const q = PFIELD.plan(Object.assign({ cells, seed, spread: 0, mark: 'none' }, PFIELD.looks[look]));
+        for (let t = 0; t < 60; t++) {
+          const x = (t * 37) % (cells * 3) - cells, y = (t * 53) % (cells * 3) - cells;
+          if (PFIELD.cellAt(x, y, q, 5) !== PFIELD.cellAt(x + cells, y, q, 5)) bad.push(`${look} across ${cells}`);
+          if (PFIELD.cellAt(x, y, q, 5) !== PFIELD.cellAt(x, y + cells, q, 5)) bad.push(`${look} down ${cells}`);
+        }
+      }
+    }
+  }
+  assert.deepStrictEqual([...new Set(bad)], [], [...new Set(bad)].slice(0, 6).join('\n'));
+});
+
+test('a thread field meets itself at every edge, and no path is lost at a crossing', () => {
+  // Two different claims. The field is periodic, which is arithmetic. And a
+  // strand that leaves one side continues from the other with nothing dropped,
+  // which is the thing a wrapped path gets wrong: the first version lost the
+  // crossing step itself, and the second lost nothing but left the round cap
+  // of every piece-end painting a bead just inside the clip.
+  const bad = [];
+  for (const style of PTHREAD.styles) {
+    for (const grain of Object.keys(PTHREAD.GRAINS)) {
+      const q = PTHREAD.plan({ style, grain, seed: 3 });
+      for (let k = 0; k < 120; k++) {
+        const x = (k * 13.7) % PTHREAD.BOX, y = (k * 29.3) % PTHREAD.BOX;
+        for (const [dx, dy] of [[PTHREAD.BOX, 0], [0, PTHREAD.BOX], [PTHREAD.BOX, PTHREAD.BOX], [-PTHREAD.BOX, 0]]) {
+          if (Math.abs(PTHREAD.angleAt(x, y, q) - PTHREAD.angleAt(x + dx, y + dy, q)) > 1e-9) {
+            bad.push(`${style}/${grain}`);
+          }
+        }
+      }
+    }
+  }
+  assert.deepStrictEqual([...new Set(bad)], [], [...new Set(bad)].join(', '));
+  // and every point of every piece is inside the tile, with the whole path drawn
+  const q = PTHREAD.plan({ style: 'curl', grain: 'open', seed: 3 });
+  const r = PRAND.stream(3, 'x');
+  const over = 20;
+  let outside = 0, points = 0, short = 0, strands = 0;
+  for (let i = 0; i < 40; i++) {
+    const pieces = PTHREAD.strand(r() * PTHREAD.BOX, r() * PTHREAD.BOX, q, r, over);
+    let len = 0;
+    for (const piece of pieces) {
+      for (let j = 1; j < piece.length; j++) {
+        len += Math.hypot(piece[j][0] - piece[j - 1][0], piece[j][1] - piece[j - 1][1]);
+      }
+      // the ends overshoot on purpose; every other point is inside
+      for (let j = 1; j < piece.length - 1; j++) {
+        points++;
+        const [px, py] = piece[j];
+        if (px < 0 || px > PTHREAD.BOX || py < 0 || py > PTHREAD.BOX) outside++;
+      }
+    }
+    strands++;
+    const want = (q.steps - 1) * q.step;
+    if (len - (pieces.length - 1) * 2 * over < want * 0.98) short++;
+  }
+  assert.strictEqual(outside, 0, `${outside} of ${points} points fell outside the tile`);
+  assert.strictEqual(short, 0, `${short} of ${strands} strands drew less path than they walked`);
+});
+
+test('the thread field is only offered at the scales whose joins measure clean', () => {
+  // The lattice a periodic field is built on has its nodes at whole fractions
+  // of the tile, so the tile's edge is always a lattice line — and where the
+  // field's largest feature sits on that line, the tiled pattern shows a band
+  // down every join. Nothing is discontinuous and nothing is lost; the feature
+  // is simply there, in every copy.
+  //
+  //     cycles across the tile   1     2     3     4     5     6     7     8
+  //     joins that stand out    3/16  4/16  0/16  1/16  8/16  5/16  0/16  3/16
+  //
+  // Sixteen combinations at each scale, four styles by four identities. So the
+  // scale is not a slider: it is the two that measure clean.
+  assert.deepStrictEqual(Object.values(PTHREAD.GRAINS).sort((a, b) => a - b), [3, 7]);
+  const control = PTHREAD.controls.find((c) => c.key === 'grain');
+  assert.ok(control && control.type === 'chips', 'the field scale is offered as a free number again');
+  assert.deepStrictEqual(control.options.slice().sort(), Object.keys(PTHREAD.GRAINS).sort());
+});
+
+test('the terrace field repeats, and never asks its lattice for more than it can carry', () => {
+  const bad = [];
+  for (const style of PTERRACE.styles) {
+    for (const scale of [1, 2, 3, 5, 8]) {
+      const q = PTERRACE.plan({ style, scale, seed: 5, grid: 96 });
+      for (let k = 0; k < 120; k++) {
+        const u = ((k * 13.7) % 1000) / 1000, v = ((k * 29.3) % 1000) / 1000;
+        const c = 96, cx = Math.floor(u * c), cy = Math.floor(v * c);
+        if (PTERRACE.bandAt(u, v, q, cx, cy) !== PTERRACE.bandAt(u + 1, v, q, cx, cy)) bad.push(`${style} across`);
+        if (PTERRACE.bandAt(u, v, q, cx, cy) !== PTERRACE.bandAt(u, v + 1, q, cx, cy)) bad.push(`${style} down`);
+      }
+    }
+  }
+  assert.deepStrictEqual([...new Set(bad)], [], [...new Set(bad)].join(', '));
+  // Nyquist. Each octave doubles the frequency, so the finest lays down
+  // period x 2^(octaves-1) cycles across the tile; sample that on a grid of
+  // `grid` cells and you need two samples a cycle or it is not being drawn, it
+  // is being aliased. A five-octave field on a 24-cell lattice was sampling 48
+  // cycles at half a sample each, and shipped as speckle that looked deliberate.
+  const thin = [];
+  for (const style of PTERRACE.styles) {
+    for (const grid of [24, 48, 96, 160, 240]) {
+      for (const scale of [1, 3, 8]) {
+        const q = PTERRACE.plan({ style, scale, grid, seed: 1 });
+        const finest = q.period * Math.pow(2, q.octaves - 1);
+        if (grid / finest < 2) thin.push(`${style} at ${grid} cells samples ${finest} cycles ${(grid / finest).toFixed(2)} times each`);
+      }
+    }
+  }
+  assert.deepStrictEqual(thin, [], thin.join('\n'));
+  // and the cap actually binds, or this is checking nothing
+  assert.ok(PTERRACE.octavesFor(3, 24) < PTERRACE.STYLE.drift.octaves,
+    'a coarse lattice was allowed every octave, so the cap is not doing anything');
+});
+
+test('a raster pattern is raster on purpose, and says how large it prints', () => {
+  const p2 = projectLoader.load(path.join(__dirname, '..', 'projects', 'kvist', 'project.json'));
+  const m2 = measure(p2);
+  const t = PENG.tile({ markSource: p2.assets.mark.source, measured: m2, rules: p2.rules,
+    colours: p2.tokens.colour, colourway: p2.rules.colourways[0], generator: 'terrace' });
+  assert.strictEqual(t.vector, false, 'terrace claims to be vector');
+  const r = PENG.sheet(t, 1200);
+  assert.ok(r && r.png && r.png[0] === 0x89, 'it produced no PNG');
+  assert.strictEqual(r.width, 1200);
+  assert.ok(r.printedAt.mm > 90 && r.printedAt.mm < 110, `1200 px came out as ${r.printedAt.mm} mm`);
+  // twice over, the same bytes
+  assert.strictEqual(Buffer.compare(r.png, PENG.sheet(t, 1200).png), 0, 'two renders of one field differed');
+  // and a vector generator does not get a raster
+  const v = PENG.tile({ markSource: p2.assets.mark.source, measured: m2, rules: p2.rules,
+    colours: p2.tokens.colour, colourway: p2.rules.colourways[0], generator: 'weave' });
+  assert.strictEqual(PENG.sheet(v, 1200), null, 'a vector generator was handed a raster');
+});
+
+test('every generator draws every identity, and the tile never runs finer than the mark allows', () => {
+  const names = fs.readdirSync(path.join(__dirname, '..', 'projects'))
+    .filter((d) => fs.existsSync(path.join(__dirname, '..', 'projects', d, 'project.json'))).sort();
+  const over = [];
+  const styleless = [];
+  const reached = new Set();
+  for (const name of names) {
+    const pr = projectLoader.load(path.join(__dirname, '..', 'projects', name, 'project.json'));
+    const mm = measure(pr);
+    const src = pr.assets[pr.master || (pr.assets.mark ? 'mark' : 'wordmark')].source;
+    const mk = PMARK.read(src, mm, pr.rules);
+    reached.add(PENG.suits(mk));
+    for (const g of PENG.NAMES) {
+      const t = PENG.tile({ mark: mk, generator: g, colours: pr.tokens.colour,
+        colourway: pr.rules.colourways[0] });
+      assert.ok(t.tile.indexOf('<svg') === 0, `${g} drew nothing for ${name}`);
+      assert.ok(t.why.length > 40, `${g} gave ${name} no reason`);
+      // `field` derived its look by name, spread the preset that name pointed
+      // at, and dropped the name — so `params.style` was undefined for that one
+      // generator. Nothing threw, and every tile drew correctly, because the
+      // preset carries the numbers and the numbers are what plan() reads. But
+      // the studio showed no chip selected and brand.json recorded no look. A
+      // value only ever spread into an object is invisible until something asks
+      // it for its name, and until this line nothing did.
+      const st = t.params.style;
+      if (typeof st !== 'string') styleless.push(`${name}/${g}: style is ${JSON.stringify(st)}`);
+      else if (PENG.GENERATORS[g].styles.indexOf(st) === -1) {
+        styleless.push(`${name}/${g}: style "${st}" is not one of ${PENG.GENERATORS[g].styles.join(', ')}`);
+      }
+      // the scale rule, where a generator's finest feature is a share of the tile
+      const finest = g === 'weave' ? 1 / t.params.cells
+        : g === 'field' ? 1 / t.params.cells
+          : g === 'terrace' ? 1 / t.params.grid
+            : g === 'zigzag' ? t.params.stripe : null;
+      if (finest == null) continue;
+      const allowed = 1 / Math.max(2, mk.fineness / PENG.FINEST);
+      // A cap or a floor decided instead of the mark. Both are judgements
+      // about what the word "pattern" means rather than measurements, both are
+      // named in index.js, and where either binds the manual says so — which is
+      // why they are allowed here and nothing else is.
+      const atCap = (g === 'zigzag' && Math.abs(finest - PENG.COARSEST_STRIPE) < 1e-9)
+        || (g === 'weave' && (t.params.cells === PENG.COARSEST_GRID || t.params.cells === PENG.LEAST_WEAVE))
+        || (g === 'field' && (t.params.cells === PENG.FINEST_GRID || t.params.cells === PENG.LEAST_FIELD))
+        || g === 'terrace';
+      if (finest < allowed - 1e-9 && !atCap) {
+        over.push(`${name}/${g}: ${(finest * 100).toFixed(2)}% of the tile against ${(allowed * 100).toFixed(2)}% allowed`);
+      }
+    }
+  }
+  assert.deepStrictEqual(styleless, [], styleless.slice(0, 8).join('\n'));
+  assert.deepStrictEqual(over, [], over.join('\n'));
+  assert.ok(reached.size >= 4, `32 identities between them opened on only ${reached.size} of the ${PENG.NAMES.length} generators`);
 });
 
 console.log('\nthe pattern engine: the studio');
@@ -1915,6 +2138,9 @@ test('a tile is written for every density in every colourway, and for every gene
   const tiles = result.written.filter((f) => f.path.startsWith('07-pattern/'));
   const repeated = tiles.filter((f) => /pattern-(fine|medium|coarse)-[a-z]+\.svg$/.test(f.path));
   const made = tiles.filter((f) => !/^07-pattern\/pattern-/.test(f.path));
+  const raster = made.filter((f) => f.path.endsWith('.png'));
+  assert.strictEqual(raster.length, rasterTiles(),
+    `${raster.length} raster tiles where ${rasterTiles()} generators are not vector`);
   assert.strictEqual(repeated.length, repeatedTiles(), 'the tiled mark is not written at every density');
   assert.strictEqual(made.length, generatedTiles(), 'a generator did not write a tile in every colourway');
   assert.strictEqual(repeated.length + made.length, tiles.length,
@@ -6063,7 +6289,9 @@ test('the pattern this project sets is cut at every density', async () => {
   const cut = tiles.filter((f) => /^07-pattern\/pattern-/.test(f));
   const made = tiles.filter((f) => !/^07-pattern\/pattern-/.test(f));
   assert.strictEqual(cut.length, 9, `${cut.length} tiles cut from the mark, where three densities in three colourways is nine`);
-  assert.strictEqual(made.length, 2 * 3, `${made.length} generated tiles, where two generators in three colourways is six`);
+  const gens = require('../src/patterns').NAMES.length;
+  assert.strictEqual(made.length, gens * 3,
+    `${made.length} generated tiles, where ${gens} generators in three colourways is ${gens * 3}`);
   for (const d of ['fine', 'medium', 'coarse']) {
     assert.ok(cut.some((f) => f.includes(`-${d}-`)), `nothing was cut at ${d}`);
   }
@@ -10654,6 +10882,6 @@ test('the engine keeps the sentence and the person keeps the reason', () => {
 drain().then(() => {
 
   for (const d of [out, out2, tbOut, kilnOut, orielOut, ancOut, harbOut, farneOut, rookOut, verdOut, maayOut, carrOut, cuspOut]) if (d) fs.rmSync(d, { recursive: true, force: true });
-  console.log(`\n${passed} passed, ${failed} failed\n`);
+  console.log(`\n${passed} passed, ${failed} failed${ONLY == null ? '' : ` — a subset, not the suite`}\n`);
   process.exit(failed ? 1 : 0);
 });
