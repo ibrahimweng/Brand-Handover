@@ -3311,3 +3311,51 @@ all is a decision about what that generator is for, not about how a motif is
 placed, and it is not smuggled in under a change about placement. For now the
 route prefers `weave`, and `field` is kept for marks too fine for weave's
 cells.
+
+---
+
+**Two generators, and what that costs**
+
+`field` and `thread` follow `terrace`, for the reason `terrace` went. Each of
+the three sampled a noise field. `field` made pixel compositions after Oddgrid
+— five looks, three periodic fields per cell, and one lerp pulling cell
+coordinates towards the middle of a block so the composition gathered into
+patches instead of dissolving. `thread` made line fields after Filament: a
+direction field of two noise samples, strands dropped in by bundles and
+integrated forward a few hundred steps each, nothing drawn and all of it
+consequence. Both were good work. Both made a texture rather than a pattern —
+something carrying nothing of the identity that made it beyond three numbers
+off the mark.
+
+`field` on the motif route was the proof, and it is why I raised it rather than
+waiting to be told: handed the client's own shape, it put it on a speckle, so
+the result read as camouflage with a logo in it. The mechanism was right and
+the ground was wrong.
+
+What is left draws shapes — a cell grid and interlocking stripes — and one of
+them holds the mark itself. **Twenty styles between them**, fourteen and six,
+plus nine constructions in the mark-tiler and the motif, which is different for
+every logo that arrives.
+
+**And the rule got shorter, which is the part worth noticing.** It used to key
+on curviness and fineness both, and send a curved mark to a line field. There is
+no line field. `zigzag` answers curviness with its own rounding rather than by
+being a different generator, so the rule is one line: enough detail to fill a
+grid gets a grid, a mark drawn in few heavy parts gets stripes, because a grid
+of eight cells is a chequerboard and not a pattern.
+
+**Two measurements stopped deciding anything, and were kept anyway.** `weight`
+and `axiality` were added because the six could not separate the three
+noise-field generators. All three are gone, and the two that remain were
+separated by the six all along — measured with these two weighted in and with
+them zeroed, the matcher recovers both generators eight times out of eight.
+Normally that is a deletion. They stay because `columns()` prints them for the
+client: how thick their pattern's ink is against ours, how square to the page
+each runs. A number somebody can check by looking at the two pictures beside it
+earns its place whether or not the search needs it, and the difference between
+*load-bearing* and *true* was worth writing down once.
+
+One claim did have to shrink. Thickness no longer separates anything — weave
+measures 12.2 to 46.2 px across six identities and zigzag 7.8 to 27.1, which
+overlap. Axiality still does. The test now asserts the smaller claim and records
+the overlap, so nobody reaches for thickness later believing it discriminates.

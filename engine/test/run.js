@@ -1212,8 +1212,11 @@ test('the motif route only reaches for a generator that can hold a shape', () =>
     assert.strictEqual(typeof PENG.GENERATORS[g].motif === 'undefined' ? false : has, has,
       `${g} is unclear about whether it can hold a motif`);
   }
+  // One, since `field` went. That is not a weaker claim than two: what this
+  // test is for is that the route never reaches a generator which cannot hold
+  // the mark, and the negative control below is what gives it teeth.
   const can = PENG.NAMES.filter((g) => PENG.GENERATORS[g].motif);
-  assert.ok(can.length >= 2, `only ${can.length} generators can hold a motif`);
+  assert.ok(can.length >= 1, 'no generator can hold a motif, so the route has nothing to reach for');
   for (const aspect of [0.4, 1, 3, 6]) {
     for (const fineness of [6, 15, 25, 35, 50, 80]) {
       for (const curviness of [0, 0.3, 0.6, 1]) {
@@ -1496,91 +1499,6 @@ test('a tile built twice is the same bytes', () => {
 });
 
 console.log('\nthe pattern engine: the field family');
-const PFIELD = require('../src/patterns/generators/field');
-const PTHREAD = require('../src/patterns/generators/thread');
-
-test('every field look repeats exactly, at every grid size, in both directions', () => {
-  const bad = [];
-  for (const look of PFIELD.styles) {
-    for (const cells of [12, 24, 36, 48, 72, 108]) {
-      for (const seed of [1, 7]) {
-        const q = PFIELD.plan(Object.assign({ cells, seed, spread: 0, mark: 'none' }, PFIELD.looks[look]));
-        for (let t = 0; t < 60; t++) {
-          const x = (t * 37) % (cells * 3) - cells, y = (t * 53) % (cells * 3) - cells;
-          if (PFIELD.cellAt(x, y, q, 5) !== PFIELD.cellAt(x + cells, y, q, 5)) bad.push(`${look} across ${cells}`);
-          if (PFIELD.cellAt(x, y, q, 5) !== PFIELD.cellAt(x, y + cells, q, 5)) bad.push(`${look} down ${cells}`);
-        }
-      }
-    }
-  }
-  assert.deepStrictEqual([...new Set(bad)], [], [...new Set(bad)].slice(0, 6).join('\n'));
-});
-
-test('a thread field meets itself at every edge, and no path is lost at a crossing', () => {
-  // Two different claims. The field is periodic, which is arithmetic. And a
-  // strand that leaves one side continues from the other with nothing dropped,
-  // which is the thing a wrapped path gets wrong: the first version lost the
-  // crossing step itself, and the second lost nothing but left the round cap
-  // of every piece-end painting a bead just inside the clip.
-  const bad = [];
-  for (const style of PTHREAD.styles) {
-    for (const grain of Object.keys(PTHREAD.GRAINS)) {
-      const q = PTHREAD.plan({ style, grain, seed: 3 });
-      for (let k = 0; k < 120; k++) {
-        const x = (k * 13.7) % PTHREAD.BOX, y = (k * 29.3) % PTHREAD.BOX;
-        for (const [dx, dy] of [[PTHREAD.BOX, 0], [0, PTHREAD.BOX], [PTHREAD.BOX, PTHREAD.BOX], [-PTHREAD.BOX, 0]]) {
-          if (Math.abs(PTHREAD.angleAt(x, y, q) - PTHREAD.angleAt(x + dx, y + dy, q)) > 1e-9) {
-            bad.push(`${style}/${grain}`);
-          }
-        }
-      }
-    }
-  }
-  assert.deepStrictEqual([...new Set(bad)], [], [...new Set(bad)].join(', '));
-  // and every point of every piece is inside the tile, with the whole path drawn
-  const q = PTHREAD.plan({ style: 'curl', grain: 'open', seed: 3 });
-  const r = PRAND.stream(3, 'x');
-  const over = 20;
-  let outside = 0, points = 0, short = 0, strands = 0;
-  for (let i = 0; i < 40; i++) {
-    const pieces = PTHREAD.strand(r() * PTHREAD.BOX, r() * PTHREAD.BOX, q, r, over);
-    let len = 0;
-    for (const piece of pieces) {
-      for (let j = 1; j < piece.length; j++) {
-        len += Math.hypot(piece[j][0] - piece[j - 1][0], piece[j][1] - piece[j - 1][1]);
-      }
-      // the ends overshoot on purpose; every other point is inside
-      for (let j = 1; j < piece.length - 1; j++) {
-        points++;
-        const [px, py] = piece[j];
-        if (px < 0 || px > PTHREAD.BOX || py < 0 || py > PTHREAD.BOX) outside++;
-      }
-    }
-    strands++;
-    const want = (q.steps - 1) * q.step;
-    if (len - (pieces.length - 1) * 2 * over < want * 0.98) short++;
-  }
-  assert.strictEqual(outside, 0, `${outside} of ${points} points fell outside the tile`);
-  assert.strictEqual(short, 0, `${short} of ${strands} strands drew less path than they walked`);
-});
-
-test('the thread field is only offered at the scales whose joins measure clean', () => {
-  // The lattice a periodic field is built on has its nodes at whole fractions
-  // of the tile, so the tile's edge is always a lattice line — and where the
-  // field's largest feature sits on that line, the tiled pattern shows a band
-  // down every join. Nothing is discontinuous and nothing is lost; the feature
-  // is simply there, in every copy.
-  //
-  //     cycles across the tile   1     2     3     4     5     6     7     8
-  //     joins that stand out    3/16  4/16  0/16  1/16  8/16  5/16  0/16  3/16
-  //
-  // Sixteen combinations at each scale, four styles by four identities. So the
-  // scale is not a slider: it is the two that measure clean.
-  assert.deepStrictEqual(Object.values(PTHREAD.GRAINS).sort((a, b) => a - b), [3, 7]);
-  const control = PTHREAD.controls.find((c) => c.key === 'grain');
-  assert.ok(control && control.type === 'chips', 'the field scale is offered as a free number again');
-  assert.deepStrictEqual(control.options.slice().sort(), Object.keys(PTHREAD.GRAINS).sort());
-});
 
 test('every generator draws every identity, and the tile never runs finer than the mark allows', () => {
   const names = fs.readdirSync(path.join(__dirname, '..', 'projects'))
@@ -1588,12 +1506,16 @@ test('every generator draws every identity, and the tile never runs finer than t
   const over = [];
   const styleless = [];
   const reached = new Set();
+  // the style each identity's chosen generator gives it, which is where the
+  // variety lives now that there are two generators rather than five
+  const reachedStyle = new Set();
   for (const name of names) {
     const pr = projectLoader.load(path.join(__dirname, '..', 'projects', name, 'project.json'));
     const mm = measure(pr);
     const src = pr.assets[pr.master || (pr.assets.mark ? 'mark' : 'wordmark')].source;
     const mk = PMARK.read(src, mm, pr.rules);
-    reached.add(PENG.suits(mk));
+    const opensOn = PENG.suits(mk);
+    reached.add(opensOn);
     for (const g of PENG.NAMES) {
       const t = PENG.tile({ mark: mk, generator: g, colours: pr.tokens.colour,
         colourway: pr.rules.colourways[0] });
@@ -1607,14 +1529,14 @@ test('every generator draws every identity, and the tile never runs finer than t
       // value only ever spread into an object is invisible until something asks
       // it for its name, and until this line nothing did.
       const st = t.params.style;
+      if (g === opensOn && typeof st === 'string') reachedStyle.add(`${g}/${st}`);
       if (typeof st !== 'string') styleless.push(`${name}/${g}: style is ${JSON.stringify(st)}`);
       else if (PENG.GENERATORS[g].styles.indexOf(st) === -1) {
         styleless.push(`${name}/${g}: style "${st}" is not one of ${PENG.GENERATORS[g].styles.join(', ')}`);
       }
       // the scale rule, where a generator's finest feature is a share of the tile
       const finest = g === 'weave' ? 1 / t.params.cells
-        : g === 'field' ? 1 / t.params.cells
-          : g === 'zigzag' ? t.params.stripe : null;
+        : g === 'zigzag' ? t.params.stripe : null;
       if (finest == null) continue;
       const allowed = 1 / Math.max(2, mk.fineness / PENG.FINEST);
       // A cap or a floor decided instead of the mark. Both are judgements
@@ -1622,8 +1544,7 @@ test('every generator draws every identity, and the tile never runs finer than t
       // named in index.js, and where either binds the manual says so — which is
       // why they are allowed here and nothing else is.
       const atCap = (g === 'zigzag' && Math.abs(finest - PENG.COARSEST_STRIPE) < 1e-9)
-        || (g === 'weave' && (t.params.cells === PENG.COARSEST_GRID || t.params.cells === PENG.LEAST_WEAVE))
-        || (g === 'field' && (t.params.cells === PENG.FINEST_GRID || t.params.cells === PENG.LEAST_FIELD));
+        || (g === 'weave' && (t.params.cells === PENG.COARSEST_GRID || t.params.cells === PENG.LEAST_WEAVE));
       if (finest < allowed - 1e-9 && !atCap) {
         over.push(`${name}/${g}: ${(finest * 100).toFixed(2)}% of the tile against ${(allowed * 100).toFixed(2)}% allowed`);
       }
@@ -1631,7 +1552,18 @@ test('every generator draws every identity, and the tile never runs finer than t
   }
   assert.deepStrictEqual(styleless, [], styleless.slice(0, 8).join('\n'));
   assert.deepStrictEqual(over, [], over.join('\n'));
-  assert.ok(reached.size >= 4, `32 identities between them opened on only ${reached.size} of the ${PENG.NAMES.length} generators`);
+  // Both generators, and the claim that matters now is a level down.
+  //
+  // This used to ask for four of five. There are two, and asking for two of two
+  // is a weaker check than it looks — a rule that sent every fine mark to one
+  // and every heavy one to the other would pass it. The variety a client
+  // actually sees is in the styles: fourteen in weave and six in zigzag, chosen
+  // by three measurements of their own drawing.
+  assert.strictEqual(reached.size, PENG.NAMES.length,
+    `32 identities between them opened on only ${reached.size} of the ${PENG.NAMES.length} generators`);
+  const styles = reachedStyle;
+  assert.ok(styles.size >= 8, `32 identities between them reached only ${styles.size} styles, `
+    + `out of ${PENG.NAMES.reduce((a, g) => a + PENG.GENERATORS[g].styles.length, 0)}`);
 });
 
 console.log('\nthe pattern engine: measuring a pattern');
@@ -1794,30 +1726,23 @@ test('a pattern this engine drew is matched back to the generator that drew it',
   // What twenty runs say, over two identities at two resolutions:
   //
   //   weave, zigzag        right every time, by 0.026 to 0.465
-  //   field, thread        right seven times in ten, by 0.004 to 0.021
   //
-  // There was a third in that family, a contour field, and it is gone. The
-  // claim is unchanged and is still not "the matcher names the generator": the
-  // two hard-edged generators are recovered exactly, and the field generators
-  // are one family under these six measurements — a fact about the
-  // measurements rather than a fault in the search, and the reason `fit`
-  // reports every generator that ties with the winner instead of one answer.
+  // There were three in that family — `field`, `thread` and a contour field —
+  // and all three are gone, each for the same reason: each sampled a noise
+  // field, and a noise field is a texture rather than a pattern. What is left
+  // is the two that were recovered exactly all along, so the hedge this test
+  // used to carry is gone with them.
+  //
+  // `fit` still reports every generator that ties with the winner. That is not
+  // machinery for a family that no longer exists: it is how the manual names
+  // the alternatives a client can take instead, and it stays.
   const { make } = matchAgainst('meridian');
-  const FAMILY = ['field', 'thread'];
   for (const truth of PENG.NAMES) {
     const ref = PMATCH.asField(make(truth, null), 384);
     const r = PMATCH.fit(ref, make, { px: 256, rounds: 2 });
-    if (truth === 'weave' || truth === 'zigzag') {
-      assert.strictEqual(r.generator, truth, `${truth} was matched as ${r.generator}`);
-      assert.ok(r.alsoFits.every((a) => a.generator !== truth),
-        `${truth} tied with itself, which cannot happen`);
-    } else {
-      assert.ok(FAMILY.indexOf(r.generator) > -1,
-        `${truth} was matched as ${r.generator}, which is not one of the field generators`);
-      // and the right one is either the winner or tied with it
-      assert.ok(r.generator === truth || r.alsoFits.some((a) => a.generator === truth),
-        `${truth} was not even tied with the winner ${r.generator}`);
-    }
+    assert.strictEqual(r.generator, truth, `${truth} was matched as ${r.generator}`);
+    assert.ok(r.alsoFits.every((a) => a.generator !== truth),
+      `${truth} tied with itself, which cannot happen`);
     assert.ok(r.score <= 0.05, `${truth} matched itself at only ${r.score}`);
     assert.ok(r.rendered > 20 && r.rendered < 400, `${r.rendered} renders is not a small search`);
   }
@@ -2060,8 +1985,7 @@ test('the canvas carries the pattern engine, byte for byte, and the recipe the b
   // canvas is now the third place one could hide — after the build and the
   // studio. Same files, byte for byte, exactly once.
   const files = ['rand.js', 'noise.js', 'surface.js', 'palette.js', 'index.js',
-    'generators/weave.js', 'generators/zigzag.js', 'generators/field.js',
-    'generators/thread.js'];
+    'generators/weave.js', 'generators/zigzag.js', 'motif.js'];
   for (const f of files) {
     const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'patterns', f), 'utf8');
     const at = html.indexOf(src);
@@ -2078,9 +2002,9 @@ test('the canvas carries the pattern engine, byte for byte, and the recipe the b
 
 test('a project whose pattern was matched hands the canvas the matched parameters', async () => {
   // The manual had this fault and it was fixed there; the canvas is the same
-  // fault one file along. Re-deriving from the mark gives salvage thread,
-  // while its reference chose weave — so the canvas would draw a pattern that
-  // is in no other part of the package.
+  // fault one file along. Re-deriving from the mark gives salvage weave, while
+  // its reference chose zigzag — so the canvas would draw a pattern that is in
+  // no other part of the package.
   const p2 = projectLoader.load(path.join(__dirname, '..', 'projects', 'salvage', 'project.json'));
   const m2 = measure(p2);
   const out2 = fs.mkdtempSync(path.join(os.tmpdir(), 'canvasgen-'));
@@ -2091,9 +2015,14 @@ test('a project whose pattern was matched hands the canvas the matched parameter
     const html = fs.readFileSync(path.join(out2, 'editor.html'), 'utf8');
     assert.ok(new RegExp(`"chose"\\s*:\\s*"${chose}"`).test(html),
       `the package chose ${chose} and the canvas was told something else`);
-    // and that is not what the mark alone would have said, or this proves nothing
+    // and that is not what the mark alone would have said, or this proves
+    // nothing. On the route the build actually took — which is the route the
+    // package recorded, not a default this test guesses at. Asking `suits` with
+    // no route compared against a derivation the build never made, and once
+    // there were two generators the two answers coincided and this guard fired:
+    // the check had quietly stopped being a check some rounds before that.
     const mk = PMARK.read(p2.assets[p2.master || 'mark'].source, m2, p2.rules);
-    assert.notStrictEqual(PENG.suits(mk), chose,
+    assert.notStrictEqual(PENG.suits(mk, bj.system.patterns.route), chose,
       'the mark and the match agree for this fixture, so this check cannot fail');
   } finally { fs.rmSync(out2, { recursive: true, force: true }); }
 });
@@ -2147,27 +2076,29 @@ test('a pattern chosen by hand is written into the project and returned by every
       fs.copyFileSync(path.join(from, f), path.join(dir, f));
     }
     const raw = JSON.parse(fs.readFileSync(path.join(from, 'project.json'), 'utf8'));
-    raw.system = { patterns: { generator: 'thread', params: { style: 'curl', grain: 'close', weight: 7 } } };
+    // salvage derives to weave on the motif route, so hand-setting zigzag is a
+    // real contest rather than two answers that happen to agree.
+    raw.system = { patterns: { generator: 'zigzag', params: { style: 'scales', stripe: 0.11, rounding: 0.9 } } };
     fs.writeFileSync(path.join(dir, 'project.json'), JSON.stringify(raw, null, 2));
     const p2 = projectLoader.load(path.join(dir, 'project.json'));
     await build(p2, out2);
     const bj = JSON.parse(fs.readFileSync(path.join(out2, 'brand.json'), 'utf8'));
-    assert.strictEqual(bj.system.patterns.chose, 'thread',
+    assert.strictEqual(bj.system.patterns.chose, 'zigzag',
       `the hand-set generator lost to ${bj.system.patterns.chose}`);
     // salvage has a reference that chooses something else, so this is a real
     // contest rather than two answers that happen to agree
     assert.strictEqual(bj.system.patterns.matched, null,
       'the reference was measured even though the pattern was already chosen');
-    const made = bj.system.patterns.made.filter((x) => x.generator === 'thread');
+    const made = bj.system.patterns.made.filter((x) => x.generator === 'zigzag');
     assert.ok(made.length, 'the chosen generator wrote no tile');
     for (const one of made) {
-      assert.strictEqual(one.params.style, 'curl');
-      assert.strictEqual(one.params.grain, 'close');
-      assert.strictEqual(one.params.weight, 7);
+      assert.strictEqual(one.params.style, 'scales');
+      assert.strictEqual(one.params.stripe, 0.11);
+      assert.strictEqual(one.params.rounding, 0.9);
       assert.ok(/chosen by hand/.test(one.why), `the reason does not say who chose it: ${one.why}`);
     }
     assert.deepStrictEqual(bj.system.patterns.set,
-      { generator: 'thread', params: { style: 'curl', grain: 'close', weight: 7 } });
+      { generator: 'zigzag', params: { style: 'scales', stripe: 0.11, rounding: 0.9 } });
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
     fs.rmSync(out2, { recursive: true, force: true });
@@ -2181,9 +2112,9 @@ test('a generator the engine does not have is refused at the door and in the fil
   const seen = { master: 'mark', hasBoth: false, lockups: ['mark'], slots: [], colours: [
     { name: 'ink', hex: '#111111', role: 'primary' }, { name: 'paper', hex: '#FFFFFF', role: 'ground' }] };
   const withPattern = INT.toProject({ brand: 'Door', places: ['screen'],
-    pattern: { generator: 'thread', params: { style: 'curl' } } }, seen);
+    pattern: { generator: 'zigzag', params: { style: 'scales' } } }, seen);
   assert.deepStrictEqual(withPattern.system.patterns,
-    { generator: 'thread', params: { style: 'curl' } },
+    { generator: 'zigzag', params: { style: 'scales' } },
     'the door did not write the chosen pattern into the project');
   // and a door that was not asked writes nothing, so the engine's own choice stands
   const without = INT.toProject({ brand: 'Door', places: ['screen'] }, seen);
@@ -2231,16 +2162,25 @@ test('the pattern strings use the words the rest of the dictionary already uses'
   assert.deepStrictEqual(wrong, [], wrong.join('\n'));
 });
 
-test('two more measurements, because the six could not tell the field generators apart', () => {
-  // The six put the field generators in the same place while they look nothing
-  // like each other, which says the space was missing an axis. Thickness tells
-  // a stroke from a block; axiality tells a pattern square to the page from one
-  // that runs any way it likes.
+test('two measurements that stopped deciding anything, and why they stay', () => {
+  // They were added because the first six could not tell `field`, `thread` and
+  // a contour field apart — three generators that have since been deleted, each
+  // for sampling a noise field. What is left is `weave` and `zigzag`, which the
+  // six separated perfectly all along: with these two weighted in and with them
+  // zeroed, the matcher recovers both generators eight times out of eight.
   //
-  // There were three in that family when these were added and there are two
-  // now — the contour field is gone — so both claims are re-derived here from
-  // what the four remaining generators actually measure rather than left
-  // standing on the arithmetic of a generator that no longer exists.
+  // So the thing they were built for is gone, and a measurement that no longer
+  // decides anything is normally a measurement to delete. These stay because
+  // `columns()` prints them for the client — how thick their pattern's ink is
+  // against ours, how square to the page each runs — and a number a client can
+  // check by looking at the two pictures beside it is worth keeping whether or
+  // not the search needs it.
+  //
+  // Which leaves one claim worth holding, and it is the smaller of the two the
+  // old test made. Thickness no longer separates anything: weave measures 12.2
+  // to 46.2 px across six identities and zigzag 7.8 to 27.1, and those overlap.
+  // Axiality still does — a cell grid runs square to the page and a chevron
+  // does not.
   const names = ['meridian', 'kvist', 'carrock', 'fathom', 'ancroft', 'beaumont'];
   const by = {};
   for (const g of PENG.NAMES) by[g] = { weight: [], axiality: [] };
@@ -2257,17 +2197,16 @@ test('two more measurements, because the six could not tell the field generators
     }
   }
   const lo = (g, k) => Math.min(...by[g][k]), hi = (g, k) => Math.max(...by[g][k]);
-  // thread is thin and field is not, with nothing in between
-  assert.ok(hi('thread', 'weight') < lo('field', 'weight'),
-    `thread measures up to ${hi('thread', 'weight')} px thick and field down to ${lo('field', 'weight')}`);
-  // a cell grid is square to the page and a thread field is not, with nothing
-  // in between: field reads 0.77 at its least against thread's 0.67 at its
-  // most, over six identities.
-  assert.ok(lo('field', 'axiality') > hi('thread', 'axiality'),
-    `field is ${lo('field', 'axiality')} axial at its least and thread ${hi('thread', 'axiality')} at its most`);
-  // and both are reported, so a table can print them
+  assert.ok(lo('weave', 'axiality') > hi('zigzag', 'axiality'),
+    `a cell grid is ${lo('weave', 'axiality')} axial at its least and a chevron `
+    + `${hi('zigzag', 'axiality')} at its most, so axiality no longer tells them apart either`);
+  // and thickness is recorded as not separating them, so nobody reaches for it
+  // later believing it does
+  assert.ok(lo('weave', 'weight') < hi('zigzag', 'weight'),
+    'weave and zigzag no longer overlap in thickness, which would make the comment above wrong');
+  // both are reported, which is the reason they are still here
   const one = PMEAS.all(PMATCH.asField(PENG.tile({ mark: PMARK.read(project.assets.mark.source, m, project.rules),
-    generator: 'thread', colours: project.tokens.colour, colourway: project.rules.colourways[0] }), 192));
+    generator: 'weave', colours: project.tokens.colour, colourway: project.rules.colourways[0] }), 192));
   assert.ok(one.weight && one.weight.px > 0, 'all() does not report a thickness');
   assert.ok(one.axiality && one.axiality.kind, 'all() does not report an axiality');
 });

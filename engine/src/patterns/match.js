@@ -52,17 +52,6 @@ const KNOBS = {
     style: null,
     length: [0.08, 0.15, 0.25, 0.4],
   },
-  field: {
-    cells: [12, 16, 24, 36, 48, 72, 108],
-    style: null,
-    fill: [0.3, 0.45, 0.6, 0.75],
-  },
-  thread: {
-    grain: ['open', 'close'],
-    style: null,
-    density: [0.5, 1, 1.6],
-    weight: [2, 5, 9, 14],
-  },
 };
 
 // Render any tile — vector or raster — to a field, so the six measurements
@@ -143,17 +132,15 @@ function distance(theirs, mine, weights) {
 // mark's fineness and curviness and has been the route from mark to pattern
 // since Round B. This is a refinement of that, not a replacement for it.
 //
-// `weight` and `axiality` were added after the first six were measured and found
-// not to separate the field generators at all. Thickness tells a stroke from a
-// block — thread measures 3.3 to 9.1 px across eight identities and field 17.5
-// to 68.1, with nothing in between — and axiality tells a grid from a contour:
-// field read 0.77 to 0.96 against the contour generator's 0.02 to 0.12. Neither
-// is a refinement of the six; they are the axis the six were missing.
+// `weight` and `axiality` were added because the first six could not separate
+// the three noise-field generators. All three are gone, and the two that remain
+// were always separated by the six — eight matches out of eight with these two
+// weighted in and eight out of eight with them zeroed. They carry no weight
+// they need to carry.
 //
-// The contour generator is gone now, and both measurements stay: thickness is
-// what separates thread from field, and axiality is what tells a pattern
-// square to the page from one on the diagonal, which every generator here can
-// be.
+// They stay because `columns()` prints them: how thick the client's pattern is
+// against ours, and how square to the page each runs. See measure.js for why
+// that is a different question from whether they still decide anything.
 const WEIGHTS = {
   pattern: { scale: 1.6, coverage: 1.3, orientation: 1, weight: 1.2, axiality: 1,
     hardness: 0.8, regularity: 0.6 },
@@ -205,12 +192,8 @@ function opening(name, base, theirs) {
   const across = theirs.scale.found ? theirs.scale.across : null;
   const near = (want, list) => list.reduce((b, v) => (Math.abs(v - want) < Math.abs(b - want) ? v : b), list[0]);
   if (across) {
-    if (name === 'weave' || name === 'field') p.cells = near(Math.round(across), KNOBS[name].cells);
+    if (name === 'weave') p.cells = near(Math.round(across), KNOBS.weave.cells);
     if (name === 'zigzag') p.stripe = near(1 / (across * 2), KNOBS.zigzag.stripe);
-    if (name === 'thread') p.grain = across > 5 ? 'close' : 'open';
-  }
-  if (name === 'field' && theirs.coverage != null) {
-    p.fill = near(theirs.coverage, KNOBS.field.fill);
   }
   return p;
 }

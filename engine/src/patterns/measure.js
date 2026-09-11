@@ -457,23 +457,30 @@ function hardness(field) {
 
 // ------------------------------------------------------ weight and axiality
 
-// Two more, and they exist for one reason: the first six did not tell the field
-// generators apart. Handing each its own output back and asking which drew it,
-// the two hard-edged generators came back right every time by margins of 0.026
-// to 0.465, and the three field ones came back right seven times in ten by
-// margins of 0.004 to 0.021. They occupied the same place in that
-// six-dimensional space while looking nothing like each other, which says the
-// space was missing an axis, not that the search was weak.
+// Two more, and the reason they were added is gone.
 //
-// What a person sees that the six do not measure:
+// The first six could not tell `field`, `thread` and `terrace` apart: handing
+// each its own output back, the two hard-edged generators came back right every
+// time by margins of 0.026 to 0.465 and those three came back right seven times
+// in ten by margins of 0.004 to 0.021. They occupied the same place in a
+// six-dimensional space while looking nothing like each other, which said the
+// space was missing an axis. So: how thick the ink is, and how much of it lies
+// along the two axes.
 //
-//   thread   thin strokes, long and connected
-//   field    blocky cells, square, lined up with the page
+// All three of those generators have since been deleted — each sampled a noise
+// field, and a noise field is a texture rather than a pattern. What is left is
+// `weave` and `zigzag`, which the original six separated perfectly all along.
+// Measured with these two and without them, the matcher recovers both
+// generators eight times out of eight either way: they no longer decide
+// anything.
 //
-// So: how thick the ink is, and how much of it lies along the two axes. One of
-// the three was a contour field and has since been removed; both measurements
-// earn their place without it, and the eight generators-and-styles they now
-// separate are told apart by wider margins than the three ever were.
+// They are kept, and the reason is not the matcher. `columns()` prints them for
+// the client — how thick their pattern's ink is against ours, and how square to
+// the page each of them runs — and those are two of the plainest things anybody
+// can check by looking at the two pictures beside the numbers. A measurement
+// that stopped being load-bearing is not the same as one that stopped being
+// true, and this is the only place in the engine where the distinction matters
+// enough to write down.
 
 // The mean thickness of the inked parts, in pixels.
 //

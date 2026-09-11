@@ -24,77 +24,43 @@
   if (typeof module === 'object' && module.exports) {
     module.exports = factory(require('./surface'), require('./palette'),
       require('./generators/weave'), require('./generators/zigzag'),
-      require('./generators/field'), require('./generators/thread'),
       (name) => require(`./${name}`));
   } else {
     root.PatternEngine = factory(root.PatternSurface, root.PatternPalette,
-      root.PatternWeave, root.PatternZigzag, root.PatternField, root.PatternThread,
-      root.PatternTerrace, () => null);
+      root.PatternWeave, root.PatternZigzag, () => null);
   }
-}(typeof self !== 'undefined' ? self : this, function (surface, palette, weave, zigzag, field, thread, late) {
+}(typeof self !== 'undefined' ? self : this, function (surface, palette, weave, zigzag, late) {
   'use strict';
 
-  const GENERATORS = { weave, zigzag, field, thread };
+  const GENERATORS = { weave, zigzag };
   const NAMES = Object.keys(GENERATORS);
 
   // Which generator suits a mark that measures like this.
-  //
-  // Five now, and the rule has to place a mark rather than sort it into two
-  // buckets. Three measurements, and each one points somewhere real:
-  //
-  //   a heavy mark of straight lines      an interlocking stripe carries it
-  //   a fine mark of straight lines       a grid can hold that much detail
-  //   a curved mark                       a line field is the same gesture
-  //
-  // There used to be a fourth line, sending a heavy curved mark to a contour
-  // field. That generator is gone: a posterised noise field is a texture rather
-  // than a pattern, it carried nothing of the identity that made it, and a
-  // brand is not served by one. A heavy curved mark gets the line field too.
-  //
-  // Three lines, and checkable, which is the most that should be claimed for
-  // it. Every generator draws every identity; this only decides which one the
-  // package opens on, and a client changes it with one click in the studio.
   function suits(m, route) {
-    const pick = m.curviness > 0.66 ? 'thread'
-      : m.curviness > 0.33 ? (m.fineness > 30 ? 'field' : 'zigzag')
-        : m.fineness > 40 ? 'field' : m.fineness < 16 ? 'zigzag' : 'weave';
-    // On the motif route the package has to open on a generator that can
-    // actually hold the mark. `zigzag` is interlocking stripes and `thread` is
-    // streamlines — neither has a cell to put a shape in, and handing them one
-    // would produce a tile identical to the inspired route under a name that
-    // says it is made of the client's logo. That is the kind of quiet
-    // half-truth this engine exists not to tell.
+    // Two generators, and one axis between them.
     //
-    // So the choice is narrowed rather than the claim weakened, and the two
-    // that cannot carry a motif are still built and still in the studio — a
-    // client who wants stripes can have stripes, having been told what they
-    // are giving up.
-    // On the motif route there is one answer, and it took looking at both to
-    // be sure of it.
+    // There were five. `terrace` made contour bands, `field` pixel
+    // compositions, `thread` line fields, and all three are gone for the same
+    // reason: each sampled a noise field, so each made a *texture* — something
+    // that carries nothing of the identity that made it beyond three numbers.
+    // What is left are the two that draw shapes: a cell grid and interlocking
+    // stripes, both of which a client can see the reasoning in.
     //
-    // `weave` and `field` can each hold a shape. `weave` places it on the cells
-    // its own arithmetic already made the accent, over a ground of flat bands,
-    // so the mark is the subject. `field` samples three noise fields per cell,
-    // so the mark ends up sitting on a speckle: it reads as camouflage with a
-    // logo in it rather than as a pattern made of one. Drawn side by side for
-    // five identities, `ancroft` settled it — on the motif route and on the
-    // inspired route it produced two tiles nobody could tell apart, which means
-    // the route was making a promise it did not keep.
+    // Which makes this rule shorter than it has ever been. A mark with enough
+    // detail to fill a grid gets a grid; one drawn in few heavy parts gets
+    // stripes, because a grid of eight cells is a chequerboard and not a
+    // pattern. The old rule keyed on curviness too and sent a curved mark to a
+    // line field; there is no line field now, and `zigzag` answers curviness
+    // with its own rounding rather than by being a different generator.
     //
-    // The reason to reach for field was that weave's cells would be too coarse
-    // for a fine mark. They are not: above a fineness of 30 the two derive the
-    // same cell count, 12 against 12 and 44 against 44, and both cap far below
-    // their own limits. So there was never a fineness weave could not serve.
-    //
-    // `field` keeps `motif: true` because it can hold one and the studio offers
-    // it. What it does not get is the default.
-    //
-    // Which leaves an open question this does not answer: `field`'s looks are
-    // noise compositions on every route, and noise is the thing this engine was
-    // just told to stop making. That is a decision about what `field` is for,
-    // not about how a motif is placed, and it is not smuggled in here.
+    // On the motif route there is one answer. `zigzag` is interlocking stripes
+    // and has no cell to put a shape in; handing it one would produce a tile
+    // identical to the inspired route under a name saying it is made of the
+    // client's logo, which is the kind of quiet half-truth this engine exists
+    // not to tell. `zigzag` is still built and still in the studio — a client
+    // who wants stripes can have them, having been told what they give up.
     if (route === 'motif') return 'weave';
-    return pick;
+    return m.fineness < 16 ? 'zigzag' : 'weave';
   }
 
   // The parameters this identity's own artwork asks for.
@@ -129,13 +95,11 @@
   // see. Where it binds, `why` says the cap decided and not the mark, because
   // the alternative is a client wondering why their pattern is grey.
   const COARSEST_GRID = 72;
-  const FINEST_GRID = 108;
   // And a floor at the other end, for the same kind of reason. A blanket of
   // six cells is a flag and a field of eight is a chequerboard; below these
   // there is no pattern left to be a pattern. Where the floor binds, the mark
   // would have allowed something coarser still, and `why` says so.
   const LEAST_WEAVE = 8;
-  const LEAST_FIELD = 12;
 
   // Which of a generator's styles suits a mark that measures like this.
   //
@@ -164,18 +128,6 @@
   const ZIGZAG_STYLES = [
     ['chevron', 'stairs', 'scales'],      // wider than tall
     ['teeth', 'ricrac', 'waves'],         // square or upright
-  ];
-  const FIELD_LOOKS = [
-    ['quilt', 'patchwork', 'bloom'],      // coarse
-    ['patchwork', 'drift', 'bloom'],      // medium
-    ['scatter', 'drift', 'bloom'],        // fine
-  ];
-  // Same question asked of thread, and it found the same answer: three slots
-  // held four flows, so `tangle` was reachable from the studio and from a
-  // project file and from nowhere the engine itself would go.
-  const THREAD_STYLES = [
-    ['weft', 'flow', 'curl'],             // a wide mark
-    ['weft', 'tangle', 'curl'],           // a square or upright one
   ];
   const bandOf = (v, edges) => { let i = 0; while (i < edges.length && v > edges[i]) i++; return i; };
 
@@ -207,38 +159,6 @@
         chunk: Math.round((0.7 + m.curviness * 0.8) * 20) / 20,
         style: WEAVE_STYLES[m.aspect > 2 ? 0 : 1][bandOf(m.fineness, [20, 40])][curve],
         seed: 1 };
-    }
-    if (generator === 'field') {
-      // A cell is the finest thing it draws, so the same rule sets the grid.
-      const cells = Math.max(LEAST_FIELD, Math.min(FINEST_GRID, Math.floor(scale / 4) * 4));
-      // The look's name is the parameter, not just the way its preset was
-      // found: the studio shows it as the selected chip and brand.json records
-      // it. Spreading the preset and dropping the name left `style` undefined
-      // for this generator alone, which read as five identities sharing one
-      // look rather than as a missing value.
-      const style = FIELD_LOOKS[bandOf(m.fineness, [20, 40])][curve];
-      // On the motif route the cell marks are the mark itself. A third of the
-      // cells rather than all of them: a grid where every cell holds the logo
-      // is a sheet of logos, which is a thing a client can make in a word
-      // processor and not a pattern.
-      // Few and large. A third of the cells at 0.78 was the first try and it
-      // read as static — which is the one thing a brand pattern must not do,
-      // and the reason the contour generator was deleted in the same round.
-      // One cell in eight, nearly filling the cell, reads as a motif placed on
-      // a ground rather than as a texture made of small shapes.
-      const own = wantsMotif
-        ? { mark: 'own', markAmount: 0.13, markSize: 0.96 }
-        : { mark: 'none', markAmount: 0, markSize: 0.52 };
-      return Object.assign({ cells, spread: 0, seed: 1 }, own,
-        GENERATORS.field.looks[style], { style });
-    }
-    if (generator === 'thread') {
-      // A stroke is the finest thing it draws, in the thousand-unit box the
-      // field works in — so the same rule, in those units.
-      const weight = Math.max(1, Math.min(20, Math.round((1000 / scale) * 0.1 * 2) / 2));
-      return { style: THREAD_STYLES[m.aspect > 2 ? 0 : 1][curve], grain: m.fineness > 24 ? 'close' : 'open',
-        curl: Math.round(m.curviness * 100) / 100, density: 1, spread: 0.05,
-        length: 190, step: 4.2, weight, hierarchy: 0.55, seed: 1 };
     }
     // Rounded *up* to the nearest two-hundredth: a stripe rounded down is finer
     // than the mark allows.
@@ -280,31 +200,6 @@
           + `prints. It is held at ${params.cells} cells. And ${round}, so the motif is ${params.style}.`;
       }
       return `${fine} — ${params.cells} cells. And ${round}, so the motif is ${params.style}.`;
-    }
-    if (generator === 'field') {
-      // The other four name their style here. This one describes what the
-      // parameters are doing instead, on purpose: the look is a preset, and a
-      // client who moves `blockiness` in the studio without changing the chip
-      // would make the name stale while "in blocks" stays true. The name is
-      // not lost — it is `params.style`, and the studio shows it as the
-      // selected chip and brand.json records it.
-      if (floored(LEAST_FIELD)) {
-        return `the mark is heavy enough to allow a grid of ${Math.floor(scaleFrom(m) / 4) * 4}, which is a `
-          + `chequerboard rather than a field, so it is held at ${params.cells}. `
-          + `And ${round}, so it is worked ${params.blockiness > 0.6 ? 'in blocks' : 'evenly'}.`;
-      }
-      if (capped(FINEST_GRID)) {
-        return `the mark is ${m.fineness.toFixed(0)} of its own narrowest runs across, which would `
-          + `ask for a grid of ${Math.floor(scaleFrom(m) / 4) * 4} — finer than anything anybody `
-          + `prints. It is held at ${params.cells}. And ${round}, so it is worked `
-          + `${params.blockiness > 0.6 ? 'in blocks' : 'evenly'}.`;
-      }
-      return `${fine} — a grid of ${params.cells}. And ${round}, so it is worked `
-        + `${params.blockiness > 0.6 ? 'in blocks' : params.speckle > 0.15 ? 'loosely' : 'evenly'}.`;
-    }
-    if (generator === 'thread') {
-      return `${fine} — a thread is ${params.weight} of the thousand the field works in. `
-        + `And ${round}, so it runs ${params.style}, on the ${params.grain} field.`;
     }
     const heldWide = params.stripe >= COARSEST_STRIPE && 1 / scaleFrom(m) > COARSEST_STRIPE;
     const scale = heldWide
@@ -367,6 +262,6 @@
   const read = (markSource, measured, rules) => late('mark').read(markSource, measured, rules);
 
   return { GENERATORS, NAMES, ROUTES, ROUTE_DEFAULT, suits, derive, because, tile, joins, read,
-    FINEST, COARSEST_STRIPE, FINEST_STRIPE, COARSEST_GRID, FINEST_GRID, LEAST_WEAVE, LEAST_FIELD,
-    WEAVE_STYLES, ZIGZAG_STYLES, FIELD_LOOKS, THREAD_STYLES };
+    FINEST, COARSEST_STRIPE, FINEST_STRIPE, COARSEST_GRID, LEAST_WEAVE,
+    WEAVE_STYLES, ZIGZAG_STYLES };
 }));

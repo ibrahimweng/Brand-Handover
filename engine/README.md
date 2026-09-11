@@ -830,8 +830,7 @@ two of the five through. It is 1.5 and 0.4% now, which is where the gap is.
 
 ### The generators
 
-`src/patterns/generators/` — four of the five. Every one of them is vector,
-and says so.
+`src/patterns/generators/` — two of the three. Both are vector, and say so.
 
 **`weave`** — index-grid blankets, after PLAYGRND's Quilt. All fourteen of its
 styles: bands, plaid, basket, dither, steps, diamond, cross, gingham, tabs,
@@ -849,22 +848,28 @@ boundary chains; only alternate stripes are painted, so the unpainted ones are
 the ground and the two colours interlock exactly rather than being drawn over
 each other. Two colours per tile and no more.
 
-**`field`** — pixel compositions, after Oddgrid. Five looks: patchwork, bloom,
-quilt, scatter, drift. weave's styles are arithmetic on the cell index and wrap
-because the index wraps; this one samples a continuous field, so the *field*
-has to be periodic — which is what `noise.js` was for. Three of them: colour at
-two octaves, coverage at three, detail at two. And a fourth thing that is not a
-field — cell coordinates are pulled towards the middle of a block before any of
-them is sampled, so a run of cells shares one answer and the composition
-gathers into patches instead of dissolving into noise. It is one lerp and it is
-most of what the pattern looks like.
+**`field` and `thread` were here, and they are gone with `terrace`.**
 
-**`thread`** — flowing line fields, after Filament. Four styles: flow, weft,
-curl, tangle. A direction field is two noise samples; strands are dropped into
-it in bundles and integrated forward a few hundred small steps each. Nothing
-about the picture is drawn, it is all consequence. This is the one generator
-whose seam a periodic field does not solve on its own, and the two things that
-do solve it are below.
+`field` made pixel compositions after Oddgrid — five looks, three periodic noise
+fields per cell, and one lerp pulling cell coordinates towards the middle of a
+block so the composition gathered into patches instead of dissolving. `thread`
+made line fields after Filament: a direction field of two noise samples, strands
+dropped into it in bundles and integrated forward a few hundred steps each,
+nothing about the picture drawn and all of it consequence. It was the one
+generator whose seam a periodic field did not solve on its own, and the two
+things that did solve it are recorded below.
+
+Both were good work and both made the same mistake. A generator that samples a
+noise field makes a *texture* — something that carries nothing of the identity
+that made it beyond three numbers off the mark. `field` on the motif route was
+the proof: the client's own shape ended up sitting on a speckle, so it read as
+camouflage with a logo in it rather than as a pattern made of one.
+
+What is left draws shapes. A cell grid and interlocking stripes, both of which a
+client can see the reasoning in, and one of which can hold the mark itself.
+
+What they leave behind is a smaller claim about `weight` and `axiality` — see
+**Two measurements that stopped deciding anything**.
 
 **`terrace` was here, and it is gone.**
 
@@ -890,8 +895,8 @@ stays — eight modules measure through it — and `patterns/index.js` says what
 raster generator would need back.
 
 What it leaves behind: `weight` and `axiality` in `measure.js`, added to tell
-it apart from `field` and `thread`, both of which still earn their place
-without it. See **Two measurements the six were missing**.
+the three noise-field generators apart. All three are gone now and the two
+measurements are kept for a different reason — see below.
 
 ### The motif: the identity's own shape, as moves
 
@@ -946,11 +951,30 @@ floor of 4% the placement falls back to a hash.
 `field` puts it on one cell in eight at nearly full cell size. A third of the
 cells at 0.78 was the first try and it read as static.
 
-`zigzag` and `thread` cannot take a motif at all — interlocking stripes and
-streamlines have no cell to put a shape in — so `suits()` narrows to the two
-that can rather than handing them one and producing a tile identical to the
-inspired route under a name that claims otherwise. Both are still built and
-still in the studio.
+`zigzag` cannot take a motif at all — interlocking stripes have no cell to put a
+shape in — so `suits()` narrows to `weave` on that route rather than handing
+zigzag one and producing a tile identical to the inspired route under a name
+that claims otherwise. `zigzag` is still built and still in the studio: a client
+who wants stripes can have them, having been told what they give up.
+
+### Two measurements that stopped deciding anything
+
+`weight` and `axiality` were added because the first six could not separate
+`field`, `thread` and `terrace`. All three are gone, and the two that remain
+were separated by the six all along — with these two weighted in and with them
+zeroed, the matcher recovers both generators **eight times out of eight**.
+
+A measurement that no longer decides anything is normally one to delete. These
+stay because `columns()` prints them for the client: how thick their pattern's
+ink is against ours, and how square to the page each of them runs. A number a
+client can check by looking at the two pictures beside it is worth keeping
+whether or not the search needs it — and the distinction between *load-bearing*
+and *true* is worth writing down once.
+
+One of the two claims did have to shrink. Thickness no longer separates
+anything: weave measures 12.2 to 46.2 px across six identities and zigzag 7.8 to
+27.1, which overlap. Axiality still does — a cell grid runs square to the page at
+0.89 and up, a chevron at 0.83 and down.
 
 ### Seamlessness is proved, not inspected
 

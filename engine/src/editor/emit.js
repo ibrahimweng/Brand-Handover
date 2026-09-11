@@ -246,10 +246,9 @@ ${fontLink(bu)}
 <script>${read('../patterns/noise.js')}</script>
 <script>${read('../patterns/surface.js')}</script>
 <script>${read('../patterns/palette.js')}</script>
+<script>${read('../patterns/motif.js')}</script>
 <script>${read('../patterns/generators/weave.js')}</script>
 <script>${read('../patterns/generators/zigzag.js')}</script>
-<script>${read('../patterns/generators/field.js')}</script>
-<script>${read('../patterns/generators/thread.js')}</script>
 <script>${read('../patterns/index.js')}</script>
 <script>${read('model.js')}</script>
 <script>${read('images.js')}</script>
