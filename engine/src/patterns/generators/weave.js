@@ -33,7 +33,8 @@
 }(typeof self !== 'undefined' ? self : this, function (RAND, NOISE) {
   'use strict';
 
-  const STYLES = ['bands', 'plaid', 'basket', 'dither', 'steps', 'diamond', 'cross', 'gingham'];
+  const STYLES = ['bands', 'plaid', 'basket', 'dither', 'steps', 'diamond', 'cross',
+    'gingham', 'tabs', 'zigzag', 'rings', 'star', 'waves', 'burst'];
 
   // The divisor of n nearest to `want`. Ties go to the larger, because a pattern
   // that comes out slightly finer than asked reads as intended and one that comes
@@ -47,24 +48,109 @@
     }
     return best;
   }
-  // There was a `divisorNearEven` here and it did nothing.
+  // The divisor of n nearest `want` that leaves a count divisible by k.
   //
-  // The reasoning was that a style whose colour alternates on a parity — bricks
-  // in `bands`, blocks in `basket` — needs an even number of them, or the colour
-  // flips where the tile meets itself. That is true of a grid built by walking
-  // from zero to C. It is not true of this one, because every style wraps its
-  // coordinates with mod(x, C) before doing anything else, so the tile *is* the
-  // period and an odd count is simply an odd count, repeated faithfully.
+  // `tabs` offsets every other row by half a tab, so its row count has to be a
+  // whole number of pairs or the offset — and the colour with it — changes
+  // where the tile meets itself. Values still repeat (every style wraps to C
+  // first), so the equality check sees nothing; what shows is a line down the
+  // join, which the seam measurement read at z = 5.3 against 4 for the bar.
   //
-  // Both checks were run against it. The values repeat at every count, and the
-  // seam measurement reads 1.00x for an odd brick count against 0.89x for an
-  // even one — no difference worth a helper. It is gone rather than left in
-  // looking careful.
+  // The cell count is a multiple of four at every setting the control offers,
+  // so a qualifying divisor always exists; the fallback is there because a
+  // parameter set by hand need not obey the control.
+  function divisorNearCycle(n, want, k) {
+    let best = 0, bestGap = Infinity;
+    for (let d = 1; d <= n; d++) {
+      if (n % d || (n / d) % k) continue;
+      const gap = Math.abs(d - want);
+      if (gap < bestGap || (gap === bestGap && d > best)) { best = d; bestGap = gap; }
+    }
+    return best || divisorNear(n, want);
+  }
+
+  // A colour for each band, closing on itself whatever the count.
+  //
+  // Three versions of this, and the middle one is the interesting failure.
+  //
+  // First the four inks were cycled with `mod(band, 4)`, which needs the band
+  // count to be a multiple of four or the colour changes where the tile meets
+  // itself. Constraining the count to a multiple of four fixed the join and
+  // broke the pattern: on a 44-cell tile the only divisors that qualify are 1
+  // and 11, so the style was a hairline or four stripes, and four stripes is
+  // not a chevron.
+  //
+  // Then the count was freed and the sequence seeded — `n` entries, so
+  // `seq[band]` is defined for every band in the tile and the question of
+  // closing never arises. It measured *worse*: 1.74 against the bar of 1.2,
+  // where the fixed cycle had read 0.85. Not because it failed to repeat — in
+  // cells the join changes exactly as many as the worst ordinary boundary, 20
+  // of 36 — but because a random sequence makes every boundary a different
+  // pair of inks, so one of them is the loudest in the tile, and a one-in-
+  // twelve chance says that is the one at the join. A regular cycle makes all
+  // the boundaries alike and there is nothing for the eye to find: the same
+  // tile with `0,1,2,3` repeated reads 0.28.
+  //
+  // So: a regular cycle whose *length* bends to the count rather than the
+  // count to the length, and the seed spends itself on which inks the cycle
+  // uses and in what order. Four bands of pattern, not four stripes, and no
+  // pair of neighbours louder than the rest.
+  // `n` is even by construction — see `divisorNearCycle` at the call — so the
+  // cycle is never length one and never leaves two bands of the same ink
+  // touching across the wrap. A 13-band tile did exactly that and read 2.17.
+  function bandInks(n, rnd) {
+    const k = n % 4 === 0 ? 4 : n % 3 === 0 ? 3 : 2;
+    const pool = [0, 1, 2, 3];
+    for (let i = 3; i > 0; i--) { const j = rnd.int(i + 1); const t = pool[i]; pool[i] = pool[j]; pool[j] = t; }
+    const cycle = pool.slice(0, k);
+    const seq = [];
+    for (let i = 0; i < n; i++) seq.push(cycle[i % cycle.length]);
+    return seq;
+  }
+
+  // The divisor of n nearest `want`, never smaller than `least` — unless n has
+  // no divisor that large, in which case the largest there is.
+  function divisorAtLeast(n, want, least) {
+    let best = 0, bestGap = Infinity;
+    for (let d = 1; d <= n; d++) {
+      if (n % d || d < least) continue;
+      const gap = Math.abs(d - want);
+      if (gap < bestGap || (gap === bestGap && d > best)) { best = d; bestGap = gap; }
+    }
+    return best || divisorNear(n, want);
+  }
+
+  // There was a `divisorNearEven` here. It was removed on the reasoning that
+  // every style wraps its coordinates with mod(x, C) before doing anything
+  // else, so the tile *is* the period and an odd count is simply an odd count,
+  // repeated faithfully. That reasoning is correct about *values* and wrong
+  // about the picture, and the measurement that backed it was taken at one
+  // cell count.
+  //
+  // `bands` alternates bricks on `brickIndex % 2` and `basket` alternates its
+  // over-and-under on `(bx + by) % 2`. At 36 cells both happen to come out
+  // even, which is why removing the constraint measured clean. At 20 cells
+  // `bands` gets five bricks to the row and at 28 `basket` gets seven blocks,
+  // and the parity flips where the tile meets itself: the seam reads 1.47 and
+  // 1.43 against a bar of 1.2, and the values still repeat exactly, so the
+  // equality check has nothing to say about it.
+  //
+  // So it is back, as `divisorNearCycle(C, want, 2)`, and the sweep that
+  // caught it runs over every cell count the control offers rather than one.
 
   // Bayer 4x4, in the usual order. Its period is four, so a tile whose cell count
   // is a multiple of four carries it exactly.
   const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
   const mod = (n, p) => ((n % p) + p) % p;
+
+  // A triangle wave on an integer period, rounded to whole cells. Rounding a
+  // periodic function leaves it periodic, which is the only property the seam
+  // cares about — so `zigzag` and `waves` can bend a row boundary without
+  // giving up the exact repeat.
+  const tri = (t, per, amp) => {
+    const h = per / 2, u = mod(t, per);
+    return Math.round((u < h ? u / h : (per - u) / h) * amp);
+  };
 
   // Everything a style needs, worked out once from the parameters so that
   // `cellAt` is arithmetic and nothing else. Every number in here is a divisor
@@ -72,11 +158,11 @@
   function plan(p) {
     const C = p.cells, chunk = p.chunk || 1;
     const rnd = RAND.stream(p.seed, `weave:${p.style}`);
-    const q = { C, chunk, style: p.style };
+    const q = { C, span: C, chunk, style: p.style };
     if (p.style === 'bands') {
       q.h = divisorNear(C, Math.max(2, Math.round(C / (6 * chunk))));
       q.rows = C / q.h;
-      q.brick = divisorNear(C, Math.max(2, Math.round(C / (4 * chunk))));
+      q.brick = divisorNearCycle(C, Math.max(2, Math.round(C / (4 * chunk))), 2);
       q.row = [];
       for (let r = 0; r < q.rows; r++) {
         q.row.push({ bg: 1 + (r % 2), on: rnd.chance(0.45) ? 3 : (r % 2 ? 1 : 2),
@@ -88,7 +174,7 @@
       q.rv = Math.max(1, Math.round(q.pv * 0.42));
       q.rh = Math.max(1, Math.round(q.ph * 0.38));
     } else if (p.style === 'basket') {
-      q.b = divisorNear(C, Math.max(2, Math.round(C / (6 * chunk))));
+      q.b = divisorNearCycle(C, Math.max(2, Math.round(C / (6 * chunk))), 2);
       q.rib = Math.max(1, Math.round(q.b / 3));
       q.blocks = C / q.b;
     } else if (p.style === 'dither') {
@@ -112,6 +198,44 @@
       q.per = divisorNear(C, Math.max(3, Math.round(C / (4 * chunk))));
       q.arm = Math.max(1, Math.round(q.per * 0.34));
       q.mid = Math.floor(q.per / 2);
+    } else if (p.style === 'tabs') {
+      q.th = divisorNearCycle(C, Math.max(2, Math.round(C / (7 * chunk))), 2);
+      q.per = divisorNear(C, Math.max(3, Math.round(C / (6 * chunk))));
+      q.tw = Math.max(1, Math.round(q.per * 0.62));
+      q.half = Math.floor(q.per / 2);
+      q.foot = Math.max(1, Math.round(q.th / 3));
+    } else if (p.style === 'zigzag') {
+      q.per = divisorNear(C, Math.max(4, Math.round(C / (3 * chunk))));
+      q.amp = Math.max(1, Math.round(q.per * 0.5));
+      q.w = divisorNearCycle(C, Math.max(2, Math.min(Math.round(C / (8 * chunk)), Math.floor(C / 4))), 2);
+      q.seq = bandInks(C / q.w, rnd);
+    } else if (p.style === 'rings') {
+      // Eight is a floor and it has to be enforced as one. A block with fewer
+      // cells than that has room for two rings, and two rings cannot carry
+      // four colours: rings dropped to an orange-and-green chequer at the
+      // coarse end. Asking `divisorNear` for the divisor nearest eight is not
+      // the same thing — on a 52-cell tile the divisors are 1, 2, 4, 13, 26,
+      // 52, and the nearest to eight is four. So the floor is applied to the
+      // candidates, not to the wish.
+      q.b = divisorAtLeast(C, Math.max(8, Math.round(C / (4 * chunk))), 8);
+      q.mid = (q.b - 1) / 2;
+      // and enough rings to show the whole cycle, which is what the block size
+      // buys. Four rings at three cells each need a block of twelve.
+      q.rw = Math.max(1, Math.min(Math.round(q.b / 8), Math.floor(q.mid / 3)));
+    } else if (p.style === 'star') {
+      q.b = divisorNear(C, Math.max(5, Math.round(C / (4 * chunk))));
+      q.mid = (q.b - 1) / 2;
+      q.arm = Math.max(1, Math.round(q.b * 0.46));
+      q.core = Math.max(1, Math.round(q.b * 0.17));
+    } else if (p.style === 'waves') {
+      q.per = divisorNear(C, Math.max(4, Math.round(C / (2.5 * chunk))));
+      q.h = divisorNearCycle(C, Math.max(2, Math.min(Math.round(C / (9 * chunk)), Math.floor(C / 4))), 2);
+      q.amp = Math.max(1, Math.round(q.h * 1.1));
+      q.seq = bandInks(C / q.h, rnd);
+    } else if (p.style === 'burst') {
+      q.b = divisorNear(C, Math.max(6, Math.round(C / (3 * chunk))));
+      q.mid = (q.b - 1) / 2;
+      q.rays = 8;
     } else {
       q.per = divisorNear(C, Math.max(2, Math.round(C / (5 * chunk))));
       q.duty = Math.max(1, Math.round(q.per * 0.5));
@@ -129,7 +253,7 @@
     switch (q.style) {
       case 'bands': {
         const r = Math.floor(uy / q.h);
-        const b = q.row[r];
+        const b = q.row[mod(r, q.row.length)];
         const brickIndex = Math.floor(mod(ux + b.phase, C) / q.brick);
         const inRow = b.full || (uy - r * q.h) < Math.max(1, q.h - 1);
         return inRow && brickIndex % 2 === 0 ? b.on : b.bg;
@@ -145,7 +269,7 @@
         return mod(t, q.rib * 2) < q.rib ? (over ? 1 : 2) : 0;
       }
       case 'dither': {
-        const w = NOISE.warp2(ux / C * q.per, uy / C * q.per, q.per, q.per, q.warp, 2, q.seed);
+        const w = NOISE.warp2(ux / q.span * q.per, uy / q.span * q.per, q.per, q.per, q.warp, 2, q.seed);
         const n = NOISE.fbm2(w[0], w[1], q.per, q.per, 3, q.seed + 5);
         const level = NOISE.evenly(n, 3);
         const t = (BAYER4[mod(uy, 4) * 4 + mod(ux, 4)] + 0.5) / 16;
@@ -169,6 +293,55 @@
         if (ax <= q.arm && ay <= q.arm && ax + ay <= q.arm) return 2;
         if (ax <= q.arm && ay <= q.arm) return 1;
         return 0;
+      }
+      case 'tabs': {
+        // Rows of tabs, every other row shifted by half a tab, the way a tabbed
+        // edging is set out. The space between tabs is ground showing through,
+        // and the last third of each row is the tab's foot in the fourth ink.
+        const r = Math.floor(uy / q.th);
+        const t = mod(ux + (mod(r, 2) ? q.half : 0), q.per);
+        if (t >= q.tw) return 0;
+        return mod(uy, q.th) >= q.th - q.foot ? 3 : (mod(r, 2) ? 2 : 1);
+      }
+      case 'zigzag': {
+        // A chevron: the row boundary is a triangle wave, so the bands bend
+        // instead of running straight. Four bands to a cycle, so no two
+        // touching bands share an ink.
+        return q.seq[mod(Math.floor(mod(uy + tri(ux, q.per, q.amp), C) / q.w), q.seq.length)];
+      }
+      case 'rings': {
+        // Concentric square rings around each block's middle — Chebyshev
+        // distance, bucketed. Square rather than round because the grid is
+        // square and a circle drawn on it is a staircase pretending otherwise.
+        const dx = Math.abs(mod(ux, q.b) - q.mid), dy = Math.abs(mod(uy, q.b) - q.mid);
+        const n = mod(Math.floor(Math.max(dx, dy) / q.rw), 4);
+        return n === 0 ? 3 : n === 1 ? 1 : n === 2 ? 0 : 2;
+      }
+      case 'star': {
+        // Eight points: a square arm crossed with a diagonal one, which is what
+        // an eight-point quilt star is when you write it down.
+        const dx = Math.abs(mod(ux, q.b) - q.mid), dy = Math.abs(mod(uy, q.b) - q.mid);
+        const cheb = Math.max(dx, dy), manh = dx + dy;
+        if (cheb <= q.core) return 3;
+        if (Math.min(dx, dy) * 2 <= q.core && cheb <= q.arm) return 1;
+        if (manh <= q.arm) return 2;
+        return 0;
+      }
+      case 'waves': {
+        // Sine-bounded rows, the sine rounded to whole cells so the boundary
+        // lands on the grid and the tile still repeats exactly.
+        const s = Math.round(Math.sin(mod(ux, q.per) / q.per * Math.PI * 2) * q.amp);
+        return q.seq[mod(Math.floor(mod(uy + s, C) / q.h), q.seq.length)];
+      }
+      case 'burst': {
+        // Rays from each block's middle. The sector is an angle bucket, so it
+        // is constant along a ray, and the ray count divides the block, so the
+        // block edge closes on itself.
+        const dx = mod(ux, q.b) - q.mid, dy = mod(uy, q.b) - q.mid;
+        const sector = mod(Math.floor((Math.atan2(dy, dx) / (Math.PI * 2) + 0.5) * q.rays), q.rays);
+        const r = Math.max(Math.abs(dx), Math.abs(dy));
+        if (r <= q.b * 0.12) return 3;
+        return mod(sector, 2) === 0 ? 1 : (r > q.b * 0.32 ? 2 : 0);
       }
       default: {
         const v = mod(ux, q.per) < q.duty, h = mod(uy, q.per) < q.duty;

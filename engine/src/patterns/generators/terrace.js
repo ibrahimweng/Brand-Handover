@@ -283,6 +283,31 @@
     { group: 'pattern', key: 'seed', label: 'Seed', type: 'seed' },
   ];
 
-  return { key: 'terrace', vector: false, styles: STYLES, controls, bandFloat, blend, defaultsFor,
+  // What the picture is worth in pixels, and at what resolution to say so.
+  //
+  // A contour ground puts down a hard edge, and where that edge lands is a
+  // continuous function of the field, so more pixels place it more precisely
+  // and the file is worth the whole page. A wash has no edge to place. It is
+  // smooth, and a smooth picture returned to the page is the picture again.
+  //
+  // Measured, not guessed. Written at 768 px and blown back up to 2400, a wash
+  // differs from the 2400 px render by 1.34 levels in 255 — half a percent, in
+  // a gradient. A contour ground at the same size differs by 4.32, which is
+  // why this only applies to the soft one. Below 768 it climbs: 576 reads 1.98
+  // and 384 reads 3.25.
+  //
+  // The stated print size does not change, because it should not: 768 px at 96
+  // dots to the inch is the same 203 mm as 2400 at 300, and 300 is the number
+  // you need when there is an edge to keep. There is no edge here. What does
+  // change is the file — two 2400 px washes are 9.7 MB, which is more than a
+  // hosted function can answer with; two at 768 are 1.4.
+  const SOFT_PX = 768, SOFT_DPI = 96;
+  function sheetFor(p, want) {
+    return plan(p).soften > 0
+      ? { pixels: Math.min(want, SOFT_PX), dpi: SOFT_DPI }
+      : { pixels: want, dpi: null };
+  }
+
+  return { key: 'terrace', vector: false, styles: STYLES, controls, bandFloat, blend, defaultsFor, sheetFor,
     plan, bandAt, render, paint, octavesFor, STYLE };
 }));

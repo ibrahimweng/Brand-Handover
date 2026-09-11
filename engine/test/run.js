@@ -1029,42 +1029,57 @@ test('every weave style repeats exactly, at every cell count, in both directions
   assert.deepStrictEqual([...new Set(bad)], [], [...new Set(bad)].slice(0, 6).join('\n'));
 });
 
-test('what makes a weave tile repeat is the wrap, and nothing else does', () => {
-  // There was a `divisorNearEven` in weave.js and a test here asserting it
-  // mattered. It did not. The reasoning was that a style whose colour
-  // alternates on a parity needs an even number of bricks or the colour flips
-  // where the tile meets itself — true of a grid walked from zero to C, and
-  // untrue of this one, because every style wraps its coordinates with
-  // mod(x, C) first. The tile *is* the period.
+test('the wrap carries the values; the parity carries the picture', () => {
+  // This test used to say the opposite, and it was wrong.
   //
-  // Both checks say so. The values repeat at every brick count, and the seam
-  // measurement reads 1.00x for an odd count against 0.89x for an even one.
-  // The helper is gone; this is what replaced it, and it is a stronger claim:
-  // the wrap alone carries the repeat.
-  const pal = PPAL.of({ paper: { hex: '#EFEFEC', role: 'ground' }, ink: { hex: '#15161A' },
-    two: { hex: '#B4632A' }, three: { hex: '#5C6B4A' } }, null);
-  const withCount = (brick) => (s, W, H) => {
-    const q = Object.assign(PWEAVE.plan({ cells: 36, chunk: 1, style: 'bands', seed: 7 }), { brick });
-    const cw = W / 36, ch = H / 36;
-    for (let y = 0; y < 36; y++) {
-      for (let x = 0; x < 36; x++) {
-        const v = PWEAVE.cellAt(x, y, q);
-        s.fillStyle = v === 0 ? pal.ground : pal.ink(v - 1);
-        s.fillRect(Math.round(x * cw * 1000) / 1000, Math.round(y * ch * 1000) / 1000,
-          Math.round(cw * 1000) / 1000, Math.round(ch * 1000) / 1000);
+  // weave.js had a `divisorNearEven`, and a test here asserting it mattered.
+  // Both were removed on the reasoning that every style wraps its coordinates
+  // with mod(x, C) before doing anything else, so the tile *is* the period and
+  // an odd count is simply an odd count, repeated faithfully. The reasoning is
+  // correct about values and wrong about the picture, and the measurement that
+  // backed it was taken at 36 cells and nowhere else.
+  //
+  // `bands` alternates bricks on `brickIndex % 2`; `basket` alternates its
+  // over-and-under on `(bx + by) % 2`. At 36 cells both come out even, which
+  // is why removing the constraint measured clean. At 20 cells `bands` gets
+  // five bricks to a row and at 28 `basket` gets seven blocks, the parity
+  // flips where the tile meets itself, and the seam reads 1.47 and 1.43
+  // against a bar of 1.2 — while the values repeat exactly, so the equality
+  // check above has nothing to say about it.
+  //
+  // So both claims are kept, and neither is asked to do the other's work.
+  for (const style of PWEAVE.styles) {
+    for (const cells of [12, 20, 28, 36, 44, 52, 60, 72]) {
+      for (const chunk of [0.6, 1, 1.5, 2]) {
+        for (const seed of [1, 7, 99]) {
+          const q = PWEAVE.plan({ cells, chunk, style, seed });
+          // The picture carried on past the tile. Same parameters, wrap moved
+          // one tile further out: if the tile really repeats with nothing to
+          // find at the join, the two agree everywhere in the doubled square.
+          // A parity that does not divide the count disagrees, and says where.
+          const on = Object.assign({}, q, { C: cells * 2 });
+          for (let y = 0; y < cells * 2; y++) {
+            for (let x = 0; x < cells * 2; x++) {
+              assert.strictEqual(PWEAVE.cellAt(x, y, q), PWEAVE.cellAt(x, y, on),
+                `${style} at ${cells} cells, coarseness ${chunk}, seed ${seed}: the picture `
+                + `jumps at cell (${x}, ${y}) where the tile meets itself`);
+            }
+          }
+          // A banded style also has to leave no two neighbours the same ink,
+          // the pair across the wrap included, or two bands merge into one and
+          // the count is a fiction. This is not a discontinuity and the check
+          // above cannot see it: `waves` on a 13-band tile falls back to a
+          // two-ink cycle, which cannot close on an odd count.
+          if (q.seq && style !== 'steps') {
+            for (let i = 0; i < q.seq.length; i++) {
+              assert.notStrictEqual(q.seq[i], q.seq[(i + 1) % q.seq.length],
+                `${style} at ${cells} cells, coarseness ${chunk}: bands ${i} and `
+                + `${(i + 1) % q.seq.length} share an ink, so they read as one band`);
+            }
+          }
+        }
       }
     }
-  };
-  for (const brick of [9, 12, 4, 18]) {
-    const q = Object.assign(PWEAVE.plan({ cells: 36, chunk: 1, style: 'bands', seed: 7 }), { brick });
-    for (let t = 0; t < 60; t++) {
-      const x = t % 36, y = (t * 7) % 36;
-      assert.strictEqual(PWEAVE.cellAt(x, y, q), PWEAVE.cellAt(x + 36, y, q),
-        `a brick count of ${brick} did not repeat its values`);
-    }
-    const r = PSEAM.check(withCount(brick), 100, 100);
-    assert.ok(r.beyond <= 1.2,
-      `a brick count of ${brick} showed a join ${r.beyond.toFixed(2)}x beyond its worst ordinary band`);
   }
   // and the negative control: a shift that is *not* a whole tile has to move
   // something, or the equality above is a fact about the style being flat
@@ -1079,6 +1094,195 @@ test('what makes a weave tile repeat is the wrap, and nothing else does', () => 
     assert.ok(moved > 36, `${style} was unchanged by a shift of 37 in ${1296 - moved} of 1296 cells, `
       + 'so its repeating at 36 says nothing');
   }
+});
+
+test('a soft ground ships the pixels its picture is worth, and says so honestly', () => {
+  // `wash` was reachable for the first time this round, and the package went
+  // from 2.7 MB to 11.4 — over what a hosted function can answer with, for a
+  // one-lockup build. A 2400 px render of smoothly blended bands carries 662
+  // distinct colours and compresses to 4.84 MB; the hard-posterised ground it
+  // replaced carries two and compresses to 0.23.
+  //
+  // The answer is not to make the soft ground unreachable again. It is that a
+  // smooth picture is not worth 2400 px: there is no edge whose position more
+  // pixels would place more precisely. So it ships smaller, at the resolution
+  // that keeps the millimetres the manual prints — and the claim is measured
+  // here rather than asserted, with the contour ground beside it to show the
+  // distinction is real and not an excuse.
+  const pal = PPAL.of({ paper: { hex: '#FFFFFF', role: 'ground' }, ink: { hex: '#0A2A33' } }, null);
+  const base = { warp: 1, contrast: 1, bands: 6, spread: 0, seed: 1, scale: 2, grid: 48 };
+  const wash = Object.assign({}, base, { style: 'wash', soften: 1, dither: 0 });
+  const contour = Object.assign({}, base, { style: 'strata', soften: 0, dither: 0.3 });
+
+  const asked = PTERRACE.sheetFor(wash, 2400);
+  const full = PTERRACE.sheetFor(contour, 2400);
+  assert.ok(asked.pixels < 2400, 'a wash still asks for the whole page');
+  assert.strictEqual(full.pixels, 2400,
+    'a contour ground was shrunk too, and placing an edge is what pixels are for');
+  // The millimetres do not move. They are the number the package prints and a
+  // client plans a press run against; the resolution behind them is ours.
+  const mmOf = (a) => PRAST.printedAt({ width: a.pixels, height: a.pixels }, a.dpi || undefined).mm;
+  assert.strictEqual(mmOf(asked), mmOf(full),
+    `a wash says it prints to ${mmOf(asked)} mm where a contour ground says ${mmOf(full)}`);
+
+  // Returned to the page the way a printer would return it — bilinear, which
+  // is the cheapest thing any of them does — how far is it from the render it
+  // stands in for?
+  const REF = 2400, N = asked.pixels;
+  const lost = (p) => {
+    const ref = PTERRACE.render(REF, REF, p, pal).data;
+    const small = PTERRACE.render(N, N, p, pal).data;
+    let sum = 0, count = 0;
+    for (let y = 0; y < REF; y += 3) {
+      for (let x = 0; x < REF; x += 3) {
+        const sx = ((x + 0.5) * N) / REF - 0.5, sy = ((y + 0.5) * N) / REF - 0.5;
+        const x0 = Math.max(0, Math.min(N - 1, Math.floor(sx))), y0 = Math.max(0, Math.min(N - 1, Math.floor(sy)));
+        const x1 = Math.min(N - 1, x0 + 1), y1 = Math.min(N - 1, y0 + 1);
+        const fx = sx - x0, fy = sy - y0;
+        for (let k = 0; k < 3; k++) {
+          const a = small[(y0 * N + x0) * 4 + k], b = small[(y0 * N + x1) * 4 + k];
+          const c = small[(y1 * N + x0) * 4 + k], d = small[(y1 * N + x1) * 4 + k];
+          sum += Math.abs((a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy
+            - ref[(y * REF + x) * 4 + k]);
+          count++;
+        }
+      }
+    }
+    return sum / count;
+  };
+  const soft = lost(wash), hard = lost(contour);
+  assert.ok(soft < 2, `a wash written at ${N} px and returned to ${REF} differs from the `
+    + `${REF} px render by ${soft.toFixed(2)} levels in 255, which is more than half a percent`);
+  // and the control, which is the whole argument: if a contour ground lost no
+  // more than a wash at the same size, then nothing about softness earns the
+  // smaller file and every ground should have one.
+  assert.ok(hard > soft * 2, `a contour ground at ${N} px lost ${hard.toFixed(2)} levels against `
+    + `a wash's ${soft.toFixed(2)}, so softness is not what makes the smaller file honest`);
+});
+
+test('rings draws rings, at every cell count the control offers', () => {
+  // Not a general claim about styles — `basket` is two threads on a ground and
+  // `bands` is bricks in two colours, and asking either for four inks would be
+  // asking it to stop being itself. This one is specific: `rings` is four
+  // concentric ring colours, so a setting that shows fewer is a setting where
+  // the block has run out of room and the style has quietly become a chequer.
+  //
+  // Which it did. `divisorNear(C, max(8, ...))` reads like a floor of eight
+  // and is not one: on a 52-cell tile the divisors are 1, 2, 4, 13, 26 and 52,
+  // and the nearest to eight is four — two rings, two inks, no rings.
+  for (const cells of [12, 20, 28, 36, 44, 52, 60, 72]) {
+    for (const chunk of [0.6, 0.8, 1, 1.2, 1.5, 1.8, 2]) {
+      const q = PWEAVE.plan({ cells, chunk, style: 'rings', seed: 1 });
+      const share = [0, 0, 0, 0];
+      for (let y = 0; y < cells; y++) for (let x = 0; x < cells; x++) share[PWEAVE.cellAt(x, y, q)]++;
+      const used = share.filter((n) => n / (cells * cells) >= 0.02).length;
+      assert.strictEqual(used, 4, `rings at ${cells} cells, coarseness ${chunk}, drew ${used} inks `
+        + `(${share.map((n) => Math.round((n / (cells * cells)) * 100)).join('/')}%) — `
+        + `a block of ${q.b} holds ${Math.floor(q.mid / q.rw) + 1} rings`);
+    }
+  }
+});
+
+test('every style a generator offers is one the engine can arrive at', () => {
+  // A style the chooser never reaches is a style the package does not really
+  // have: it is in the studio's chip row and in the schema, and no identity
+  // built by the engine will ever show it.
+  //
+  // Asked for the first time when weave grew from eight styles to fourteen,
+  // and it found three more that had nothing to do with weave. `thread` had
+  // three slots for four flows and `terrace` three for five grounds, so
+  // `tangle`, `drift` and `wash` were reachable by hand and by nothing else —
+  // `wash` being the one ground that draws a soft edge, which is the entire
+  // reason it was added.
+  //
+  // The sweep is over the three things a mark is measured on, at values either
+  // side of every band edge the chooser uses.
+  for (const g of PENG.NAMES) {
+    const gen = PENG.GENERATORS[g];
+    if (!gen.styles || !gen.styles.length) continue;
+    const seen = new Set();
+    for (const aspect of [0.4, 1, 3, 6]) {
+      for (const fineness of [6, 15, 25, 35, 50, 80]) {
+        for (const curviness of [0, 0.2, 0.4, 0.6, 0.8, 1]) {
+          seen.add(PENG.derive(g, { aspect, fineness, curviness }).style);
+        }
+      }
+    }
+    const missed = gen.styles.filter((st) => !seen.has(st));
+    assert.deepStrictEqual(missed, [],
+      `${g} offers ${gen.styles.length} styles and the engine can arrive at ${seen.size}: `
+      + `${missed.join(', ')} ${missed.length === 1 ? 'is' : 'are'} reachable by hand and no other way`);
+  }
+});
+
+test('choosing a ground chooses its settings, not only its name', () => {
+  // `plan` fills in a style's value only for a key nobody set, and `derive`
+  // used to set bands and dither for every terrace ground — so a ground
+  // arrived with six bands and a dither of 0.3 whatever it defined. It showed
+  // up as `wash`, whose definition is no dither and a soft edge, drawing
+  // contours. The check is the measurement the generator already exposes.
+  const wash = PENG.derive('terrace', { aspect: 1, fineness: 30, curviness: 0.9 });
+  assert.strictEqual(wash.style, 'wash', 'a round upright mark no longer reaches the soft ground');
+  const own = PTERRACE.defaultsFor('wash');
+  for (const k of Object.keys(own)) {
+    if (k === 'scale') continue;            // the mark sets this one, on purpose
+    assert.strictEqual(wash[k], own[k],
+      `a wash arrived with ${k} = ${wash[k]} where the ground itself says ${own[k]}`);
+  }
+  // and the ground that is not a wash keeps the dither it asks for, or the
+  // assertion above is satisfied by handing every ground the same numbers.
+  const ridge = PENG.derive('terrace', { aspect: 6, fineness: 30, curviness: 0.1 });
+  assert.notStrictEqual(ridge.dither, wash.dither,
+    `${ridge.style} and wash arrived with the same dither, so the ground is not reaching plan`);
+});
+
+test('no weave style puts its loudest line where the tile meets itself', () => {
+  // The check above is exact and blind to colour: it asks whether the picture
+  // jumps, not whether the join is the thing your eye lands on. Those come
+  // apart. `waves` with the four inks cycled on a fixed period of four repeats
+  // exactly — no jump anywhere — and still reads 2.26, because forcing the
+  // cycle to four when the band count is not a multiple of four leaves the
+  // boundaries unalike, and one of them is the loudest in the tile.
+  //
+  // So this is the measurement, over the counts and coarsenesses the control
+  // actually offers rather than the one that was checked before. The bar sits
+  // in a gap that was measured in both directions: every style comes in at
+  // 1.38 or below, and the two faults this caught read 1.67 and 2.26.
+  const pal = PPAL.of({ paper: { hex: '#EFEFEC', role: 'ground' }, ink: { hex: '#15161A' },
+    two: { hex: '#B4632A' }, three: { hex: '#5C6B4A' } }, null);
+  const draw = (q, C) => (s, W, H) => {
+    const cw = W / C, ch = H / C;
+    for (let y = 0; y < C; y++) {
+      for (let x = 0; x < C; x++) {
+        const v = PWEAVE.cellAt(x, y, q);
+        s.fillStyle = v === 0 ? pal.ground : pal.ink(v - 1);
+        s.fillRect(Math.round(x * cw * 1000) / 1000, Math.round(y * ch * 1000) / 1000,
+          Math.round(cw * 1000) / 1000, Math.round(ch * 1000) / 1000);
+      }
+    }
+  };
+  for (const style of PWEAVE.styles) {
+    for (const cells of [20, 36, 52, 72]) {
+      for (const chunk of [0.6, 1.5]) {
+        const q = PWEAVE.plan({ cells, chunk, style, seed: 1 });
+        const r = PSEAM.check(draw(q, cells), 100, 100);
+        assert.ok(r.beyond <= 1.5, `${style} at ${cells} cells, coarseness ${chunk}, showed a join `
+          + `${r.beyond.toFixed(2)}x beyond its worst ordinary band`);
+      }
+    }
+  }
+  // and the negative control, because a bar nothing can fail is not a bar: the
+  // same styles drawn as a window cut out of a pattern whose period is four
+  // cells wider than the tile. Not every style can fail it — `dither` is a
+  // noise field, and a crop of noise is noise, with no period to find either
+  // way — so the claim is that most of them do, by a margin.
+  let caught = 0;
+  for (const style of PWEAVE.styles) {
+    const q = PWEAVE.plan({ cells: 40, chunk: 1, style, seed: 1 });
+    if (PSEAM.check(draw(q, 36), 100, 100).beyond > 1.5) caught++;
+  }
+  assert.ok(caught >= 9, `a tile cut four cells short of its own period was caught in only `
+    + `${caught} of ${PWEAVE.styles.length} styles, so the bar is not measuring the join`);
 });
 
 test('every zigzag chain closes along its run and across the tile', () => {

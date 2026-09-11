@@ -102,11 +102,23 @@
   // much of it is curved. Every style is reachable, which is the point — a rule
   // that sent nine identities in ten to the same style would be the fault this
   // engine exists to fix, in a new place.
+  // Weave has fourteen styles and two axes give nine slots, so the third one
+  // the mark is measured on — how wide it is against how tall — is used here
+  // as it already is for zigzag. Eighteen slots, fourteen styles, every one of
+  // them reached: `dither` used to fill two cells of the grid because there
+  // was nothing else to put there, and a style nothing reaches is a style the
+  // package does not really have.
   const WEAVE_STYLES = [
-    //  angular        mixed         round
-    ['basket', 'cross', 'diamond'],       // coarse
-    ['plaid', 'steps', 'gingham'],        // medium
-    ['bands', 'dither', 'dither'],        // fine
+    [ //  angular      mixed        round          — a wide mark
+      ['tabs', 'basket', 'rings'],        // coarse
+      ['steps', 'zigzag', 'waves'],       // medium
+      ['bands', 'dither', 'gingham'],     // fine
+    ],
+    [ //  angular      mixed        round          — a square or upright mark
+      ['cross', 'diamond', 'burst'],      // coarse
+      ['plaid', 'zigzag', 'star'],        // medium
+      ['bands', 'dither', 'gingham'],     // fine
+    ],
   ];
   const ZIGZAG_STYLES = [
     ['chevron', 'stairs', 'scales'],      // wider than tall
@@ -117,8 +129,20 @@
     ['patchwork', 'drift', 'bloom'],      // medium
     ['scatter', 'drift', 'bloom'],        // fine
   ];
-  const THREAD_STYLES = ['weft', 'flow', 'curl'];
-  const TERRACE_STYLES = ['strata', 'basin', 'ridge'];
+  // Same question asked of the other two, and it found the same answer twice.
+  // Three slots held four thread flows and five terrace grounds, so `tangle`,
+  // `drift` and `wash` were reachable from the studio and from a project file
+  // and from nowhere the engine itself would go. `wash` is the worst of the
+  // three to have lost: it is the only ground that draws a soft edge, which is
+  // the whole reason it exists.
+  const THREAD_STYLES = [
+    ['weft', 'flow', 'curl'],             // a wide mark
+    ['weft', 'tangle', 'curl'],           // a square or upright one
+  ];
+  const TERRACE_STYLES = [
+    ['strata', 'basin', 'wash'],          // a wide mark
+    ['ridge', 'drift', 'wash'],           // a square or upright one
+  ];
   const bandOf = (v, edges) => { let i = 0; while (i < edges.length && v > edges[i]) i++; return i; };
 
   function derive(generator, m) {
@@ -128,7 +152,7 @@
       const cells = Math.max(LEAST_WEAVE, Math.min(COARSEST_GRID, Math.floor(scale / 4) * 4));
       return { cells,
         chunk: Math.round((0.7 + m.curviness * 0.8) * 20) / 20,
-        style: WEAVE_STYLES[bandOf(m.fineness, [20, 40])][curve],
+        style: WEAVE_STYLES[m.aspect > 2 ? 0 : 1][bandOf(m.fineness, [20, 40])][curve],
         seed: 1 };
     }
     if (generator === 'field') {
@@ -147,7 +171,7 @@
       // A stroke is the finest thing it draws, in the thousand-unit box the
       // field works in — so the same rule, in those units.
       const weight = Math.max(1, Math.min(20, Math.round((1000 / scale) * 0.1 * 2) / 2));
-      return { style: THREAD_STYLES[curve], grain: m.fineness > 24 ? 'close' : 'open',
+      return { style: THREAD_STYLES[m.aspect > 2 ? 0 : 1][curve], grain: m.fineness > 24 ? 'close' : 'open',
         curl: Math.round(m.curviness * 100) / 100, density: 1, spread: 0.05,
         length: 190, step: 4.2, weight, hierarchy: 0.55, seed: 1 };
     }
@@ -158,8 +182,17 @@
       // octavesFor in the generator. Four times the rule, which still leaves
       // its finest feature well over twice the mark's thinnest.
       const grid = Math.max(48, Math.min(240, Math.round((scale * 4) / 8) * 8));
-      return { style: TERRACE_STYLES[curve], scale: Math.max(1, Math.min(8, Math.round(m.fineness / 8))),
-        warp: 1, contrast: 1, bands: 6, dither: 0.3, grid, spread: 0, seed: 1 };
+      // The ground's own settings have to come through, or choosing one is
+      // choosing a name. `derive` used to write bands and dither here
+      // unconditionally, and `plan` only fills in a style's value for a key
+      // nobody set — so every ground arrived with six bands and a dither of
+      // 0.3 whatever it asked for, and `wash`, whose whole definition is no
+      // dither and a soft edge, would have drawn contours.
+      const style = TERRACE_STYLES[m.aspect > 2 ? 0 : 1][curve];
+      return Object.assign(
+        { style, warp: 1, contrast: 1, bands: 6, dither: 0.3, spread: 0, seed: 1 },
+        GENERATORS.terrace.defaultsFor(style),
+        { scale: Math.max(1, Math.min(8, Math.round(m.fineness / 8))), grid });
     }
     // Rounded *up* to the nearest two-hundredth: a stripe rounded down is finer
     // than the mark allows.
@@ -273,10 +306,16 @@
     if (g.vector || !g.render) return null;
     const R = late('raster');
     const w = Math.max(64, Math.round(widthPx || 2400));
-    const img = g.render(w, w, t.params, t.pal);
+    // A generator may know that its picture is worth fewer pixels than the page
+    // — a smooth field has no edge whose position more pixels would place more
+    // precisely — and says so along with the resolution to state it at, so the
+    // millimetres the manual prints stay the millimetres the client gets.
+    const want = g.sheetFor ? g.sheetFor(t.params, w) : { pixels: w, dpi: null };
+    const img = g.render(want.pixels, want.pixels, t.params, t.pal);
     const f = R.field(img.width, img.height);
     f.data.set(img.data);
-    return { png: R.png(f), width: img.width, height: img.height, printedAt: R.printedAt(f) };
+    return { png: R.png(f), width: img.width, height: img.height,
+      printedAt: R.printedAt(f, want.dpi || undefined) };
   }
 
   // What a tile does when it is laid next to itself. Reported, not asserted:

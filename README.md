@@ -2768,8 +2768,8 @@ Round A of six. Next are the generators.
 
 **Two generators, and four checks that were checking nothing**
 
-`weave` makes index-grid blankets, eight styles. `zigzag` makes interlocking
-rounded stripes, six. Both are after PLAYGRND tools, and both carry the one
+`weave` makes index-grid blankets — all fourteen of Quilt's styles. `zigzag`
+makes interlocking rounded stripes, all six of Zig's. Both are after PLAYGRND tools, and both carry the one
 change that turns a picture into a brand pattern: **every period is an exact
 divisor of the tile**. A style asks for a rib every eleven cells on a
 forty-eight cell tile and gets twelve, because a pattern that nearly repeats is
@@ -2777,7 +2777,7 @@ worse than one that obviously does not.
 
 Which makes seamlessness a thing to *prove* rather than look at. A weave style
 is `cellAt(x, y)` — an integer expression defined outside the tile as well as
-in it — so the test asks for the cell at (x, y) and at (x + C, y), for eight
+in it — so the test asks for the cell at (x, y) and at (x + C, y), for fourteen
 styles, nine cell counts, four coarsenesses, three seeds, in both directions.
 Same value or not. A zigzag boundary is a chain, and a chain has to come back to
 itself down its own run and land exactly one tile over after a whole number of

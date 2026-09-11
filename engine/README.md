@@ -833,8 +833,9 @@ two of the five through. It is 1.5 and 0.4% now, which is where the gap is.
 `src/patterns/generators/` — five of the six. Four are pure vector; one is not,
 and says so.
 
-**`weave`** — index-grid blankets, after PLAYGRND's Quilt. Eight styles: bands,
-plaid, basket, dither, steps, diamond, cross, gingham. Quilt measures each cell
+**`weave`** — index-grid blankets, after PLAYGRND's Quilt. All fourteen of its
+styles: bands, plaid, basket, dither, steps, diamond, cross, gingham, tabs,
+zigzag, rings, star, waves, burst. Quilt measures each cell
 from the centre of the frame so its compositions are mirror-symmetric, which is
 right for a picture and wrong for a repeat — a mirrored block tiles, but along a
 mirror line, and the eye finds a mirror line as fast as a join. Here every style
@@ -874,6 +875,23 @@ approximation that quietly stops being the picture the studio showed. So it
 ships as raster at a size the package states, and the manual says which
 patterns are which in those words. A client needs to know this one has a size
 beyond which it stops being sharp. Hiding it would be the fault.
+
+How many pixels that is depends on the ground, and the generator is asked
+rather than told. A contour ground puts down a hard edge and the edge's
+position is a continuous function of the field, so more pixels place it more
+precisely: it is worth the whole page. A wash has no edge to place. Written at
+768 px and returned to 2400 the way a printer returns a file smaller than the
+page, it differs from the 2400 px render by 1.34 levels in 255; a contour
+ground at the same size differs by 4.32, which is the whole reason this applies
+to one and not the other. The stated print size does not move — 768 px at 96
+dots to the inch is the same 203 mm as 2400 at 300, and 300 is the number you
+need when there is an edge to keep.
+
+This was found by the hosted door rather than by design. A wash became
+reachable, and a one-lockup package went from 2.7 MB to 11.4 — two 2400 px
+renders of smoothly blended bands, 662 distinct colours apiece against the
+hard-posterised ground's two. A hosted function can answer with 4 MB. Two
+washes at 768 are 1.4.
 
 ### Seamlessness is proved, not inspected
 
