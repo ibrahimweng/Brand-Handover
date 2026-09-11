@@ -898,6 +898,69 @@ What it leaves behind: `weight` and `axiality` in `measure.js`, added to tell
 the three noise-field generators apart. All three are gone now and the two
 measurements are kept for a different reason — see below.
 
+### How round a drawing is, measured off its geometry
+
+`outline.js`, and the half of `mark.js` that reads it.
+
+`curviness` counted path command letters, and the file said so in its own
+header: "a crude measure of a real thing". It was cruder than that. A `<circle>`
+scored four curves whatever its radius. A rounded rectangle scored four curves
+and four lines whether its corners were a hair or a half-stem. And **yamabiko —
+a drawing of mountain chevrons with no curve anywhere in it — scored 0.50**, so
+it got half a pattern's worth of rounding it had never asked for.
+
+`winterbourne` is the same error in the other direction: an arc over four
+straight bars. The bars are separate strokes that meet nothing, so every turn in
+that drawing is on the arc. It scored **0.20** and got a nearly-sharp stripe.
+
+What is measured now is every place the outline changes direction — how far it
+turns there, and whether it turns on a curve or at a point.
+
+    yamabiko       0.50  ->  0.00     mountain chevrons, no curve in the file
+    winterbourne   0.20  ->  1.00     one arc, and four bars that meet nothing
+    lammas         0.50  ->  1.00
+    hallward       0.63  ->  0.15     type set round a circle; the letters turn
+    ancroft        0.24  ->  0.16
+
+Two things had to be got right and neither was obvious.
+
+**The radius is a median, weighted by turning, not a mean.** `pagrin` turns 91%
+of its total at hard corners and averaged **31.7 stems**, because the remaining
+9% happens on two enormous sweeps and a mean is whatever its outliers say. On a
+mean it is the most angular drawing in the repository and gets the shallowest
+tooth there is.
+
+**A drawing whose strokes never meet has no turning to measure.** `deben` is
+three straight bars that do not touch: no junction, no curve, nothing. The
+answer there is not "no hard corners were found, so it must be round" — it is
+that the drawing says nothing about its corners, and a drawing that says nothing
+gets corners.
+
+### The stripe, taking its character from the mark
+
+`zigzag`'s tooth depth was **the number 0.9**, for every identity in the
+repository. Stripe came off the scale rule and rounding off curviness; depth,
+which is most of what a zigzag looks like, came off nothing at all.
+
+A mark that turns inside a couple of its own stems is making tight, worked
+gestures and wants a tooth that cuts. One that turns over six or more is making
+broad ones and wants a tooth that leans. Six stems is where this repository's
+drawings stop getting rounder — carrock turns at 4.2 and reads as circles,
+winterbourne at 8.9 and reads as a single sweep, and past that the difference is
+no longer visible in a stripe.
+
+    yamabiko      turns at 0.0 stems    depth 1.15   rounding 0.00   teeth
+    halyard                   2.6              0.91           0.61   ricrac
+    carrock                   4.2              0.76           0.97   waves
+    meridian                  5.8              0.62           0.84   waves
+    winterbourne              8.9              0.60           1.00   waves
+
+The test asserts it strictly: across all thirty-three identities, a mark that
+turns more tightly than another cuts a tooth at least as deep, with no
+exceptions rather than mostly. And every mark that turns mostly at a corner cuts
+1.15 where the roundest cut 1.05 at most — a small gap, and the whole reason the
+radius is a median.
+
 ### The motif: the identity's own shape, as moves
 
 `motif-read.js` (Node) and `motif.js` (both).

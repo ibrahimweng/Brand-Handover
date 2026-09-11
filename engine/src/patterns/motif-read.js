@@ -14,73 +14,8 @@ const svg = require('../svg');
 const paths = require('../paths');
 const pat = require('../pattern');
 
-// A primitive as the cubics it is. Everything a drawing can contain that is not
-// a path, written as one — so the generator has a single case to draw.
-//
-// The circle is four cubics at the usual 0.5522847 of the radius, which is the
-// approximation every drawing program uses and is within a thousandth of the
-// true arc. An exact circle is not available: a cubic cannot be one.
-const K = 0.5522847498307933;
-function segsOf(el) {
-  const t = String(el.tagName || '').toLowerCase();
-  const n = (a, d) => { const v = parseFloat(el.getAttribute(a)); return Number.isFinite(v) ? v : (d || 0); };
-  if (t === 'path') return paths.parse(el.getAttribute('d') || '');
-  if (t === 'rect') {
-    const x = n('x'), y = n('y'), w = n('width'), h = n('height');
-    if (!(w > 0 && h > 0)) return [];
-    return [{ op: 'move', to: [x, y] }, { op: 'line', to: [x + w, y] },
-      { op: 'line', to: [x + w, y + h] }, { op: 'line', to: [x, y + h] }, { op: 'close' }];
-  }
-  if (t === 'circle' || t === 'ellipse') {
-    const cx = n('cx'), cy = n('cy');
-    const rx = t === 'circle' ? n('r') : n('rx'), ry = t === 'circle' ? n('r') : n('ry');
-    if (!(rx > 0 && ry > 0)) return [];
-    const ox = rx * K, oy = ry * K;
-    return [
-      { op: 'move', to: [cx + rx, cy] },
-      { op: 'cubic', c1: [cx + rx, cy + oy], c2: [cx + ox, cy + ry], to: [cx, cy + ry] },
-      { op: 'cubic', c1: [cx - ox, cy + ry], c2: [cx - rx, cy + oy], to: [cx - rx, cy] },
-      { op: 'cubic', c1: [cx - rx, cy - oy], c2: [cx - ox, cy - ry], to: [cx, cy - ry] },
-      { op: 'cubic', c1: [cx + ox, cy - ry], c2: [cx + rx, cy - oy], to: [cx + rx, cy] },
-      { op: 'close' }];
-  }
-  if (t === 'polygon' || t === 'polyline' || t === 'line') {
-    const pts = t === 'line'
-      ? [[n('x1'), n('y1')], [n('x2'), n('y2')]]
-      : (el.getAttribute('points') || '').trim().split(/[\s,]+/).map(Number)
-        .reduce((a, v, i) => (i % 2 ? (a[a.length - 1].push(v), a) : (a.push([v]), a)), [])
-        .filter((p) => p.length === 2 && p.every(Number.isFinite));
-    if (pts.length < 2) return [];
-    const out = [{ op: 'move', to: pts[0] }];
-    for (let i = 1; i < pts.length; i++) out.push({ op: 'line', to: pts[i] });
-    if (t === 'polygon') out.push({ op: 'close' });
-    return out;
-  }
-  return [];
-}
-
-// The transform an element sits under, multiplied down from the root. An
-// element's own transform is applied last, which is the order SVG uses and the
-// order getting it wrong puts a mark in the next county.
-function ctmOf(el) {
-  const chain = [];
-  for (let n = el; n && n.nodeType === 1; n = n.parentNode) chain.unshift(n.getAttribute('transform') || '');
-  let m = paths.IDENTITY;
-  for (const t of chain) if (t) m = paths.multiply(m, paths.parseTransform(t));
-  return m;
-}
-
-// A shape's markup, as moves in its own coordinates.
-function movesOf(markup) {
-  const doc = svg.parse(`<svg xmlns="http://www.w3.org/2000/svg">${markup}</svg>`);
-  const all = [];
-  svg.eachPainted(doc, (el) => {
-    const segs = segsOf(el);
-    if (!segs.length) return;
-    all.push(...paths.transformSegs(segs, ctmOf(el)));
-  });
-  return all;
-}
+const outline = require('./outline');
+const { movesOf } = outline;
 
 // Segments to the flat op list `motif.draw` replays, normalised into a unit box
 // centred on the origin.
@@ -141,4 +76,4 @@ function read(markSource, rules, measured, which) {
     alternatives: ranked.filter((c) => c !== chosen).map((c) => ({ key: c.key, name: c.name, score: c.score })) };
 }
 
-module.exports = { read, movesOf, normalise, segsOf };
+module.exports = { read, movesOf, normalise, segsOf: outline.segsOf };

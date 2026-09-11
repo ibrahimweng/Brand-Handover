@@ -169,9 +169,22 @@
     // pattern, it is a flag.
     const wanted = Math.ceil((1 / scale) * 200) / 200;
     const stripe = Math.max(FINEST_STRIPE, Math.min(COARSEST_STRIPE, wanted));
+    // How deep the tooth cuts, from how broadly the mark turns.
+    //
+    // This was the number 0.9, for every identity in the repository. Stripe
+    // came off the scale rule and rounding off curviness, and depth — which is
+    // most of what a zigzag looks like — came off nothing at all.
+    //
+    // A mark that turns inside a couple of its own stems is making tight,
+    // worked gestures and wants a tooth that cuts; one that turns over six or
+    // more is making broad ones and wants a tooth that leans. Six stems is
+    // where this repository's drawings stop getting rounder: carrock turns at
+    // 4.2 and reads as circles, winterbourne at 8.9 and reads as a single
+    // sweep, and past that the difference is no longer visible in a stripe.
+    const sweep = Math.max(0, Math.min(1, m.turn / 6));
     return {
       stripe,
-      depth: 0.9,
+      depth: Math.round((1.15 - sweep * 0.55) * 100) / 100,
       length: Math.max(0.05, Math.min(0.4, Math.round(stripe * 1.6 * 100) / 100)),
       rounding: Math.round(m.curviness * 100) / 100,
       style: ZIGZAG_STYLES[m.aspect > 2 ? 0 : 1][curve],
@@ -180,7 +193,13 @@
 
   // Why it chose that, in the words a manual prints.
   function because(generator, m, params) {
-    const round = `${Math.round(m.curviness * 100)}% of the drawing's outline is curved`;
+    // What this says changed with what it measures. It used to say "X% of the
+    // drawing's outline is curved", off a count of path command letters; it is
+    // the share of the drawing's *turning* that happens on a curve, which is
+    // both what is measured and the thing a client can check by looking.
+    const round = m.turned
+      ? `${Math.round(m.curviness * 100)}% of the drawing's turning happens on a curve rather than at a corner`
+      : 'nothing in the drawing turns — its strokes never meet — so it is read as cornered';
     const fine = `the mark is ${m.fineness.toFixed(1)} of its own narrowest runs across, `
       + `so nothing here is drawn finer than ${(m.fineness / FINEST).toFixed(1)} of anything`;
     // Where a cap decided instead of the mark, it says so. A mark with a

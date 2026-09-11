@@ -1238,6 +1238,107 @@ test('the motif route only reaches for a generator that can hold a shape', () =>
     'no mark reaches a generator without a motif on any route, so narrowing proves nothing');
 });
 
+test('how round a drawing is, is measured off its geometry and not its letters', () => {
+  // `curviness` counted path command letters. A <circle> scored four curves
+  // whatever its radius; a rounded rectangle scored four curves and four lines
+  // whether its corners were a hair or a half-stem.
+  //
+  // yamabiko is the case that settles it: a drawing of mountain chevrons with
+  // no curve anywhere in it, which scored 0.50 and got half a pattern's worth
+  // of rounding it never asked for. winterbourne is the same error the other
+  // way — an arc over four straight bars, where the bars are separate strokes
+  // that meet nothing, so every turn in the drawing is on the arc. It scored
+  // 0.20 and got a nearly-sharp stripe.
+  //
+  // Both are named here rather than left to a threshold, because both are the
+  // reason the measurement changed.
+  const of = (name) => {
+    const pr = projectLoader.load(path.join(__dirname, '..', 'projects', name, 'project.json'));
+    const src = pr.assets[pr.master || (pr.assets.mark ? 'mark' : 'wordmark')].source;
+    return { mk: PMARK.read(src, measure(pr), pr.rules), old: PMARK.curviness(src) };
+  };
+  const y = of('yamabiko');
+  assert.ok(y.mk.curviness < 0.05, `yamabiko has no curve in it and measures ${y.mk.curviness} round`);
+  assert.ok(y.old > 0.3, `the old measure no longer gets yamabiko wrong (${y.old}), so this says nothing`);
+  const w = of('winterbourne');
+  assert.ok(w.mk.curviness > 0.9, `winterbourne turns only on its arc and measures ${w.mk.curviness} round`);
+  assert.ok(w.old < 0.4, `the old measure no longer gets winterbourne wrong (${w.old}), so this says nothing`);
+
+  // A drawing whose strokes never meet has no turning to measure, and the
+  // answer is corners rather than the benefit of the doubt. deben is three
+  // straight bars that do not touch.
+  const d = of('deben');
+  assert.strictEqual(d.mk.turned, false, 'deben\'s strokes meet somewhere after all, so this fixture is wrong for the case');
+  assert.strictEqual(d.mk.curviness, 0, `a drawing with no turning measured ${d.mk.curviness} round`);
+
+  // and across the repository the two measures disagree often enough that the
+  // change is a change, not a rounding of the same answer
+  const names = fs.readdirSync(path.join(__dirname, '..', 'projects'))
+    .filter((n) => fs.existsSync(path.join(__dirname, '..', 'projects', n, 'project.json')));
+  let apart = 0;
+  for (const n of names) { const o = of(n); if (Math.abs(o.mk.curviness - o.old) > 0.3) apart++; }
+  assert.ok(apart >= 6, `the two measures differ by more than 0.3 on only ${apart} of ${names.length} marks`);
+});
+
+test('a stripe takes its depth from how broadly the mark turns', () => {
+  // Tooth depth was the number 0.9, for every identity in the repository.
+  // Stripe came off the scale rule and rounding off curviness; depth, which is
+  // most of what a zigzag looks like, came off nothing at all.
+  const names = fs.readdirSync(path.join(__dirname, '..', 'projects'))
+    .filter((n) => fs.existsSync(path.join(__dirname, '..', 'projects', n, 'project.json')));
+  const seen = [];
+  for (const name of names) {
+    const pr = projectLoader.load(path.join(__dirname, '..', 'projects', name, 'project.json'));
+    const src = pr.assets[pr.master || (pr.assets.mark ? 'mark' : 'wordmark')].source;
+    const mk = PMARK.read(src, measure(pr), pr.rules);
+    seen.push({ name, turn: mk.turn, depth: PENG.derive('zigzag', mk).depth });
+  }
+  const depths = new Set(seen.map((x) => x.depth));
+  assert.ok(depths.size >= 5, `${names.length} identities produced ${depths.size} different tooth depths`);
+  // and it moves the right way: a mark that turns tightly cuts a deeper tooth
+  // than one that turns broadly, with no exceptions rather than mostly.
+  for (const a of seen) {
+    for (const b of seen) {
+      if (a.turn >= b.turn) continue;
+      assert.ok(a.depth >= b.depth, `${a.name} turns at ${a.turn} stems and cuts ${a.depth}, `
+        + `where ${b.name} turns at ${b.turn} and cuts ${b.depth} — the deeper tooth is on the broader mark`);
+    }
+  }
+  // and it agrees with the corner share, which is the claim the median radius
+  // is for. pagrin turns 91% of its total at hard corners and would read 31.7
+  // stems on a mean, because the remaining 9% happens on two enormous sweeps —
+  // so a mean sends the most angular drawing in the repository to the
+  // shallowest tooth there is. hallward is the same shape of error.
+  //
+  // Every mark that turns mostly at a corner cuts 1.15 here; the roundest cut
+  // 1.05 at most. The gap is small and it is the whole point of the median.
+  const cornered = [], round = [];
+  for (const name of names) {
+    const pr = projectLoader.load(path.join(__dirname, '..', 'projects', name, 'project.json'));
+    const src = pr.assets[pr.master || (pr.assets.mark ? 'mark' : 'wordmark')].source;
+    const mk = PMARK.read(src, measure(pr), pr.rules);
+    const d = PENG.derive('zigzag', mk).depth;
+    if (mk.curviness < 0.25) cornered.push({ name, d, r: mk.curviness });
+    if (mk.curviness > 0.8) round.push({ name, d, r: mk.curviness });
+  }
+  assert.ok(cornered.length >= 8 && round.length >= 8,
+    `${cornered.length} cornered marks and ${round.length} round ones is too few to say anything`);
+  const softestCorner = cornered.reduce((a, b) => (b.d < a.d ? b : a));
+  const deepestRound = round.reduce((a, b) => (b.d > a.d ? b : a));
+  assert.ok(softestCorner.d > deepestRound.d,
+    `${softestCorner.name} turns mostly at corners (${softestCorner.r}) and cuts ${softestCorner.d}, `
+    + `where the round ${deepestRound.name} (${deepestRound.r}) cuts ${deepestRound.d} — `
+    + 'an angular drawing is getting a shallower tooth than a round one');
+
+  // within the generator's own range, or the control cannot reach what the
+  // engine asks of it
+  const ctl = PENG.GENERATORS.zigzag.controls.find((c) => c.key === 'depth');
+  for (const x of seen) {
+    assert.ok(x.depth >= ctl.min && x.depth <= ctl.max,
+      `${x.name} asks for a depth of ${x.depth}, outside the control's ${ctl.min}–${ctl.max}`);
+  }
+});
+
 test('every style a generator offers is one the engine can arrive at', () => {
   // A style the chooser never reaches is a style the package does not really
   // have: it is in the studio's chip row and in the schema, and no identity
@@ -1427,10 +1528,31 @@ test('the pattern is measured off the mark, not typed', () => {
     `four identities span only ${Math.min(...fine).toFixed(1)} to ${Math.max(...fine).toFixed(1)} narrowest runs across`);
   assert.ok(Math.max(...curve) - Math.min(...curve) > 0.5,
     'four identities have nearly the same share of curve in them, so the measurement is not measuring');
-  // a ring is round and a wordmark of straight strokes is not
-  const ring = seen.find((s) => s.name === 'meridian'), timber = seen.find((s) => s.name === 'kvist');
-  assert.ok(ring.curviness > 0.9, `a mark drawn as a circle measured ${(ring.curviness * 100).toFixed(0)}% curved`);
-  assert.ok(timber.curviness < 0.1, `a mark drawn with straight strokes measured ${(timber.curviness * 100).toFixed(0)}% curved`);
+  // a wordmark of straight strokes is not round at all
+  const timber = seen.find((s) => s.name === 'kvist');
+  assert.strictEqual(timber.curviness, 0,
+    `a mark drawn with straight strokes measured ${(timber.curviness * 100).toFixed(0)}% curved`);
+
+  // and meridian is mostly round, which is not the same claim this used to
+  // make. It said "a mark drawn as a circle" and asked for over 0.9, and
+  // meridian is a circle *crossed by a straight chord* — the flat top of the
+  // filled half-disc. It reads 0.84: most of its turning is on the circle, and
+  // the chord meets it at two real corners. The old measure said 1.00 because
+  // it counted command letters and the arcs outvoted the chord.
+  //
+  // The threshold did not move because the measurement got worse. The claim was
+  // wrong about the drawing.
+  const ring = seen.find((s) => s.name === 'meridian');
+  assert.ok(ring.curviness > 0.75 && ring.curviness < 0.95,
+    `a circle crossed by a straight chord measured ${(ring.curviness * 100).toFixed(0)}% round`);
+
+  // so the strong claim needs a drawing that really is all curve, and there is
+  // one: tarnbrook is three waves and nothing else.
+  const waves = projectLoader.load(path.join(__dirname, '..', 'projects', 'tarnbrook', 'project.json'));
+  const wsrc = waves.assets[waves.master || (waves.assets.mark ? 'mark' : 'wordmark')].source;
+  const wm = PMARK.read(wsrc, measure(waves), waves.rules);
+  assert.strictEqual(wm.curviness, 1,
+    `a drawing of nothing but waves measured ${(wm.curviness * 100).toFixed(0)}% round`);
 });
 
 test('the pattern is never finer than twice the thinnest thing in the mark', () => {

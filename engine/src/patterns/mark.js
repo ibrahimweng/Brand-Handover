@@ -16,15 +16,36 @@
    as fine as the mark is. A mark drawn with a heavy stroke gets a coarse
    pattern and a fine one gets a fine pattern, which is the whole of it.
 
-   **How round is it?** The share of the drawing's path commands that are
-   curves. A mark built from straight lines gets a pattern with corners; one
-   built from arcs gets a pattern with none. It is a crude measure of a real
-   thing, and it is a measure rather than a preference.
+   **How round is it?** The share of the drawing's *turning* that happens on a
+   curve rather than at a corner. A mark built from straight lines gets a
+   pattern with corners; one built from arcs gets a pattern with none.
+
+   This used to count path command letters, and the file said so: "a crude
+   measure of a real thing". It was cruder than that. A <circle> scored four
+   curves whatever its radius; a rounded rectangle scored four curves and four
+   lines whether its corners were a hair or a half-stem; and yamabiko, which is
+   a drawing of mountain chevrons with no curve anywhere in it, scored 0.50 and
+   got half a pattern's worth of rounding it had never asked for. Winterbourne,
+   an arc over four straight bars, scored 0.20 — and the bars are separate
+   strokes that meet nothing, so every turn in that drawing is on the arc.
+
+   Now it is measured off the geometry: every place the outline changes
+   direction, how far it turns there, and whether it turns on a curve or at a
+   point. Yamabiko reads 0.00 and winterbourne 1.00, which is what anyone
+   looking at them would say.
+
+   **At what radius does it turn?** The radius most of that turning happens at,
+   in units of the mark's own narrowest run of ink. A mark that turns inside its
+   own stem is making tight, worked gestures; one that turns over eight stems is
+   making broad ones. Nothing measured this before, and `zigzag` wanted it: its
+   tooth depth was the number 0.9, the same for every identity in the
+   repository.
 
    **How wide is it?** The ink box's proportion, which decides whether a tile is
    square or runs one way. */
 'use strict';
 const svgu = require('../svg');
+const outline = require('./outline');
 
 // Path commands, counted by kind. Curves are C S Q T A; lines are L H V and the
 // straight closes. M is neither — it starts a run rather than drawing one.
@@ -54,11 +75,19 @@ function read(markSource, measured, rules) {
   const ms = (measured && measured.minimumSize) || {};
   const stem = ms.thinnestStroke || (rules && rules.minStrokePx) || 1;
   const ink = (measured && measured.markInk) || { w: box.w, h: box.h };
+  // How the outline turns, which is two of the four numbers below.
+  const how = outline.character(outline.movesOf(markSource), stem);
   return {
     // how many of the mark's own narrowest runs fit across it
     fineness: stem > 0 ? box.w / stem : 24,
-    // 0 is all corners, 1 is all curves
-    curviness: curviness(markSource),
+    // 0 is all corners, 1 is all curves — of the *turning*, not of the commands
+    curviness: Math.round(how.round * 1000) / 1000,
+    // the radius most of that turning happens at, in stems
+    turn: Math.round(how.turn * 100) / 100,
+    // and whether the drawing had any turning to measure. Three straight bars
+    // that never meet say nothing about corners, and a drawing that says
+    // nothing gets corners rather than the benefit of the doubt.
+    turned: how.found,
     // wider than tall, or taller than wide
     aspect: ink.h > 0 ? ink.w / ink.h : 1,
     stem,
@@ -69,3 +98,5 @@ function read(markSource, measured, rules) {
 }
 
 module.exports = { read, curviness };
+// `curviness` is still exported: it is what the old measure did, kept so the
+// test that compares the two can show why the new one replaced it.

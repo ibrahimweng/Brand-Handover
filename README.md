@@ -3359,3 +3359,54 @@ One claim did have to shrink. Thickness no longer separates anything — weave
 measures 12.2 to 46.2 px across six identities and zigzag 7.8 to 27.1, which
 overlap. Axiality still does. The test now asserts the smaller claim and records
 the overlap, so nobody reaches for thickness later believing it discriminates.
+
+---
+
+**The stripe, taking its character from the mark**
+
+`zigzag` could not hold a motif — interlocking stripes have no cell to put a
+shape in — so on the motif route it was simply not offered. The other way to
+make a pattern *of* an identity is to take the drawing's character rather than
+its shapes, and that meant measuring something the engine had never measured.
+
+**`curviness` counted path command letters.** The file said so in its own
+header: "a crude measure of a real thing". It was cruder than that. A `<circle>`
+scored four curves whatever its radius. A rounded rectangle scored four curves
+and four lines whether its corners were a hair or a half-stem. And **yamabiko —
+a drawing of mountain chevrons, with no curve anywhere in the file — scored
+0.50**, so every pattern it was ever given carried half a pattern's worth of
+rounding it had never asked for.
+
+`winterbourne` is the same error the other way: an arc over four straight bars.
+The bars are separate strokes that meet nothing, so every turn in that drawing
+is on the arc. It scored 0.20 and got a nearly-sharp stripe.
+
+So it is measured off the geometry now — every place the outline changes
+direction, how far it turns there, and whether it turns on a curve or at a
+point. Yamabiko reads 0.00 and winterbourne 1.00, which is what anybody looking
+at them would say. Across the repository the two measures disagree by more than
+0.3 on eight of the thirty-three marks, and every disagreement resolves in the
+new one's favour when you put the drawing next to the number.
+
+**And tooth depth was the number 0.9, for every identity.** Stripe came off the
+scale rule and rounding off curviness; depth — which is most of what a zigzag
+looks like — came off nothing at all. It now comes from the radius the mark
+turns at: a drawing that turns inside a couple of its own stems is making tight,
+worked gestures and gets a tooth that cuts; one that turns over six or more is
+making broad ones and gets a tooth that leans.
+
+Two things had to be right and neither was obvious. **The radius is a median
+weighted by turning, not a mean** — pagrin turns 91% of its total at hard
+corners and averages 31.7 stems, because the remaining 9% happens on two
+enormous sweeps, so a mean sends the most angular drawing in the repository to
+the shallowest tooth there is. And **a drawing whose strokes never meet has no
+turning to measure** — deben is three bars that do not touch, and the answer
+there is not "no corners were found, so it must be round".
+
+Five reversions, five caught — but only after the fifth was written properly.
+The median-versus-mean reversion passed the first time, because tooth depth is
+monotone in the radius whatever the radius says, so a test that only checks the
+ordering cannot see it. What catches it is the claim the median is actually for:
+every mark that turns mostly at a corner cuts 1.15 where the roundest cut 1.05
+at most. On a mean, hallward cuts 0.6 against cusp's 0.96, and the check names
+them.
