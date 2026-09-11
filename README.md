@@ -3232,3 +3232,82 @@ ship and least likely to notice. There is a check for that now, and it caught
 one: the Japanese for ink here is 墨, in three existing strings, and my new table
 row said インク. Two words for ink on facing pages of one manual. The machine
 part is done by machine; the rest still wants a reader.
+
+---
+
+**A texture is not a pattern, and three numbers are not a logo**
+
+Two rounds of pattern work landed and then the brief arrived, which is the
+right order for a brief to arrive in. Four decisions came out of it, and all
+four were about the same thing: a pattern has to be *of* the identity, not
+merely *derived from* it.
+
+**`terrace` is deleted.** It made posterised contour bands after Terrain and it
+was the engine's only raster generator. Six rounds went into it — a Nyquist cap
+on octaves, dither hashed on the wrapped cell so the grain tiled, a soft `wash`
+ground reached by coupling two knobs worthless apart, a rule that sized the
+file to what the picture was worth. None of it was wrong and all of it was
+beside the point: a posterised noise field is a *texture*, and it carries
+nothing of the identity that made it. Asked whether to demote it or delete it,
+the answer was delete — a generator the engine is told never to choose is a
+generator nobody maintains. Every pattern is vector now, so no file in a
+package has a size beyond which it stops being sharp, and there is one fewer
+caveat to print about a client's own artwork.
+
+**The five generators only ever knew three numbers about the logo.** How fine
+it is, how much of it curves, how wide against tall. That is enough to set a
+scale and pick a style, and it is not enough to make a pattern anyone would
+call theirs. The mark-tiler has read the actual shapes since the first round —
+it ranks every shape in the drawing by how well it carries a repeat, and its
+`lines` construction is rules at the weight the mark is drawn in while `arcs`
+is quarter turns at its own curve — but nothing generative could reach them.
+
+So the shape is now something a generator can draw. `motif-read.js` parses it
+once, in Node, into move-line-cubic through `paths.js` — the same reduction the
+print path already makes, for the same reason every drawing system agrees on
+those three. The result travels in `brand.json`, so the studio redraws it
+offline a year later with no SVG anywhere near it, and the generator has no
+branch for what kind of shape the client happened to draw.
+
+**Which a screenshot caught three bugs in, and no measurement would have.**
+Eight marks read; five looked right. `salvage` and `carrock` are rings drawn as
+*strokes*, and filling their paths turned them into solid blobs. `deben`
+reported six moves and drew nothing, because an open path with no enclosed area
+fills to nothing. `pattern.js` has answered fill-or-stroke since the tiler was
+written; the fix was to read its answer rather than form a second one.
+
+**Three routes, and the eighth question.** `literal` is the mark's shapes
+repeated. `motif` is a generated ground whose cells hold the mark's own shape.
+`inspired` is generated from what the mark measures, in new geometry. The
+engine can measure a drawing; it cannot measure how closely a client wants
+their pattern tied to their logo. That is a brief, not a fact about the
+artwork, and it was the one thing about the pattern nobody was asked while the
+whole engine turned on it. The door asks seven questions — eight now, and the
+count is the guard rather than the rule. The rule is that nothing is asked
+which can be measured.
+
+**Two generators can hold a shape and two cannot**, which the route is told
+rather than allowed to fudge. `zigzag` is interlocking stripes and `thread` is
+streamlines: neither has a cell to put a motif in, and handing them one
+produces a tile identical to the inspired route under a name claiming it is
+made of the client's logo. So the motif route narrows to `weave` and `field`.
+Both are still built and still in the studio.
+
+**`weave` was placing the motif where three of its styles have nowhere to put
+it.** It puts the mark on the cells its own arithmetic already made the accent
+colour, which is the right place — sparse, spread by the style's own
+reasoning. Except `basket`, `zigzag` and `waves` have 0.0% accent cells at some
+settings, so the motif would never have been drawn while the tile went on
+saying it was made of the client's mark. Below a floor the placement falls back
+to a hash. A pattern that quietly is not what it claims is worse than one that
+is plainly something else.
+
+**And one thing is deliberately left open.** `field` on the motif route reads
+busy — the mark ends up sitting on a speckle, so it looks like camouflage with
+a logo in it rather than a pattern made of one. The motif is not the problem:
+`field` samples three noise fields per cell whatever route it is on, which is
+the thing this round was told to stop making. Whether `field`'s looks belong at
+all is a decision about what that generator is for, not about how a motif is
+placed, and it is not smuggled in under a change about placement. For now the
+route prefers `weave`, and `field` is kept for marks too fine for weave's
+cells.

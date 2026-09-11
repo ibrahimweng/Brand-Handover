@@ -149,7 +149,6 @@ function studioHtml(project, measured, made, chose, tile) {
 <script>${read('generators/zigzag.js')}</script>
 <script>${read('generators/field.js')}</script>
 <script>${read('generators/thread.js')}</script>
-<script>${read('generators/terrace.js')}</script>
 <script>${read('index.js')}</script>
 <script>window.PATTERN_BUNDLE=${JSON.stringify(bu)};</script>
 <script>${read('studio.js')}</script>

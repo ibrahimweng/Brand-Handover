@@ -28,9 +28,9 @@
 // UMD, because the studio shipped in the package draws these in a browser and a
 // generator with two copies is two patterns waiting to disagree.
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('../rand'), require('../noise'));
-  else root.PatternWeave = factory(root.PatternRand, root.PatternNoise);
-}(typeof self !== 'undefined' ? self : this, function (RAND, NOISE) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('../rand'), require('../noise'), require('../motif'));
+  else root.PatternWeave = factory(root.PatternRand, root.PatternNoise, root.PatternMotif);
+}(typeof self !== 'undefined' ? self : this, function (RAND, NOISE, MOTIF) {
   'use strict';
 
   const STYLES = ['bands', 'plaid', 'basket', 'dither', 'steps', 'diamond', 'cross',
@@ -353,6 +353,7 @@
   // Run-length merged, so identical neighbours in a row become one rectangle.
   function paint(surface, W, H, p, palette) {
     const q = plan(p);
+    const motif = p.motif || null;
     const C = q.C;
     const cw = W / C, ch = H / C;
     const R3 = (n) => Math.round(n * 1000) / 1000;
@@ -373,6 +374,39 @@
         x += n;
       }
     }
+    // The identity's own shape, on the cells that carry the fourth ink.
+    //
+    // Not on a hash of its own and not on every cell. `weave` already decides
+    // which cells are the pop colour — the one that appears least, which is
+    // what makes a blanket look woven rather than printed — and those are
+    // exactly the cells a motif belongs on: sparse, spread by the style's own
+    // arithmetic, and already a deliberate accent rather than a texture.
+    //
+    // Except that three styles have no pop cells at all. `basket` is two
+    // threads on a ground, `zigzag` and `waves` run a two-ink cycle when the
+    // band count is not a multiple of four — measured at 0.0% for all three —
+    // so a motif placed this way would never be drawn while the tile went on
+    // saying it was made of the client's mark. A pattern that quietly is not
+    // what it claims is worse than one that is plainly something else, so
+    // below a floor the placement falls back to a hash and the mark appears
+    // either way.
+    if (motif && MOTIF) {
+      let pop = 0;
+      for (let y = 0; y < C; y++) for (let x = 0; x < C; x++) if (cellAt(x, y, q) === 3) pop++;
+      const onPop = pop / (C * C) >= 0.04;
+      const r = Math.min(cw, ch) * 0.44;
+      for (let y = 0; y < C; y++) {
+        for (let x = 0; x < C; x++) {
+          const here = onPop ? cellAt(x, y, q) === 3
+            : RAND.hash01(x, y, q.seed + 911) < 0.09;
+          if (!here) continue;
+          // On ink in the ground's colour and on ground in the ink's, so the
+          // mark reads either way rather than vanishing on half the tile.
+          surface.fillStyle = cellAt(x, y, q) === 0 ? palette.ink(0) : palette.ground;
+          MOTIF.draw(surface, motif, R3((x + 0.5) * cw), R3((y + 0.5) * ch), R3(r));
+        }
+      }
+    }
   }
 
   const controls = [
@@ -382,6 +416,6 @@
     { group: 'pattern', key: 'seed', label: 'Seed', type: 'seed' },
   ];
 
-  return { key: 'weave', vector: true, styles: STYLES, controls,
+  return { key: 'weave', vector: true, motif: true, styles: STYLES, controls,
     plan, cellAt, paint, divisorNear };
 }));

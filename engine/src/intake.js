@@ -281,6 +281,45 @@ function questions(seen) {
           + 'a browser would draw it as. Change them to the ones this identity actually uses.',
       suggested: seen.colours },
 
+    // The eighth, and the only one about the pattern.
+    //
+    // There were seven, and the pattern was decided entirely by measurement:
+    // the engine read the mark, picked a generator and drew one. That is a fine
+    // default and a poor rule, because the one thing a pattern has to be — how
+    // closely it is tied to the identity — was the one thing nobody was asked.
+    // Two clients with the same measurements got the same relationship to their
+    // own logo whether they wanted a repeat of it or a pattern that merely
+    // rhymes with it.
+    //
+    // The three answers are three different claims about the artwork, and each
+    // one is checkable by looking at what comes out:
+    //
+    //   literal    the pattern is the mark's shapes, repeated. `pattern.js`.
+    //   motif      a generated ground whose cells hold the mark's own shape.
+    //   inspired   generated from what the mark measures, in new geometry.
+    //
+    // Not asked: a "random" one. Every pattern here is seeded and reproducible,
+    // and a client asking for randomness is asking for variety, which is what
+    // the three routes and the studio are for.
+    { key: 'patternRoute', kind: 'pick-one', ask: 'How close to the logo should the pattern be?',
+      why: 'The pattern is drawn from your artwork either way — this decides how literally. Every one of the '
+        + 'three is seamless, vector, and yours to change afterwards in the studio; this is the one the '
+        + 'package opens on and the one the manual argues for.',
+      suggested: 'motif',
+      options: [
+        { value: 'literal', label: 'Made of the logo',
+          note: 'The shapes in your drawing, repeated — as a grid, a half-drop, brickwork, mirrored, scattered, '
+            + 'as rules at the weight the mark is drawn in, or as arcs at its own curve. Nine constructions, '
+            + 'every dimension measured off the artwork.' },
+        { value: 'motif', label: 'The logo, on a ground the engine builds',
+          note: 'A generated pattern whose cells carry your own shape. Further from a plain repeat, still made '
+            + 'of your artwork rather than merely derived from it. This is the one most identities want.' },
+        { value: 'inspired', label: 'In the spirit of the logo',
+          note: 'Generated from what the drawing measures — how fine it is, how much of it curves, which way it '
+            + 'runs — and drawn in new geometry. The furthest from the logo, and the most room to be a pattern '
+            + 'in its own right.' },
+      ] },
+
     { key: 'never', kind: 'pick-many', ask: 'What must never be done to it?',
       why: 'Each of these is drawn on the misuse page with your own artwork — the treatment performed, not '
         + 'described. Pick the ones that matter for this identity; the engine has ticked the ones that apply '
@@ -344,6 +383,12 @@ function toProject(answers, seen) {
   // plan asks for: the parameters go into project.json rather than into one
   // build's output, so every rebuild from that file returns the same pattern —
   // and so what the client is handed is the recipe rather than the picture.
+  // The route the eighth question set. It lives beside the pattern rather than
+  // inside it, because it is a decision about every pattern the package makes
+  // and not about one of them.
+  if (a.patternRoute) {
+    base.system = Object.assign({}, base.system, { patternRoute: a.patternRoute });
+  }
   if (a.pattern && a.pattern.generator) {
     base.system = Object.assign({}, base.system, {
       patterns: { generator: a.pattern.generator, params: a.pattern.params || {} },

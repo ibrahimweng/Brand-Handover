@@ -24,13 +24,17 @@
    dissolving into noise. It is one lerp and it is most of what the pattern
    looks like. */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('../rand'), require('../noise'));
-  else root.PatternField = factory(root.PatternRand, root.PatternNoise);
-}(typeof self !== 'undefined' ? self : this, function (RAND, NOISE) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('../rand'), require('../noise'), require('../motif'));
+  else root.PatternField = factory(root.PatternRand, root.PatternNoise, root.PatternMotif);
+}(typeof self !== 'undefined' ? self : this, function (RAND, NOISE, MOTIF) {
   'use strict';
 
   const LOOKS = ['patchwork', 'bloom', 'quilt', 'scatter', 'drift'];
-  const MARKS = ['none', 'dot', 'ring', 'square', 'wedge'];
+  // `own` is the identity's own shape, handed in as `p.motif` — a list of moves
+  // read off the artwork by motif-read.js. It is the difference between a
+  // pattern that was *derived from* a logo by three numbers and one that is
+  // made of it.
+  const MARKS = ['none', 'dot', 'ring', 'square', 'wedge', 'own'];
   const mod = (n, p) => ((n % p) + p) % p;
 
   // The divisor of n nearest to `want` — the same mechanism weave uses, and for
@@ -62,7 +66,8 @@
       C, seed: p.seed || 1,
       fill: p.fill, grain: p.grain, patchiness: p.patchiness,
       blockiness: p.blockiness, speckle: p.speckle, spread: p.spread || 0,
-      mark: p.mark || 'none', markAmount: p.markAmount == null ? 0 : p.markAmount,
+      mark: p.mark || 'none', motif: p.motif || null,
+      markAmount: p.markAmount == null ? 0 : p.markAmount,
       markSize: p.markSize == null ? 0.52 : p.markSize,
     };
     // The three periods, each a divisor of the cell count and each a different
@@ -113,7 +118,15 @@
   // A glyph in the middle of a cell. The one place this draws anything that is
   // not a rectangle, and it is what stops a field of squares reading as a
   // spreadsheet.
-  function glyph(s, kind, cx, cy, r) {
+  function glyph(s, kind, cx, cy, r, motif) {
+    if (kind === 'own') {
+      // Asked for the identity's own shape and not given one, this draws
+      // nothing — not a dot, and not a square. A cell quietly holding some
+      // other shape is a pattern that says it is made of the mark and is not,
+      // which is the one claim this whole route exists to make truthfully.
+      if (motif && MOTIF) MOTIF.draw(s, motif, cx, cy, r);
+      return;
+    }
     if (kind === 'dot') { s.beginPath(); s.arc(cx, cy, r, 0, Math.PI * 2); s.fill(); return; }
     if (kind === 'ring') {
       s.lineWidth = r * 0.62; s.strokeStyle = s.fillStyle;
@@ -158,7 +171,7 @@
           // ink's — so it reads either way rather than disappearing on half
           // the tile
           surface.fillStyle = v >= 0 ? palette.ground : palette.ink(0);
-          glyph(surface, q.mark, R3((x + 0.5) * cw), R3((y + 0.5) * ch), R3(r));
+          glyph(surface, q.mark, R3((x + 0.5) * cw), R3((y + 0.5) * ch), R3(r), q.motif);
         }
       }
     }
@@ -180,6 +193,6 @@
     { group: 'pattern', key: 'seed', label: 'Seed', type: 'seed' },
   ];
 
-  return { key: 'field', vector: true, styles: LOOKS, looks: LOOK, marks: MARKS,
+  return { key: 'field', vector: true, motif: true, styles: LOOKS, looks: LOOK, marks: MARKS,
     controls, plan, cellAt, paint, divisorNear };
 }));

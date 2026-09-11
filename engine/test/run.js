@@ -998,6 +998,8 @@ const PWEAVE = require('../src/patterns/generators/weave');
 const PZIG = require('../src/patterns/generators/zigzag');
 const PPAL = require('../src/patterns/palette');
 const PMARK = require('../src/patterns/mark');
+const PMOTIF = require('../src/patterns/motif');
+const PMOTIFREAD = require('../src/patterns/motif-read');
 
 test('every weave style repeats exactly, at every cell count, in both directions', () => {
   // Not measured in pixels and not looked at: a style is an integer expression
@@ -1096,70 +1098,6 @@ test('the wrap carries the values; the parity carries the picture', () => {
   }
 });
 
-test('a soft ground ships the pixels its picture is worth, and says so honestly', () => {
-  // `wash` was reachable for the first time this round, and the package went
-  // from 2.7 MB to 11.4 — over what a hosted function can answer with, for a
-  // one-lockup build. A 2400 px render of smoothly blended bands carries 662
-  // distinct colours and compresses to 4.84 MB; the hard-posterised ground it
-  // replaced carries two and compresses to 0.23.
-  //
-  // The answer is not to make the soft ground unreachable again. It is that a
-  // smooth picture is not worth 2400 px: there is no edge whose position more
-  // pixels would place more precisely. So it ships smaller, at the resolution
-  // that keeps the millimetres the manual prints — and the claim is measured
-  // here rather than asserted, with the contour ground beside it to show the
-  // distinction is real and not an excuse.
-  const pal = PPAL.of({ paper: { hex: '#FFFFFF', role: 'ground' }, ink: { hex: '#0A2A33' } }, null);
-  const base = { warp: 1, contrast: 1, bands: 6, spread: 0, seed: 1, scale: 2, grid: 48 };
-  const wash = Object.assign({}, base, { style: 'wash', soften: 1, dither: 0 });
-  const contour = Object.assign({}, base, { style: 'strata', soften: 0, dither: 0.3 });
-
-  const asked = PTERRACE.sheetFor(wash, 2400);
-  const full = PTERRACE.sheetFor(contour, 2400);
-  assert.ok(asked.pixels < 2400, 'a wash still asks for the whole page');
-  assert.strictEqual(full.pixels, 2400,
-    'a contour ground was shrunk too, and placing an edge is what pixels are for');
-  // The millimetres do not move. They are the number the package prints and a
-  // client plans a press run against; the resolution behind them is ours.
-  const mmOf = (a) => PRAST.printedAt({ width: a.pixels, height: a.pixels }, a.dpi || undefined).mm;
-  assert.strictEqual(mmOf(asked), mmOf(full),
-    `a wash says it prints to ${mmOf(asked)} mm where a contour ground says ${mmOf(full)}`);
-
-  // Returned to the page the way a printer would return it — bilinear, which
-  // is the cheapest thing any of them does — how far is it from the render it
-  // stands in for?
-  const REF = 2400, N = asked.pixels;
-  const lost = (p) => {
-    const ref = PTERRACE.render(REF, REF, p, pal).data;
-    const small = PTERRACE.render(N, N, p, pal).data;
-    let sum = 0, count = 0;
-    for (let y = 0; y < REF; y += 3) {
-      for (let x = 0; x < REF; x += 3) {
-        const sx = ((x + 0.5) * N) / REF - 0.5, sy = ((y + 0.5) * N) / REF - 0.5;
-        const x0 = Math.max(0, Math.min(N - 1, Math.floor(sx))), y0 = Math.max(0, Math.min(N - 1, Math.floor(sy)));
-        const x1 = Math.min(N - 1, x0 + 1), y1 = Math.min(N - 1, y0 + 1);
-        const fx = sx - x0, fy = sy - y0;
-        for (let k = 0; k < 3; k++) {
-          const a = small[(y0 * N + x0) * 4 + k], b = small[(y0 * N + x1) * 4 + k];
-          const c = small[(y1 * N + x0) * 4 + k], d = small[(y1 * N + x1) * 4 + k];
-          sum += Math.abs((a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy
-            - ref[(y * REF + x) * 4 + k]);
-          count++;
-        }
-      }
-    }
-    return sum / count;
-  };
-  const soft = lost(wash), hard = lost(contour);
-  assert.ok(soft < 2, `a wash written at ${N} px and returned to ${REF} differs from the `
-    + `${REF} px render by ${soft.toFixed(2)} levels in 255, which is more than half a percent`);
-  // and the control, which is the whole argument: if a contour ground lost no
-  // more than a wash at the same size, then nothing about softness earns the
-  // smaller file and every ground should have one.
-  assert.ok(hard > soft * 2, `a contour ground at ${N} px lost ${hard.toFixed(2)} levels against `
-    + `a wash's ${soft.toFixed(2)}, so softness is not what makes the smaller file honest`);
-});
-
 test('rings draws rings, at every cell count the control offers', () => {
   // Not a general claim about styles — `basket` is two threads on a ground and
   // `bands` is bricks in two colours, and asking either for four inks would be
@@ -1183,6 +1121,120 @@ test('rings draws rings, at every cell count the control offers', () => {
   }
 });
 
+test('a motif is drawn the way the artwork drew it, filled or stroked', () => {
+  // Three of the first eight motifs came out wrong and nothing measured said
+  // so. `salvage` and `carrock` are rings drawn as strokes, and filling an open
+  // arc turns it into a solid blob; `deben` reported six moves and drew
+  // nothing, because an open path with no enclosed area fills to nothing. The
+  // move counts were right, the bounding boxes were right. It took looking.
+  //
+  // So this is the measurement that would have caught it, over every identity
+  // in the repository rather than the eight I happened to draw.
+  const inkOf = (m) => {
+    const s = PSURF.svg({ width: 160, height: 160, id: 'motif-ink' });
+    s.fillStyle = '#000000';
+    PMOTIF.draw(s, m, 80, 80, 72);
+    const img = PSEAM.pixels('<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" '
+      + `viewBox="0 0 160 160"><rect width="160" height="160" fill="#ffffff"/>${s.body()}</svg>`, 160);
+    let n = 0;
+    for (let i = 0; i < img.px.length; i += 4) if (img.px[i] < 128) n++;
+    return n / (img.w * img.h);
+  };
+  const names = fs.readdirSync(path.join(__dirname, '..', 'projects'))
+    .filter((n) => fs.existsSync(path.join(__dirname, '..', 'projects', n, 'project.json')));
+  let stroked = 0, moved = 0;
+  for (const name of names) {
+    const pr = projectLoader.load(path.join(__dirname, '..', 'projects', name, 'project.json'));
+    const src = pr.assets.mark ? pr.assets.mark.source : (pr.assets.wordmark || {}).source;
+    if (!src) continue;
+    const m = PMOTIFREAD.read(src, pr.rules, measure(pr));
+    assert.ok(m.ok, `${name}: no motif could be read off the artwork — ${m.why}`);
+    // It draws something. deben's bug read 0.0% here; the thinnest real motif
+    // in the repository is ancroft at 2.9%.
+    const right = inkOf(m);
+    assert.ok(right > 0.02, `${name}'s motif drew ${(right * 100).toFixed(1)}% ink, which is nothing`);
+    if (!m.stroked) continue;
+    stroked++;
+    // and the flag is load-bearing: drawing a stroked mark as a fill either
+    // blows it up — carrock 11% to 62%, harbourne 18% to 62% — or erases it, as
+    // deben does, 18.4% to nothing at all.
+    //
+    // Twenty of the twenty-one, not all of them. `tarnbrook` reads 1.02, and
+    // that is not a fault in the flag: its mark is a closed shape whose fill
+    // and whose stroke cover about the same area, so there is nothing for the
+    // flag to change. A claim that every stroked mark must move was written
+    // here first, off a sorted list I had only read the ends of, and this test
+    // caught it on the first run.
+    const wrong = inkOf(Object.assign({}, m, { stroked: false }));
+    if (Math.max(right, wrong) / Math.max(1e-6, Math.min(right, wrong)) >= 1.4) moved++;
+  }
+  assert.ok(stroked >= 12, `only ${stroked} identities draw their mark with a stroke, `
+    + 'so this says little about the case that was broken');
+  assert.ok(moved >= stroked - 2, `drawing a stroked mark as a fill changed what was drawn for `
+    + `only ${moved} of ${stroked} identities, so the flag is not doing anything`);
+});
+
+test('a pattern that says it is made of the mark is made of the mark', () => {
+  // `weave` puts the motif on the cells its own arithmetic already made the
+  // accent colour — which is the right place, and which three of its styles do
+  // not have. `basket` is two threads on a ground; `zigzag` and `waves` run a
+  // two-ink cycle when the band count is not a multiple of four. All three
+  // measure 0.0% accent cells at some settings, so the motif would never have
+  // been drawn while the tile went on saying it was made of the client's mark.
+  //
+  // A pattern that quietly is not what it claims is worse than one that is
+  // plainly something else, so this asks every style whether the claim holds.
+  const pr = projectLoader.load(path.join(__dirname, '..', 'projects', 'deben', 'project.json'));
+  const m = PMOTIFREAD.read(pr.assets.mark.source, pr.rules, measure(pr));
+  assert.ok(m.ok, 'deben has no motif to place');
+  const pal = PPAL.of({ paper: { hex: '#EFE9DF', role: 'ground' }, ink: { hex: '#1E2024' },
+    two: { hex: '#C2551F' }, three: { hex: '#5E6E4C' } }, null);
+  for (const style of PWEAVE.styles) {
+    for (const cells of [16, 24, 36, 48]) {
+      const p = { cells, chunk: 1, style, seed: 1 };
+      const bare = PSURF.svg({ width: 240, height: 240, id: `bare-${style}` });
+      PWEAVE.paint(bare, 240, 240, p, pal);
+      const with_ = PSURF.svg({ width: 240, height: 240, id: `with-${style}` });
+      PWEAVE.paint(with_, 240, 240, Object.assign({}, p, { motif: m }), pal);
+      assert.notStrictEqual(with_.body(), bare.body(),
+        `${style} at ${cells} cells drew the same tile with the motif as without it, `
+        + 'so the pattern claims to be made of the mark and is not');
+    }
+  }
+});
+
+test('the motif route only reaches for a generator that can hold a shape', () => {
+  // `zigzag` is interlocking stripes and `thread` is streamlines: neither has a
+  // cell to put a shape in. Handing one a motif would produce a tile identical
+  // to the inspired route, under a name saying it is made of the client's logo.
+  for (const g of PENG.NAMES) {
+    const has = !!PENG.GENERATORS[g].motif;
+    assert.strictEqual(typeof PENG.GENERATORS[g].motif === 'undefined' ? false : has, has,
+      `${g} is unclear about whether it can hold a motif`);
+  }
+  const can = PENG.NAMES.filter((g) => PENG.GENERATORS[g].motif);
+  assert.ok(can.length >= 2, `only ${can.length} generators can hold a motif`);
+  for (const aspect of [0.4, 1, 3, 6]) {
+    for (const fineness of [6, 15, 25, 35, 50, 80]) {
+      for (const curviness of [0, 0.3, 0.6, 1]) {
+        const m = { aspect, fineness, curviness };
+        const g = PENG.suits(m, 'motif');
+        assert.ok(can.indexOf(g) > -1,
+          `the motif route chose ${g}, which cannot hold one, for a mark measuring `
+          + `${fineness} fine and ${curviness} curved`);
+      }
+    }
+  }
+  // and the route is what narrows it: without one, the same marks reach the
+  // generators that cannot, or this says nothing about the route at all.
+  const loose = new Set();
+  for (const fineness of [6, 25, 50]) for (const curviness of [0, 0.6, 1]) {
+    loose.add(PENG.suits({ aspect: 1, fineness, curviness }, 'inspired'));
+  }
+  assert.ok([...loose].some((g) => can.indexOf(g) === -1),
+    'no mark reaches a generator without a motif on any route, so narrowing proves nothing');
+});
+
 test('every style a generator offers is one the engine can arrive at', () => {
   // A style the chooser never reaches is a style the package does not really
   // have: it is in the studio's chip row and in the schema, and no identity
@@ -1190,7 +1242,7 @@ test('every style a generator offers is one the engine can arrive at', () => {
   //
   // Asked for the first time when weave grew from eight styles to fourteen,
   // and it found three more that had nothing to do with weave. `thread` had
-  // three slots for four flows and `terrace` three for five grounds, so
+  // three slots for four flows, so
   // `tangle`, `drift` and `wash` were reachable by hand and by nothing else —
   // `wash` being the one ground that draws a soft edge, which is the entire
   // reason it was added.
@@ -1213,27 +1265,6 @@ test('every style a generator offers is one the engine can arrive at', () => {
       `${g} offers ${gen.styles.length} styles and the engine can arrive at ${seen.size}: `
       + `${missed.join(', ')} ${missed.length === 1 ? 'is' : 'are'} reachable by hand and no other way`);
   }
-});
-
-test('choosing a ground chooses its settings, not only its name', () => {
-  // `plan` fills in a style's value only for a key nobody set, and `derive`
-  // used to set bands and dither for every terrace ground — so a ground
-  // arrived with six bands and a dither of 0.3 whatever it defined. It showed
-  // up as `wash`, whose definition is no dither and a soft edge, drawing
-  // contours. The check is the measurement the generator already exposes.
-  const wash = PENG.derive('terrace', { aspect: 1, fineness: 30, curviness: 0.9 });
-  assert.strictEqual(wash.style, 'wash', 'a round upright mark no longer reaches the soft ground');
-  const own = PTERRACE.defaultsFor('wash');
-  for (const k of Object.keys(own)) {
-    if (k === 'scale') continue;            // the mark sets this one, on purpose
-    assert.strictEqual(wash[k], own[k],
-      `a wash arrived with ${k} = ${wash[k]} where the ground itself says ${own[k]}`);
-  }
-  // and the ground that is not a wash keeps the dither it asks for, or the
-  // assertion above is satisfied by handing every ground the same numbers.
-  const ridge = PENG.derive('terrace', { aspect: 6, fineness: 30, curviness: 0.1 });
-  assert.notStrictEqual(ridge.dither, wash.dither,
-    `${ridge.style} and wash arrived with the same dither, so the ground is not reaching plan`);
 });
 
 test('no weave style puts its loudest line where the tile meets itself', () => {
@@ -1467,7 +1498,6 @@ test('a tile built twice is the same bytes', () => {
 console.log('\nthe pattern engine: the field family');
 const PFIELD = require('../src/patterns/generators/field');
 const PTHREAD = require('../src/patterns/generators/thread');
-const PTERRACE = require('../src/patterns/generators/terrace');
 
 test('every field look repeats exactly, at every grid size, in both directions', () => {
   const bad = [];
@@ -1552,59 +1582,6 @@ test('the thread field is only offered at the scales whose joins measure clean',
   assert.deepStrictEqual(control.options.slice().sort(), Object.keys(PTHREAD.GRAINS).sort());
 });
 
-test('the terrace field repeats, and never asks its lattice for more than it can carry', () => {
-  const bad = [];
-  for (const style of PTERRACE.styles) {
-    for (const scale of [1, 2, 3, 5, 8]) {
-      const q = PTERRACE.plan({ style, scale, seed: 5, grid: 96 });
-      for (let k = 0; k < 120; k++) {
-        const u = ((k * 13.7) % 1000) / 1000, v = ((k * 29.3) % 1000) / 1000;
-        const c = 96, cx = Math.floor(u * c), cy = Math.floor(v * c);
-        if (PTERRACE.bandAt(u, v, q, cx, cy) !== PTERRACE.bandAt(u + 1, v, q, cx, cy)) bad.push(`${style} across`);
-        if (PTERRACE.bandAt(u, v, q, cx, cy) !== PTERRACE.bandAt(u, v + 1, q, cx, cy)) bad.push(`${style} down`);
-      }
-    }
-  }
-  assert.deepStrictEqual([...new Set(bad)], [], [...new Set(bad)].join(', '));
-  // Nyquist. Each octave doubles the frequency, so the finest lays down
-  // period x 2^(octaves-1) cycles across the tile; sample that on a grid of
-  // `grid` cells and you need two samples a cycle or it is not being drawn, it
-  // is being aliased. A five-octave field on a 24-cell lattice was sampling 48
-  // cycles at half a sample each, and shipped as speckle that looked deliberate.
-  const thin = [];
-  for (const style of PTERRACE.styles) {
-    for (const grid of [24, 48, 96, 160, 240]) {
-      for (const scale of [1, 3, 8]) {
-        const q = PTERRACE.plan({ style, scale, grid, seed: 1 });
-        const finest = q.period * Math.pow(2, q.octaves - 1);
-        if (grid / finest < 2) thin.push(`${style} at ${grid} cells samples ${finest} cycles ${(grid / finest).toFixed(2)} times each`);
-      }
-    }
-  }
-  assert.deepStrictEqual(thin, [], thin.join('\n'));
-  // and the cap actually binds, or this is checking nothing
-  assert.ok(PTERRACE.octavesFor(3, 24) < PTERRACE.STYLE.drift.octaves,
-    'a coarse lattice was allowed every octave, so the cap is not doing anything');
-});
-
-test('a raster pattern is raster on purpose, and says how large it prints', () => {
-  const p2 = projectLoader.load(path.join(__dirname, '..', 'projects', 'kvist', 'project.json'));
-  const m2 = measure(p2);
-  const t = PENG.tile({ markSource: p2.assets.mark.source, measured: m2, rules: p2.rules,
-    colours: p2.tokens.colour, colourway: p2.rules.colourways[0], generator: 'terrace' });
-  assert.strictEqual(t.vector, false, 'terrace claims to be vector');
-  const r = PENG.sheet(t, 1200);
-  assert.ok(r && r.png && r.png[0] === 0x89, 'it produced no PNG');
-  assert.strictEqual(r.width, 1200);
-  assert.ok(r.printedAt.mm > 90 && r.printedAt.mm < 110, `1200 px came out as ${r.printedAt.mm} mm`);
-  // twice over, the same bytes
-  assert.strictEqual(Buffer.compare(r.png, PENG.sheet(t, 1200).png), 0, 'two renders of one field differed');
-  // and a vector generator does not get a raster
-  const v = PENG.tile({ markSource: p2.assets.mark.source, measured: m2, rules: p2.rules,
-    colours: p2.tokens.colour, colourway: p2.rules.colourways[0], generator: 'weave' });
-  assert.strictEqual(PENG.sheet(v, 1200), null, 'a vector generator was handed a raster');
-});
-
 test('every generator draws every identity, and the tile never runs finer than the mark allows', () => {
   const names = fs.readdirSync(path.join(__dirname, '..', 'projects'))
     .filter((d) => fs.existsSync(path.join(__dirname, '..', 'projects', d, 'project.json'))).sort();
@@ -1637,8 +1614,7 @@ test('every generator draws every identity, and the tile never runs finer than t
       // the scale rule, where a generator's finest feature is a share of the tile
       const finest = g === 'weave' ? 1 / t.params.cells
         : g === 'field' ? 1 / t.params.cells
-          : g === 'terrace' ? 1 / t.params.grid
-            : g === 'zigzag' ? t.params.stripe : null;
+          : g === 'zigzag' ? t.params.stripe : null;
       if (finest == null) continue;
       const allowed = 1 / Math.max(2, mk.fineness / PENG.FINEST);
       // A cap or a floor decided instead of the mark. Both are judgements
@@ -1647,8 +1623,7 @@ test('every generator draws every identity, and the tile never runs finer than t
       // why they are allowed here and nothing else is.
       const atCap = (g === 'zigzag' && Math.abs(finest - PENG.COARSEST_STRIPE) < 1e-9)
         || (g === 'weave' && (t.params.cells === PENG.COARSEST_GRID || t.params.cells === PENG.LEAST_WEAVE))
-        || (g === 'field' && (t.params.cells === PENG.FINEST_GRID || t.params.cells === PENG.LEAST_FIELD))
-        || g === 'terrace';
+        || (g === 'field' && (t.params.cells === PENG.FINEST_GRID || t.params.cells === PENG.LEAST_FIELD));
       if (finest < allowed - 1e-9 && !atCap) {
         over.push(`${name}/${g}: ${(finest * 100).toFixed(2)}% of the tile against ${(allowed * 100).toFixed(2)}% allowed`);
       }
@@ -1819,15 +1794,16 @@ test('a pattern this engine drew is matched back to the generator that drew it',
   // What twenty runs say, over two identities at two resolutions:
   //
   //   weave, zigzag        right every time, by 0.026 to 0.465
-  //   field, thread, terrace   right seven times in ten, by 0.004 to 0.021
+  //   field, thread        right seven times in ten, by 0.004 to 0.021
   //
-  // So the claim is not "the matcher names the generator". It is that the two
-  // hard-edged generators are recovered exactly, and that the three field
-  // generators are one family under these six measurements — which is a fact
-  // about the measurements, not a fault in the search, and is the reason `fit`
+  // There was a third in that family, a contour field, and it is gone. The
+  // claim is unchanged and is still not "the matcher names the generator": the
+  // two hard-edged generators are recovered exactly, and the field generators
+  // are one family under these six measurements — a fact about the
+  // measurements rather than a fault in the search, and the reason `fit`
   // reports every generator that ties with the winner instead of one answer.
   const { make } = matchAgainst('meridian');
-  const FAMILY = ['field', 'thread', 'terrace'];
+  const FAMILY = ['field', 'thread'];
   for (const truth of PENG.NAMES) {
     const ref = PMATCH.asField(make(truth, null), 384);
     const r = PMATCH.fit(ref, make, { px: 256, rounds: 2 });
@@ -1937,21 +1913,6 @@ test('the same reference matches the same way twice', () => {
   assert.strictEqual(a.score, b.score);
   assert.deepStrictEqual(a.params, b.params);
   assert.deepStrictEqual(a.ranked, b.ranked);
-});
-
-test('a raster generator is measured through its own renderer, not its SVG', () => {
-  // terrace draws per pixel; its `paint` exists so a tile can go on a page and
-  // is at the lattice, not the pixel. Measuring the SVG would measure the
-  // coarse stand-in and match against a picture the package never ships.
-  const { make } = matchAgainst('meridian');
-  const t = make('terrace', null);
-  assert.strictEqual(t.vector, false, 'terrace claims to be vector');
-  const f = PMATCH.asField(t, 128);
-  assert.strictEqual(f.width, 128);
-  const g = PENG.GENERATORS.terrace;
-  const direct = g.render(128, 128, t.params, t.pal);
-  assert.strictEqual(Buffer.compare(Buffer.from(f.data), Buffer.from(direct.data)), 0,
-    'asField did not read terrace through terrace');
 });
 
 test('a brand that brings its own pattern gets one measured against it', async () => {
@@ -2100,7 +2061,7 @@ test('the canvas carries the pattern engine, byte for byte, and the recipe the b
   // studio. Same files, byte for byte, exactly once.
   const files = ['rand.js', 'noise.js', 'surface.js', 'palette.js', 'index.js',
     'generators/weave.js', 'generators/zigzag.js', 'generators/field.js',
-    'generators/thread.js', 'generators/terrace.js'];
+    'generators/thread.js'];
   for (const f of files) {
     const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'patterns', f), 'utf8');
     const at = html.indexOf(src);
@@ -2117,7 +2078,7 @@ test('the canvas carries the pattern engine, byte for byte, and the recipe the b
 
 test('a project whose pattern was matched hands the canvas the matched parameters', async () => {
   // The manual had this fault and it was fixed there; the canvas is the same
-  // fault one file along. Re-deriving from the mark gives salvage terrace,
+  // fault one file along. Re-deriving from the mark gives salvage thread,
   // while its reference chose weave — so the canvas would draw a pattern that
   // is in no other part of the package.
   const p2 = projectLoader.load(path.join(__dirname, '..', 'projects', 'salvage', 'project.json'));
@@ -2270,107 +2231,16 @@ test('the pattern strings use the words the rest of the dictionary already uses'
   assert.deepStrictEqual(wrong, [], wrong.join('\n'));
 });
 
-test('the engine draws a soft edge, and says so with a number', () => {
-  // Every generator here quantises — to a cell, a stripe, a stroke or a band —
-  // so for five rounds the softest edge any of them drew measured 1.0 px, where
-  // a knife edge is 1.0 and a four-pixel ramp is 0.25. A client whose pattern is
-  // an airbrushed gradient could be told only that this engine does not draw
-  // one. `terrace` now has a look that does.
-  const T = require('../src/patterns/generators/terrace');
-  const pal = { ground: '#F0ECE4', inks: [{ hex: '#1B3A2F' }, { hex: '#C25A34' }, { hex: '#8FA89B' }] };
-  const width = (style) => PMEAS.hardness(T.render(384, 384, { style, grid: 96, seed: 1 }, pal)).width;
-  const contour = T.styles.filter((x) => x !== 'wash').map(width);
-  assert.deepStrictEqual([...new Set(contour)], [1],
-    `the contour looks measured ${contour.join(', ')} and every one of them should be a knife edge`);
-  // Against the contour looks rather than against a round number. Every one of
-  // those is exactly 1.0 px on every seed; the soft one varies with the seed
-  // between about 2 and 7, so pinning one seed above 4 pins the seed.
-  const soft = width('wash');
-  assert.ok(soft > 2 * contour[0], `the soft look measured ${soft} px against ${contour[0]} for a contour`);
-
-  // And it has to be a pattern, on every seed.
+test('two more measurements, because the six could not tell the field generators apart', () => {
+  // The six put the field generators in the same place while they look nothing
+  // like each other, which says the space was missing an axis. Thickness tells
+  // a stroke from a block; axiality tells a pattern square to the page from one
+  // that runs any way it likes.
   //
-  // Softness comes from contrast, contrast pushes the field towards its ends,
-  // and pushed far enough the field stops crossing a band boundary at all:
-  // three seeds in sixteen came out one flat colour. The next setting fixed
-  // that and was still a faint stain on cream — 2.2 px and "mixed" by the
-  // numbers, an empty page to look at. Neither turned up in a measurement; both
-  // turned up on a contact sheet, which is the argument for making one.
-  //
-  // So the bar is presence, not the absence of flatness. A quarter of the
-  // picture in ink at worst, across two dozen seeds.
-  // Twenty-four seeds, and the bars sit in the gaps the measurements leave.
-  // Every contour sample is exactly 1.0 px, with no spread at all; the soft look
-  // runs 1.4 to 4.5 with a median of 3.3, and carries 44% to 77% ink.
-  const widths = [], inks = [];
-  for (let seed = 1; seed <= 24; seed++) {
-    const f = T.render(224, 224, { style: 'wash', grid: 96, seed }, pal);
-    const h = PMEAS.hardness(f);
-    assert.notStrictEqual(h.kind, 'flat', `seed ${seed} draws the soft look as one flat colour`);
-    widths.push(h.width); inks.push(PMEAS.coverage(f));
-  }
-  widths.sort((a, b) => a - b); inks.sort((a, b) => a - b);
-  assert.ok(inks[0] > 0.4,
-    `its emptiest seed carries ${Math.round(inks[0] * 100)}% ink, which is a stain rather than a pattern`);
-  assert.ok(widths[0] > contour[0],
-    `its hardest seed is ${widths[0]} px, no softer than a contour at ${contour[0]}`);
-  assert.ok(widths[12] > 2.5, `its median edge over 24 seeds is ${widths[12]} px`);
-
-  // A style may carry its own settings, and this one has to: a wash is a slow
-  // field AND few bands AND no grain AND full softening, and no one of those is
-  // a wash. `derive()` sets bands, dither and scale for every identity, so the
-  // style's own values lost to them every time and choosing `wash` gave 1.1 px
-  // — exactly as hard as the look it replaced.
-  // Deliberately not the wash's own bands, or the check cannot tell whose value
-  // arrived — which it could not, for one run, when the preset was retuned to
-  // six and this fixture already said six.
-  const derived = { style: 'strata', bands: 3, dither: 0.3, grid: 72, scale: 3, seed: 1 };
-  assert.notStrictEqual(derived.bands, T.defaultsFor('wash').bands,
-    'the fixture and the style agree on bands, so this proves nothing');
-  // Asked of the plan, not of a pixel count. Whether the settings *arrive* is
-  // exact and stays true however the preset is later tuned; how many pixels
-  // that is worth moves every time somebody sweeps it, and pinning the number
-  // pins the sweep.
-  const byName = T.plan(Object.assign({}, derived, { style: 'wash' }));
-  const carried = T.plan(Object.assign({}, derived, T.defaultsFor('wash'), { style: 'wash' }));
-  // Precisely: plan()'s fallback already applies a style's setting for a key
-  // nobody set — `soften` arrives either way, because derive() does not set it.
-  // What lost were the three keys derive() *does* set for every identity, and
-  // bands is the one that decides whether a wash is a wash.
-  assert.strictEqual(byName.soften, 1, 'soften does not reach plan even by name');
-  assert.strictEqual(byName.bands, derived.bands,
-    'bands is not overridden by derive, so this is testing the wrong key');
-  assert.strictEqual(byName.dither, derived.dither, 'dither is not overridden by derive either');
-  assert.strictEqual(carried.bands, T.defaultsFor('wash').bands,
-    'the style did not bring its own bands');
-  assert.notStrictEqual(carried.bands, derived.bands, 'and they are not the ones derive set');
-  assert.strictEqual(carried.dither, 0, 'the style did not bring its own grain');
-  // and it shows: the same field, banded the style's way, is softer
-  const w = (p2) => PMEAS.hardness(T.render(384, 384, p2, pal)).width;
-  assert.ok(w(Object.assign({}, derived, T.defaultsFor('wash'), { style: 'wash' }))
-    > w(Object.assign({}, derived, { style: 'wash' })),
-    'carrying the settings made no difference to the drawing');
-
-  // and it still repeats. bandAt is unchanged and exact; the softened field is
-  // continuous, so it is compared at the precision the output actually has —
-  // one part in 255 — rather than by ===, which no float survives.
-  const q = T.plan({ style: 'wash', grid: 96, seed: 1 });
-  let worst = 0;
-  for (let k = 0; k < 400; k++) {
-    const u = ((k * 13.7) % 1000) / 1000, v = ((k * 29.3) % 1000) / 1000;
-    const c = 96, cx = Math.floor(u * c), cy = Math.floor(v * c);
-    const a = T.bandFloat(u, v, q, cx, cy);
-    for (const [du, dv] of [[1, 0], [0, 1], [1, 1], [-1, 0]]) {
-      worst = Math.max(worst, Math.abs(a - T.bandFloat(u + du, v + dv, q, cx, cy)));
-    }
-  }
-  assert.ok(worst < 1 / 255 / 2, `the softened field drifts ${worst.toExponential(2)} of a band across the tile`);
-});
-
-test('two more measurements, because the six could not tell three generators apart', () => {
-  // The six put `field`, `thread` and `terrace` in the same place while they
-  // look nothing like each other, which says the space was missing an axis.
-  // Thickness tells a stroke from a block; axiality tells a grid from a contour.
+  // There were three in that family when these were added and there are two
+  // now — the contour field is gone — so both claims are re-derived here from
+  // what the four remaining generators actually measure rather than left
+  // standing on the arithmetic of a generator that no longer exists.
   const names = ['meridian', 'kvist', 'carrock', 'fathom', 'ancroft', 'beaumont'];
   const by = {};
   for (const g of PENG.NAMES) by[g] = { weight: [], axiality: [] };
@@ -2390,9 +2260,11 @@ test('two more measurements, because the six could not tell three generators apa
   // thread is thin and field is not, with nothing in between
   assert.ok(hi('thread', 'weight') < lo('field', 'weight'),
     `thread measures up to ${hi('thread', 'weight')} px thick and field down to ${lo('field', 'weight')}`);
-  // field is square to the page and terrace is not, with nothing in between
-  assert.ok(lo('field', 'axiality') > hi('terrace', 'axiality'),
-    `field is ${lo('field', 'axiality')} axial at its least and terrace ${hi('terrace', 'axiality')} at its most`);
+  // a cell grid is square to the page and a thread field is not, with nothing
+  // in between: field reads 0.77 at its least against thread's 0.67 at its
+  // most, over six identities.
+  assert.ok(lo('field', 'axiality') > hi('thread', 'axiality'),
+    `field is ${lo('field', 'axiality')} axial at its least and thread ${hi('thread', 'axiality')} at its most`);
   // and both are reported, so a table can print them
   const one = PMEAS.all(PMATCH.asField(PENG.tile({ mark: PMARK.read(project.assets.mark.source, m, project.rules),
     generator: 'thread', colours: project.tokens.colour, colourway: project.rules.colourways[0] }), 192));
@@ -11537,7 +11409,7 @@ test('a panel that paints its own ground is measured against that ground', () =>
   assert.ok(!rules.find((r) => r.selector === '.note').own, 'a plain rule was given a ground of its own');
 });
 
-test('the engine asks seven questions and measures the rest', () => {
+test('the engine asks eight questions and measures the rest', () => {
   const mark = fs.readFileSync(path.join(__dirname, '..', 'projects', 'carrock', 'mark.svg'), 'utf8');
   const wordmark = fs.readFileSync(path.join(__dirname, '..', 'projects', 'carrock', 'wordmark.svg'), 'utf8');
   const seen = INTAKE.read({ mark, wordmark });
@@ -11552,17 +11424,32 @@ test('the engine asks seven questions and measures the rest', () => {
   assert.ok(seen.pattern && seen.pattern.construction, 'no pattern was worked out');
 
   const qs = INTAKE.questions(seen);
-  // Seven since the language: four dictionaries and a fixture for each were
-  // reachable only from a hand-written project file, so the door wrote every
-  // package in English. It costs nothing to answer — the engine proposes one —
-  // and a wizard is still what this must not become.
-  assert.ok(qs.length <= 7, `${qs.length} questions is a wizard, not an intake`);
+  // Six, then seven, and now eight — and the number is the guard rather than
+  // the rule. The rule is that nothing is asked which can be measured, and
+  // every question that has been added passed it: a drawing does not say what
+  // language the book is written in, it does not say which of its colours is
+  // doing the work rather than merely present, and it does not say what must
+  // never be done to it.
+  //
+  // The eighth is the same kind. The engine can measure the mark and derive a
+  // pattern from it — it has since Round B — but it cannot measure how closely
+  // a client wants their pattern tied to their logo. That is a brief, not a
+  // fact about the artwork, and it was the one thing about the pattern nobody
+  // was asked while the whole pattern engine turned on it.
+  //
+  // A wizard is still what this must not become, so the count is held and the
+  // next one has to argue for itself the same way.
+  assert.ok(qs.length <= 8, `${qs.length} questions is a wizard, not an intake`);
+  // and every one of them is about something no drawing can answer
+  assert.ok(!qs.some((q) => q.key === 'colours' && !q.suggested),
+    'the colour question stopped proposing an answer, which makes it a form to fill in');
   for (const q of qs) {
     assert.ok(q.ask.length > 8 && q.why.length > 40, `${q.key} does not say why it is being asked`);
   }
-  // four of the seven are the engine showing its answer and asking if it is right
+  // five of the eight are the engine showing its answer and asking if it is
+  // right, which is the thing that keeps it an intake rather than a form
   const shown = qs.filter((q) => q.suggested !== undefined);
-  assert.ok(shown.length >= 4, 'the engine asks more than it proposes');
+  assert.ok(shown.length >= 5, `the engine proposes an answer to only ${shown.length} of ${qs.length}`);
   // and the layout question offers every direction, by picture rather than name
   const style = qs.find((q) => q.key === 'style');
   assert.deepStrictEqual(style.options.map((o) => o.value), DIRS.NAMES);
@@ -11662,7 +11549,7 @@ test('the artwork is measured before anything is asked', () => {
   assert.ok(got.seen.colours.length >= 2, 'no palette came back');
   assert.ok(got.seen.floor.screenPx > 0, 'no floor came back');
   assert.ok(got.seen.pattern, 'no pattern was worked out');
-  assert.ok(got.questions.length <= 7, `${got.questions.length} questions`);
+  assert.ok(got.questions.length <= 8, `${got.questions.length} questions`);
   // and the three the engine can answer come back answered
   const shown = got.questions.filter((q) => q.suggested !== undefined).map((q) => q.key);
   for (const k of ['style', 'colours', 'never']) assert.ok(shown.indexOf(k) > -1, `${k} was not proposed`);

@@ -830,7 +830,7 @@ two of the five through. It is 1.5 and 0.4% now, which is where the gap is.
 
 ### The generators
 
-`src/patterns/generators/` — five of the six. Four are pure vector; one is not,
+`src/patterns/generators/` — four of the five. Every one of them is vector,
 and says so.
 
 **`weave`** — index-grid blankets, after PLAYGRND's Quilt. All fourteen of its
@@ -866,32 +866,91 @@ about the picture is drawn, it is all consequence. This is the one generator
 whose seam a periodic field does not solve on its own, and the two things that
 do solve it are below.
 
-**`terrace`** — posterised contour bands, after Terrain, and **the one
-generator here that is not vector**. A field warped, contrast-stretched,
-dithered and quantised into bands is a decision taken per pixel. The honest
-vector form of it is a hundred thousand little polygons that no designer wants
-to open and no printer thanks you for; the dishonest one is a coarse
-approximation that quietly stops being the picture the studio showed. So it
-ships as raster at a size the package states, and the manual says which
-patterns are which in those words. A client needs to know this one has a size
-beyond which it stops being sharp. Hiding it would be the fault.
+**`terrace` was here, and it is gone.**
 
-How many pixels that is depends on the ground, and the generator is asked
-rather than told. A contour ground puts down a hard edge and the edge's
-position is a continuous function of the field, so more pixels place it more
-precisely: it is worth the whole page. A wash has no edge to place. Written at
-768 px and returned to 2400 the way a printer returns a file smaller than the
-page, it differs from the 2400 px render by 1.34 levels in 255; a contour
-ground at the same size differs by 4.32, which is the whole reason this applies
-to one and not the other. The stated print size does not move — 768 px at 96
-dots to the inch is the same 203 mm as 2400 at 300, and 300 is the number you
-need when there is an edge to keep.
+It made posterised contour bands after Terrain, and it was the one generator
+that was not vector: a field warped, contrast-stretched, dithered and quantised
+into bands is a decision taken per pixel, so it shipped as a PNG at a size the
+package stated. Six rounds of work went into it — the Nyquist cap on octaves,
+the dither hashed on the wrapped cell so the grain tiled, a soft `wash` ground
+reached by coupling two knobs that are worthless apart, and a rule that sized
+the file to what the picture was worth.
 
-This was found by the hosted door rather than by design. A wash became
-reachable, and a one-lockup package went from 2.7 MB to 11.4 — two 2400 px
-renders of smoothly blended bands, 662 distinct colours apiece against the
-hard-posterised ground's two. A hosted function can answer with 4 MB. Two
-washes at 768 are 1.4.
+None of that was wrong and all of it is beside the point. A posterised noise
+field is a *texture*, not a pattern. It carries nothing of the identity that
+made it — only three numbers off the mark — and a brand is not served by one.
+Asked directly, the answer was to delete it rather than demote it, and that is
+the right call: a generator the engine is told never to choose is a generator
+nobody maintains.
+
+What it takes with it: the engine's only raster path. Every pattern is vector
+now, so no file in a package has a size beyond which it stops being sharp, and
+there is one fewer caveat to print about a client's own artwork. `raster.js`
+stays — eight modules measure through it — and `patterns/index.js` says what a
+raster generator would need back.
+
+What it leaves behind: `weight` and `axiality` in `measure.js`, added to tell
+it apart from `field` and `thread`, both of which still earn their place
+without it. See **Two measurements the six were missing**.
+
+### The motif: the identity's own shape, as moves
+
+`motif-read.js` (Node) and `motif.js` (both).
+
+Every generator draws through `surface`, which is one API served by a canvas
+and an SVG writer alike — that is the whole reason a pattern's PNG and its SVG
+cannot drift apart. So a logo cannot be handed to a generator as markup. It has
+to arrive as the same moves any other shape is made of.
+
+The split is the same one `mark.js` makes. Node reads the drawing once and
+hands over a list; the studio replays it with no parser of its own. Everything
+is reduced to move, line and cubic through `paths.js` — a rect becomes four
+lines, a circle four cubics at the usual 0.5523 of the radius — so the
+generator has no branch for what kind of shape the client happened to draw. The
+list travels in `brand.json`, which is what lets a client reopen the package a
+year later and get the same motif without the original artwork.
+
+Which shape? The one `pattern.js` already ranks first. It reads every shape in
+the drawing and scores each on how well it carries a repeat, and that ranking
+was built for exactly this question. Asking it twice, two different ways, would
+give a client two different answers about their own logo.
+
+**Fill or stroke is the drawing's answer, not a setting.** The first version
+filled every motif and three of eight came out wrong: `salvage` and `carrock`
+are rings drawn as strokes, and filling an open arc turns it into a blob;
+`deben` reported six moves and drew nothing, because an open path with no
+enclosed area fills to nothing. None of that was visible in any measurement —
+the move counts were right, the boxes were right. It took looking at them side
+by side with the artwork. `painted()` in `pattern.js` has decided fill-or-stroke
+since the mark-tiler was written, and this reads its answer.
+
+**600 moves is the cap.** A motif is redrawn in every cell of every tile, so a
+mark traced from a photograph would put megabytes in `brand.json` and thousands
+of curves in each of a few hundred cells. The largest drawn mark in this
+repository is 96 moves. Over the cap it is refused with a reason and the
+alternatives beside it, because a simplified logo is not the logo.
+
+### Three routes, and which generators can take them
+
+    literal    the mark's shapes, repeated          pattern.js, nine constructions
+    motif      a generated ground holding the mark  weave, field
+    inspired   generated from what the mark measures  all four
+
+`weave` puts the motif on the cells its own arithmetic already made the accent
+colour — sparse, spread by the style's own reasoning, already a deliberate
+accent rather than a texture. Except that `basket`, `zigzag` and `waves` have
+**0.0%** accent cells at some settings, so the motif would never have been
+drawn while the tile went on saying it was made of the client's mark. Below a
+floor of 4% the placement falls back to a hash.
+
+`field` puts it on one cell in eight at nearly full cell size. A third of the
+cells at 0.78 was the first try and it read as static.
+
+`zigzag` and `thread` cannot take a motif at all — interlocking stripes and
+streamlines have no cell to put a shape in — so `suits()` narrows to the two
+that can rather than handing them one and producing a tile identical to the
+inspired route under a name that claims otherwise. Both are still built and
+still in the studio.
 
 ### Seamlessness is proved, not inspected
 
@@ -1177,21 +1236,25 @@ An offset of 0.37 was fitted first and removed: it made the number smaller
 without making the claim true, which is the definition of a constant fitted to
 a score.
 
-### Raster, on purpose
+### Raster, on purpose — and then not at all
 
-`terrace` is `vector: false` and everything downstream reads that flag rather
-than knowing about terrace. `build.js` writes `.svg` for the vector generators
-and `.png` for the others; `brand.json` carries `vector`, `pixels` and
-`printedAt` per tile; the read me says how many are raster and at what printed
-size; the studio disables the SVG button for them and says, under the tile,
-which kind it is and how large it prints at the chosen pixel width.
+`terrace` was `vector: false` and everything downstream read that flag rather
+than knowing about terrace. `build.js` wrote `.svg` for the vector generators
+and `.png` for the others; `brand.json` carried `vector`, `pixels` and
+`printedAt` per tile; the read me said how many were raster and at what printed
+size; the studio disabled the SVG button for them.
 
     07-pattern/thread-brass.svg     vector       570 KB
     07-pattern/terrace-brass.png    raster  2400 px, 203.2 mm at 300 dpi
 
-`sheet(tile, widthPx)` returns the PNG, the size, and the printed size, and
-returns `null` for a vector generator — which the check asserts, because "the
-raster path also handles vectors" is how two code paths become one bug.
+The flag was the right design and it is worth recording, because it is what
+made the removal cheap: nothing downstream knew the generator's name. Deleting
+it meant deleting one file, one branch in `build.js`, and one function —
+`sheet(tile, widthPx)`, which returned the PNG, the size and the printed size,
+and returned `null` for a vector generator.
+
+`brand.json` now says `vector: true` on every tile and no longer carries
+`pixels` or `printedAt`, because there is nothing they could describe.
 
 ### Where a cap decided instead of the mark
 
@@ -7840,7 +7903,7 @@ it rather than about how to measure one.
     src/patterns/index.js    which generator suits a mark, with what, and why
     src/patterns/studio.js   the application the client is handed
     src/patterns/emit.js     it, inlined into one file that opens off a drive
-    src/patterns/generators/ weave, zigzag, field, thread, terrace
+    src/patterns/generators/ weave, zigzag, field, thread
     src/misuse.js     what not to do, drawn from the artwork rather than described
     src/strings.js    every word both documents set, and what a language can write
     src/previous.js   what moved since the last version, in both languages

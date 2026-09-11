@@ -250,7 +250,6 @@ ${fontLink(bu)}
 <script>${read('../patterns/generators/zigzag.js')}</script>
 <script>${read('../patterns/generators/field.js')}</script>
 <script>${read('../patterns/generators/thread.js')}</script>
-<script>${read('../patterns/generators/terrace.js')}</script>
 <script>${read('../patterns/index.js')}</script>
 <script>${read('model.js')}</script>
 <script>${read('images.js')}</script>

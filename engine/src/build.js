@@ -1209,6 +1209,24 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // it was right, copied the parameters and put them in project.json. That is a
   // decision, and a decision beats both a measurement of somebody's reference
   // and a derivation from the mark. Every rebuild from then on returns it.
+  // How close to the logo the client asked for. Set at the door, kept in the
+  // project file, and read here — the default when nobody was asked is the
+  // motif route, which is the one most identities want and the only one of the
+  // three that is both made of the mark and not a plain repeat of it.
+  const ROUTE = PATTERNS.ROUTES.indexOf((project.system || {}).patternRoute) > -1
+    ? project.system.patternRoute : PATTERNS.ROUTE_DEFAULT;
+  // The mark's own shape, as moves, for the routes that draw with it. Read
+  // once: it is the same shape for every generator and every colourway.
+  let motif = null;
+  if (ROUTE === 'motif') {
+    const got = require('./patterns/motif-read').read(masterOf(project).source, rules, measured);
+    if (got.ok) motif = got;
+    else {
+      warnings.push(`the pattern was asked to be made of the mark's own shape and could not be: ${got.why} `
+        + 'It is generated from what the mark measures instead, which is the "in the spirit of the logo" route.');
+    }
+  }
+
   const SET = ((project.system || {}).patterns) || null;
   const setGenerator = SET && PATTERNS.GENERATORS[SET.generator] ? SET.generator : null;
   if (SET && SET.generator && !setGenerator) {
@@ -1225,7 +1243,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   if (project.assets.patternReference && !setGenerator) {
     const ref = MATCH.referenceField(project.assets.patternReference);
     const cw0 = rules.colourways[0];
-    const make = (g, params) => PATTERNS.tile({ mark: patternMark, generator: g,
+    const make = (g, params) => PATTERNS.tile({ mark: patternMark, generator: g, route: ROUTE, motif,
       params: params || undefined, colours: project.tokens.colour, colourway: cw0,
       size: sys.pattern.tile, id: `fit-${g}` });
     try {
@@ -1244,7 +1262,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   for (const cw of rules.colourways) {
     for (const name of PATTERNS.NAMES) {
       try {
-        const t = PATTERNS.tile({ mark: patternMark, generator: name,
+        const t = PATTERNS.tile({ mark: patternMark, generator: name, route: ROUTE, motif,
           // The matched generator carries the parameters the match found, in
           // every colourway. The others keep the ones the mark chose, so the
           // studio still opens on five real patterns rather than on one and
@@ -1273,29 +1291,27 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       }
     }
   }
-  // Four of the five generators are vector and write an SVG. `terrace` decides
-  // per pixel and writes a PNG, because the honest vector form of a posterised
-  // noise field is a hundred thousand polygons nobody wants. Which is which is
-  // in brand.json and in the read me, in those words: a client needs to know
-  // that one of their patterns has a size beyond which it stops being sharp.
-  const RASTER_PX = 2400;
+  // Every generator is vector and writes an SVG.
+  //
+  // One of them was not. `terrace` decided per pixel and shipped a PNG at a
+  // stated size, and this loop carried the branch for it — along with the line
+  // in brand.json and in the read me telling a client that one of their
+  // patterns had a size beyond which it stopped being sharp. The generator is
+  // gone and so is the sentence, which is one fewer caveat on a client's own
+  // artwork.
+  //
+  // A generator that says it is not vector is now a fault in the engine rather
+  // than a case to fall back from: there is nothing left to write the pixels.
   for (const g of generated) {
     const stem = `07-pattern/${g.name}-${naming.slug(g.colourway)}`;
-    if (g.tile.vector) { write(`${stem}.svg`, g.tile.tile); continue; }
-    const r = PATTERNS.sheet(g.tile, RASTER_PX);
-    // A generator that says it is not vector and cannot produce pixels either
-    // is a fault in the engine, not a case to fall back from: writing the SVG
-    // anyway would ship a file that is not the picture the studio showed, under
-    // a name that says nothing is wrong. There is no silent branch here.
-    if (!r) throw new Error(`${g.name} says it is not vector but produced no raster`);
-    write(`${stem}.png`, r.png);
-    g.raster = Object.assign({ mm: r.printedAt.mm }, r);
+    if (!g.tile.vector) throw new Error(`${g.name} says it is not vector, and nothing here writes pixels`);
+    write(`${stem}.svg`, g.tile.tile);
   }
   // Which one the measurements point at, so the manual and brand.json can name
   // one without the engine having to pick again somewhere else.
   // What the mark asks for, unless the brand brought a pattern — in which case
   // the one that measures like theirs is the one they should be given.
-  const patternChoice = setGenerator || (matched ? matched.generator : PATTERNS.suits(patternMark));
+  const patternChoice = setGenerator || (matched ? matched.generator : PATTERNS.suits(patternMark, ROUTE));
   const patternPick = generated.find((g) => g.name === patternChoice) || generated[0];
   // And the studio, so the pattern is a thing the client keeps making rather
   // than a folder of finished files. Same discipline as editor.html: one file,
@@ -1539,14 +1555,20 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
           alsoFits: matched.alsoFits.map((a) => a.generator),
           theirs: matched.theirs, mine: matched.mine, table: matched.table,
         } : null,
+        // Which of the three routes this package took, and what the mark's own
+        // shape came out as. A client reopening this a year later can see both
+        // without the original artwork being anywhere near them.
+        route: ROUTE,
+        motif: motif ? { moves: motif.ops.length, from: motif.name, stroked: motif.stroked,
+          weight: motif.weight, ops: motif.ops } : null,
         made: generated.map((g) => ({
           generator: g.name, colourway: g.colourway,
-          file: `07-pattern/${g.name}-${naming.slug(g.colourway)}.${g.tile.vector ? 'svg' : 'png'}`,
-          vector: !!g.tile.vector,
-          // A raster pattern has a largest size, and it is a fact a client
-          // needs rather than one to leave them to find.
-          printedAt: g.raster ? g.raster.printedAt : null,
-          pixels: g.raster ? g.raster.width : null,
+          file: `07-pattern/${g.name}-${naming.slug(g.colourway)}.svg`,
+          // Every pattern is vector. This said `vector: !!g.tile.vector` and
+          // carried `printedAt` and `pixels` beside it, for the one generator
+          // that shipped a PNG at a stated size. It is gone, and so is the
+          // largest-size caveat that came with it.
+          vector: true,
           params: g.tile.params, palette: g.tile.palette, why: g.tile.why,
         })),
       } : null,
@@ -1769,10 +1791,8 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       // is folded here rather than running off the side of somebody's terminal
       ...wrapTo(patternPick.tile.why, 58).map((l) => `                  ${l}`),
       '                  Every one is a seamless repeat.',
-      ...(generated.some((g) => !g.tile.vector) ? [
-        `                  ${generated.filter((g) => !g.tile.vector).length} of them are raster and the rest vector. A raster`,
-        `                  pattern prints sharp to ${generated.find((g) => g.raster).raster.mm} mm and no further; the`,
-        '                  vector ones have no such size. brand.json says which.'] : []),
+      '                  All of them are vector, so none has a size beyond',
+      '                  which it stops being sharp.',
       '                  Open pattern-studio.html to change them: the same',
       '                  generators, the same parameters, offline, and it',
       '                  exports SVG and PNG at any size. brand.json carries',

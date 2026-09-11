@@ -63,34 +63,6 @@ const KNOBS = {
     density: [0.5, 1, 1.6],
     weight: [2, 5, 9, 14],
   },
-  terrace: {
-    scale: [1, 2, 3, 5, 8],
-    style: null,
-    bands: [3, 5, 8, 12],
-    // Softness, and the two things that fight it. Dither is grain, and grain is
-    // a jump at every lattice cell: at 0.3 it pulls a fully softened field from
-    // 3.4 px back to 1.1, which is right and is also why matching a soft
-    // reference has to be allowed to turn it down. Without these two in reach
-    // the search cannot get to softness at all, and the engine would go on
-    // saying it does not draw one while holding the control that does.
-    // Softness and grain move **together**, as one knob with four settings.
-    //
-    // They have to. The search is coordinate descent — one knob at a time — and
-    // softening alone while dither stays at 0.3 buys almost nothing, because
-    // grain is a jump at every lattice cell and it holds the measured edge at
-    // about a pixel whatever the bands do. Turning dither down alone buys
-    // nothing either, because the bands are still cut with a knife. Each move
-    // is worthless and the pair is worth a great deal, so a search that can
-    // only take one at a time never takes either: it reported `soften:
-    // undefined` on a reference built to need it and said the engine could not
-    // draw one, while holding the control that does.
-    edge: [
-      { soften: 0, dither: 0.3 },       // contours, grained — what it always did
-      { soften: 0.5, dither: 0.15 },
-      { soften: 1, dither: 0.05 },
-      { soften: 1, dither: 0 },         // a wash
-    ],
-  },
 };
 
 // Render any tile — vector or raster — to a field, so the six measurements
@@ -172,11 +144,16 @@ function distance(theirs, mine, weights) {
 // since Round B. This is a refinement of that, not a replacement for it.
 //
 // `weight` and `axiality` were added after the first six were measured and found
-// not to separate `field`, `thread` and `terrace` at all. Thickness tells a
-// stroke from a block — thread measures 3.3 to 9.1 px across eight identities
-// and field 17.5 to 68.1, with nothing in between — and axiality tells a grid
-// from a contour: field 0.77 to 0.96, terrace 0.02 to 0.12. Neither is a
-// refinement of the six; they are the axis the six were missing.
+// not to separate the field generators at all. Thickness tells a stroke from a
+// block — thread measures 3.3 to 9.1 px across eight identities and field 17.5
+// to 68.1, with nothing in between — and axiality tells a grid from a contour:
+// field read 0.77 to 0.96 against the contour generator's 0.02 to 0.12. Neither
+// is a refinement of the six; they are the axis the six were missing.
+//
+// The contour generator is gone now, and both measurements stay: thickness is
+// what separates thread from field, and axiality is what tells a pattern
+// square to the page from one on the diagonal, which every generator here can
+// be.
 const WEIGHTS = {
   pattern: { scale: 1.6, coverage: 1.3, orientation: 1, weight: 1.2, axiality: 1,
     hardness: 0.8, regularity: 0.6 },
@@ -230,7 +207,6 @@ function opening(name, base, theirs) {
   if (across) {
     if (name === 'weave' || name === 'field') p.cells = near(Math.round(across), KNOBS[name].cells);
     if (name === 'zigzag') p.stripe = near(1 / (across * 2), KNOBS.zigzag.stripe);
-    if (name === 'terrace') p.scale = near(Math.max(1, Math.round(across / 8)), KNOBS.terrace.scale);
     if (name === 'thread') p.grain = across > 5 ? 'close' : 'open';
   }
   if (name === 'field' && theirs.coverage != null) {
@@ -295,10 +271,12 @@ function fit(reference, make, opts) {
   const won = tried[0] || null;
   // Rows no generator could reach.
   //
-  // Every one of the five draws with a knife edge — the softest any of them
-  // measures is 0.91, where a step is 1.00 — because all five quantise: weave
-  // and field to a cell, zigzag to a stripe, thread to a stroke, terrace to a
-  // band. So a reference with edges over four pixels loses that row against
+  // Every one of them draws with a knife edge — the softest any measures is
+  // 0.91, where a step is 1.00 — because they all quantise: weave and field to
+  // a cell, zigzag to a stripe, thread to a stroke. There was a generator that
+  // could draw a soft edge and it is gone; nothing here draws one now, which is
+  // a fact to state rather than to hide. So a reference with edges over four
+  // pixels loses that row against
   // every generator, every time, and a score on its own makes a wall look like
   // a near miss.
   //

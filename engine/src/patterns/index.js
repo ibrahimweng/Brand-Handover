@@ -25,16 +25,16 @@
     module.exports = factory(require('./surface'), require('./palette'),
       require('./generators/weave'), require('./generators/zigzag'),
       require('./generators/field'), require('./generators/thread'),
-      require('./generators/terrace'), (name) => require(`./${name}`));
+      (name) => require(`./${name}`));
   } else {
     root.PatternEngine = factory(root.PatternSurface, root.PatternPalette,
       root.PatternWeave, root.PatternZigzag, root.PatternField, root.PatternThread,
       root.PatternTerrace, () => null);
   }
-}(typeof self !== 'undefined' ? self : this, function (surface, palette, weave, zigzag, field, thread, terrace, late) {
+}(typeof self !== 'undefined' ? self : this, function (surface, palette, weave, zigzag, field, thread, late) {
   'use strict';
 
-  const GENERATORS = { weave, zigzag, field, thread, terrace };
+  const GENERATORS = { weave, zigzag, field, thread };
   const NAMES = Object.keys(GENERATORS);
 
   // Which generator suits a mark that measures like this.
@@ -45,15 +45,56 @@
   //   a heavy mark of straight lines      an interlocking stripe carries it
   //   a fine mark of straight lines       a grid can hold that much detail
   //   a curved mark                       a line field is the same gesture
-  //   a curved, heavy mark                bands, because a stripe would fight it
   //
-  // Four lines, and checkable, which is the most that should be claimed for it.
-  // Every generator draws every identity; this only decides which one the
+  // There used to be a fourth line, sending a heavy curved mark to a contour
+  // field. That generator is gone: a posterised noise field is a texture rather
+  // than a pattern, it carried nothing of the identity that made it, and a
+  // brand is not served by one. A heavy curved mark gets the line field too.
+  //
+  // Three lines, and checkable, which is the most that should be claimed for
+  // it. Every generator draws every identity; this only decides which one the
   // package opens on, and a client changes it with one click in the studio.
-  function suits(m) {
-    if (m.curviness > 0.66) return m.fineness < 14 ? 'terrace' : 'thread';
-    if (m.curviness > 0.33) return m.fineness > 30 ? 'field' : 'zigzag';
-    return m.fineness > 40 ? 'field' : m.fineness < 16 ? 'zigzag' : 'weave';
+  function suits(m, route) {
+    const pick = m.curviness > 0.66 ? 'thread'
+      : m.curviness > 0.33 ? (m.fineness > 30 ? 'field' : 'zigzag')
+        : m.fineness > 40 ? 'field' : m.fineness < 16 ? 'zigzag' : 'weave';
+    // On the motif route the package has to open on a generator that can
+    // actually hold the mark. `zigzag` is interlocking stripes and `thread` is
+    // streamlines — neither has a cell to put a shape in, and handing them one
+    // would produce a tile identical to the inspired route under a name that
+    // says it is made of the client's logo. That is the kind of quiet
+    // half-truth this engine exists not to tell.
+    //
+    // So the choice is narrowed rather than the claim weakened, and the two
+    // that cannot carry a motif are still built and still in the studio — a
+    // client who wants stripes can have stripes, having been told what they
+    // are giving up.
+    // On the motif route there is one answer, and it took looking at both to
+    // be sure of it.
+    //
+    // `weave` and `field` can each hold a shape. `weave` places it on the cells
+    // its own arithmetic already made the accent, over a ground of flat bands,
+    // so the mark is the subject. `field` samples three noise fields per cell,
+    // so the mark ends up sitting on a speckle: it reads as camouflage with a
+    // logo in it rather than as a pattern made of one. Drawn side by side for
+    // five identities, `ancroft` settled it — on the motif route and on the
+    // inspired route it produced two tiles nobody could tell apart, which means
+    // the route was making a promise it did not keep.
+    //
+    // The reason to reach for field was that weave's cells would be too coarse
+    // for a fine mark. They are not: above a fineness of 30 the two derive the
+    // same cell count, 12 against 12 and 44 against 44, and both cap far below
+    // their own limits. So there was never a fineness weave could not serve.
+    //
+    // `field` keeps `motif: true` because it can hold one and the studio offers
+    // it. What it does not get is the default.
+    //
+    // Which leaves an open question this does not answer: `field`'s looks are
+    // noise compositions on every route, and noise is the thing this engine was
+    // just told to stop making. That is a decision about what `field` is for,
+    // not about how a motif is placed, and it is not smuggled in here.
+    if (route === 'motif') return 'weave';
+    return pick;
   }
 
   // The parameters this identity's own artwork asks for.
@@ -129,25 +170,37 @@
     ['patchwork', 'drift', 'bloom'],      // medium
     ['scatter', 'drift', 'bloom'],        // fine
   ];
-  // Same question asked of the other two, and it found the same answer twice.
-  // Three slots held four thread flows and five terrace grounds, so `tangle`,
-  // `drift` and `wash` were reachable from the studio and from a project file
-  // and from nowhere the engine itself would go. `wash` is the worst of the
-  // three to have lost: it is the only ground that draws a soft edge, which is
-  // the whole reason it exists.
+  // Same question asked of thread, and it found the same answer: three slots
+  // held four flows, so `tangle` was reachable from the studio and from a
+  // project file and from nowhere the engine itself would go.
   const THREAD_STYLES = [
     ['weft', 'flow', 'curl'],             // a wide mark
     ['weft', 'tangle', 'curl'],           // a square or upright one
   ];
-  const TERRACE_STYLES = [
-    ['strata', 'basin', 'wash'],          // a wide mark
-    ['ridge', 'drift', 'wash'],           // a square or upright one
-  ];
   const bandOf = (v, edges) => { let i = 0; while (i < edges.length && v > edges[i]) i++; return i; };
 
-  function derive(generator, m) {
+  // What the three routes mean.
+  //
+  //   literal    the pattern is the mark's own shapes, repeated. `pattern.js`
+  //              does this and has since the first round; nothing here is
+  //              involved.
+  //   motif      a generated structure whose cells hold the mark's own shape.
+  //              The default, because it is the only one of the three that is
+  //              both made of the identity and not simply a repeat of it.
+  //   inspired   generated from what the mark measures — how fine it is, how
+  //              much of it curves, how wide against tall — and drawn in new
+  //              geometry. The furthest from the logo, and the most room to
+  //              make something that stands on its own.
+  //
+  // Only the last two reach this file, and they differ in one thing: whether
+  // the cells carry the mark. Everything else a generator does is the same.
+  const ROUTES = ['literal', 'motif', 'inspired'];
+  const ROUTE_DEFAULT = 'motif';
+
+  function derive(generator, m, route) {
     const curve = bandOf(m.curviness, [0.33, 0.66]);
     const scale = scaleFrom(m);
+    const wantsMotif = (route || ROUTE_DEFAULT) === 'motif';
     if (generator === 'weave') {
       const cells = Math.max(LEAST_WEAVE, Math.min(COARSEST_GRID, Math.floor(scale / 4) * 4));
       return { cells,
@@ -164,7 +217,19 @@
       // for this generator alone, which read as five identities sharing one
       // look rather than as a missing value.
       const style = FIELD_LOOKS[bandOf(m.fineness, [20, 40])][curve];
-      return Object.assign({ cells, spread: 0, mark: 'none', markAmount: 0, markSize: 0.52, seed: 1 },
+      // On the motif route the cell marks are the mark itself. A third of the
+      // cells rather than all of them: a grid where every cell holds the logo
+      // is a sheet of logos, which is a thing a client can make in a word
+      // processor and not a pattern.
+      // Few and large. A third of the cells at 0.78 was the first try and it
+      // read as static — which is the one thing a brand pattern must not do,
+      // and the reason the contour generator was deleted in the same round.
+      // One cell in eight, nearly filling the cell, reads as a motif placed on
+      // a ground rather than as a texture made of small shapes.
+      const own = wantsMotif
+        ? { mark: 'own', markAmount: 0.13, markSize: 0.96 }
+        : { mark: 'none', markAmount: 0, markSize: 0.52 };
+      return Object.assign({ cells, spread: 0, seed: 1 }, own,
         GENERATORS.field.looks[style], { style });
     }
     if (generator === 'thread') {
@@ -174,25 +239,6 @@
       return { style: THREAD_STYLES[m.aspect > 2 ? 0 : 1][curve], grain: m.fineness > 24 ? 'close' : 'open',
         curl: Math.round(m.curviness * 100) / 100, density: 1, spread: 0.05,
         length: 190, step: 4.2, weight, hierarchy: 0.55, seed: 1 };
-    }
-    if (generator === 'terrace') {
-      // Its finest feature is one cell of its own grain lattice.
-      // Coarser than the mark would strictly allow, because a contour field
-      // needs enough lattice under it to carry its own octaves — see
-      // octavesFor in the generator. Four times the rule, which still leaves
-      // its finest feature well over twice the mark's thinnest.
-      const grid = Math.max(48, Math.min(240, Math.round((scale * 4) / 8) * 8));
-      // The ground's own settings have to come through, or choosing one is
-      // choosing a name. `derive` used to write bands and dither here
-      // unconditionally, and `plan` only fills in a style's value for a key
-      // nobody set — so every ground arrived with six bands and a dither of
-      // 0.3 whatever it asked for, and `wash`, whose whole definition is no
-      // dither and a soft edge, would have drawn contours.
-      const style = TERRACE_STYLES[m.aspect > 2 ? 0 : 1][curve];
-      return Object.assign(
-        { style, warp: 1, contrast: 1, bands: 6, dither: 0.3, spread: 0, seed: 1 },
-        GENERATORS.terrace.defaultsFor(style),
-        { scale: Math.max(1, Math.min(8, Math.round(m.fineness / 8))), grid });
     }
     // Rounded *up* to the nearest two-hundredth: a stripe rounded down is finer
     // than the mark allows.
@@ -260,10 +306,6 @@
       return `${fine} — a thread is ${params.weight} of the thousand the field works in. `
         + `And ${round}, so it runs ${params.style}, on the ${params.grain} field.`;
     }
-    if (generator === 'terrace') {
-      return `${fine} — the grain is ${params.grid} across. And ${round}, so the ground `
-        + `is ${params.style}. This one is raster: it prints sharp to the size the package states.`;
-    }
     const heldWide = params.stripe >= COARSEST_STRIPE && 1 / scaleFrom(m) > COARSEST_STRIPE;
     const scale = heldWide
       ? `the mark is heavy enough to allow a stripe of ${((1 / scaleFrom(m)) * 100).toFixed(0)}% of the tile, `
@@ -278,13 +320,23 @@
     const m = o.mark || late('mark').read(o.markSource, o.measured, o.rules);
     const generator = GENERATORS[o.generator] ? o.generator : suits(m);
     const g = GENERATORS[generator];
-    const params = Object.assign(derive(generator, m), o.params || {});
+    const route = ROUTES.indexOf(o.route) > -1 ? o.route : ROUTE_DEFAULT;
+    // The motif travels with the parameters, because that is what it is: the
+    // shape this pattern is made of, recorded in brand.json beside the numbers
+    // so the studio and a rebuild a year later both draw the same thing.
+    const carries = !!g.motif;
+    const params = Object.assign(derive(generator, m, route),
+      o.motif && carries ? { motif: o.motif } : {}, o.params || {});
     const pal = o.palette || palette.of(o.colours, o.colourway);
     const W = o.size || 100, H = o.size || 100;
     const s = surface.svg({ width: W, height: H, id: o.id || generator });
     g.paint(s, W, H, params, pal);
     return {
-      generator, params, why: because(generator, m, params), mark: m,
+      generator, params, route, mark: m,
+      // Whether this tile is actually made of the identity's shape, rather than
+      // whether it was asked to be.
+      motif: !!(o.motif && carries && (route === 'motif' || o.params && o.params.motif)),
+      why: because(generator, m, params),
     vector: !!g.vector, pal,
       palette: { ground: pal.ground, inks: pal.inks.map((i) => i.hex) },
       tile: s.toSVG(),
@@ -294,29 +346,16 @@
     };
   }
 
-  // The raster a generator that is not vector actually ships.
+  // There was a `sheet` here, and a raster generator for it to serve.
   //
-  // `terrace` decides per pixel, so its file is pixels. The size is a decision
-  // — how large the client will print it — and `printedAt` says what that size
-  // is worth in millimetres, so the manual can state it rather than leave a
-  // client to find out on a press. Node only: it needs an encoder, and the
-  // studio in the browser draws the same field through the ordinary surface.
-  function sheet(t, widthPx) {
-    const g = GENERATORS[t.generator];
-    if (g.vector || !g.render) return null;
-    const R = late('raster');
-    const w = Math.max(64, Math.round(widthPx || 2400));
-    // A generator may know that its picture is worth fewer pixels than the page
-    // — a smooth field has no edge whose position more pixels would place more
-    // precisely — and says so along with the resolution to state it at, so the
-    // millimetres the manual prints stay the millimetres the client gets.
-    const want = g.sheetFor ? g.sheetFor(t.params, w) : { pixels: w, dpi: null };
-    const img = g.render(want.pixels, want.pixels, t.params, t.pal);
-    const f = R.field(img.width, img.height);
-    f.data.set(img.data);
-    return { png: R.png(f), width: img.width, height: img.height,
-      printedAt: R.printedAt(f, want.dpi || undefined) };
-  }
+  // `terrace` decided per pixel and shipped a PNG at a size the package stated,
+  // with `printedAt` saying what that size was worth in millimetres. All of it
+  // is gone with the generator. Every pattern this engine makes is vector now,
+  // which is one fewer thing for a client to be told about their own artwork:
+  // no file has a size beyond which it stops being sharp.
+  //
+  // `raster.js` stays — eight other modules measure through it — and if a
+  // raster generator is ever wanted again, this is what it needs back.
 
   // What a tile does when it is laid next to itself. Reported, not asserted:
   // `beyond` at or under 1 means there is nothing at the join the pattern does
@@ -327,7 +366,7 @@
   // handed what this already worked out rather than working it out again.
   const read = (markSource, measured, rules) => late('mark').read(markSource, measured, rules);
 
-  return { GENERATORS, NAMES, suits, derive, because, tile, sheet, joins, read,
+  return { GENERATORS, NAMES, ROUTES, ROUTE_DEFAULT, suits, derive, because, tile, joins, read,
     FINEST, COARSEST_STRIPE, FINEST_STRIPE, COARSEST_GRID, FINEST_GRID, LEAST_WEAVE, LEAST_FIELD,
-    WEAVE_STYLES, ZIGZAG_STYLES, FIELD_LOOKS, THREAD_STYLES, TERRACE_STYLES };
+    WEAVE_STYLES, ZIGZAG_STYLES, FIELD_LOOKS, THREAD_STYLES };
 }));

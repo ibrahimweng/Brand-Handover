@@ -457,21 +457,23 @@ function hardness(field) {
 
 // ------------------------------------------------------ weight and axiality
 
-// Two more, and they exist for one reason: the first six do not tell the three
-// field generators apart. Handing each its own output back and asking which drew
-// it, the two hard-edged generators come back right every time by margins of
-// 0.026 to 0.465, and `field`, `thread` and `terrace` come back right seven
-// times in ten by margins of 0.004 to 0.021. They occupy the same place in that
+// Two more, and they exist for one reason: the first six did not tell the field
+// generators apart. Handing each its own output back and asking which drew it,
+// the two hard-edged generators came back right every time by margins of 0.026
+// to 0.465, and the three field ones came back right seven times in ten by
+// margins of 0.004 to 0.021. They occupied the same place in that
 // six-dimensional space while looking nothing like each other, which says the
-// space is missing an axis, not that the search is weak.
+// space was missing an axis, not that the search was weak.
 //
 // What a person sees that the six do not measure:
 //
 //   thread   thin strokes, long and connected
 //   field    blocky cells, square, lined up with the page
-//   terrace  broad regions with curved boundaries
 //
-// So: how thick the ink is, and how much of it lies along the two axes.
+// So: how thick the ink is, and how much of it lies along the two axes. One of
+// the three was a contour field and has since been removed; both measurements
+// earn their place without it, and the eight generators-and-styles they now
+// separate are told apart by wider margins than the three ever were.
 
 // The mean thickness of the inked parts, in pixels.
 //
