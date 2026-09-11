@@ -1442,6 +1442,120 @@ said in those words. ネットワーク is one of the casualties: the subset has
 ワ, so the line says 回線 instead. Nothing about that is discoverable by
 reading; it is discoverable by a check that opens the font and asks.
 
+## Three limits, closed
+
+Round F ended with three things stated as limits rather than fixed. Two of them
+turned out to be faults, and the third is as closed as I can close it.
+
+### A soft edge
+
+Every generator quantises — to a cell, a stripe, a stroke or a band — so the
+softest edge any of them drew measured 1.0 px, where a knife edge is 1.0. The
+engine could only tell a client with an airbrushed pattern that it does not draw
+one.
+
+Softness is native to exactly one of the five: a contour map with the contours
+blurred is a relief map. So `bandAt` keeps its floor and a continuous
+`bandFloat` sits beside it, and the colour of a pixel is the blend between the
+two bands it falls between. With softening at 0 the mix is always 0 and it is
+the hard band it always was, which is why there is one code path and not two.
+
+Then three things had to be found by measuring rather than by reasoning:
+
+**Dither is grain, and grain is a jump at every lattice cell.** At 0.3 it pulls
+a fully softened field from 3.4 px back to 1.1. Correct, and it means matching a
+soft reference has to be allowed to turn it down.
+
+**Contrast is the lever, and it runs the opposite way to intuition.** At 0.28
+the transitions measure 1.0 px and at 1.68 they measure 7.2, because contrast
+decides where in the field the band boundaries fall and how fast the field is
+moving when it crosses them. My first guess of 0.7 made the new look *harder*
+than the one it replaced.
+
+**And a wash is a look, not a slider.** It is a slow field AND few bands AND no
+grain AND full softening, and no one of those is a wash. The search is
+coordinate descent, so it tries one move at a time: each half of the pair is
+worthless and the pair is worth a great deal, so it correctly took neither and
+reported `soften: undefined` on a reference built to need it. As a style it is
+one move.
+
+Which exposed the real fault. A style's own settings **never reached `plan`**:
+`derive()` sets bands, dither and scale for every identity, and the caller's
+value wins, so choosing `wash` gave 1.1 px — exactly as hard as the look it was
+meant to replace. The engine was reporting that it could not draw a soft edge
+while holding the style that does. `defaultsFor(style)` is the fix, applied by
+whoever selects a style. This is the same fault `field` had with its own name in
+Round D: a value that exists and never reaches the place that uses it.
+
+    ridge   1.0 px   hard
+    strata  1.0 px   hard
+    basin   1.0 px   hard
+    drift   1.0 px   hard
+    wash    6.3 px   soft
+
+A soft reference now matches on that row exactly — theirs 2.2 px, ours 2.2 px —
+where before it was marked beyond reach.
+
+### Three states in the table, not two
+
+Adding a soft look broke the salvage table in a way worth recording. Its
+reference is soft **and** repeating, and the engine can be soft or can repeat
+but not both at once. The row went from "beyond what this engine draws" to
+**nothing at all** — printing 4.4 px beside 1 px unmarked, which reads as a
+match. A row can be one nothing can reach, one this match missed though the
+engine could have hit it, or one that landed, and those are three different
+things to tell somebody. It says `this one is off` now.
+
+### Telling three generators apart
+
+Six measurements put `field`, `thread` and `terrace` in the same place while
+they look nothing like each other. That is a missing axis, not a weak search.
+What a person sees that the six did not measure:
+
+    thread   thin strokes, long and connected
+    field    blocky cells, square, lined up with the page
+    terrace  broad regions with curved boundaries
+
+So: **how thick the ink is**, as area over half its boundary — a run of ink `w`
+wide and `L` long has area `Lw` and a boundary of about `2L`, so `2·area/boundary`
+is `w` whatever the shape does elsewhere. And **how much of the change lies on
+the two axes**, as the concentration of edge energy at four times the angle —
+four, because the axes are a quarter turn apart and a quarter turn has to come
+back to the same place for this to be one number.
+
+    across eight identities     thickness        axiality
+    thread                      3.3 – 9.1 px     0.05 – 0.71
+    terrace                     5.7 – 38.1       0.02 – 0.12
+    field                       17.5 – 68.1      0.77 – 0.96
+
+Thread is thin and field is not, with nothing in between. Field is square to the
+page and terrace is not, with nothing in between. The same twenty runs that
+recovered the right generator **seven times in ten** now recover it **twenty
+times out of twenty**:
+
+    weave, zigzag            margins 0.093 – 0.376   (were 0.026 – 0.465)
+    field, thread, terrace   margins 0.031 – 0.158   (were 0.004 – 0.021)
+
+It costs 35 seconds a match instead of 13, and one optimisation was needed to
+get there: the thickness measurement converted a colour to Lab per *pixel*, a
+quarter of a million times, for a picture holding a few hundred colours. Cached
+by colour it is a few hundred conversions.
+
+### The two translations I cannot read
+
+I wrote the Hebrew and Japanese for these pages and cannot read either to a
+native standard. That is not fixable from here, and it is still true.
+
+What is checkable is whether they introduce a **second word** for something the
+dictionary already has a word for — the failure a non-reader is most likely to
+ship and least likely to notice. There is a check for it now, and it caught one:
+the Japanese for ink in this dictionary is 墨, in `cvInk` and `ladderPiece` and
+`nameSetInC`, and the new table row said インク. Two words for ink on facing
+pages of one manual.
+
+That is the part of the job a machine can do, done by machine. The rest still
+wants a reader.
+
 ## Where the pattern is decided, and where it is changed
 
 Three things can decide it, and they are in an order, because a decision beats

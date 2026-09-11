@@ -3169,3 +3169,66 @@ those two disagree for that fixture, or it would be proving nothing.
 Six reversions, six caught. That is six rounds of six: the surface contract, two
 generators, the studio, the field family, measuring and matching, and the two
 places a pattern is changed.
+
+
+---
+
+**The three limits, closed**
+
+Two of the three things the last round ended on turned out to be faults rather
+than limits. The third is as closed as I can close it from here.
+
+**A soft edge.** Every generator quantises, so the softest edge any of them drew
+measured 1.0 px where a knife edge is 1.0 — and a client with an airbrushed
+pattern could be told only that this engine does not draw one. Softness is
+native to exactly one of the five: a contour map with the contours blurred is a
+relief map. Three things then had to be measured rather than reasoned about.
+Dither is grain, and grain holds the edge at a pixel whatever the bands do.
+Contrast is the lever and runs the opposite way to intuition — 1.0 px at 0.28
+and 7.2 px at 1.68 — so my first guess made the new look *harder* than the one
+it replaced. And a wash is a look, not a slider: it is a slow field and few
+bands and no grain and full softening, and no one of those alone is a wash, so a
+search that moves one knob at a time correctly took none of them.
+
+Which exposed the actual fault. A style's own settings **never reached the
+planner** — `derive()` sets bands, dither and scale for every identity and the
+caller's value wins — so choosing the soft look gave 1.1 px, exactly as hard as
+the look it replaced. The engine was reporting that it could not draw a soft
+edge while holding the style that does. Same fault `field` had with its own name
+two rounds ago: a value that exists and never reaches the place that uses it.
+
+    ridge 1.0 px · strata 1.0 · basin 1.0 · drift 1.0 · wash 6.3 px, soft
+
+A soft reference now matches that row exactly: theirs 2.2 px, ours 2.2 px.
+
+**And it broke a table in a way worth keeping.** Salvage's reference is soft
+*and* repeating, and the engine can do either but not both. The row went from
+"beyond what this engine draws" to nothing at all — 4.4 px printed beside 1 px,
+unmarked, which reads as a match. A row nothing can reach, a row this match
+missed, and a row that landed are three different things to tell somebody.
+
+**Telling the three field generators apart.** Six measurements put `field`,
+`thread` and `terrace` in the same place while they look nothing like each
+other, which is a missing axis rather than a weak search. Two were added: how
+thick the ink is (area over half its boundary, which is the width of a run
+whatever the shape does elsewhere), and how much of the change lies on the two
+axes.
+
+    across eight identities   thickness        axiality
+    thread                    3.3 – 9.1 px     0.05 – 0.71
+    terrace                   5.7 – 38.1       0.02 – 0.12
+    field                     17.5 – 68.1      0.77 – 0.96
+
+Thread is thin and field is not, with nothing in between; field is square to the
+page and terrace is not, with nothing in between. The same twenty runs that
+recovered the right generator seven times in ten now recover it **twenty times
+out of twenty** — family margins 0.031 to 0.158, up from 0.004 to 0.021. It
+costs 35 seconds a match instead of 13.
+
+**The two translations I cannot read.** Still true, and not fixable from here.
+What is checkable is whether they introduce a second word for something the
+dictionary already has a word for — the failure a non-reader is most likely to
+ship and least likely to notice. There is a check for that now, and it caught
+one: the Japanese for ink here is 墨, in three existing strings, and my new table
+row said インク. Two words for ink on facing pages of one manual. The machine
+part is done by machine; the rest still wants a reader.

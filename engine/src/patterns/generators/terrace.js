@@ -28,14 +28,77 @@
 }(typeof self !== 'undefined' ? self : this, function (RAND, NOISE) {
   'use strict';
 
-  const STYLES = ['ridge', 'strata', 'basin', 'drift'];
+  const STYLES = ['ridge', 'strata', 'basin', 'drift', 'wash'];
   const STYLE = {
     ridge: { warp: 1.4, octaves: 5, ridged: true, contrast: 1.5 },
     strata: { warp: 0.35, octaves: 4, ridged: false, contrast: 2.1 },
     basin: { warp: 1.1, octaves: 5, ridged: false, contrast: 1.7 },
     drift: { warp: 2.2, octaves: 6, ridged: false, contrast: 1.3 },
+    // A wash. The one look here with no contour in it.
+    //
+    // Softness is not a slider position, it is a look, and that is why it is a
+    // style. Getting a wide, soft transition needs a slow field *and* few bands
+    // *and* no grain, all three at once: soften a fast six-band dithered field
+    // and the edge stays about a pixel while the ink share moves, so the
+    // matcher — which moves one knob at a time — correctly refused every
+    // intermediate step and reported that the engine could not draw one. As a
+    // style it is a single move, tried the way every other look is tried.
+    // These numbers are swept, not guessed, and they were swept twice.
+    //
+    // Contrast is the lever and it runs the opposite way to intuition: it
+    // decides where in the field the band boundaries fall and how fast the
+    // field is moving when it crosses them. A first guess of 0.7 made the look
+    // *harder* than the one it replaced.
+    //
+    // Then a contact sheet showed two things no measurement being taken would
+    // have caught, and both would have shipped.
+    //
+    // At contrast 1.68 with three bands the field is pushed so far towards its
+    // ends that on 3 seeds in 16 it never crosses a boundary and the tile is
+    // one flat colour. Five bands at 0.84 fixed that — and the picture was
+    // still a **faint stain on cream**, 2.2 px and "mixed" by the numbers and
+    // an empty page to look at. "Not flat" is not the same as "a pattern", and
+    // a coverage bar of 5% is not a bar at all.
+    //
+    // Swept again with presence as a constraint — no seed flat, no seed under
+    // a quarter ink — and exactly one setting survives: six bands at half the
+    // contrast. Worst ink across ten seeds 44%, narrowest edge 2 px, 3.5 px on
+    // average.
+    wash: { warp: 2.4, octaves: 2, ridged: false, contrast: 0.5,
+      bands: 6, dither: 0, soften: 1, scale: 1 },
   };
   const mod = (n, p) => ((n % p) + p) % p;
+
+  // What a style brings with it, beyond how the field is built.
+  //
+  // Most looks here are a way of shaping the field and nothing more. `wash` is
+  // not: it only exists as a *combination* — a slow field, few bands, no grain,
+  // full softening — and any one of those on its own is not a wash. So the
+  // style carries them, and whoever selects a style applies them.
+  //
+  // `plan` already falls back to a style's setting for a key nobody set, so
+  // `soften` would arrive on its own. What it cannot do is win against a value
+  // that *is* set — and `derive()` sets bands, dither and scale for every
+  // identity, so exactly those three lost every time. Bands is the one that
+  // decides whether a wash is a wash, so choosing `wash` gave a field measuring
+  // 1.1 px, as hard as the look it was meant to replace, and the engine went on
+  // reporting that it could not draw a soft edge while holding the style that
+  // does. Which keys lose is worth being exact about: the first version of this
+  // note said a style's settings never reached `plan` at all, and that is not
+  // what was happening.
+  const OWNS = ['bands', 'dither', 'soften', 'scale', 'contrast', 'warp'];
+  function defaultsFor(style) {
+    const st = STYLE[style];
+    if (!st) return {};
+    const out = {};
+    // warp and contrast are multipliers at the control, so selecting a style
+    // resets them to 1 rather than to the style's own absolute value.
+    for (const k of OWNS) {
+      if (k === 'warp' || k === 'contrast') { out[k] = 1; continue; }
+      if (st[k] != null) out[k] = st[k];
+    }
+    return out;
+  }
 
   // How many octaves a lattice can carry.
   //
@@ -58,7 +121,12 @@
 
   function plan(p) {
     const st = STYLE[p.style] || STYLE.ridge;
-    const period = Math.max(1, Math.round(p.scale == null ? 3 : p.scale));
+    // A style may carry defaults for the controls too, so a look that only
+    // exists as a *combination* can be one choice rather than four. Anything
+    // the caller sets still wins: choosing `wash` and then moving Bands moves
+    // Bands.
+    const pick = (key, fallback) => (p[key] == null ? (st[key] == null ? fallback : st[key]) : p[key]);
+    const period = Math.max(1, Math.round(pick('scale', 3)));
     const grid = Math.max(8, Math.round(p.grid == null ? 96 : p.grid));
     return {
       style: p.style, seed: p.seed || 1,
@@ -67,9 +135,19 @@
       warp: st.warp * (p.warp == null ? 1 : p.warp),
       octaves: Math.min(st.octaves, octavesFor(period, grid)), ridged: st.ridged,
       contrast: st.contrast * (p.contrast == null ? 1 : p.contrast),
-      bands: Math.max(2, Math.round(p.bands == null ? 6 : p.bands)),
-      dither: p.dither == null ? 0.3 : p.dither,
+      bands: Math.max(2, Math.round(pick('bands', 6))),
+      dither: pick('dither', 0.3),
       spread: p.spread || 0,
+      // How much of a band the change from one to the next is spread over.
+      //
+      // 0 is a contour line and it is what every generator here did: all five
+      // quantise — to a cell, a stripe, a stroke or a band — so the softest
+      // edge the engine could draw measured 0.91 where a knife edge is 1.00,
+      // and a client whose pattern is an airbrushed gradient could be told only
+      // that we do not draw one. Softness is native to *this* generator: a
+      // contour map with the contours blurred is a relief map, not a smudged
+      // contour map. At 1 each band ramps into the next across its whole width.
+      soften: Math.max(0, Math.min(1, pick('soften', 0))),
       // How coarse the field is sampled. Terrain calls this Blockiness; here it
       // is also what `paint` draws its rectangles at, and what decides how many
       // octaves the field is allowed.
@@ -93,6 +171,35 @@
     return Math.max(0, Math.min(q.bands - 1, Math.floor(n * q.bands)));
   }
 
+  // The same field, before it is cut into bands. `bandAt` is this floored, and
+  // it stays exactly as it was: the periodicity check reads it, and a check
+  // that measured a softened value would be measuring the softening.
+  function bandFloat(u, v, q, cellX, cellY) {
+    const P = q.period;
+    const w = NOISE.warp2(u * P, v * P, P, P, q.warp, 3, q.seed + 7);
+    let n = NOISE.fbm2(w[0], w[1], P, P, q.octaves, q.seed);
+    if (q.ridged) n = NOISE.ridged(n);
+    else n = NOISE.evenly(n, q.octaves);
+    n = NOISE.contrast(n, q.contrast);
+    if (q.dither) n += (RAND.hash01(cellX, cellY, q.seed + 313) - 0.5) * q.dither * (1 / q.bands);
+    n = NOISE.skew(Math.max(0, Math.min(0.99999, n)), q.spread);
+    return Math.max(0, Math.min(q.bands - 1e-6, n * q.bands));
+  }
+
+  // Which two band colours a point sits between, and how far. With soften at 0
+  // the mix is always 0 and this is the hard band it always was — so the one
+  // code path serves both and they cannot drift.
+  function blend(t, q) {
+    const i = Math.floor(t), f = t - i;
+    if (q.soften <= 0) return { lo: i, hi: i, mix: 0 };
+    const from = 1 - q.soften;
+    if (f <= from) return { lo: i, hi: i, mix: 0 };
+    const x = (f - from) / q.soften;
+    // smoothstep, so the ramp leaves and arrives flat and the eye reads it as
+    // a gradient rather than as a wedge with two creases in it
+    return { lo: i, hi: Math.min(q.bands - 1, i + 1), mix: x * x * (3 - 2 * x) };
+  }
+
   // Pixels. The file the package carries.
   function render(width, height, p, palette) {
     const q = plan(p);
@@ -113,10 +220,17 @@
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
         const u = x / W, v = y / H;
-        const b = bandAt(u, v, q, mod(Math.floor(u * cells), cells), mod(Math.floor(v * cells), cells));
-        const c = rgb[b];
+        const cx = mod(Math.floor(u * cells), cells), cy = mod(Math.floor(v * cells), cells);
+        const { lo, hi, mix } = blend(bandFloat(u, v, q, cx, cy), q);
+        const a = rgb[lo], b2 = rgb[hi];
         const i = (y * W + x) * 4;
-        data[i] = c[0]; data[i + 1] = c[1]; data[i + 2] = c[2]; data[i + 3] = 255;
+        // Mixed in sRGB rather than in light. Mixing two inks in linear light
+        // is right for light and wrong for ink: it lightens the middle of every
+        // transition, and a printer mixing the same two inks does not.
+        data[i] = Math.round(a[0] + (b2[0] - a[0]) * mix);
+        data[i + 1] = Math.round(a[1] + (b2[1] - a[1]) * mix);
+        data[i + 2] = Math.round(a[2] + (b2[2] - a[2]) * mix);
+        data[i + 3] = 255;
       }
     }
     return { width: W, height: H, data };
@@ -131,14 +245,24 @@
     const cw = W / C, ch = H / C;
     const R3 = (n) => Math.round(n * 1000) / 1000;
     const hexes = [palette.ground].concat(palette.inks.map((i) => i.hex));
-    const at = (x, y) => bandAt((x + 0.5) / C, (y + 0.5) / C, q, mod(x, C), mod(y, C));
+    const rgbOf = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+    const hex2 = (c) => `#${c.map((n) => Math.round(n).toString(16).padStart(2, '0')).join('')}`;
+    // The same colour rule as `render`, at the lattice rather than the pixel.
+    // Two rules would be two pictures, and this one is the stand-in shown on a
+    // page while the other is the file the package ships.
+    const at = (x, y) => {
+      const { lo, hi, mix } = blend(bandFloat((x + 0.5) / C, (y + 0.5) / C, q, mod(x, C), mod(y, C)), q);
+      if (!mix) return hexes[lo % hexes.length];
+      const a = rgbOf(hexes[lo % hexes.length]), b = rgbOf(hexes[hi % hexes.length]);
+      return hex2([0, 1, 2].map((k) => a[k] + (b[k] - a[k]) * mix));
+    };
     for (let y = 0; y < C; y++) {
       let x = 0;
       while (x < C) {
         const v = at(x, y);
         let n = 1;
         while (x + n < C && at(x + n, y) === v) n++;
-        surface.fillStyle = hexes[v % hexes.length];
+        surface.fillStyle = v;
         const x0 = R3(x * cw), x1 = R3((x + n) * cw), y0 = R3(y * ch), y1 = R3((y + 1) * ch);
         surface.fillRect(x0, y0, x1 - x0, y1 - y0);
         x += n;
@@ -155,9 +279,10 @@
     { group: 'pattern', key: 'dither', label: 'Dither', type: 'range', min: 0, max: 1.2, step: 0.02 },
     { group: 'pattern', key: 'grid', label: 'Grain', type: 'range', min: 24, max: 240, step: 8 },
     { group: 'pattern', key: 'spread', label: 'Band spread', type: 'range', min: -1.2, max: 1.2, step: 0.05 },
+    { group: 'pattern', key: 'soften', label: 'Softness', type: 'range', min: 0, max: 1, step: 0.05 },
     { group: 'pattern', key: 'seed', label: 'Seed', type: 'seed' },
   ];
 
-  return { key: 'terrace', vector: false, styles: STYLES, controls,
+  return { key: 'terrace', vector: false, styles: STYLES, controls, bandFloat, blend, defaultsFor,
     plan, bandAt, render, paint, octavesFor, STYLE };
 }));

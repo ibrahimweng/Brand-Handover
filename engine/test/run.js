@@ -1682,17 +1682,27 @@ test('a logo is not scored on the rows a logo does not have', () => {
     colours: project.tokens.colour, colourway: project.rules.colourways[0] });
   const src = project.assets[project.master || 'mark'].source;
   const logo = PMATCH.logoField(src, 384, t0.pal.ground);
-  const r = PMATCH.fit(logo, make, { px: 256, rounds: 1, against: 'logo' });
+  // Two rounds, because that is what build.js does. One round measured
+  // something the product never runs, and the bar below is set from what eight
+  // identities actually score at the setting that ships: 0.064 to 0.215.
+  const r = PMATCH.fit(logo, make, { px: 256, rounds: 2, against: 'logo' });
   assert.strictEqual(r.against, 'logo');
-  assert.deepStrictEqual(r.scored.sort(), ['coverage', 'hardness', 'orientation'],
-    `a logo was scored on ${r.scored.join(', ')}`);
-  assert.ok(r.score < 0.25, `the logo matched at only ${r.score}`);
+  // The claim is about which rows a *logo* has, not how many there are. A mark
+  // has a thickness and a squareness as much as a pattern does and both carry —
+  // a geometric mark of even strokes should not be handed a field of curved
+  // contours. What it does not have is a period or a repeat.
+  assert.strictEqual(r.scored.indexOf('scale'), -1, 'a logo was scored on its period');
+  assert.strictEqual(r.scored.indexOf('regularity'), -1, 'a logo was scored on whether it repeats');
+  for (const k of ['hardness', 'orientation']) {
+    assert.ok(r.scored.indexOf(k) > -1, `a logo was not scored on ${k}, which it has`);
+  }
+  assert.ok(r.score < 0.25, `the logo matched at only ${r.score}`);   // worst of eight is 0.215
   // the rows it did not try to match say so, rather than reading as misses
   const unscored = r.table.rows.filter((x) => x.note === 'notMatched').map((x) => x.key);
   assert.ok(unscored.indexOf('repeatEvery') > -1 && unscored.indexOf('repeatKind') > -1,
     `the unmatched rows are ${unscored.join(', ')}`);
   // and scoring it as a pattern is what was worse, which is why this exists
-  const asPattern = PMATCH.fit(logo, make, { px: 256, rounds: 1 });
+  const asPattern = PMATCH.fit(logo, make, { px: 256, rounds: 2 });
   assert.ok(asPattern.score > r.score,
     `scoring a logo on all six was no worse (${asPattern.score} against ${r.score}), so this is testing nothing`);
 });
@@ -1801,11 +1811,16 @@ test('a brand that brings its own pattern gets one measured against it', async (
     // both columns present, and the reference's own numbers among them
     assert.ok(sec.indexOf('96 px') > -1, 'their period is not printed');
     assert.ok(sec.indexOf('45%') > -1, 'their ink share is not printed');
-    // a row nothing can reach is named as that rather than left as a miss
-    assert.ok(sec.indexOf('beyond what this engine draws') > -1,
-      'the row no generator reaches is not marked');
-    assert.ok(/none of the \d+ generators draws an edge that soft/.test(sec),
-      'the manual does not say why that row cannot be matched');
+    // A row that is off is marked as off. Which mark it gets is the point:
+    // salvage's reference is soft *and* repeating, and since a soft look was
+    // added the engine can do either but not both — so this is no longer a row
+    // nothing can reach, it is a row this match missed. It went unmarked
+    // entirely for one commit, printing 4.4 px beside 1 px as though they
+    // agreed.
+    const edge = /Edges over[\s\S]{0,400}?<\/tr>/.exec(sec);
+    assert.ok(edge, 'the table has no edge row');
+    assert.ok(/this one is off|beyond what this engine draws/.test(edge[0]),
+      `the edge row is off and unmarked: ${edge[0].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()}`);
     // and the page still asks nothing of the network or of its neighbours
     assert.ok(sec.indexOf('../07-pattern/') === -1, 'the page points at a sibling file');
     assert.ok(r.written.some((f) => f.path === 'brand.json'));
@@ -2009,6 +2024,176 @@ test('a generator the engine does not have is refused at the door and in the fil
   const without = INT.toProject({ brand: 'Door', places: ['screen'] }, seen);
   assert.ok(!without.system || !without.system.patterns,
     'the door invented a pattern nobody chose');
+});
+
+test('the pattern strings use the words the rest of the dictionary already uses', () => {
+  // I wrote the Hebrew and Japanese for these pages and I cannot read either to
+  // a native standard. What I *can* check is that they do not introduce a second
+  // word for something the dictionary already has a word for — which is the
+  // failure a non-reader is most likely to ship and least likely to notice.
+  //
+  // It caught one: the Japanese for ink in this dictionary is 墨, in cvInk and
+  // in ladderPiece and in nameSetInC, and the new table row said インク. Two
+  // words for ink on facing pages of one manual.
+  //
+  // This is not a substitute for somebody who reads the language. It is the
+  // part of the job that can be checked by machine, checked by machine.
+  const mine = Object.keys(STR.EN).filter((k) => /^(sec)?[Gg]en|^cvRetouch|^cvNoGenerated|^cvArtGenerated|^cvBlockGenerated/.test(k));
+  assert.ok(mine.length > 20, `only ${mine.length} pattern strings found, so this is checking almost nothing`);
+  const TERMS = [
+    // what it is        the word this dictionary uses        a word it does not
+    { what: 'ink', he: /דיו/, ja: /墨/, insteadJa: /インク(?!キ)/ },
+    { what: 'pattern', he: /דוגמ/, ja: /パターン/, insteadJa: /模様|柄(?!が)/ },
+  ];
+  const wrong = [];
+  for (const t of TERMS) {
+    for (const lang of ['he', 'ja']) {
+      const d = STR.HAVE[lang];
+      // the established word, from the strings that were here before
+      const settled = Object.entries(d).filter(([k, v]) => typeof v === 'string'
+        && mine.indexOf(k) === -1 && t[lang].test(v)).length;
+      if (!settled) continue;                       // nothing established, nothing to match
+      const other = t[`instead${lang[0].toUpperCase()}${lang[1]}`];
+      if (!other) continue;
+      for (const k of mine) {
+        const v = d[k];
+        if (typeof v === 'string' && other.test(v) && !t[lang].test(v)) {
+          wrong.push(`${lang}.${k} says ${JSON.stringify(v)} where this dictionary says ${t.what} ${settled} other times with its own word`);
+        }
+      }
+    }
+  }
+  assert.deepStrictEqual(wrong, [], wrong.join('\n'));
+});
+
+test('the engine draws a soft edge, and says so with a number', () => {
+  // Every generator here quantises — to a cell, a stripe, a stroke or a band —
+  // so for five rounds the softest edge any of them drew measured 1.0 px, where
+  // a knife edge is 1.0 and a four-pixel ramp is 0.25. A client whose pattern is
+  // an airbrushed gradient could be told only that this engine does not draw
+  // one. `terrace` now has a look that does.
+  const T = require('../src/patterns/generators/terrace');
+  const pal = { ground: '#F0ECE4', inks: [{ hex: '#1B3A2F' }, { hex: '#C25A34' }, { hex: '#8FA89B' }] };
+  const width = (style) => PMEAS.hardness(T.render(384, 384, { style, grid: 96, seed: 1 }, pal)).width;
+  const contour = T.styles.filter((x) => x !== 'wash').map(width);
+  assert.deepStrictEqual([...new Set(contour)], [1],
+    `the contour looks measured ${contour.join(', ')} and every one of them should be a knife edge`);
+  // Against the contour looks rather than against a round number. Every one of
+  // those is exactly 1.0 px on every seed; the soft one varies with the seed
+  // between about 2 and 7, so pinning one seed above 4 pins the seed.
+  const soft = width('wash');
+  assert.ok(soft > 2 * contour[0], `the soft look measured ${soft} px against ${contour[0]} for a contour`);
+
+  // And it has to be a pattern, on every seed.
+  //
+  // Softness comes from contrast, contrast pushes the field towards its ends,
+  // and pushed far enough the field stops crossing a band boundary at all:
+  // three seeds in sixteen came out one flat colour. The next setting fixed
+  // that and was still a faint stain on cream — 2.2 px and "mixed" by the
+  // numbers, an empty page to look at. Neither turned up in a measurement; both
+  // turned up on a contact sheet, which is the argument for making one.
+  //
+  // So the bar is presence, not the absence of flatness. A quarter of the
+  // picture in ink at worst, across two dozen seeds.
+  // Twenty-four seeds, and the bars sit in the gaps the measurements leave.
+  // Every contour sample is exactly 1.0 px, with no spread at all; the soft look
+  // runs 1.4 to 4.5 with a median of 3.3, and carries 44% to 77% ink.
+  const widths = [], inks = [];
+  for (let seed = 1; seed <= 24; seed++) {
+    const f = T.render(224, 224, { style: 'wash', grid: 96, seed }, pal);
+    const h = PMEAS.hardness(f);
+    assert.notStrictEqual(h.kind, 'flat', `seed ${seed} draws the soft look as one flat colour`);
+    widths.push(h.width); inks.push(PMEAS.coverage(f));
+  }
+  widths.sort((a, b) => a - b); inks.sort((a, b) => a - b);
+  assert.ok(inks[0] > 0.4,
+    `its emptiest seed carries ${Math.round(inks[0] * 100)}% ink, which is a stain rather than a pattern`);
+  assert.ok(widths[0] > contour[0],
+    `its hardest seed is ${widths[0]} px, no softer than a contour at ${contour[0]}`);
+  assert.ok(widths[12] > 2.5, `its median edge over 24 seeds is ${widths[12]} px`);
+
+  // A style may carry its own settings, and this one has to: a wash is a slow
+  // field AND few bands AND no grain AND full softening, and no one of those is
+  // a wash. `derive()` sets bands, dither and scale for every identity, so the
+  // style's own values lost to them every time and choosing `wash` gave 1.1 px
+  // — exactly as hard as the look it replaced.
+  // Deliberately not the wash's own bands, or the check cannot tell whose value
+  // arrived — which it could not, for one run, when the preset was retuned to
+  // six and this fixture already said six.
+  const derived = { style: 'strata', bands: 3, dither: 0.3, grid: 72, scale: 3, seed: 1 };
+  assert.notStrictEqual(derived.bands, T.defaultsFor('wash').bands,
+    'the fixture and the style agree on bands, so this proves nothing');
+  // Asked of the plan, not of a pixel count. Whether the settings *arrive* is
+  // exact and stays true however the preset is later tuned; how many pixels
+  // that is worth moves every time somebody sweeps it, and pinning the number
+  // pins the sweep.
+  const byName = T.plan(Object.assign({}, derived, { style: 'wash' }));
+  const carried = T.plan(Object.assign({}, derived, T.defaultsFor('wash'), { style: 'wash' }));
+  // Precisely: plan()'s fallback already applies a style's setting for a key
+  // nobody set — `soften` arrives either way, because derive() does not set it.
+  // What lost were the three keys derive() *does* set for every identity, and
+  // bands is the one that decides whether a wash is a wash.
+  assert.strictEqual(byName.soften, 1, 'soften does not reach plan even by name');
+  assert.strictEqual(byName.bands, derived.bands,
+    'bands is not overridden by derive, so this is testing the wrong key');
+  assert.strictEqual(byName.dither, derived.dither, 'dither is not overridden by derive either');
+  assert.strictEqual(carried.bands, T.defaultsFor('wash').bands,
+    'the style did not bring its own bands');
+  assert.notStrictEqual(carried.bands, derived.bands, 'and they are not the ones derive set');
+  assert.strictEqual(carried.dither, 0, 'the style did not bring its own grain');
+  // and it shows: the same field, banded the style's way, is softer
+  const w = (p2) => PMEAS.hardness(T.render(384, 384, p2, pal)).width;
+  assert.ok(w(Object.assign({}, derived, T.defaultsFor('wash'), { style: 'wash' }))
+    > w(Object.assign({}, derived, { style: 'wash' })),
+    'carrying the settings made no difference to the drawing');
+
+  // and it still repeats. bandAt is unchanged and exact; the softened field is
+  // continuous, so it is compared at the precision the output actually has —
+  // one part in 255 — rather than by ===, which no float survives.
+  const q = T.plan({ style: 'wash', grid: 96, seed: 1 });
+  let worst = 0;
+  for (let k = 0; k < 400; k++) {
+    const u = ((k * 13.7) % 1000) / 1000, v = ((k * 29.3) % 1000) / 1000;
+    const c = 96, cx = Math.floor(u * c), cy = Math.floor(v * c);
+    const a = T.bandFloat(u, v, q, cx, cy);
+    for (const [du, dv] of [[1, 0], [0, 1], [1, 1], [-1, 0]]) {
+      worst = Math.max(worst, Math.abs(a - T.bandFloat(u + du, v + dv, q, cx, cy)));
+    }
+  }
+  assert.ok(worst < 1 / 255 / 2, `the softened field drifts ${worst.toExponential(2)} of a band across the tile`);
+});
+
+test('two more measurements, because the six could not tell three generators apart', () => {
+  // The six put `field`, `thread` and `terrace` in the same place while they
+  // look nothing like each other, which says the space was missing an axis.
+  // Thickness tells a stroke from a block; axiality tells a grid from a contour.
+  const names = ['meridian', 'kvist', 'carrock', 'fathom', 'ancroft', 'beaumont'];
+  const by = {};
+  for (const g of PENG.NAMES) by[g] = { weight: [], axiality: [] };
+  for (const name of names) {
+    const pr = projectLoader.load(path.join(__dirname, '..', 'projects', name, 'project.json'));
+    const mm = measure(pr);
+    const src = pr.assets[pr.master || (pr.assets.mark ? 'mark' : 'wordmark')].source;
+    const mk = PMARK.read(src, mm, pr.rules);
+    for (const g of PENG.NAMES) {
+      const f = PMATCH.asField(PENG.tile({ mark: mk, generator: g,
+        colours: pr.tokens.colour, colourway: pr.rules.colourways[0] }), 256);
+      by[g].weight.push(PMEAS.weight(f).px);
+      by[g].axiality.push(PMEAS.axiality(f).value);
+    }
+  }
+  const lo = (g, k) => Math.min(...by[g][k]), hi = (g, k) => Math.max(...by[g][k]);
+  // thread is thin and field is not, with nothing in between
+  assert.ok(hi('thread', 'weight') < lo('field', 'weight'),
+    `thread measures up to ${hi('thread', 'weight')} px thick and field down to ${lo('field', 'weight')}`);
+  // field is square to the page and terrace is not, with nothing in between
+  assert.ok(lo('field', 'axiality') > hi('terrace', 'axiality'),
+    `field is ${lo('field', 'axiality')} axial at its least and terrace ${hi('terrace', 'axiality')} at its most`);
+  // and both are reported, so a table can print them
+  const one = PMEAS.all(PMATCH.asField(PENG.tile({ mark: PMARK.read(project.assets.mark.source, m, project.rules),
+    generator: 'thread', colours: project.tokens.colour, colourway: project.rules.colourways[0] }), 192));
+  assert.ok(one.weight && one.weight.px > 0, 'all() does not report a thickness');
+  assert.ok(one.axiality && one.axiality.kind, 'all() does not report an axiality');
 });
 
 console.log('\nthe pattern engine: the studio');

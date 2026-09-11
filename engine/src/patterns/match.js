@@ -67,6 +67,29 @@ const KNOBS = {
     scale: [1, 2, 3, 5, 8],
     style: null,
     bands: [3, 5, 8, 12],
+    // Softness, and the two things that fight it. Dither is grain, and grain is
+    // a jump at every lattice cell: at 0.3 it pulls a fully softened field from
+    // 3.4 px back to 1.1, which is right and is also why matching a soft
+    // reference has to be allowed to turn it down. Without these two in reach
+    // the search cannot get to softness at all, and the engine would go on
+    // saying it does not draw one while holding the control that does.
+    // Softness and grain move **together**, as one knob with four settings.
+    //
+    // They have to. The search is coordinate descent — one knob at a time — and
+    // softening alone while dither stays at 0.3 buys almost nothing, because
+    // grain is a jump at every lattice cell and it holds the measured edge at
+    // about a pixel whatever the bands do. Turning dither down alone buys
+    // nothing either, because the bands are still cut with a knife. Each move
+    // is worthless and the pair is worth a great deal, so a search that can
+    // only take one at a time never takes either: it reported `soften:
+    // undefined` on a reference built to need it and said the engine could not
+    // draw one, while holding the control that does.
+    edge: [
+      { soften: 0, dither: 0.3 },       // contours, grained — what it always did
+      { soften: 0.5, dither: 0.15 },
+      { soften: 1, dither: 0.05 },
+      { soften: 1, dither: 0 },         // a wash
+    ],
   },
 };
 
@@ -115,6 +138,11 @@ function distance(theirs, mine, weights) {
     o.strength * Math.sin(2 * o.angle * Math.PI / 180)];
   const [ax, ay] = vec(theirs.orientation), [bx, by] = vec(mine.orientation);
   parts.orientation = Math.hypot(ax - bx, ay - by) / 2;
+  // How thick the ink is, as a ratio — thickness is multiplicative the way
+  // scale is, and 4 px against 8 is the same distance as 20 against 40.
+  const tw = Math.max(1, (theirs.weight || {}).px || 1), mw = Math.max(1, (mine.weight || {}).px || 1);
+  parts.weight = Math.abs(Math.log(mw / tw)) / Math.log(3);
+  parts.axiality = Math.abs(((theirs.axiality || {}).value || 0) - ((mine.axiality || {}).value || 0));
   const W = weights || WEIGHTS.pattern;
   let total = 0, weight = 0;
   for (const k of Object.keys(W)) {
@@ -142,9 +170,21 @@ function distance(theirs, mine, weights) {
 // whether it leans; the rest of the argument is `derive()`'s, which reads the
 // mark's fineness and curviness and has been the route from mark to pattern
 // since Round B. This is a refinement of that, not a replacement for it.
+//
+// `weight` and `axiality` were added after the first six were measured and found
+// not to separate `field`, `thread` and `terrace` at all. Thickness tells a
+// stroke from a block — thread measures 3.3 to 9.1 px across eight identities
+// and field 17.5 to 68.1, with nothing in between — and axiality tells a grid
+// from a contour: field 0.77 to 0.96, terrace 0.02 to 0.12. Neither is a
+// refinement of the six; they are the axis the six were missing.
 const WEIGHTS = {
-  pattern: { scale: 1.6, coverage: 1.3, orientation: 1, hardness: 0.8, regularity: 0.6 },
-  logo: { scale: 0, coverage: 0.3, orientation: 1, hardness: 1.5, regularity: 0 },
+  pattern: { scale: 1.6, coverage: 1.3, orientation: 1, weight: 1.2, axiality: 1,
+    hardness: 0.8, regularity: 0.6 },
+  // A mark has a thickness and a squareness as much as a pattern does, and both
+  // carry: a geometric mark of even strokes should not be handed a field of
+  // curved contours. Its period and its ink share still do not.
+  logo: { scale: 0, coverage: 0.3, orientation: 1, weight: 0.8, axiality: 1,
+    hardness: 1.5, regularity: 0 },
 };
 
 // Every parameter set the search will try for one generator: the starting
@@ -160,8 +200,21 @@ function candidates(gen, from, knobs) {
     if (values === null && key === 'style') values = gen.styles;
     if (!values) continue;
     for (const v of values) {
+      // A value may be a whole set of parameters rather than one, for knobs
+      // that are only worth anything together — see `edge` above. Coordinate
+      // descent cannot climb out of a pair where each half alone is worthless,
+      // so the pair is declared as one move.
+      if (v && typeof v === 'object') {
+        if (Object.keys(v).every((k) => from[k] === v[k])) continue;
+        out.push(Object.assign({}, from, v));
+        continue;
+      }
       if (from[key] === v) continue;
-      out.push(Object.assign({}, from, { [key]: v }));
+      // Choosing a style brings that style's own settings with it, where it
+      // declares any. A look that only exists as a combination is not reachable
+      // by changing its name and keeping the last one's numbers.
+      const brings = key === 'style' && gen.defaultsFor ? gen.defaultsFor(v) : null;
+      out.push(Object.assign({}, from, brings || {}, { [key]: v }));
     }
   }
   return out;
@@ -275,18 +328,20 @@ function fit(reference, make, opts) {
   }
   // Which other generators measure the same as the winner.
   //
-  // This is not hedging, it is what twenty runs say. Handing each generator its
-  // own output back and asking which one drew it, over two identities at two
-  // resolutions: weave and zigzag come back right every time, by margins of
-  // 0.026 to 0.465. The three field generators come back right seven times in
-  // ten, by margins of 0.004 to 0.021 — which is to say they are one family
-  // under these six measurements, and which of them wins is inside the noise.
+  // This used to be load-bearing. On six measurements the three field
+  // generators were one family — right seven times in ten by margins of 0.004
+  // to 0.021 — and reporting the ties was the only honest thing to do, because
+  // which of them won was inside the noise.
   //
-  // The pattern is a good match either way; that is what a small margin means.
-  // So the engine says so, the studio can offer the others as chips, and the
-  // manual names them. TIE sits in the gap between the largest tied margin
-  // (0.021) and the smallest decisive one (0.026) — a narrow gap, said to be
-  // narrow rather than rounded to something comfortable.
+  // With thickness and axiality added the same twenty runs come back **right
+  // twenty times out of twenty**, by margins of 0.031 to 0.158 for those three
+  // and 0.093 to 0.376 for the other two. The ties are gone, which is the
+  // answer to the problem rather than a way of living with it.
+  //
+  // It stays, because it is still true that two generators can measure the same
+  // on a client's picture even if they no longer do on each other's, and
+  // because the pattern is a good match either way when they do. TIE sits below
+  // the smallest margin now measured (0.031).
   const alsoFits = won ? tried.slice(1).filter((t) => t.score - won.score <= TIE)
     .map((t) => ({ generator: t.generator, score: t.score, params: t.params })) : [];
   return {
@@ -305,7 +360,8 @@ function fit(reference, make, opts) {
     alsoFits,
     // What no generator could reach, named row by row.
     beyond,
-    table: won ? columns(theirs, won.mine, o.against === 'logo' ? WEIGHTS.logo : null, beyond) : null,
+    table: won ? columns(theirs, won.mine, o.against === 'logo' ? WEIGHTS.logo : null,
+      beyond, won.parts) : null,
     verdict: Object.assign(verdict(won ? won.score : null),
       alsoFits.length ? {
         tied: alsoFits.map((a) => a.generator),
@@ -327,7 +383,7 @@ function fit(reference, make, opts) {
 // and the row said the match was half the size it was. Ours is restated at the
 // width of theirs — which is what "the same size" means when one of the two is
 // a vector that has no size at all.
-function columns(theirs, mine, weights, outOfReach) {
+function columns(theirs, mine, weights, outOfReach, parts) {
   const pc = (v) => `${Math.round(v * 100)}%`;
   const ruler = theirs.size.width;
   const ourPeriod = mine.scale.across > 0 ? Math.round(ruler / mine.scale.across) : null;
@@ -336,6 +392,8 @@ function columns(theirs, mine, weights, outOfReach) {
   // said belongs to a language, and this table is printed in four of them. The
   // English in `label` is for brand.json and the read me, which are English.
   const mm = (v, u) => ({ n: v, unit: u });
+  const sq = (a) => ({ 'every way': 'everyWay', 'square to the page': 'squareToPage',
+    diagonal: 'onTheDiagonal', none: 'none' }[(a || {}).kind] || 'none');
   const rows = [
     { key: 'repeatEvery', label: 'Repeats every',
       theirs: theirs.scale.found ? mm(theirs.scale.period, 'px') : { say: 'noRepeat' },
@@ -353,15 +411,41 @@ function columns(theirs, mine, weights, outOfReach) {
     { key: 'repeatKind', label: 'Repeat or tendency',
       theirs: { say: theirs.scale.regularity >= 0.5 ? 'aRepeat' : 'aTendency' },
       ours: { say: mine.scale.regularity >= 0.5 ? 'aRepeat' : 'aTendency' } },
+    { key: 'inkThickness', label: 'Ink is',
+      theirs: mm((theirs.weight || {}).px || 0, 'px'), ours: mm((mine.weight || {}).px || 0, 'px') },
+    { key: 'squareness', label: 'Lined up',
+      theirs: { say: sq(theirs.axiality) }, ours: { say: sq(mine.axiality) } },
   ];
+  // Which measurement each row is about. Declared here, above every use of it:
+  // it was moved below the first one and `const` does not hoist, so every logo
+  // match died on "Cannot access 'OF' before initialization" — a whole feature
+  // broken by a tidy-up, and caught only because there is a test that matches a
+  // logo.
+  const OF = { repeatEvery: 'scale', repeatAcross: 'scale', ink: 'coverage',
+    runsAt: 'orientation', edgesOver: 'hardness', repeatKind: 'regularity',
+    inkThickness: 'weight', squareness: 'axiality' };
+
   // Against a logo, the rows that were not scored are marked, so nobody reads a
   // row the engine was not trying to match as one it tried and missed.
   if (weights) {
-    const of = { repeatEvery: 'scale', repeatAcross: 'scale', ink: 'coverage',
-      runsAt: 'orientation', edgesOver: 'hardness', repeatKind: 'regularity' };
-    for (const r of rows) if (!weights[of[r.key]]) r.note = 'notMatched';
+    for (const r of rows) if (!weights[OF[r.key]]) r.note = 'notMatched';
   }
-  // A row this engine cannot reach is marked as that, not as a miss.
+  // Three states, not two, and the difference matters to whoever reads it.
+  //
+  // A row can be one this engine cannot reach at all; one this match missed
+  // though something in the engine could have hit it; or one that landed. They
+  // were collapsed into two, and the moment a soft look was added the salvage
+  // table went from saying "beyond what this engine draws" to saying nothing —
+  // printing 4.4 px beside 1 px with no mark on it, which reads as a match.
+  // What is true there is that the engine *can* be that soft but not while also
+  // repeating every 96 px, and "missed" is the word for that.
+  if (parts) {
+    for (const r of rows) {
+      if (r.note) continue;
+      const part = parts[OF[r.key]];
+      if (part != null && part > 0.35) r.note = 'missed';
+    }
+  }
   if (outOfReach) {
     for (const b of outOfReach) {
       const row = rows.find((r) => r.key === b.key);

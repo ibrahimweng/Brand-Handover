@@ -455,6 +455,97 @@ function hardness(field) {
   };
 }
 
+// ------------------------------------------------------ weight and axiality
+
+// Two more, and they exist for one reason: the first six do not tell the three
+// field generators apart. Handing each its own output back and asking which drew
+// it, the two hard-edged generators come back right every time by margins of
+// 0.026 to 0.465, and `field`, `thread` and `terrace` come back right seven
+// times in ten by margins of 0.004 to 0.021. They occupy the same place in that
+// six-dimensional space while looking nothing like each other, which says the
+// space is missing an axis, not that the search is weak.
+//
+// What a person sees that the six do not measure:
+//
+//   thread   thin strokes, long and connected
+//   field    blocky cells, square, lined up with the page
+//   terrace  broad regions with curved boundaries
+//
+// So: how thick the ink is, and how much of it lies along the two axes.
+
+// The mean thickness of the inked parts, in pixels.
+//
+// Area over half the boundary. A long run of ink w wide and L long has area Lw
+// and a boundary of about 2L, so 2·area/boundary is w — the width, whatever the
+// shape is doing elsewhere. A stroke comes out thin and a block comes out as
+// wide as the block, which is the distinction the six were missing.
+function weight(field, pal) {
+  const f = shrink(field);
+  const p = pal || palette(f, 5);
+  if (!p.length) return { px: 0, share: 0 };
+  const V = require('../vision');
+  const ground = p[0].lab;
+  const W = f.width, H = f.height;
+  const ink = new Uint8Array(W * H);
+  let area = 0;
+  for (let i = 0; i < W * H; i++) {
+    const a = f.data[i * 4 + 3] / 255;
+    const hex = `#${[0, 1, 2].map((k) => Math.round(f.data[i * 4 + k] * a + 255 * (1 - a))
+      .toString(16).padStart(2, '0')).join('')}`;
+    const lab = V.lab(hex);
+    // Ink is what is not the ground, by the same rule `coverage` uses — and
+    // "not the ground" has to mean visibly not, or antialiasing is ink.
+    const d = Math.hypot(lab[0] - ground[0], lab[1] - ground[1], lab[2] - ground[2]);
+    if (d > 12) { ink[i] = 1; area++; }
+  }
+  if (!area) return { px: 0, share: 0 };
+  let edge = 0;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      if (!ink[i]) continue;
+      if (x === 0 || x === W - 1 || y === 0 || y === H - 1
+        || !ink[i - 1] || !ink[i + 1] || !ink[i - W] || !ink[i + W]) edge++;
+    }
+  }
+  const px = edge ? (2 * area) / edge : 0;
+  return {
+    px: Math.round(px * 10) / 10,
+    // as a share of the picture, so it can be compared between sizes
+    share: Math.round((px / Math.max(W, H)) * 1000) / 1000,
+  };
+}
+
+// How much of the picture's change lies along the two axes.
+//
+// A grid of square cells puts nearly all of it there; a field of contours
+// spreads it everywhere. Measured as the concentration of edge energy at
+// four times the angle — four, because the two axes are a quarter turn apart
+// and a quarter turn has to come back to the same place for this to be one
+// number rather than two.
+function axiality(field) {
+  const f = shrink(field);
+  const { gx, gy, W, H } = gradients(f);
+  let sx = 0, sy = 0, total = 0;
+  for (let i = 0; i < W * H; i++) {
+    const m = Math.hypot(gx[i], gy[i]);
+    if (m < 1e-9) continue;
+    const a4 = 4 * Math.atan2(gy[i], gx[i]);
+    sx += m * Math.cos(a4); sy += m * Math.sin(a4);
+    total += m;
+  }
+  if (!total) return { value: 0, kind: 'none' };
+  // 1 is everything on the axes (or everything at 45°, which the sign tells
+  // apart); 0 is every direction equally.
+  const r = Math.hypot(sx, sy) / total;
+  const on = Math.cos(Math.atan2(sy, sx)) >= 0;
+  return {
+    value: Math.round(r * 100) / 100,
+    // which pair of directions it is lined up with, where it is lined up at all
+    kind: r < 0.15 ? 'every way' : on ? 'square to the page' : 'diagonal',
+  };
+}
+
 // --------------------------------------------------------------------- all
 
 // The six, taken once, off one field. The palette is computed once and handed
@@ -473,9 +564,11 @@ function all(field, opts) {
     scale: scale(field),
     orientation: orientation(field),
     hardness: hardness(field),
+    weight: weight(field, pal),
+    axiality: axiality(field),
     size: { width: field.width, height: field.height },
   };
 }
 
-module.exports = { all, palette, coverage, scale, orientation, hardness,
+module.exports = { all, palette, coverage, scale, orientation, hardness, weight, axiality,
   luminance, shrink, crop, eachPixel, WORK, LEAST_LAG, EVERY };

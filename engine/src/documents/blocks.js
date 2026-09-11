@@ -997,7 +997,9 @@ function generatedSpec(ctx) {
   const cell = (v) => {
     if (!v) return '';
     if (v.say) return esc(L.t({ noRepeat: 'genNoRepeat', noDirection: 'genNoDirection',
-      aRepeat: 'genARepeat', aTendency: 'genATendency', none: 'genNone' }[v.say] || 'genNone'));
+      aRepeat: 'genARepeat', aTendency: 'genATendency', none: 'genNone',
+      everyWay: 'genEveryWay', squareToPage: 'genSquareToPage',
+      onTheDiagonal: 'genOnTheDiagonal' }[v.say] || 'genNone'));
     // A degree sign and a per cent sign sit against the number; a unit is a
     // word and takes a space. "45 %" and "135 °" are not how either is written.
     const tight = v.unit === '%' || v.unit === '°';
@@ -1008,7 +1010,8 @@ function generatedSpec(ctx) {
       <th>${esc(L.t('genYours'))}</th><th>${esc(L.t('genOurs'))}</th><th></th></tr></thead><tbody>
       ${m.table.rows.map((r) => `<tr><th scope="row">${esc(L.t(`gen${r.key[0].toUpperCase()}${r.key.slice(1)}`))}</th>
         <td>${cell(r.theirs)}</td><td>${cell(r.ours)}</td>
-        <td class="note">${r.note ? esc(L.t(r.note === 'beyond' ? 'genBeyond' : 'genNotMatched')) : ''}</td></tr>`).join('')}
+        <td class="note">${r.note ? esc(L.t({ beyond: 'genBeyond', missed: 'genMissed',
+          notMatched: 'genNotMatched' }[r.note] || 'genNotMatched')) : ''}</td></tr>`).join('')}
     </tbody></table>` : '';
 
   // What no generator could reach, said where the row it is about can be seen.
