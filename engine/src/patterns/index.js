@@ -24,15 +24,16 @@
   if (typeof module === 'object' && module.exports) {
     module.exports = factory(require('./surface'), require('./palette'),
       require('./generators/weave'), require('./generators/zigzag'),
+      require('./generators/lattice'),
       (name) => require(`./${name}`));
   } else {
     root.PatternEngine = factory(root.PatternSurface, root.PatternPalette,
-      root.PatternWeave, root.PatternZigzag, () => null);
+      root.PatternWeave, root.PatternZigzag, root.PatternLattice, () => null);
   }
-}(typeof self !== 'undefined' ? self : this, function (surface, palette, weave, zigzag, late) {
+}(typeof self !== 'undefined' ? self : this, function (surface, palette, weave, zigzag, lattice, late) {
   'use strict';
 
-  const GENERATORS = { weave, zigzag };
+  const GENERATORS = { lattice, weave, zigzag };
   const NAMES = Object.keys(GENERATORS);
 
   // Which generator suits a mark that measures like this.
@@ -53,13 +54,18 @@
     // line field; there is no line field now, and `zigzag` answers curviness
     // with its own rounding rather than by being a different generator.
     //
-    // On the motif route there is one answer. `zigzag` is interlocking stripes
-    // and has no cell to put a shape in; handing it one would produce a tile
-    // identical to the inspired route under a name saying it is made of the
-    // client's logo, which is the kind of quiet half-truth this engine exists
-    // not to tell. `zigzag` is still built and still in the studio — a client
-    // who wants stripes can have them, having been told what they give up.
-    if (route === 'motif') return 'weave';
+    // On the motif route there is one answer, and for a while it was the wrong
+    // one. `weave` draws the motif into the sparse pop cells of a cell grid: the
+    // grid is most of the picture and the mark is a garnish scattered into it,
+    // so a client asking for a pattern made of their logo got a check with
+    // their logo hidden in it. `lattice` draws the shape and nothing else.
+    //
+    // `zigzag` is interlocking stripes and has no cell to put a shape in;
+    // handing it one would produce a tile identical to the inspired route under
+    // a name saying it is made of the client's logo. Both are still built and
+    // still in the studio — a client who wants a weave or stripes can have
+    // them, having been told what they give up.
+    if (route === 'motif') return 'lattice';
     return m.fineness < 16 ? 'zigzag' : 'weave';
   }
 
@@ -95,6 +101,25 @@
   // see. Where it binds, `why` says the cap decided and not the mark, because
   // the alternative is a client wondering why their pattern is grey.
   const COARSEST_GRID = 72;
+  // What share of the tile one motif may be. Method A's band, kept because the
+  // argument for it holds: under a sixth and the shape competes with the logo
+  // it was cut from at the size a cover prints it; over a quarter and the sheet
+  // is a row of logos rather than a pattern.
+  const MOTIF_SMALLEST = 0.15;
+  const MOTIF_LARGEST = 0.25;
+  // Where a shape stops being its own mirror.
+  //
+  // Measured across this repository: sixteen shapes at or under 0.621, and
+  // seventeen at or over 0.743, with nothing between. A 0.122 gap, and the bar
+  // sits in the middle of it.
+  //
+  // It is not the *widest* gap in the measurement — that is 0.153, down at
+  // 0.223 — and the wider one is in the wrong place. A shape scoring 0.30
+  // matches its own mirror over less than a third of its outline, and a bar
+  // below that would call it symmetric and stop flipping it. The question here
+  // is whether mirroring alternate rows does anything a client can see, and
+  // that divides where these two clusters divide.
+  const SYMMETRIC = 0.68;
   // And a floor at the other end, for the same kind of reason. A blanket of
   // six cells is a flag and a field of eight is a chequerboard; below these
   // there is no pattern left to be a pattern. Where the floor binds, the mark
@@ -149,7 +174,11 @@
   const ROUTES = ['literal', 'motif', 'inspired'];
   const ROUTE_DEFAULT = 'motif';
 
-  function derive(generator, m, route) {
+  function derive(generator, m, route, motif) {
+    // First, and before anything is read off the mark: the lattice tiles the
+    // shape cut out of the drawing and takes every number from that shape. It
+    // is the one generator here with no opinion about the mark as a whole.
+    if (generator === 'lattice') return latticeFrom(motif);
     const curve = bandOf(m.curviness, [0.33, 0.66]);
     const scale = scaleFrom(m);
     const wantsMotif = (route || ROUTE_DEFAULT) === 'motif';
@@ -192,6 +221,64 @@
   }
 
   // Why it chose that, in the words a manual prints.
+  // What the chosen shape asks of the lattice it is laid on.
+  //
+  // Everything here is measured off the *motif*, not off the mark, because the
+  // motif is what is tiled. A mark can be an intricate crest and the shape cut
+  // out of it a single bar; spacing the bar by the crest's numbers would be
+  // measuring one thing to draw another.
+  //
+  // A motif that could not be read falls back to numbers in the middle of each
+  // range rather than refusing: the generator is still offered in the studio,
+  // where a client can point it at a different shape.
+  function latticeFrom(mo) {
+    const o = mo || {};
+    const ink = typeof o.ink === 'number' ? o.ink : 0.3;
+    const simple = typeof o.simple === 'number' ? o.simple : 0.4;
+    const symmetry = typeof o.symmetry === 'number' ? o.symmetry : 0.5;
+    const grain = typeof o.grain === 'number' ? o.grain : 0.3;
+    return {
+      // Size, from how much drawing it takes. Method A puts a motif between a
+      // sixth and a quarter of the sheet and the band is worth keeping: below
+      // it the shape competes with the logo it came from, above it the sheet is
+      // a row of logos. Where in the band comes from complexity — a shape of
+      // two moves reads at the bottom of it, one of twenty-four needs the top
+      // or it turns to grit.
+      scale: Math.round((MOTIF_SMALLEST + (1 - simple) * (MOTIF_LARGEST - MOTIF_SMALLEST)) * 1000) / 1000,
+      // Spacing, from how much of its own box the shape inks. A disc inking
+      // four fifths of its box and a chevron inking a fifth are a dense field
+      // and an airy sheet at the same gap; this is the number that tells them
+      // apart, and `pattern.js` already measured it.
+      gap: Math.round((0.2 + ink * 1.2) * 100) / 100,
+      // Whether the rows drop, from whether the shape runs one way.
+      //
+      // Three positions rather than a continuous slide: a grid, a third-drop
+      // and a half-drop are what this layout has ever been, and a drop of 13%
+      // reads as a grid somebody got wrong. The upper bar sits in a real gap —
+      // nothing in this repository measures between 0.50 and 0.60. The lower
+      // one does not: the shapes run 0.17, 0.21 continuously through there, and
+      // it is placed rather than found. Getting it wrong costs a third-drop
+      // where a grid would do, which is a look and not a fault.
+      drop: grain >= 0.55 ? 0.5 : grain >= 0.18 ? 0.33 : 0,
+      // Mirroring, from whether the shape is its own mirror. A symmetric shape
+      // flipped is the same shape, so the control would do nothing and the
+      // sheet would look as though it had been forgotten. The bar sits in the
+      // widest gap in the measurement: 0.48 to 0.81, with nothing between.
+      // ...and never where mirroring would reverse lettering, whatever the
+      // symmetry says. A word is not symmetric, so this rule would otherwise
+      // flip every wordmark in the repository.
+      flip: (o.mirrorable === 0 || symmetry >= SYMMETRIC) ? 'none' : 'rows',
+      // The mark is drawn at the angle its designer drew it at, and a lattice
+      // is not the place to overrule that. A control, not a derivation.
+      turn: 0,
+      // Every effect off. A pattern that arrives already rounded, extruded or
+      // glitched is a decision made on somebody's behalf about their own logo;
+      // these are the client's to reach for, in the studio, over the top of a
+      // pattern that first shows them the shape as it was drawn.
+      radius: 0, extrude: 0, extrudeAngle: 45, glitch: 0, jitter: 0,
+      intensity: 'bold', seed: 1 };
+  }
+
   function because(generator, m, params) {
     // What this says changed with what it measures. It used to say "X% of the
     // drawing's outline is curved", off a count of path command letters; it is
@@ -207,6 +294,18 @@
     // told that rather than left wondering why their pattern is grey.
     const capped = (limit) => Math.floor(scaleFrom(m) / 4) * 4 > limit;
     const floored = (limit) => Math.floor(scaleFrom(m) / 4) * 4 < limit;
+    if (generator === 'lattice') {
+      const mo = params.motif || {};
+      const shape = mo.name ? `"${mo.name}"` : 'the shape cut out of the drawing';
+      const laid = params.drop >= 0.5 ? 'the rows half-drop'
+        : params.drop > 0 ? 'the rows third-drop' : 'the rows line up';
+      return `${shape} inks ${Math.round((mo.ink || 0) * 100)}% of its own box, `
+        + `so it is spaced ${Math.round(params.gap * 100)}% of its width apart, and takes `
+        + `${mo.moves || 0} moves to draw, so it is ${Math.round(params.scale * 100)}% of the tile. `
+        + `It ${(mo.grain || 0) >= 0.18 ? 'runs one way' : 'runs no particular way'}, so ${laid}; `
+        + `and it is ${(mo.symmetry || 0) >= SYMMETRIC ? 'its own mirror, so nothing is flipped'
+          : 'not its own mirror, so alternate rows are'}.`;
+    }
     if (generator === 'weave') {
       if (floored(LEAST_WEAVE)) {
         return `the mark is heavy enough to allow a blanket of ${Math.floor(scaleFrom(m) / 4) * 4} cells, `
@@ -239,7 +338,18 @@
     // shape this pattern is made of, recorded in brand.json beside the numbers
     // so the studio and a rebuild a year later both draw the same thing.
     const carries = !!g.motif;
-    const params = Object.assign(derive(generator, m, route),
+    // A generator that is nothing but the motif cannot be built without one.
+    //
+    // `paint` fills the ground and returns, which is a blank sheet written into
+    // the package under a name saying it is made of the client's logo. The
+    // build catches this and turns it into a warning naming the generator,
+    // which is what a designer needs to see; a blank SVG is what they would
+    // otherwise find months later.
+    if (g.needsMotif && !o.motif) {
+      throw new Error(`${generator} draws nothing but the mark's own shape, and no shape `
+        + 'could be read out of this drawing');
+    }
+    const params = Object.assign(derive(generator, m, route, o.motif),
       o.motif && carries ? { motif: o.motif } : {}, o.params || {});
     const pal = o.palette || palette.of(o.colours, o.colourway);
     const W = o.size || 100, H = o.size || 100;
@@ -281,6 +391,7 @@
   const read = (markSource, measured, rules) => late('mark').read(markSource, measured, rules);
 
   return { GENERATORS, NAMES, ROUTES, ROUTE_DEFAULT, suits, derive, because, tile, joins, read,
-    FINEST, COARSEST_STRIPE, FINEST_STRIPE, COARSEST_GRID, LEAST_WEAVE,
+    latticeFrom, FINEST, COARSEST_STRIPE, FINEST_STRIPE, COARSEST_GRID, LEAST_WEAVE,
+    MOTIF_SMALLEST, MOTIF_LARGEST, SYMMETRIC,
     WEAVE_STYLES, ZIGZAG_STYLES };
 }));

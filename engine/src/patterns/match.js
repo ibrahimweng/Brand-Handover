@@ -229,7 +229,21 @@ function fit(reference, make, opts) {
   for (const name of only) {
     const gen = PT.GENERATORS[name];
     const knobs = KNOBS[name];
-    if (!gen || !knobs) continue;
+    if (!gen) continue;
+    // A generator that draws nothing but the client's own mark cannot be
+    // matched to somebody else's pattern.
+    //
+    // `lattice` reproduces one family of patterns: those made of *this*
+    // identity's logo. Scoring a reference against it would be answering "the
+    // pattern you already use is made of your own mark", which is not something
+    // a picture can be measured into — and the search has nothing to search,
+    // because the shape is given and only the layout moves.
+    //
+    // It was already skipped, for want of a `KNOBS` entry. That is an omission
+    // behaving correctly rather than a decision, and the next generator added
+    // without knobs would be skipped for a reason nobody meant.
+    if (gen.needsMotif) continue;
+    if (!knobs) continue;
     const base = make(name, null).params;
     let best = null;
     let at = o.against === 'logo' ? Object.assign({}, base) : opening(name, base, theirs);

@@ -7,6 +7,33 @@ const { bundle, starterDoc } = require('./bundle');
 
 const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
 
+/* Every file the editor inlines, in load order, relative to this directory.
+
+   Declared rather than written out at nine script tags, for two reasons. A
+   hosted deploy uploads what its tracer can see and a tracer sees `require`;
+   these are read as text, so `app.js` — required by nothing — was traced by
+   nothing, was not uploaded, and the first hosted build died on ENOENT. The
+   check that stops that happening again used to scrape `read('...')` out of
+   this file, which held only while every one of them was a literal: the moment
+   the pattern engine's files came from one shared list it could see eight of
+   seventeen. A list something can ask for is not a list anybody has to scrape.
+
+   The order is load order and it matters: `contrast.js` is captured by
+   `palette.js` at load time, and the app goes last because everything else
+   defines what it reads. */
+const BEFORE = ['../photography.js', '../print.js', '../surface.js'];
+const AFTER = require('../patterns/emit').SOURCES.map((f) => `../patterns/${f}`)
+  .concat(['model.js', 'images.js', 'render.js', 'publish.js']);
+const LAST = 'app.js';
+const INLINED = BEFORE.concat(AFTER, [LAST]);
+// One more block than there are files: the bundle, which is written inline
+// rather than read from anywhere. Declared here so the check that the page
+// closes every block it opens has a number to compare against — counting
+// opening tags in the finished page cannot work, because the files inlined
+// into it contain the string `<script` as text.
+const INLINE_BLOCKS = 1;
+const BLOCKS = INLINED.length + INLINE_BLOCKS;
+
 // A brand name is project text, and it is allowed to contain an ampersand.
 const esc = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -234,30 +261,16 @@ ${fontLink(bu)}
 </div>
 <input type="file" id="file" accept="application/json" hidden>
 <input type="file" id="imgfile" accept="image/*" hidden>
-<script>${read('../contrast.js')}</script>
-<script>${read('../photography.js')}</script>
-<script>${read('../print.js')}</script>
-<script>${read('../surface.js')}</script>
+${BEFORE.map((f) => `<script>${read(f)}</script>`).join('\n')}
 <!-- The pattern engine, so the canvas can draw a generated pattern and keep
      drawing it after somebody has retouched it. The same files 07-pattern was
      drawn from and the same files pattern-studio.html carries, byte for byte:
      two copies of a generator is two patterns waiting to disagree. -->
-<script>${read('../patterns/rand.js')}</script>
-<script>${read('../patterns/noise.js')}</script>
-<script>${read('../patterns/surface.js')}</script>
-<script>${read('../patterns/palette.js')}</script>
-<script>${read('../patterns/motif.js')}</script>
-<script>${read('../patterns/generators/weave.js')}</script>
-<script>${read('../patterns/generators/zigzag.js')}</script>
-<script>${read('../patterns/index.js')}</script>
-<script>${read('model.js')}</script>
-<script>${read('images.js')}</script>
-<script>${read('render.js')}</script>
-<script>${read('publish.js')}</script>
+${AFTER.map((f) => `<script>${read(f)}</script>`).join('\n')}
 <script>window.HANDOVER_BUNDLE=${JSON.stringify(bu)};window.HANDOVER_DOC=${JSON.stringify(doc)};
 window.HANDOVER_IMAGES=${JSON.stringify(bu.images || {})};</script>
-<script>${read('app.js')}</script>
+<script>${read(LAST)}</script>
 </body></html>`;
 }
 
-module.exports = { editorHtml, CSS };
+module.exports = { INLINED, BLOCKS, editorHtml, CSS };

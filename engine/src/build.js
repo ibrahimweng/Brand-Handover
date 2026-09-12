@@ -7,7 +7,7 @@ const naming = require('./naming');
 const { buildVariant, measure } = require('./variants');
 const exp = require('./export');
 const contrast = require('./contrast');
-const { masterOf } = require('./project');
+const { masterOf, masterNameOf } = require('./project');
 
 // Every key a project may set that something actually reads. The suite audits
 // the fixtures against this, and kept its own copy of it — so a key added here
@@ -1219,7 +1219,8 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // once: it is the same shape for every generator and every colourway.
   let motif = null;
   if (ROUTE === 'motif') {
-    const got = require('./patterns/motif-read').read(masterOf(project).source, rules, measured);
+    const got = require('./patterns/motif-read').read(masterOf(project).source, rules, measured,
+      undefined, { lettering: masterNameOf(project) === 'wordmark' });
     if (got.ok) motif = got;
     else {
       warnings.push(`the pattern was asked to be made of the mark's own shape and could not be: ${got.why} `
@@ -1286,6 +1287,27 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
             + `The mark still sets what it can — ${t.why.charAt(0).toLowerCase()}${t.why.slice(1)}`;
         }
         generated.push({ name, colourway: cw.name, tile: t });
+        // And the same pattern at its other intensities, where the generator
+        // declares any.
+        //
+        // `lattice` ships bold and quiet. A pattern has two jobs that want
+        // opposite things — it goes on a cover at full strength and behind a
+        // paragraph where it must not fight the type — and a client who is
+        // handed only the first has to make the second themselves, which means
+        // guessing at a tint of their own brand colour. Quiet is tone-on-tone
+        // rather than the bold one at low opacity: a mixed flat hex separates
+        // on press, an alpha channel is a phone call from the printer.
+        for (const v of (PATTERNS.GENERATORS[name].variants || []).slice(1)) {
+          try {
+            const alt = PATTERNS.tile({ mark: patternMark, generator: name, route: ROUTE, motif,
+              params: Object.assign({}, t.params, { intensity: v }),
+              colours: project.tokens.colour, colourway: cw, size: sys.pattern.tile,
+              id: `${name}-${v}-${naming.slug(cw.name)}` });
+            generated.push({ name, variant: v, colourway: cw.name, tile: alt });
+          } catch (e) {
+            warnings.push(`the ${v} ${name} pattern was not built in ${cw.name}. ${e.message}`);
+          }
+        }
       } catch (e) {
         warnings.push(`the ${name} pattern was not built in ${cw.name}. ${e.message}`);
       }
@@ -1303,7 +1325,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // A generator that says it is not vector is now a fault in the engine rather
   // than a case to fall back from: there is nothing left to write the pixels.
   for (const g of generated) {
-    const stem = `07-pattern/${g.name}-${naming.slug(g.colourway)}`;
+    const stem = `07-pattern/${g.name}${g.variant ? `-${g.variant}` : ''}-${naming.slug(g.colourway)}`;
     if (!g.tile.vector) throw new Error(`${g.name} says it is not vector, and nothing here writes pixels`);
     write(`${stem}.svg`, g.tile.tile);
   }
@@ -1337,8 +1359,8 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // what was chosen here.
   if (generated.length) {
     write('pattern-studio.html', require('./patterns/emit').studioHtml(
-      project, measured, generated.map((g) => ({ generator: g.name, colourway: g.colourway,
-        params: g.tile.params })), patternChoice, sys.pattern.tile));
+      project, measured, generated.filter((g) => !g.variant).map((g) => ({ generator: g.name,
+        colourway: g.colourway, params: g.tile.params })), patternChoice, sys.pattern.tile, ROUTE));
   }
   if (gen.ok) {
     for (const t of gen.tiles) {
@@ -1581,10 +1603,18 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
         // without the original artwork being anywhere near them.
         route: ROUTE,
         motif: motif ? { moves: motif.ops.length, from: motif.name, stroked: motif.stroked,
-          weight: motif.weight, ops: motif.ops } : null,
+          weight: motif.weight,
+          // What the lattice measured off the shape, so brand.json carries the
+          // reasoning for the spacing and the drop and not only their values.
+          ink: motif.ink, symmetry: motif.symmetry, grain: motif.grain,
+          ops: motif.ops } : null,
         made: generated.map((g) => ({
           generator: g.name, colourway: g.colourway,
-          file: `07-pattern/${g.name}-${naming.slug(g.colourway)}.svg`,
+          // Which intensity this one is, where the generator ships more than
+          // one. Absent on a generator that ships a single pattern, so nothing
+          // in a package that has never heard of intensities changes.
+          intensity: g.variant || undefined,
+          file: `07-pattern/${g.name}${g.variant ? `-${g.variant}` : ''}-${naming.slug(g.colourway)}.svg`,
           // Every pattern is vector. This said `vector: !!g.tile.vector` and
           // carried `printedAt` and `pixels` beside it, for the one generator
           // that shipped a PNG at a stated size. It is gone, and so is the

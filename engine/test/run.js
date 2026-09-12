@@ -371,7 +371,14 @@ function repeatedTiles() {
 }
 function generatedTiles() {
   const refused = result.warnings.filter((w) => /^the \w+ pattern was not built/.test(w)).length;
-  return require('../src/patterns').NAMES.length * project.rules.colourways.length - refused;
+  // One file per generator per colourway, plus one more for each extra
+  // intensity a generator ships. `lattice` ships bold and quiet, so it writes
+  // two. Derived from the registry rather than typed, because the last time
+  // this was a literal it had to be found by a failing count rather than by
+  // anything saying what had changed.
+  const PT = require('../src/patterns');
+  const each = PT.NAMES.reduce((n, g) => n + Math.max(1, (PT.GENERATORS[g].variants || []).length), 0);
+  return each * project.rules.colourways.length - refused;
 }
 // Four of the five write an SVG and one writes a PNG, which is the point of
 // having a raster family at all.
@@ -1238,6 +1245,324 @@ test('the motif route only reaches for a generator that can hold a shape', () =>
     'no mark reaches a generator without a motif on any route, so narrowing proves nothing');
 });
 
+// ---------------------------------------------------------------- the lattice
+
+// Every fixture's chosen shape and the lattice it asks for, read once.
+const latticeRepo = () => fs.readdirSync(path.join(__dirname, '..', 'projects'))
+  .filter((n) => fs.existsSync(path.join(__dirname, '..', 'projects', n, 'project.json')))
+  .map((name) => {
+    const pr = projectLoader.load(path.join(__dirname, '..', 'projects', name, 'project.json'));
+    const src = pr.assets.mark ? pr.assets.mark.source : (pr.assets.wordmark || {}).source;
+    if (!src) return null;
+    // Read the way the build reads it, master and all: a motif cut from a
+    // wordmark must not be mirrored, and nothing downstream can tell once it
+    // holds only the source.
+    const motif = PMOTIFREAD.read(src, pr.rules, measure(pr), undefined,
+      { lettering: projectLoader.masterNameOf(pr) === 'wordmark' });
+    if (!motif.ok) return null;
+    return { name, pr, src, motif, params: PENG.derive('lattice', null, 'motif', motif),
+      pal: PPAL.of(pr.tokens.colour) };
+  }).filter(Boolean);
+
+const latticeTile = (r, over) => PENG.tile({ markSource: r.src, generator: 'lattice',
+  route: 'motif', motif: r.motif, palette: r.pal, size: 100,
+  params: over, id: 'lt' }).tile;
+
+test('the pattern the logo route builds is made of the logo and nothing else', () => {
+  // It was not. `weave` draws the motif into the sparse pop cells of a cell
+  // grid, so the grid was most of the picture and the mark was a garnish
+  // scattered into it: a client asking for a pattern made of their logo got a
+  // check with their logo hidden in it. `lattice` draws the shape and the
+  // ground, and this is the claim that says so.
+  assert.strictEqual(PENG.suits({ aspect: 1, fineness: 20, curviness: 0.5 }, 'motif'), 'lattice',
+    'the logo route no longer builds the generator that is nothing but the logo');
+  for (const r of latticeRepo()) {
+    const tile = latticeTile(r);
+    // It drew. A generator that is nothing but the motif fills the ground and
+    // returns when it has no shape, which is a blank sheet shipped under a name
+    // saying it is made of the client's mark.
+    assert.ok(/<(path|circle|rect|ellipse|polygon)\b/.test(tile.replace(/<rect[^>]*width="100"[^>]*height="100"[^>]*>/, '')),
+      `${r.name}: the lattice drew nothing but its ground`);
+    // And what it drew is the client's shape: handing it a different shape
+    // changes the tile. Without this the check above passes on a generator
+    // drawing its own circles.
+    const other = latticeTile(r, { motif: Object.assign({}, r.motif,
+      { ops: [['M', -0.5, -0.5], ['L', 0.5, -0.5], ['L', 0.5, 0.5], ['Z']] }) });
+    assert.notStrictEqual(tile, other,
+      `${r.name}: the lattice draws the same tile whatever shape it is given`);
+  }
+});
+
+test('a generator that is nothing but the motif refuses to build without one', () => {
+  // `paint` fills the ground and returns. Left to itself that is a blank SVG
+  // written into 07-pattern under a name saying it is made of the client's
+  // logo, and a designer finds it months later.
+  assert.throws(() => PENG.tile({ markSource: '<svg xmlns="http://www.w3.org/2000/svg" '
+    + 'viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="8"/></svg>',
+  generator: 'lattice', route: 'motif', colours: {}, size: 100, id: 'nomotif' }),
+  /draws nothing but the mark's own shape/,
+  'the lattice built a tile with no shape to tile');
+});
+
+test('every lattice tiles without a seam', () => {
+  // A lattice only closes if the tile is a whole number of steps across, and
+  // the row count is even where the rows drop — a half-drop over an odd number
+  // of rows puts two undropped rows against each other at the join. `beyond` at
+  // or under 1 means there is nothing at the join the pattern does not do
+  // elsewhere; a rigid lattice lands on exactly 1, because the join is one more
+  // cell boundary.
+  const worst = [];
+  for (const r of latticeRepo()) {
+    const t = PENG.tile({ markSource: r.src, generator: 'lattice', route: 'motif',
+      motif: r.motif, palette: r.pal, size: 100, id: `seam-${r.name}` });
+    const j = PENG.joins(t, { size: 100 });
+    worst.push([r.name, j.beyond]);
+    assert.ok(j.beyond <= 1.001,
+      `${r.name}: the lattice seams — beyond ${j.beyond.toFixed(3)}`);
+  }
+  // and the mechanism that makes that true, checked where it lives rather than
+  // inferred from the pictures. `steps` is the whole of it: the count is a
+  // whole number, the step is the tile divided by it, and the rows are even
+  // wherever they drop.
+  const LAT = PENG.GENERATORS.lattice;
+  let forced = 0;
+  for (const scale of [0.08, 0.13, 0.17, 0.21, 0.28, 0.36]) {
+    for (const gap of [0.05, 0.3, 0.44, 0.81, 1.2, 1.9, 2.4]) {
+      for (const ratio of [0.4, 1, 1.6, 4.6]) {
+        for (const drop of [0, 0.33, 0.5]) {
+          const st = LAT.steps(100, 100, { scale, gap, drop }, ratio);
+          assert.ok(Number.isInteger(st.cols) && st.cols >= 1, 'a fractional number of columns');
+          assert.ok(Number.isInteger(st.rows) && st.rows >= 1, 'a fractional number of rows');
+          assert.ok(Math.abs(st.cols * st.stepX - 100) < 1e-9, 'the columns do not fill the tile');
+          assert.ok(Math.abs(st.rows * st.stepY - 100) < 1e-9, 'the rows do not fill the tile');
+          if (drop > 0) {
+            assert.strictEqual(st.rows % 2, 0,
+              `a half-drop over ${st.rows} rows puts two undropped rows against each other`);
+            // and the evening is load-bearing rather than a coincidence of the
+            // arithmetic: without it this setting would have come out odd.
+            const raw = LAT.steps(100, 100, { scale, gap, drop: 0 }, ratio).rows;
+            if (raw % 2) forced++;
+          }
+        }
+      }
+    }
+  }
+  assert.ok(forced > 0,
+    'no setting in the sweep would have given an odd number of dropped rows, '
+    + 'so the line that evens them is never reached and this proves nothing');
+  // The worst join in the repository, printed so a regression shows as a number
+  // moving rather than as a threshold being crossed.
+  worst.sort((a, b) => b[1] - a[1]);
+  assert.ok(worst[0][1] <= 1.001, `worst join: ${worst[0][0]} at ${worst[0][1].toFixed(4)}`);
+});
+
+test('the lattice takes every number off the shape, not off a constant', () => {
+  // The old pattern module had `tile: 100, weight: 3` and gave every identity
+  // the same pattern. A lattice with a typed gap and a typed size would do the
+  // same thing one layer down: the same sheet for every client, in their own
+  // colours, with their own shape on it.
+  const repo = latticeRepo();
+  assert.ok(repo.length > 20, 'not enough fixtures to say anything about spread');
+  for (const key of ['scale', 'gap']) {
+    const vals = new Set(repo.map((r) => r.params[key]));
+    assert.ok(vals.size >= 8,
+      `every identity got one of only ${vals.size} values for ${key} — it is close to a constant`);
+  }
+  // The two that are named positions rather than continuous both have to be
+  // reached, or the rule that picks them is dead code.
+  for (const [key, want] of [['drop', [0, 0.33, 0.5]], ['flip', ['none', 'rows']]]) {
+    const seen = new Set(repo.map((r) => String(r.params[key])));
+    for (const w of want) {
+      assert.ok(seen.has(String(w)),
+        `no identity in the repository gets ${key} = ${w}, so the branch that sets it is unreachable`);
+    }
+  }
+  // And each number comes off the measurement it claims to: spacing tracks ink.
+  // Rank correlation rather than a fit, because the claim is the order and not
+  // the line.
+  const by = repo.slice().sort((a, b) => a.motif.ink - b.motif.ink);
+  for (let i = 1; i < by.length; i++) {
+    assert.ok(by[i].params.gap >= by[i - 1].params.gap - 1e-9,
+      `${by[i].name} inks more of its box than ${by[i - 1].name} and is spaced tighter, `
+      + 'so the gap is not coming off the ink');
+  }
+});
+
+test("the lattice's two thresholds sit in gaps in the measurements", () => {
+  // A threshold in the middle of a cluster decides by rounding error: two
+  // identities either side of it get visibly different sheets for a difference
+  // nobody can see. Both bars here are checked against the repository they were
+  // placed from, and the comment in index.js says which of the two was found in
+  // a gap and which was placed.
+  //
+  // The first version of this was checked against the wrong numbers. It read
+  // the motif with no rules and no measurements, and the build reads it with
+  // both — which sends `pattern.js` down a different branch and can choose a
+  // different shape out of the same drawing. The bar was placed on shapes no
+  // package ever tiles. Read it the way the build reads it.
+  const repo = latticeRepo();
+  const air = (values, bar) => {
+    const below = values.filter((v) => v < bar).sort((a, b) => b - a)[0];
+    const above = values.filter((v) => v >= bar).sort((a, b) => a - b)[0];
+    return { below, above, gap: above - below };
+  };
+  const sym = air(repo.map((r) => r.motif.symmetry), PENG.SYMMETRIC);
+  assert.ok(sym.gap > 0.1,
+    `the symmetry bar at ${PENG.SYMMETRIC} has ${sym.below} under it and ${sym.above} over it — `
+    + `a gap of ${sym.gap.toFixed(3)}, which is not a gap`);
+  // The upper drop bar. The lower one is placed rather than found and the rule
+  // says so; getting it wrong costs a third-drop where a grid would do.
+  const grain = air(repo.map((r) => r.motif.grain), 0.55);
+  assert.ok(grain.gap > 0.05,
+    `the grain bar at 0.55 has ${grain.below} under it and ${grain.above} over it — `
+    + `a gap of ${grain.gap.toFixed(3)}`);
+});
+
+test('each effect changes the pattern, and none of them is on by default', () => {
+  // The effects are the client's to reach for. A pattern that arrives already
+  // rounded, extruded or glitched is a decision made on somebody's behalf about
+  // their own logo — so every one of them derives to zero, and every one of
+  // them has to actually do something when it is not zero, or it is a slider
+  // that lies.
+  const r = latticeRepo().find((x) => x.name === 'ancroft') || latticeRepo()[0];
+  for (const k of ['radius', 'extrude', 'glitch', 'jitter', 'turn']) {
+    assert.strictEqual(r.params[k], 0, `${k} is on by default`);
+  }
+  const base = latticeTile(r);
+  for (const [k, v] of [['radius', 1], ['extrude', 0.5], ['glitch', 0.6],
+    ['jitter', 0.6], ['turn', 20]]) {
+    const on = latticeTile(r, { [k]: v });
+    assert.notStrictEqual(on, base, `${k} at ${v} draws the same tile as ${k} off`);
+    // and back off again returns the same bytes, so what moved was the effect
+    // and not the drawing wandering.
+    assert.strictEqual(latticeTile(r, { [k]: 0 }), base,
+      `${k} does not return to where it started, so something else is moving`);
+  }
+  // Seeded, never random: the same seed twice is the same tile, and a different
+  // seed moves a tile that has something seeded in it.
+  assert.strictEqual(latticeTile(r, { jitter: 0.5, seed: 3 }),
+    latticeTile(r, { jitter: 0.5, seed: 3 }), 'the same seed drew two different tiles');
+  assert.notStrictEqual(latticeTile(r, { jitter: 0.5, seed: 3 }),
+    latticeTile(r, { jitter: 0.5, seed: 4 }), 'the seed changes nothing');
+  // and with nothing seeded on, the seed cannot matter.
+  assert.strictEqual(latticeTile(r, { seed: 9 }), base,
+    'the seed moves a lattice with no jitter and no glitch in it');
+});
+
+test('the quiet pattern is quiet, and both intensities are flat colour', () => {
+  // Two jobs that want opposite things: a cover at full strength, and behind a
+  // paragraph where it must not fight the type. Method A caps the second at 15%
+  // opacity; this ships it as a mixed flat hex instead, because an alpha
+  // channel is a phone call from the printer and a flat colour separates.
+  for (const r of latticeRepo()) {
+    const bold = latticeTile(r, { intensity: 'bold' });
+    const quiet = latticeTile(r, { intensity: 'quiet' });
+    assert.notStrictEqual(bold, quiet, `${r.name}: quiet and bold are the same file`);
+    for (const [what, svg] of [['bold', bold], ['quiet', quiet]]) {
+      assert.ok(!/opacity\s*=|opacity\s*:/.test(svg),
+        `${r.name}: the ${what} pattern carries an opacity, which does not separate`);
+    }
+    // Quiet is nearer the ground than bold is, measured rather than asserted.
+    const inkOf = (svg) => {
+      const hexes = [...svg.matchAll(/(?:fill|stroke)="(#[0-9a-fA-F]{6})"/g)].map((m) => m[1]);
+      return hexes.filter((h) => h.toLowerCase() !== r.pal.ground.toLowerCase())[0] || r.pal.ground;
+    };
+    const dist = (a, b) => {
+      const A = parseInt(a.slice(1), 16), B = parseInt(b.slice(1), 16);
+      return [16, 8, 0].reduce((s, sh) => s + Math.abs(((A >> sh) & 255) - ((B >> sh) & 255)), 0);
+    };
+    const g = r.pal.ground;
+    assert.ok(dist(inkOf(quiet), g) < dist(inkOf(bold), g),
+      `${r.name}: the quiet pattern is no closer to its ground than the bold one`);
+  }
+});
+
+test("the studio's fineness note does not fire on a pattern the engine chose", () => {
+  // A check that fires on healthy input gets ignored, and then so does the one
+  // that matters. The lattice was held to the stripe rule at first — never draw
+  // finer than half the mark's own fineness — and that rule is about a
+  // structure the engine invents. A lattice invents nothing: it redraws the
+  // client's artwork smaller, and any small redrawing of a logo has strokes
+  // that are a smaller share of the sheet than the logo's are of the logo. It
+  // was over on every identity here, at its own derived default.
+  for (const r of latticeRepo()) {
+    const finest = r.params.scale * Math.max(0.07, r.motif.weight || 0.06);
+    const holds = Math.ceil(r.pr.rules.minStrokePx / finest);
+    assert.ok(holds <= 2400,
+      `${r.name}: its own pattern needs ${holds} px to hold, so the note fires on what the `
+      + 'engine chose');
+  }
+  // and the note still has teeth, at the size the studio is actually cutting:
+  // the smallest motif the slider reaches needs a sheet far past a small
+  // export. The bar is the export box, not a constant, because a lattice has no
+  // size-independent limit at all.
+  const r = latticeRepo()[0];
+  const tiny = 0.05 * Math.max(0.07, r.motif.weight || 0.06);
+  assert.ok(Math.ceil(r.pr.rules.minStrokePx / tiny) > 400,
+    'the smallest motif the studio offers still holds at any size, so the note can never fire');
+});
+
+test('every surface that draws a pattern carries every generator', () => {
+  // A generator missing from a bundle is not an error. It is a chip that draws
+  // an empty ground, and nothing says so. `motif.js` was added to the engine
+  // and to neither bundle's list of script tags, so the studio and the editor
+  // drew every pattern silently without the mark in it — right ground, right
+  // colours, no logo — until a byte-for-byte test noticed the bundles had
+  // changed size.
+  //
+  // There is one list now, and it is derived from the registry rather than
+  // typed, so a new generator cannot be left out of it. This checks the thing
+  // that actually matters: that the rendered files carry the code.
+  const PEMIT = require('../src/patterns/emit');
+  for (const g of PENG.NAMES) {
+    assert.ok(PEMIT.SOURCES.indexOf(`generators/${g}.js`) > -1,
+      `${g} is registered but not in the list every browser surface loads`);
+  }
+  // index.js last, because it reads the globals the generators define.
+  assert.strictEqual(PEMIT.SOURCES[PEMIT.SOURCES.length - 1], 'index.js',
+    'the registry is loaded before the generators it registers');
+  const pr = projectLoader.load(path.join(__dirname, '..', 'projects', 'carrock', 'project.json'));
+  const html = PEMIT.studioHtml(pr, measure(pr), [], 'lattice', 100, 'motif');
+  for (const g of PENG.NAMES) {
+    // The UMD tail each generator ends with, which is the line that puts it
+    // where `index.js` looks for it. Its presence is the code being there;
+    // the generator's name in a comment would not be.
+    const global = `root.Pattern${g.charAt(0).toUpperCase()}${g.slice(1)}`;
+    assert.ok(html.indexOf(global) > -1,
+      `the studio does not carry ${g}, so its chip draws an empty ground`);
+  }
+  // and the check has teeth: a global no generator defines is not found.
+  assert.ok(html.indexOf('root.PatternNotAGenerator') === -1,
+    'the studio appears to contain a generator that does not exist');
+});
+
+test('a wordmark is never mirrored into a pattern', () => {
+  // marlow's only asset is a wordmark. The shape that ranks best out of it is
+  // 79% of the drawing — the word — and the mirroring rule keys on symmetry,
+  // which a word does not have. So alternate rows came out reversed and the
+  // sheet read "Marlow" and "wolraM": not a pattern, a mistake somebody pays
+  // to reprint. Found by looking at all thirty-three sheets at once.
+  const word = latticeRepo().find((r) => r.name === 'marlow');
+  assert.ok(word, 'marlow is gone — find another wordmark-only identity or drop this');
+  assert.strictEqual(word.motif.mirrorable, 0,
+    'the wordmark says it may be mirrored, so the lattice will flip the word');
+  assert.strictEqual(word.params.flip, 'none', 'the wordmark is being mirrored');
+  // and the rule is narrow: it must not have quietly turned mirroring off
+  // everywhere, which would pass the two lines above and lose the device.
+  const flipped = latticeRepo().filter((r) => r.params.flip !== 'none');
+  assert.ok(flipped.length > 8,
+    `only ${flipped.length} identities mirror anything — the wordmark rule is too wide`);
+  for (const r of latticeRepo()) {
+    if (r.name === 'marlow') continue;
+    assert.strictEqual(r.motif.mirrorable, 1,
+      `${r.name} is not a wordmark and has been told it cannot mirror`);
+  }
+  // and both studios are told why the control is off.
+  const flip = PENG.GENERATORS.lattice.controls.find((c) => c.key === 'flip');
+  assert.ok(flip.needs && flip.needs.key === 'mirrorable',
+    'the mirror control does not say when it is unavailable, so it sits there doing nothing');
+});
+
 test('the three routes make three different packages', async () => {
   // They did not. The question went in at the door, the answer went into the
   // project file and into brand.json, and `suits` was handed it — and `suits`
@@ -1660,7 +1985,9 @@ test('every identity gets a tile, and no two identities get the same one', () =>
     chosen.add(`${t.generator}/${t.params.style}`);
     tiles.add(t.tile);
   }
-  const allStyles = PENG.NAMES.reduce((a, g) => a + PENG.GENERATORS[g].styles.length, 0);
+  // `lattice` has no styles and is not missing them: it draws the client's own
+  // shape, and a style would be a look imposed on top of it.
+  const allStyles = PENG.NAMES.reduce((a, g) => a + (PENG.GENERATORS[g].styles || []).length, 0);
   assert.ok(chosen.size >= 6,
     `${names.length} identities between them reached only ${chosen.size} of the ${allStyles} styles`);
   assert.strictEqual(tiles.size, names.length, `${names.length - tiles.size} identities got a tile identical to another's`);
@@ -1693,9 +2020,14 @@ test('every generator draws every identity, and the tile never runs finer than t
     const src = pr.assets[pr.master || (pr.assets.mark ? 'mark' : 'wordmark')].source;
     const mk = PMARK.read(src, mm, pr.rules);
     const opensOn = PENG.suits(mk);
-    reached.add(opensOn);
+    // Every generator some mark on some route opens on. Keyed on the route as
+    // well as the mark, because the motif route has a generator of its own now
+    // and no sweep over drawings alone will ever arrive at it.
+    for (const route of PENG.ROUTES) reached.add(PENG.suits(mk, route));
+    const motif = PMOTIFREAD.read(src, pr.rules, mm);
     for (const g of PENG.NAMES) {
-      const t = PENG.tile({ mark: mk, generator: g, colours: pr.tokens.colour,
+      const t = PENG.tile({ mark: mk, generator: g, route: 'motif',
+        motif: motif.ok ? motif : null, colours: pr.tokens.colour,
         colourway: pr.rules.colourways[0] });
       assert.ok(t.tile.indexOf('<svg') === 0, `${g} drew nothing for ${name}`);
       assert.ok(t.why.length > 40, `${g} gave ${name} no reason`);
@@ -1706,11 +2038,19 @@ test('every generator draws every identity, and the tile never runs finer than t
       // the studio showed no chip selected and brand.json recorded no look. A
       // value only ever spread into an object is invisible until something asks
       // it for its name, and until this line nothing did.
+      const styles = PENG.GENERATORS[g].styles;
       const st = t.params.style;
-      if (g === opensOn && typeof st === 'string') reachedStyle.add(`${g}/${st}`);
-      if (typeof st !== 'string') styleless.push(`${name}/${g}: style is ${JSON.stringify(st)}`);
-      else if (PENG.GENERATORS[g].styles.indexOf(st) === -1) {
-        styleless.push(`${name}/${g}: style "${st}" is not one of ${PENG.GENERATORS[g].styles.join(', ')}`);
+      // A generator that declares no styles is not missing one. `lattice` draws
+      // the client's shape and a style would be a look put on top of it; what
+      // varies there is the lattice, and the test above measures that.
+      if (styles) {
+        if (g === opensOn && typeof st === 'string') reachedStyle.add(`${g}/${st}`);
+        if (typeof st !== 'string') styleless.push(`${name}/${g}: style is ${JSON.stringify(st)}`);
+        else if (styles.indexOf(st) === -1) {
+          styleless.push(`${name}/${g}: style "${st}" is not one of ${styles.join(', ')}`);
+        }
+      } else if (typeof st === 'string') {
+        styleless.push(`${name}/${g}: declares no styles and set one anyway (${st})`);
       }
       // the scale rule, where a generator's finest feature is a share of the tile
       const finest = g === 'weave' ? 1 / t.params.cells
@@ -1738,10 +2078,11 @@ test('every generator draws every identity, and the tile never runs finer than t
   // actually sees is in the styles: fourteen in weave and six in zigzag, chosen
   // by three measurements of their own drawing.
   assert.strictEqual(reached.size, PENG.NAMES.length,
-    `32 identities between them opened on only ${reached.size} of the ${PENG.NAMES.length} generators`);
+    `every mark on every route opens on only ${reached.size} of the ${PENG.NAMES.length} generators — `
+    + `${PENG.NAMES.filter((g) => !reached.has(g)).join(', ')} cannot be arrived at`);
   const styles = reachedStyle;
   assert.ok(styles.size >= 8, `32 identities between them reached only ${styles.size} styles, `
-    + `out of ${PENG.NAMES.reduce((a, g) => a + PENG.GENERATORS[g].styles.length, 0)}`);
+    + `out of ${PENG.NAMES.reduce((a, g) => a + (PENG.GENERATORS[g].styles || []).length, 0)}`);
 });
 
 console.log('\nthe pattern engine: measuring a pattern');
@@ -1895,7 +2236,11 @@ const matchAgainst = (name) => {
   const mk = PMARK.read(src, mm, pr.rules);
   return {
     project: pr,
+    // The motif travels with it, because `lattice` is nothing but the motif and
+    // refuses to build without one — deliberately, since the alternative is a
+    // blank sheet under a name saying it is made of the client's logo.
     make: (g, params) => PENG.tile({ mark: mk, generator: g, params: params || undefined,
+      motif: PMOTIFREAD.read(src, pr.rules, mm), route: 'motif',
       colours: pr.tokens.colour, colourway: pr.rules.colourways[0] }),
   };
 };
@@ -1915,7 +2260,14 @@ test('a pattern this engine drew is matched back to the generator that drew it',
   // machinery for a family that no longer exists: it is how the manual names
   // the alternatives a client can take instead, and it stays.
   const { make } = matchAgainst('meridian');
-  for (const truth of PENG.NAMES) {
+  // The generators the matcher searches. `lattice` is not one of them and is
+  // excluded on purpose: it draws nothing but the client's own mark, so
+  // matching a stranger's pattern to it would be claiming their existing
+  // pattern is made of their logo. See match.js.
+  const searchable = PENG.NAMES.filter((g) => !PENG.GENERATORS[g].needsMotif);
+  assert.ok(searchable.length >= 2 && searchable.length < PENG.NAMES.length,
+    'the matcher either searches everything or nothing, so this proves nothing about the exclusion');
+  for (const truth of searchable) {
     const ref = PMATCH.asField(make(truth, null), 384);
     const r = PMATCH.fit(ref, make, { px: 256, rounds: 2 });
     assert.strictEqual(r.generator, truth, `${truth} was matched as ${r.generator}`);
@@ -2106,8 +2458,10 @@ test('the manual draws the generator the package chose, not the first one listed
   const m2 = measure(p2);
   const mk = PMARK.read(p2.assets.mark.source, m2, p2.rules);
   const cw = p2.rules.colourways[0];
+  const m2motif = PMOTIFREAD.read(p2.assets.mark.source, p2.rules, m2);
   const made = PENG.NAMES.map((g) => {
-    const t = PENG.tile({ mark: mk, generator: g, colours: p2.tokens.colour, colourway: cw });
+    const t = PENG.tile({ mark: mk, generator: g, route: 'motif',
+      motif: m2motif.ok ? m2motif : null, colours: p2.tokens.colour, colourway: cw });
     return { generator: g, colourway: cw.name, file: `07-pattern/${g}-${cw.name}.svg`,
       vector: t.vector, params: t.params, palette: t.palette, why: t.why };
   });
@@ -2360,14 +2714,20 @@ test('two measurements that stopped deciding anything, and why they stay', () =>
   // Axiality still does — a cell grid runs square to the page and a chevron
   // does not.
   const names = ['meridian', 'kvist', 'carrock', 'fathom', 'ancroft', 'beaumont'];
+  // The generators the matcher searches, which is what this test is about.
+  // `lattice` is excluded from the search on purpose — it draws nothing but the
+  // client's own mark, so a stranger's pattern cannot be matched to it — and
+  // measurements that exist to separate candidates have nothing to say about a
+  // candidate that is never a candidate.
+  const searched = PENG.NAMES.filter((g) => !PENG.GENERATORS[g].needsMotif);
   const by = {};
-  for (const g of PENG.NAMES) by[g] = { weight: [], axiality: [] };
+  for (const g of searched) by[g] = { weight: [], axiality: [] };
   for (const name of names) {
     const pr = projectLoader.load(path.join(__dirname, '..', 'projects', name, 'project.json'));
     const mm = measure(pr);
     const src = pr.assets[pr.master || (pr.assets.mark ? 'mark' : 'wordmark')].source;
     const mk = PMARK.read(src, mm, pr.rules);
-    for (const g of PENG.NAMES) {
+    for (const g of searched) {
       const f = PMATCH.asField(PENG.tile({ mark: mk, generator: g,
         colours: pr.tokens.colour, colourway: pr.rules.colourways[0] }), 256);
       by[g].weight.push(PMEAS.weight(f).px);
@@ -5011,10 +5371,27 @@ test('inlining publish into the editor does not close the editor script early', 
   }
   const html = editorHtml(project, m, []);
   assert.ok(html.includes('HandoverPublish'), 'publish is not in the editor');
-  // model, render, publish, the bundle, then the app
-  const blocks = (fs.readFileSync(require.resolve('../src/editor/emit'), 'utf8').match(/<script>/g) || []).length;
-  assert.strictEqual((html.match(/<\/script>/g) || []).length, blocks,
-    'the editor does not close exactly the script blocks it opens');
+  // Closing tags in the finished page, against the number of blocks the
+  // template says it opens.
+  //
+  // Only closing tags can be counted in the output. An inlined file may contain
+  // the string `<script` — two of them do — and counting those as opened blocks
+  // says the page opens 21 and closes 19 for a page that is perfectly well
+  // formed. A raw *closing* tag is the thing that truncates, and the loop above
+  // has already established that none of the inlined files carries one.
+  //
+  // The count used to be scraped out of emit.js by matching `<script>` in its
+  // source, which held only while every block was written out by hand; the
+  // moment the pattern engine's files came from one shared list it read 10
+  // where the page had 19. The template owns the number now.
+  const EMIT = require('../src/editor/emit');
+  const closes = (html.match(/<\/script>/g) || []).length;
+  assert.strictEqual(closes, EMIT.BLOCKS,
+    `the editor says it opens ${EMIT.BLOCKS} script blocks and the page closes ${closes}`);
+  // and the number counts more than the file list, or a block written inline
+  // could go missing without this noticing.
+  assert.ok(EMIT.BLOCKS > EMIT.INLINED.length,
+    'the block count is just the file list, so the bundle block is not being counted');
   // the app is inlined last, so if anything truncated it this would be missing
   assert.ok(html.includes('window.__handover'), 'the editor was cut short before the app loaded');
 });
@@ -7224,9 +7601,12 @@ test('the pattern this project sets is cut at every density', async () => {
   const cut = tiles.filter((f) => /^07-pattern\/pattern-/.test(f));
   const made = tiles.filter((f) => !/^07-pattern\/pattern-/.test(f));
   assert.strictEqual(cut.length, 9, `${cut.length} tiles cut from the mark, where three densities in three colourways is nine`);
-  const gens = require('../src/patterns').NAMES.length;
-  assert.strictEqual(made.length, gens * 3,
-    `${made.length} generated tiles, where ${gens} generators in three colourways is ${gens * 3}`);
+  // Generators, plus the extra intensities any of them ships — `lattice` writes
+  // bold and quiet — in three colourways.
+  const PT = require('../src/patterns');
+  const each = PT.NAMES.reduce((n, g) => n + Math.max(1, (PT.GENERATORS[g].variants || []).length), 0);
+  assert.strictEqual(made.length, each * 3,
+    `${made.length} generated tiles, where ${each} per colourway in three colourways is ${each * 3}`);
   for (const d of ['fine', 'medium', 'coarse']) {
     assert.ok(cut.some((f) => f.includes(`-${d}-`)), `nothing was cut at ${d}`);
   }
@@ -8493,9 +8873,27 @@ test('every file the engine reads at run time is one the deploy is told to carry
   // ENOENT /var/task/engine/src/editor/app.js. The other eight survived only
   // because each happens to be required somewhere else, which is luck rather
   // than a rule.
-  const emit = fs.readFileSync(path.join(__dirname, '..', 'src', 'editor', 'emit.js'), 'utf8');
-  const reads = [...emit.matchAll(/\bread\('([^']+)'\)/g)].map((m) => m[1]);
-  assert.ok(reads.length >= 9, `only ${reads.length} inlined files found — has emit.js changed shape?`);
+  // Asked for, not scraped out of the source.
+  //
+  // This used to read emit.js as text and pull `read('...')` out of it, which
+  // held only while every inlined file was named in a literal. The pattern
+  // engine's files come from one shared list now — nine paths out of one
+  // expression — so the scrape found eight of seventeen and reported that
+  // emit.js had "changed shape". The files were all there and all carried; the
+  // proxy had stopped tracking the thing.
+  const reads = require('../src/editor/emit').INLINED;
+  assert.ok(reads.length >= 9, `only ${reads.length} inlined files declared — has emit.js changed shape?`);
+  // and the declaration is the one the page is actually built from, or it is a
+  // list that can drift from the thing it describes.
+  const assembled = editorHtml(project, m, []);
+  for (const rel of reads) {
+    const head = fs.readFileSync(path.join(__dirname, '..', 'src', 'editor', rel), 'utf8')
+      .split('\n').filter((l) => l.trim() && !l.trim().startsWith('//')).slice(0, 1)[0];
+    if (head) {
+      assert.ok(assembled.indexOf(head.trim()) > -1,
+        `${rel} is declared as inlined and its first line is not in the editor`);
+    }
+  }
 
   const src = path.join(__dirname, '..', 'src');
   for (const rel of reads) {

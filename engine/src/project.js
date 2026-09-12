@@ -635,6 +635,13 @@ function load(file) {
 }
 
 // The artwork every measurement is taken from.
-const masterOf = (project) => project.assets[project.master || (project.assets.mark ? 'mark' : 'wordmark')];
+// Which asset is the master, and which one it is.
+//
+// The expression was written out at four call sites and a fifth needed the
+// *name* rather than the asset: a pattern made of a wordmark must not mirror,
+// and nothing downstream could tell a wordmark from a mark once it held only
+// the source.
+const masterNameOf = (project) => project.master || (project.assets.mark ? 'mark' : 'wordmark');
+const masterOf = (project) => project.assets[masterNameOf(project)];
 
-module.exports = { masterOf, load, DEFAULTS };
+module.exports = { masterOf, masterNameOf, load, DEFAULTS };

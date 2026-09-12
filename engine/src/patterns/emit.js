@@ -15,6 +15,33 @@ const PE = require('./index');
 const markRead = require('./mark');
 
 const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
+
+/* Everything a browser needs to draw a pattern, in load order.
+
+   Three surfaces draw patterns outside Node — the studio in the package, the
+   editor in the package, and the app's pattern screen — and each used to carry
+   its own list of script tags. That is three places to remember a new file in,
+   and forgetting one is invisible: a generator missing from the list is not an
+   error, it is a chip that draws an empty ground. `motif.js` was added to the
+   engine and to neither list, so both packages drew every pattern silently
+   without the mark in it, and it took a byte-for-byte bundle test to notice.
+
+   One list. Adding a generator is adding a line here, and the test that says
+   every surface carries every generator has one thing to read. */
+//
+// `contrast.js` first, and it is not optional. `palette.js` captures it in its
+// UMD factory — `factory(root.HandoverContrast)` — so a page that loads it
+// afterwards leaves `contrast` undefined inside the closure for good, and the
+// failure is `Cannot read properties of undefined (reading 'ratio')` from
+// inside a palette, three files away from the missing script tag. Both bundles
+// happened to load it first; the app's pattern screen did not, and that is
+// exactly the bug this list exists to make impossible.
+const SOURCES = ['../contrast.js', 'rand.js', 'noise.js', 'surface.js', 'palette.js', 'motif.js']
+  .concat(Object.keys(PE.GENERATORS).sort().map((g) => `generators/${g}.js`))
+  .concat(['index.js']);
+
+// The same files, as one script for a page that would rather link than inline.
+const sourcesJs = () => SOURCES.map((f) => read(f)).join('\n;\n');
 const esc = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -43,6 +70,11 @@ h2+*{margin-bottom:6px}
 .chip:hover{border-color:#3B4145}
 .chip.on{background:var(--sel);border-color:var(--sel);color:#fff}
 .ctl{margin-bottom:14px}
+.ctl.idle{opacity:.55}
+.ctl .cant{margin:5px 0 0;font-size:10.5px;line-height:1.45;color:var(--dim)}
+.grp{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim);
+  margin:16px 0 9px;padding-top:11px;border-top:1px solid var(--line)}
+.grp:first-child{margin-top:0;padding-top:0;border-top:0}
 .ctl .k{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);margin-bottom:5px}
 .ctl .k .v{color:var(--ink);font-variant-numeric:tabular-nums}
 .ctl input[type=range]{width:100%;accent-color:var(--sel)}
@@ -79,7 +111,7 @@ label.px input{width:72px;background:#23272A;border:1px solid var(--line);border
 
 // Everything the studio needs, and nothing it does not. No SVG source, no
 // document, no fonts — a pattern is arithmetic and a palette.
-function bundle(project, measured, made, chose, tile) {
+function bundle(project, measured, made, chose, tile, route) {
   const naming = require('../naming');
   const mark = markRead.read(
     (project.assets[project.master || (project.assets.mark ? 'mark' : 'wordmark')] || {}).source,
@@ -91,6 +123,10 @@ function bundle(project, measured, made, chose, tile) {
     tile: tile || require('../system').patternRules((project.system || {}).pattern).tile,
     measured: mark,
     chose: chose || PE.suits(mark),
+    // The route the package was built on, so "back to what the engine chose"
+    // derives the same numbers the build did rather than the numbers of a
+    // route nobody picked.
+    route: route || PE.ROUTE_DEFAULT,
     minStrokePx: project.rules.minStrokePx,
     minStrokeMm: project.rules.minStrokeMm,
     colours: project.tokens.colour || {},
@@ -99,8 +135,8 @@ function bundle(project, measured, made, chose, tile) {
   };
 }
 
-function studioHtml(project, measured, made, chose, tile) {
-  const bu = bundle(project, measured, made, chose, tile);
+function studioHtml(project, measured, made, chose, tile, route) {
+  const bu = bundle(project, measured, made, chose, tile, route);
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(bu.brand)} · pattern studio</title>
@@ -140,18 +176,10 @@ function studioHtml(project, measured, made, chose, tile) {
 
   <footer class="bottom" aria-label="Kept patterns"><div id="kept"></div></footer>
 </div>
-<script>${read('../contrast.js')}</script>
-<script>${read('rand.js')}</script>
-<script>${read('noise.js')}</script>
-<script>${read('surface.js')}</script>
-<script>${read('palette.js')}</script>
-<script>${read('motif.js')}</script>
-<script>${read('generators/weave.js')}</script>
-<script>${read('generators/zigzag.js')}</script>
-<script>${read('index.js')}</script>
+${SOURCES.map((f) => `<script>${read(f)}</script>`).join('\n')}
 <script>window.PATTERN_BUNDLE=${JSON.stringify(bu)};</script>
 <script>${read('studio.js')}</script>
 </body></html>`;
 }
 
-module.exports = { studioHtml, bundle, CSS };
+module.exports = { studioHtml, bundle, CSS, SOURCES, sourcesJs };

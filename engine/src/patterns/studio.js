@@ -42,9 +42,20 @@
   const way = () => B.colourways.find((c) => c.name === state.colourway) || B.colourways[0];
   const pal = () => PAL.of(B.colours, way());
 
+  // The shape this identity's pattern is made of.
+  //
+  // It travels in the built parameters rather than beside them, and every
+  // generator that carries one carries the same one, so the first that has it
+  // answers for all of them. Without this, switching to `lattice` in the studio
+  // derives its numbers from no shape and draws an empty ground — the generator
+  // is nothing but the motif.
+  const carrier = B.made.find((m) => m.params && m.params.motif);
+  const motif = carrier ? carrier.params.motif : null;
+
   // What the engine would choose, so "back to what it chose" is always one
   // click away and the client can wander without losing the argument.
-  const asBuilt = (g) => Object.assign({}, PE.derive(g, B.measured));
+  const asBuilt = (g) => Object.assign({}, PE.derive(g, B.measured, B.route, motif),
+    PE.GENERATORS[g].motif && motif ? { motif } : {});
 
   // ---------------------------------------------------------------- the tile
   function tileSVG(size) {
@@ -56,10 +67,40 @@
   // The finest thing this setting draws, against what the mark allows. Not a
   // refusal — a sentence, and the size at which it stops holding.
   function fineness() {
-    const finest = state.generator === 'weave' ? 1 / state.params.cells : state.params.stripe;
+    // The finest thing each generator draws, in its own terms. A lattice draws
+    // the motif's own stroke, and the motif's weight is a share of the box it
+    // is drawn in — so at a scale of a fifth of the tile, a stroke of 7% of the
+    // motif is 1.4% of the tile. Reading `cells` here, as this did before the
+    // lattice existed, gave `undefined` and a note about a pattern finer than
+    // the mark on every lattice in every package.
+    const finest = state.generator === 'lattice'
+      ? state.params.scale * Math.max(0.07, (motif && motif.weight) || 0.06)
+      : state.generator === 'weave' ? 1 / state.params.cells : state.params.stripe;
     const allowed = 1 / Math.max(2, B.measured.fineness / PE.FINEST);
     const px = B.minStrokePx / finest;
-    return { finest, allowed, over: finest < allowed - 1e-9, px: Math.ceil(px),
+    // Two different limits, because the two kinds of generator draw two
+    // different things.
+    //
+    // `weave` and `zigzag` invent a structure — cells, stripes — and the rule
+    // is that the invented structure must not be finer than half the mark's own
+    // fineness, or a pattern printed beside the mark fails before the mark
+    // does. A lattice invents nothing: it redraws the client's own artwork
+    // smaller, and any small redrawing of a logo has strokes that are a smaller
+    // share of the sheet than the logo's strokes are of the logo. Held to the
+    // stripe rule it was over on every identity in the repository at its own
+    // derived default — a warning that fires on healthy input, which is a
+    // warning nobody reads by the third package.
+    //
+    // What can actually go wrong is the motif drawn so small that the mark's
+    // own thinnest stroke falls under its floor at the size this is being cut
+    // at. So the limit is the holding size against the export size — and it has
+    // to be the export size, because a lattice has no size-independent bar at
+    // all. The first version of this used a fixed 2400 px and was vacuous: the
+    // motif-size slider bottoms out at 5% of the tile, which holds from 858 px,
+    // so nothing the client could do would ever have tripped it.
+    const cut = Number(($('#px') || {}).value) || 2400;
+    const over = state.generator === 'lattice' ? Math.ceil(px) > cut : finest < allowed - 1e-9;
+    return { finest, allowed, over, px: Math.ceil(px), cut,
       mm: Math.ceil((B.minStrokeMm / finest) * 10) / 10 };
   }
 
@@ -88,11 +129,16 @@
     const f = fineness();
     $('#why').textContent = PE.because(state.generator, B.measured, state.params);
     $('#holds').className = f.over ? 'note over' : 'note';
-    $('#holds').textContent = f.over
-      ? `Finer than the mark. The thinnest thing here is ${(f.finest * 100).toFixed(2)}% of the tile, `
-        + `where the mark allows ${(f.allowed * 100).toFixed(2)}%. It holds from ${f.px} px and ${f.mm} mm — `
-        + 'below that the pattern goes before the mark does.'
-      : `Holds from ${f.px} px and ${f.mm} mm, which is the size the mark itself holds at or larger.`;
+    $('#holds').textContent = !f.over
+      ? `Holds from ${f.px} px and ${f.mm} mm, which is the size the mark itself holds at or larger.`
+      : state.generator === 'lattice'
+        ? `Smaller than you are cutting it. The mark is drawn at `
+          + `${(state.params.scale * 100).toFixed(0)}% of the tile here, so its thinnest stroke needs `
+          + `${f.px} px to hold and this is being exported at ${f.cut} px. Draw the motif larger, `
+          + 'or export bigger.'
+        : `Finer than the mark. The thinnest thing here is ${(f.finest * 100).toFixed(2)}% of the tile, `
+          + `where the mark allows ${(f.allowed * 100).toFixed(2)}%. It holds from ${f.px} px and ${f.mm} mm — `
+          + 'below that the pattern goes before the mark does.';
     // Exactly what goes in project.json, and nothing else.
     //
     // It used to print the colourway alongside, which is not part of the
@@ -118,10 +164,24 @@
   function controls() {
     const wrap = $('#controls');
     wrap.innerHTML = '';
+    let group = null;
     for (const c of gen().controls) {
+      // A heading whenever the group changes, so twelve controls read as two
+      // short lists rather than one long one. Generators that declare no group
+      // are unchanged: `undefined` never differs from `undefined`.
+      if (c.group && c.group !== group) {
+        group = c.group;
+        if (group !== 'pattern') wrap.appendChild(el('div', 'grp', esc(GROUPS[group] || group)));
+      }
       const row = el('div', 'ctl');
       const id = `c-${c.key}`;
       row.appendChild(el('label', 'k', `${esc(c.label)}<span class="v" id="${id}-v"></span>`));
+      // A control that has nothing to work on says so, rather than sitting
+      // there moving and drawing the same tile. Corner rounding takes the
+      // joins where two straight runs meet, and two thirds of the drawings in
+      // this repository are drawn in curves and have none.
+      const want = c.needs && (state.params[c.needs.of] || {})[c.needs.key];
+      const idle = !!c.needs && !(want >= c.needs.least);
       let input;
       if (c.type === 'range') {
         input = el('input'); input.type = 'range';
@@ -151,11 +211,18 @@
         input.appendChild(n); input.appendChild(b);
       }
       row.appendChild(input);
+      if (idle) {
+        row.classList.add('idle');
+        if (input.tagName === 'INPUT') input.disabled = true;
+        else input.querySelectorAll('button,input').forEach((n) => { n.disabled = true; });
+        row.appendChild(el('p', 'cant', esc(c.needs.without)));
+      }
       wrap.appendChild(row);
       const v = $(`#${id}-v`);
       if (v) v.textContent = shown(c, state.params[c.key]);
     }
   }
+  const GROUPS = { lattice: 'The lattice', effect: 'Effects' };
   const shown = (c, v) => {
     if (c.type !== 'range') return '';
     return c.max <= 2.5 ? `${Math.round(v * 100)}%` : String(v);
