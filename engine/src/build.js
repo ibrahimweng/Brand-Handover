@@ -1313,6 +1313,23 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // the one that measures like theirs is the one they should be given.
   const patternChoice = setGenerator || (matched ? matched.generator : PATTERNS.suits(patternMark, ROUTE));
   const patternPick = generated.find((g) => g.name === patternChoice) || generated[0];
+  // Which of the two families is *the* pattern.
+  //
+  // Both are always built: the mark-tiler's, from the shapes in the drawing,
+  // and the generated ones. The route decides which the package presents as
+  // this identity's pattern and which are the alternatives beside it.
+  //
+  // Until this line it decided nothing. `suits` cannot answer "literal",
+  // because literal is not a generator — it is the mark-tiler — so the route
+  // was recorded in brand.json and read by nobody. A client choosing "made of
+  // the logo" at the door got the same package, byte for byte, as one choosing
+  // "in the spirit of the logo". Three options, two of them the same answer.
+  //
+  // A hand-set generator or a matched reference still wins: both are decisions
+  // about a specific pattern, and this is a decision about a kind.
+  const primary = (setGenerator || matched) ? patternChoice
+    : ROUTE === 'literal' && gen.ok && gen.tiles.length ? 'repeat'
+      : patternChoice;
   // And the studio, so the pattern is a thing the client keeps making rather
   // than a folder of finished files. Same discipline as editor.html: one file,
   // everything inlined, nothing fetched, opens from a USB stick. It draws the
@@ -1539,6 +1556,10 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       patterns: patternPick ? {
         measured: patternMark,
         chose: patternChoice,
+        // `chose` is which generator was chosen; `primary` is whether a
+        // generated pattern is this identity's pattern at all, or whether the
+        // mark-tiler's is and these are the alternatives.
+        primary,
         why: patternPick.tile.why,
         generators: PATTERNS.NAMES,
         // The whole of the match, so the package carries the argument and not
@@ -1779,13 +1800,22 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
       '                  11-partners and the manual state each one.'] : []),
     `  Colourways      ${rules.colourways.map((c) => c.name).join(', ')}.`,
     // The pattern was in the package and in no sentence anybody reads.
+    // Both families are in the package and one of them is this identity's
+    // pattern. Which one is the answer to the question asked at the door, and
+    // the read me leads with it — a client should not have to work out which of
+    // two chapters is theirs.
     ...(gen.ok && gen.tiles.length ? [
-      `  The pattern     built from ${gen.motifName}, drawn as "${gen.construction}":`,
+      `  ${primary === 'repeat' ? 'The pattern   ' : 'Also drawn    '}  built from ${gen.motifName}, drawn as "${gen.construction}":`,
       `                  ${require('./pattern').CONSTRUCTIONS[gen.construction].draws}.`,
       `                  ${gen.tiles.length} tiles in 07-pattern, every one seamless in both`,
-      '                  directions. Use them as a fill; do not scale one on its own.'] : []),
+      '                  directions. Use them as a fill; do not scale one on its own.',
+      ...(primary === 'repeat' ? [
+        '                  This is the one you asked for at the door: made of',
+        '                  the shapes in your own drawing rather than from its',
+        '                  measurements. The generated ones below are the',
+        '                  alternatives.'] : [])] : []),
     ...(patternPick ? [
-      `  And generated   ${generated.length} more tiles in 07-pattern, built from the mark's own`,
+      `  ${primary === 'repeat' ? 'And generated ' : 'The pattern   '}  ${generated.length} tiles in 07-pattern, built from the mark's own`,
       '                  measurements rather than from a shape cut out of it.',
       // the reasoning is a sentence and the read me is a fixed column, so it
       // is folded here rather than running off the side of somebody's terminal

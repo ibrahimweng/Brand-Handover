@@ -1238,6 +1238,62 @@ test('the motif route only reaches for a generator that can hold a shape', () =>
     'no mark reaches a generator without a motif on any route, so narrowing proves nothing');
 });
 
+test('the three routes make three different packages', async () => {
+  // They did not. The question went in at the door, the answer went into the
+  // project file and into brand.json, and `suits` was handed it — and `suits`
+  // cannot answer "literal", because literal is not a generator. It is the
+  // mark-tiler. So the route was recorded and read by nobody: a client
+  // choosing "made of the logo" got the same package, byte for byte, as one
+  // choosing "in the spirit of the logo".
+  //
+  // Three options and two answers is worse than two options. This builds one
+  // identity three ways and asks whether anything came out different.
+  const from = path.join(__dirname, '..', 'projects', 'carrock');
+  const out = {};
+  const dirs = [];
+  try {
+    for (const route of PENG.ROUTES) {
+      const stage = fs.mkdtempSync(path.join(os.tmpdir(), `route-${route}-`));
+      const dest = fs.mkdtempSync(path.join(os.tmpdir(), `routeout-${route}-`));
+      dirs.push(stage, dest);
+      for (const f of fs.readdirSync(from)) {
+        const src = path.join(from, f);
+        if (fs.statSync(src).isDirectory()) fs.cpSync(src, path.join(stage, f), { recursive: true });
+        else if (f !== 'project.json') fs.copyFileSync(src, path.join(stage, f));
+      }
+      const raw = JSON.parse(fs.readFileSync(path.join(from, 'project.json'), 'utf8'));
+      raw.system = Object.assign({}, raw.system, { patternRoute: route });
+      delete raw.system.patterns;
+      fs.writeFileSync(path.join(stage, 'project.json'), JSON.stringify(raw, null, 2));
+      const pr = projectLoader.load(path.join(stage, 'project.json'));
+      await build(pr, dest);
+      out[route] = {
+        brand: JSON.parse(fs.readFileSync(path.join(dest, 'brand.json'), 'utf8')),
+        readme: fs.readFileSync(path.join(dest, 'README.txt'), 'utf8'),
+      };
+    }
+    // the route reached brand.json as more than a label
+    for (const route of PENG.ROUTES) {
+      assert.strictEqual(out[route].brand.system.patterns.route, route,
+        `${route} was not recorded in brand.json`);
+      assert.ok(out[route].brand.system.patterns.primary,
+        `${route} names no primary pattern, so nothing says which of the two families is theirs`);
+    }
+    // "made of the logo" means the mark-tiler's pattern is the identity's
+    assert.strictEqual(out.literal.brand.system.patterns.primary, 'repeat',
+      'the literal route did not make the mark-tiler the identity\'s pattern');
+    assert.notStrictEqual(out.inspired.brand.system.patterns.primary, 'repeat',
+      'the inspired route handed the client a plain repeat of their logo');
+    // and a client reading the package can tell which is theirs
+    assert.notStrictEqual(out.literal.readme, out.inspired.readme,
+      'the literal and inspired routes wrote the same read me, so the question at the door changed nothing a client can see');
+    assert.match(out.literal.readme, /asked for at the door/,
+      'the literal route does not say that the mark-tiler pattern is the one chosen');
+  } finally {
+    for (const d of dirs) fs.rmSync(d, { recursive: true, force: true });
+  }
+});
+
 test('how round a drawing is, is measured off its geometry and not its letters', () => {
   // `curviness` counted path command letters. A <circle> scored four curves
   // whatever its radius; a rounded rectangle scored four curves and four lines

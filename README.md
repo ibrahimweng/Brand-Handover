@@ -3278,7 +3278,10 @@ written; the fix was to read its answer rather than form a second one.
 
 **Three routes, and the eighth question.** `literal` is the mark's shapes
 repeated. `motif` is a generated ground whose cells hold the mark's own shape.
-`inspired` is generated from what the mark measures, in new geometry. The
+`inspired` is generated from what the mark measures, in new geometry.
+
+(Two of those three were the same package for a while. See **A question with an
+answer nobody read** below.) The
 engine can measure a drawing; it cannot measure how closely a client wants
 their pattern tied to their logo. That is a brief, not a fact about the
 artwork, and it was the one thing about the pattern nobody was asked while the
@@ -3410,3 +3413,46 @@ ordering cannot see it. What catches it is the claim the median is actually for:
 every mark that turns mostly at a corner cuts 1.15 where the roundest cut 1.05
 at most. On a mean, hallward cuts 0.6 against cusp's 0.96, and the check names
 them.
+
+
+---
+
+**A question with an answer nobody read**
+
+The eighth question went in at the door, the answer went into the project file
+and into `brand.json`, and then it was handed to `suits()` — which cannot answer
+"literal", because literal is not a generator. It is the mark-tiler. So the
+route was recorded and read by nobody, and **a client choosing "made of the
+logo" got the same package, byte for byte, as one choosing "in the spirit of the
+logo"**. Three options and two answers, which is worse than two options.
+
+Every test asked whether the route reached `brand.json`, and it did. None asked
+whether it changed anything. The two builds' `07-pattern` folders were
+byte-identical and nothing was looking.
+
+It surfaced because the examples were built. Three logos, three routes, nine
+packages — and the same tile came out of two of the three columns.
+
+The fix is one decision the build was missing: **which of the two families is
+this identity's pattern.** Both are always built — the mark-tiler's, from the
+shapes in the drawing, and the generated ones — and until now nothing said which
+was which. `brand.json` carries `primary` now, and the read me leads with it,
+because a client should not have to work out which of two chapters is theirs.
+
+    literal    The pattern     built from the shape marked in the master...
+                               This is the one you asked for at the door.
+               And generated   8 tiles in 07-pattern...
+
+    inspired   Also drawn      built from the shape marked in the master...
+               The pattern     8 tiles in 07-pattern...
+
+The test builds one identity three ways and asks whether the packages differ. A
+check that a value was written is not a check that it was used, and that is the
+general form of the mistake rather than a detail of this one.
+
+**And the gates run one after the other now.** They used to run together, and
+the container killed the suite: 12.3 GB of anonymous memory against the cgroup's
+limit, at test 121, with no failure and no summary — just a process that stopped.
+A suite that dies silently is worse than one that fails, because the run looks
+like it is still going. Sequential turned out to be *faster* in wall-clock terms
+as well: 26 minutes against the 50 the parallel run was taking before it died.

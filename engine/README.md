@@ -998,6 +998,29 @@ of curves in each of a few hundred cells. The largest drawn mark in this
 repository is 96 moves. Over the cap it is refused with a reason and the
 alternatives beside it, because a simplified logo is not the logo.
 
+### The route has to decide something
+
+`build.js`, `primary`.
+
+The route was recorded in `brand.json` and read by nobody. `suits()` cannot
+answer "literal" — literal is not a generator, it is the mark-tiler — so the
+literal and inspired routes produced byte-identical `07-pattern` folders. A
+client answering "made of the logo" at the door got the package they would have
+got by answering "in the spirit of the logo".
+
+Both families are always built. What was missing was the sentence saying which
+one is *this identity's* pattern, so `brand.json` carries it:
+
+    system.patterns.chose      which generator was chosen
+    system.patterns.primary    'repeat', or that generator — which family is theirs
+
+A hand-set generator or a matched reference still wins over the route: both are
+decisions about a specific pattern, and the route is a decision about a kind.
+
+The read me leads with whichever it is, in those words. The test builds one
+identity three ways and asserts the packages differ — a check that a value was
+written is not a check that it was used.
+
 ### Three routes, and which generators can take them
 
     literal    the mark's shapes, repeated          pattern.js, nine constructions
