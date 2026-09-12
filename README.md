@@ -3456,3 +3456,79 @@ limit, at test 121, with no failure and no summary — just a process that stopp
 A suite that dies silently is worse than one that fails, because the run looks
 like it is still going. Sequential turned out to be *faster* in wall-clock terms
 as well: 26 minutes against the 50 the parallel run was taking before it died.
+
+---
+
+**The pattern that was not made of the logo**
+
+The complaint was exact: *what your pattern gen has right now is not related to
+the logo.* It was right, and the mechanism was one line. The motif route sent
+every identity to `weave`, which draws the mark into the sparse accent cells of
+a cell grid — so the grid was most of the picture and the logo was a garnish
+scattered into it. A client who chose "made of the logo" at the door got a check
+with their logo hidden in it.
+
+`lattice` is the answer, after Method A: isolate the most structurally distinct
+path group out of the drawing, strip it to a single-colour token, tile it. No
+structure underneath. The pattern *is* the shape.
+
+Half of Method A already existed — `motif-read.js` has isolated and normalised
+that shape for every one of the thirty-three drawings here since the motif route
+was built. What was missing was the layout, and the layout is where the
+identity goes. Every number comes off the *motif* rather than off the mark,
+because the motif is the thing being tiled:
+
+    scale   how many moves it takes to draw    two moves reads small, twenty-four needs size
+    gap     how much of its own box it inks    a disc at 79% and a chevron at 20% want different air
+    drop    whether it runs one way           a directional shape on a plain grid stripes the sheet
+    flip    whether it is its own mirror      flipping a symmetric shape is a control doing nothing
+
+    33 identities, each choosing for itself
+      33 different sheets — no two alike, and each visibly its own logo
+      worst join 1.00x — the seam is one more cell boundary
+      2 controls that cannot always be reached, and say so
+
+**What was kept from Method A and what was not.** The size band — a motif
+between a sixth and a quarter of the tile — is kept; the argument holds at both
+ends. The **opacity cap is not.** Fifteen per cent on light and eight on dark
+comes out close to a blank sheet, and an opacity over a ground is the same
+colour as a flat mix of the two while costing an alpha channel every print house
+then asks about. Every identity ships bold *and* quiet, and quiet is a mixed hex
+that separates.
+
+**Effects, all deriving to zero.** Corner radius, 3D extrusion and its angle,
+glitch, jitter, rotation, mirror scheme, seed. A pattern that arrives already
+distressed is a decision made on somebody's behalf about their own logo. The
+default draws the shape as it was drawn; everything else is the client's to
+reach for.
+
+**Two of the effects cannot always be reached, and now say why rather than
+sitting there doing nothing.** Both were found the same way — by building the
+package and reading the file, not the parameters beside it.
+
+*Corner rounding* takes the joins where two straight runs meet. Twenty-one of
+the thirty-three drawings here are drawn in curves and have none: the slider
+moved, the number reached `brand.json`, and the SVG came out **byte for byte
+identical**. That is the route defect again, one layer down — a check that a
+value was written is not a check that it was used — and it is now checked by
+building nine packages and diffing the files.
+
+*Mirroring* is off where the motif is lettering. marlow's only asset is a
+wordmark and the shape ranked best out of it is 79% of the drawing, so alternate
+rows read "Marlow" and "wolraM". Found by rendering all thirty-three sheets on
+one page and looking at them.
+
+**And the pattern moved to the front door.** A fourth step, between the layout
+and the words, drawing in the browser with the engine's own generator files —
+the same ones the build runs and the same ones `pattern-studio.html` carries.
+Push a slider, watch the sheet, and the package is built with whatever is left
+on screen. That last claim is the one worth testing, so it is: nine builds, one
+per control, each asserting the written SVG changed.
+
+Getting the engine into that page found a third thing. `palette.js` captures
+`contrast.js` in its UMD factory, so a page that loads it afterwards leaves the
+dependency undefined for good — and the failure surfaces three files away as
+`Cannot read properties of undefined (reading 'ratio')` from inside a palette.
+Both package bundles happened to load it first. The app did not. There is one
+source list now, derived from the generator registry rather than typed, and
+three surfaces read it.

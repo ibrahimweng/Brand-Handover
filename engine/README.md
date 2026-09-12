@@ -830,7 +830,14 @@ two of the five through. It is 1.5 and 0.4% now, which is where the gap is.
 
 ### The generators
 
-`src/patterns/generators/` — two of the three. Both are vector, and say so.
+`src/patterns/generators/` — three. All vector, and they say so.
+
+**`lattice`** — the mark's own shape, tiled, and nothing else drawn. After
+Method A: isolate the most structurally distinct path group out of the logo,
+strip it to a single-colour motif token, lay it on a staggered lattice. This is
+the one a client means when they ask for a pattern made of their logo, and for
+a long time the engine did not have it — see *The pattern that was not made of
+the logo*, below.
 
 **`weave`** — index-grid blankets, after PLAYGRND's Quilt. All fourteen of its
 styles: bands, plaid, basket, dither, steps, diamond, cross, gingham, tabs,
@@ -847,6 +854,56 @@ chevron, stairs, ricrac, waves, scales. A stripe is a pair of neighbouring
 boundary chains; only alternate stripes are painted, so the unpainted ones are
 the ground and the two colours interlock exactly rather than being drawn over
 each other. Two colours per tile and no more.
+
+### The pattern that was not made of the logo
+
+The motif route used to narrow to `weave`, which draws the mark into the sparse
+accent cells of a cell grid. The grid is most of the picture. A client who chose
+"made of the logo" got a check with their logo hidden in it, and asked — fairly
+— why the pattern had nothing to do with their mark.
+
+`lattice` is the answer, and every number in it is measured off the *motif*
+rather than off the mark, because the motif is the thing being tiled. A crest
+can be intricate and the shape cut out of it a single bar; spacing the bar by
+the crest's numbers is measuring one thing to draw another.
+
+    scale   how many moves the shape takes to draw   two moves reads small, twenty-four needs size
+    gap     how much of its own box it inks          a disc at 79% and a chevron at 20% want different air
+    drop    whether the shape runs one way           a directional shape on a plain grid stripes the sheet
+    flip    whether it is its own mirror             flipping a symmetric shape is a control doing nothing
+
+Two thresholds, and the file says which was found and which was placed. The
+symmetry bar at **0.68** sits in a real gap: sixteen shapes at or under 0.621,
+seventeen at or over 0.743, nothing between. It is not the *widest* gap — that
+is 0.153 down at 0.223 — and the wider one is in the wrong place, because a
+shape matching its own mirror over less than a third of its outline is not
+symmetric by any reading. The upper drop bar at **0.55** sits in a 0.097 gap.
+The lower one, at 0.18, does not: the measurements run 0.166, 0.195 continuously
+through there. Getting it wrong costs a third-drop where a grid would do.
+
+**What was kept from Method A, and what was not.** The size band — a motif
+between a sixth and a quarter of the tile — is kept, because the argument holds:
+under it the shape competes with the logo it was cut from, over it the sheet is
+a row of logos. The half-drop is kept as one of three positions rather than the
+only one. The **opacity cap was not kept**. Method A puts the pattern at 15% on
+light and 8% on dark, which comes out very close to a blank sheet; and an
+opacity over a ground is the same colour as a flat mix of the two while costing
+an alpha channel every print house asks about. Every identity ships **bold and
+quiet** instead, and quiet is a mixed hex that separates.
+
+**The effects all derive to zero** — corner radius, 3D extrusion, glitch,
+jitter, rotation. A pattern that arrives already distressed is a decision made
+on somebody's behalf about their own logo. They are the client's to reach for,
+over the top of a default that first shows them the shape as it was drawn.
+
+Two of them cannot always be reached, and say so rather than sitting there doing
+nothing. **Corner rounding** takes the joins where two straight runs meet, and
+twenty-one of the thirty-three drawings here are drawn in curves and have none —
+the slider moved, the number reached `brand.json`, and the SVG came out byte for
+byte identical. **Mirroring** is off where the motif is lettering: marlow's only
+asset is a wordmark and the shape ranked best out of it is 79% of the drawing,
+so alternate rows read "Marlow" and "wolraM". Both controls declare what they
+need, both studios read the declaration, and both print the reason.
 
 **`field` and `thread` were here, and they are gone with `terrace`.**
 
@@ -1023,25 +1080,29 @@ written is not a check that it was used.
 
 ### Three routes, and which generators can take them
 
-    literal    the mark's shapes, repeated          pattern.js, nine constructions
-    motif      a generated ground holding the mark  weave, field
-    inspired   generated from what the mark measures  all four
+    literal    the mark's shapes, repeated            pattern.js, nine constructions
+    motif      the mark's own shape, tiled            lattice
+    inspired   generated from what the mark measures  weave, zigzag
 
-`weave` puts the motif on the cells its own arithmetic already made the accent
-colour — sparse, spread by the style's own reasoning, already a deliberate
-accent rather than a texture. Except that `basket`, `zigzag` and `waves` have
-**0.0%** accent cells at some settings, so the motif would never have been
-drawn while the tile went on saying it was made of the client's mark. Below a
-floor of 4% the placement falls back to a hash.
+`lattice` is the motif route: the shape is the pattern, and nothing else is
+drawn. `suits()` answers it with one generator because there is one honest
+answer — a pattern made of the client's logo is a pattern you can see the logo
+in.
 
-`field` puts it on one cell in eight at nearly full cell size. A third of the
-cells at 0.78 was the first try and it read as static.
+`weave` can still hold a motif and does, in its sparse accent cells, for a
+client who picks it in the studio. Except that `basket`, `zigzag` and `waves`
+have **0.0%** accent cells at some settings, so below a floor of 4% the
+placement falls back to a hash.
 
 `zigzag` cannot take a motif at all — interlocking stripes have no cell to put a
-shape in — so `suits()` narrows to `weave` on that route rather than handing
-zigzag one and producing a tile identical to the inspired route under a name
-that claims otherwise. `zigzag` is still built and still in the studio: a client
-who wants stripes can have them, having been told what they give up.
+shape in — so handing it one would produce a tile identical to the inspired
+route under a name that claims otherwise. Both are still built and still in both
+studios: a client who wants a weave or stripes can have them, having been told
+what they give up.
+
+A generator that is **nothing but** the motif refuses to build without one,
+rather than filling its ground and returning — which is a blank SVG written into
+`07-pattern` under a name saying it is made of the client's logo.
 
 ### Two measurements that stopped deciding anything
 
