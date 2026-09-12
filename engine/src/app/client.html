@@ -27,6 +27,48 @@ h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.025em;text-wrap:balance}
 p{margin:0}
 button{font:inherit;color:inherit}
 
+/* ------------------------------------------------------------- the pattern */
+.patt{display:grid;grid-template-columns:250px minmax(0,1fr) 260px;gap:18px;
+  align-items:start;margin-top:22px}
+.prail h3,.pside h3{font-size:11px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 8px}
+.prail h3+*{margin-bottom:16px}
+.pchips{display:flex;flex-wrap:wrap;gap:5px}
+.pchip{border:1px solid var(--line-2);background:var(--raised);border-radius:999px;
+  padding:4px 11px;font-size:12.5px;cursor:pointer;transition:.12s var(--step)}
+.pchip:hover{border-color:var(--ink-3)}
+.pchip.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.pgrp{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);
+  margin:18px 0 10px;padding-top:13px;border-top:1px solid var(--line)}
+.pctl{margin-bottom:13px}
+.pctl.idle{opacity:.55}
+.pctl .pcant{margin:5px 0 0;font-size:11px;line-height:1.45;color:var(--ink-3)}
+.pctl .pk{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-2);
+  margin-bottom:4px}
+.pctl .pk .pv{color:var(--ink);font-variant-numeric:tabular-nums}
+.pctl input[type=range]{width:100%;accent-color:var(--accent)}
+.pseed{display:flex;gap:6px}
+.pseed input{width:68px;border:1px solid var(--line-2);background:var(--raised);
+  border-radius:7px;padding:3px 7px;font:inherit;font-size:12.5px;color:inherit}
+.pseed button{flex:1;border:1px solid var(--line-2);background:var(--raised);
+  border-radius:7px;padding:3px 9px;font-size:12.5px;cursor:pointer}
+.prevert{width:100%;margin-top:18px;border:1px solid var(--line-2);background:var(--raised);
+  border-radius:9px;padding:7px 10px;font-size:12.5px;cursor:pointer}
+.prevert:hover{border-color:var(--ink-3)}
+.pstage{aspect-ratio:1;border:1px solid var(--line);border-radius:12px;overflow:hidden;
+  background:var(--sunk);min-height:320px}
+.pstage svg{width:100%;height:100%;display:block}
+.ptile{aspect-ratio:1;border:1px solid var(--line);border-radius:9px;overflow:hidden;
+  margin-bottom:12px}
+.ptile svg{width:100%;height:100%;display:block}
+.pwhy{color:var(--ink-2);font-size:13px;line-height:1.5}
+.phold{color:var(--ink-3);font-size:12.5px;line-height:1.5;margin-top:9px}
+.phold.over{color:var(--bad)}
+@media (max-width:1000px){
+  .patt{grid-template-columns:1fr}
+  .pstage{min-height:260px}
+}
+
 /* ---------------------------------------------------------------- furniture */
 .top{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:20px;
   padding:0 clamp(18px,4vw,46px);height:62px;background:color-mix(in srgb,var(--paper) 88%,transparent);
@@ -248,6 +290,30 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
   </section>
 
   <!-- 4 ------------------------------------------------------------------ -->
+  <section class="panel" id="p-pattern" aria-labelledby="h-pattern">
+    <p class="eyebrow">The pattern</p>
+    <h1 class="lede" id="h-pattern">Made of your logo. Push it as far as you like.</h1>
+    <p class="sub" id="p-sub">Every number here was measured off the shape in your drawing.
+      Move anything; the package is built with whatever you leave on screen.</p>
+    <div class="patt">
+      <aside class="prail" aria-label="Pattern controls">
+        <h3 id="pg-h">Pattern</h3><div class="pchips" id="pgens" aria-labelledby="pg-h"></div>
+        <div id="pctls"></div>
+        <h3 id="pw-h">Colourway</h3><div class="pchips" id="pways" aria-labelledby="pw-h"></div>
+        <button type="button" class="prevert" id="prevert">Back to what the engine chose</button>
+      </aside>
+      <div class="pstage" id="psheet" aria-label="The pattern, repeating"></div>
+      <aside class="pside">
+        <h3>One tile</h3>
+        <div class="ptile" id="ptile"></div>
+        <p class="pwhy" id="pwhy"></p>
+        <p class="phold" id="phold"></p>
+      </aside>
+    </div>
+    <div class="errbox"></div>
+  </section>
+
+  <!-- 5 ------------------------------------------------------------------ -->
   <section class="panel" id="p-edit" aria-labelledby="h-edit">
     <p class="eyebrow">Your words</p>
     <h1 class="lede" id="h-edit">Change anything the engine could not know.</h1>
@@ -264,7 +330,7 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     <div class="errbox"></div>
   </section>
 
-  <!-- 5 ------------------------------------------------------------------ -->
+  <!-- 6 ------------------------------------------------------------------ -->
   <section class="panel" id="p-done" aria-labelledby="h-done">
     <p class="eyebrow">Built</p>
     <h1 class="lede" id="h-done">It is yours.</h1>
@@ -288,11 +354,14 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
      hosted; the page it was served for stopped asking for it. -->
 <script src="/jszip.min.js"></script>
 <script>/*NAMING*/</script>
+<script>/*PATTERNS*/</script>
 <script>
 (function () {
   'use strict';
   var S = { mark: null, wordmark: null, clean: null, findings: null, seen: null, qs: null, answers: {}, step: 0, built: null, overrides: [] };
-  var STEPS = ['Artwork', 'Questions', 'Layout', 'Your words', 'Package'];
+  var STEPS = ['Artwork', 'Questions', 'Layout', 'Pattern', 'Your words', 'Package'];
+  var PANELS = ['p-art', 'p-ask', 'p-style', 'p-pattern', 'p-edit', 'p-done'];
+  var LAST = STEPS.length - 1;
   var $ = function (id) { return document.getElementById(id); };
   var el = function (t, c, x) { var n = document.createElement(t); if (c) n.className = c;
     if (x != null) n.textContent = x; return n; };
@@ -306,11 +375,9 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
   }
   function show(i) {
     S.step = i; steps();
-    ['p-art', 'p-ask', 'p-style', 'p-edit', 'p-done'].forEach(function (id, k) {
-      $(id).classList.toggle('on', k === i);
-    });
-    $('back').hidden = i === 0 || i === 4;
-    $('go').hidden = i === 4;
+    PANELS.forEach(function (id, k) { $(id).classList.toggle('on', k === i); });
+    $('back').hidden = i === 0 || i === LAST;
+    $('go').hidden = i === LAST;
     window.scrollTo({ top: 0, behavior: 'smooth' });
     gate();
   }
@@ -319,7 +386,7 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     $('go').disabled = on || !ready();
     $('go').innerHTML = on ? '<span class="spin"></span>' + (label || 'Working') : nextLabel();
   }
-  function nextLabel() { return S.step === 3 ? 'Build the package' : 'Continue'; }
+  function nextLabel() { return S.step === LAST - 1 ? 'Build the package' : 'Continue'; }
   function ready() {
     // what the door accepted, rather than what the file input handed over: a
     // refusal used to leave Continue lit, and the next screen draws itself out
@@ -332,7 +399,11 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
       return !!(HandoverNaming.slug(named) || HandoverNaming.slug(S.answers.latinName || ''));
     }
     if (S.step === 2) return !!S.answers.style;
+    // The pattern screen is never a gate. It opens on what the engine derived,
+    // which is already a finished pattern; everything on it is a change to
+    // something that is right to begin with.
     if (S.step === 3) return true;
+    if (S.step === 4) return true;
     return false;
   }
   function gate() { $('go').disabled = !ready(); $('go').textContent = nextLabel(); }
@@ -776,7 +847,7 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
         var d = el('div', 'n'); d.appendChild(el('b', null, 'What it did'));
         d.appendChild(document.createTextNode(n)); nb.appendChild(d);
       });
-      busy(false); say(''); show(4);
+      busy(false); say(''); show(LAST);
     }).catch(function (e) { busy(false); fail(e); say('', true); });
   }
 
@@ -853,11 +924,209 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     }).catch(function (e) { busy(false); fail(e); });
   }
 
+
+  // ------------------------------------------------------------- the pattern
+  //
+  // Drawn here, in the page, with the engine's own generator files — the same
+  // ones the build runs and the same ones the package's studio carries. The
+  // server hands over the recipe and no pictures: the shape read out of the
+  // drawing, the measurements taken off the mark, and what each generator
+  // derives from them. So what somebody pushes a slider to on this screen is
+  // what the build writes, rather than an approximation of it that would
+  // disagree with the package about their own artwork.
+  var P = null;                      // what /api/pattern sent back
+  var PS = null;                     // { generator, params, colourway }
+
+  function pgen() { return window.PatternEngine.GENERATORS[PS.generator]; }
+  function ppal() {
+    var way = null;
+    for (var i = 0; i < P.colourways.length; i++) {
+      if (P.colourways[i].name === PS.colourway) way = P.colourways[i];
+    }
+    return window.PatternPalette.of(P.colours, way || P.colourways[0]);
+  }
+  function ptileSvg(size) {
+    var s = window.PatternSurface.svg({ width: size, height: size, id: 'pt' });
+    pgen().paint(s, size, size, PS.params, ppal());
+    return s;
+  }
+
+  function pdraw() {
+    var size = P.tile;
+    var box = $('psheet');
+    // Laid out as copies of one paint rather than an SVG <pattern>, so what is
+    // on screen is exactly what the file will contain.
+    var across = 4, down = 4;
+    var sheet = window.PatternSurface.svg({ width: across * size, height: down * size, id: 'psh' });
+    for (var j = 0; j < down; j++) {
+      for (var i = 0; i < across; i++) {
+        sheet.save(); sheet.translate(i * size, j * size);
+        pgen().paint(sheet, size, size, PS.params, ppal());
+        sheet.restore();
+      }
+    }
+    box.innerHTML = sheet.toSVG('preserveAspectRatio="xMidYMid slice"');
+    $('ptile').innerHTML = ptileSvg(size).toSVG('');
+    $('pwhy').textContent = window.PatternEngine.because(PS.generator, P.measured, PS.params);
+    pholds();
+    // and the answer the build will read. It goes in beside the others so the
+    // one place that turns answers into a project file turns this into one too.
+    S.answers.pattern = { generator: PS.generator, params: PS.params };
+  }
+
+  // The size this pattern holds at, in the terms each generator is drawn in.
+  function pholds() {
+    var n = $('phold');
+    var f;
+    if (PS.generator === 'lattice') {
+      var m = PS.params.motif || {};
+      f = PS.params.scale * Math.max(0.07, m.weight || 0.06);
+    } else if (PS.generator === 'weave') f = 1 / PS.params.cells;
+    else f = PS.params.stripe;
+    var px = Math.ceil(P.minStrokePx / f);
+    var mm = Math.ceil((P.minStrokeMm / f) * 10) / 10;
+    n.className = 'phold';
+    n.textContent = 'Holds from ' + px + ' px and ' + mm + ' mm, which is the size the mark '
+      + 'itself holds at or larger.';
+  }
+
+  function pcontrols() {
+    var wrap = $('pctls'); wrap.textContent = '';
+    var GROUPS = { lattice: 'The lattice', effect: 'Effects', pattern: 'Its controls' };
+    var group = null;
+    var list = pgen().controls;
+    for (var i = 0; i < list.length; i++) {
+      var c = list[i];
+      if (c.group !== group) {
+        group = c.group;
+        var h = el('div', 'pgrp', GROUPS[group] || 'Its controls');
+        if (!wrap.firstChild) { h.style.marginTop = '0'; h.style.paddingTop = '0'; h.style.borderTop = '0'; }
+        wrap.appendChild(h);
+      }
+      wrap.appendChild(pcontrol(c));
+    }
+  }
+
+  function pshown(c, v) {
+    if (c.type !== 'range') return '';
+    return c.max <= 2.5 ? Math.round(v * 100) + '%' : String(v);
+  }
+
+  function pcontrol(c) {
+    var row = el('div', 'pctl');
+    var k = el('label', 'pk');
+    k.appendChild(el('span', null, c.label));
+    var v = el('span', 'pv', pshown(c, PS.params[c.key]));
+    k.appendChild(v);
+    row.appendChild(k);
+    // A control with nothing to work on says so. Corner rounding takes the
+    // joins where two straight runs meet, and a shape drawn in curves has none
+    // — so the slider would move and the tile would not, which is a control
+    // that lies. The generator declares what it needs; this reads it.
+    var want = c.needs && (PS.params[c.needs.of] || {})[c.needs.key];
+    var idle = !!c.needs && !(want >= c.needs.least);
+    if (c.type === 'range') {
+      var r = document.createElement('input');
+      r.type = 'range'; r.min = c.min; r.max = c.max; r.step = c.step;
+      r.value = PS.params[c.key];
+      r.setAttribute('aria-label', c.label);
+      r.addEventListener('input', function () {
+        PS.params[c.key] = Number(r.value);
+        v.textContent = pshown(c, PS.params[c.key]);
+        pdraw();
+      });
+      row.appendChild(r);
+    } else if (c.type === 'chips') {
+      var box = el('div', 'pchips');
+      c.options.forEach(function (o) {
+        var b = el('button', PS.params[c.key] === o ? 'pchip on' : 'pchip', o);
+        b.type = 'button';
+        b.addEventListener('click', function () { PS.params[c.key] = o; pcontrols(); pdraw(); });
+        box.appendChild(b);
+      });
+      row.appendChild(box);
+    } else if (c.type === 'seed') {
+      var seed = el('div', 'pseed');
+      var n = document.createElement('input');
+      n.type = 'number'; n.value = PS.params[c.key] || 1;
+      n.setAttribute('aria-label', 'Seed');
+      n.addEventListener('input', function () { PS.params[c.key] = Number(n.value) || 1; pdraw(); });
+      var b = el('button', null, 'New variation'); b.type = 'button';
+      b.addEventListener('click', function () {
+        PS.params[c.key] = (PS.params[c.key] || 1) + 1; n.value = PS.params[c.key]; pdraw();
+      });
+      seed.appendChild(n); seed.appendChild(b);
+      row.appendChild(seed);
+    }
+    if (idle) {
+      row.className = 'pctl idle';
+      Array.prototype.forEach.call(row.querySelectorAll('input,button'), function (n) { n.disabled = true; });
+      row.appendChild(el('p', 'pcant', c.needs.without));
+    }
+    return row;
+  }
+
+  function prails() {
+    var g = $('pgens'); g.textContent = '';
+    Object.keys(P.params).forEach(function (name) {
+      var b = el('button', PS.generator === name ? 'pchip on' : 'pchip', name);
+      b.type = 'button';
+      b.addEventListener('click', function () { ppick(name); });
+      g.appendChild(b);
+    });
+    var w = $('pways'); w.textContent = '';
+    P.colourways.forEach(function (way) {
+      var b = el('button', PS.colourway === way.name ? 'pchip on' : 'pchip', way.name);
+      b.type = 'button';
+      b.addEventListener('click', function () { PS.colourway = way.name; prails(); pdraw(); });
+      w.appendChild(b);
+    });
+  }
+
+  // A generator, at the numbers the engine derived for it. Copied rather than
+  // handed over, so wandering on one generator and coming back does not find
+  // the other one's sliders moved.
+  function ppick(name) {
+    PS.generator = name;
+    PS.params = JSON.parse(JSON.stringify(P.params[name]));
+    prails(); pcontrols(); pdraw();
+  }
+
+  function drawPattern() {
+    if (P) { pdraw(); return; }               // already loaded: keep what was pushed
+    busy(true, 'Reading the shape');
+    post('/api/pattern', {
+      mark: S.mark, wordmark: S.wordmark, brand: S.answers.brand,
+      latinName: S.answers.latinName, language: S.answers.language,
+      colours: S.answers.colours, answers: S.answers,
+      lockups: S.seen && S.seen.lockups, slots: S.seen && S.seen.slots,
+    }).then(function (out) {
+      busy(false);
+      P = out;
+      PS = { generator: out.chose, colourway: out.colourways[0].name,
+        params: JSON.parse(JSON.stringify(out.params[out.chose])) };
+      $('p-sub').textContent = out.motif
+        ? 'Every number here was measured off ' + out.motif.name + ' — the shape this engine '
+          + 'read out of your drawing. Move anything; the package is built with whatever you '
+          + 'leave on screen.'
+        : 'Nothing in this drawing could be cut out and repeated, so the patterns here are '
+          + 'built from what the mark measures rather than from its shape.';
+      prails(); pcontrols(); pdraw();
+      say('This is your logo, repeated. Every slider changes the package.');
+    }).catch(function (e) { busy(false); fail(e); });
+  }
+
+  $('prevert').addEventListener('click', function () {
+    ppick(PS.generator);
+    say('Back to what the artwork asked for.');
+  });
+
   $('go').addEventListener('click', function () {
     if (S.step === 0) { show(1); say('Seven questions. Four are already answered.'); }
     else if (S.step === 1) { show(2); drawPicks(); }
-    else if (S.step === 2) { show(3); drawEdit(); }
-    else if (S.step === 3) buildIt();
+    else if (S.step === 2) { show(3); drawPattern(); }
+    else if (S.step === 3) { show(4); drawEdit(); }
+    else if (S.step === 4) buildIt();
   });
   $('back').addEventListener('click', function () { show(Math.max(0, S.step - 1)); say(''); });
 

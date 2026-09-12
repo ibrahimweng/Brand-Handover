@@ -153,6 +153,12 @@ function handler(req, res) {
     return readBody(req).then((body) => json(res, 200, H.preview(body))).catch((e) => fail(res, e));
   }
 
+  // The shape read out of the drawing, and what every generator derives from
+  // it, for the screen where the pattern is pushed around.
+  if (req.method === 'POST' && p === '/api/pattern') {
+    return readBody(req).then((body) => json(res, 200, H.pattern(body))).catch((e) => fail(res, e));
+  }
+
   // The manual with the edits applied, for the screen where they are made.
   if (req.method === 'POST' && p === '/api/render') {
     return readBody(req).then((body) => json(res, 200, H.render(body))).catch((e) => fail(res, e));
@@ -195,7 +201,12 @@ function page() {
     // and the engine's own naming rule, because the page has to know whether a
     // name that has just been typed can carry a file, and a second copy of the
     // fold table would be a second answer
-    .replace('/*NAMING*/', () => fs.readFileSync(path.join(__dirname, '..', 'naming.js'), 'utf8'));
+    .replace('/*NAMING*/', () => fs.readFileSync(path.join(__dirname, '..', 'naming.js'), 'utf8'))
+    // and the pattern engine itself, so the pattern screen draws with the same
+    // files the build runs rather than with a second implementation that would
+    // disagree with the package about the client's own artwork. One list, in
+    // patterns/emit.js, shared with the studio and the editor.
+    .replace('/*PATTERNS*/', () => require('../patterns/emit').sourcesJs());
 }
 
 function serve({ port = 3000, host = '127.0.0.1', log = console.log } = {}) {

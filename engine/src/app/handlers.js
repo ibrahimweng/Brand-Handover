@@ -442,6 +442,68 @@ function render(input) {
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 }
 
+// Everything the pattern screen needs to draw this identity's pattern live.
+//
+// The screen draws in the browser, with the engine's own generator files — the
+// same ones the build runs and the same ones the package's studio carries — so
+// what a person pushes a slider to on this screen is what comes out of the
+// build. A second implementation in the page would be a second answer, and the
+// answer it disagreed about would be the client's artwork.
+//
+// What travels is the recipe: the shape read out of the drawing, the
+// measurements taken off the mark, and the parameters every generator derives
+// from them. No pictures — the page makes those.
+function pattern(input) {
+  const mark = input.mark ? asSvg(input.mark, 'the mark') : null;
+  const wordmark = input.wordmark ? asSvg(input.wordmark, 'the wordmark') : null;
+  if (!mark && !wordmark) throw bad('No artwork was given.', 'Drop an SVG first.');
+  const answers = input.answers || {};
+  const colours = (input.colours && input.colours.length ? input.colours : answers.colours) || [];
+  if (!colours.length) throw bad('No colours were chosen.', 'Pick at least one ink and one ground.');
+  // Staged and loaded rather than read straight off the upload, for the reason
+  // `readArtwork` gives at length: the artwork the loader normalises has slots
+  // the raw file does not, and three readers of one drawing is three chances to
+  // disagree. This is the drawing the build will use.
+  const { dir, file } = stage({
+    brand: input.brand || answers.brand || 'Untitled',
+    latinName: input.latinName || answers.latinName || undefined,
+    language: input.language || answers.language || undefined,
+    mark, wordmark, colours, answers: input.answers || null,
+    lockups: input.lockups && input.lockups.length ? input.lockups : undefined,
+    slots: input.slots,
+  });
+  try {
+    const project = projectLoader.load(file);
+    const measured = measure(project);
+    const master = projectLoader.masterNameOf(project);
+    const src = (project.assets[master] || {}).source;
+    const PENG = require('../patterns');
+    const read = PENG.read(src, measured, project.rules);
+    const motif = require('../patterns/motif-read').read(src, project.rules, measured,
+      undefined, { lettering: master === 'wordmark' });
+    const route = input.route || answers.patternRoute || PENG.ROUTE_DEFAULT;
+    const made = {};
+    for (const name of PENG.NAMES) {
+      // A generator that is nothing but the motif is offered only when there is
+      // one. Offering it without would be a chip that draws an empty ground.
+      if (PENG.GENERATORS[name].needsMotif && !(motif && motif.ok)) continue;
+      made[name] = PENG.derive(name, read, route, motif && motif.ok ? motif : null);
+      if (PENG.GENERATORS[name].motif && motif && motif.ok) made[name].motif = motif;
+    }
+    return { ok: true,
+      route, routes: PENG.ROUTES,
+      chose: made[PENG.suits(read, route)] ? PENG.suits(read, route) : Object.keys(made)[0],
+      measured: read,
+      motif: motif && motif.ok ? motif : null,
+      why: motif && !motif.ok ? motif.why : null,
+      params: made,
+      colours: project.tokens.colour,
+      colourways: (project.rules.colourways || []).map((c) => ({ name: c.name, on: c.on })),
+      tile: require('../system').patternRules((project.system || {}).pattern).tile,
+      minStrokePx: project.rules.minStrokePx, minStrokeMm: project.rules.minStrokeMm };
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+}
+
 // Everything a person may replace, so the screen can list what it is offering
 // rather than discovering it from the markup.
 function editable() {
@@ -449,4 +511,4 @@ function editable() {
   return { ok: true, values: O.ALLOWED, keyed: O.PATTERNS.map((p) => ({ what: p.what, kind: p.kind })) };
 }
 
-module.exports = { ask, preview, render, editable, make, paletteFrom, projectJson, MAX_SVG };
+module.exports = { ask, preview, render, pattern, editable, make, paletteFrom, projectJson, MAX_SVG };

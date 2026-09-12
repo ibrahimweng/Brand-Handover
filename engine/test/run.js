@@ -1536,6 +1536,63 @@ test('every surface that draws a pattern carries every generator', () => {
     'the studio appears to contain a generator that does not exist');
 });
 
+test('what the pattern screen is left on is what the package is built with', async () => {
+  // The route defect, one layer down and worth checking on its own terms: a
+  // control can reach `brand.json` faithfully and change no drawing at all.
+  // Writing a value is not using it. So this pushes each control the way a
+  // person would, builds the package the door builds, and reads the file that
+  // comes out — not the parameters beside it.
+  //
+  // It found one. Corner rounding takes the joins where two straight runs
+  // meet, and carrock is drawn in arcs: the slider moved, the number reached
+  // `brand.json`, and the SVG came out byte for byte identical. Two thirds of
+  // the drawings here are drawn that way.
+  const H = require('../src/app/handlers');
+  const mark = fs.readFileSync(path.join(__dirname, '..', 'projects', 'carrock', 'mark.svg'), 'utf8');
+  const colours = [{ name: 'ink', hex: '#241C1A', role: 'primary' },
+    { name: 'paper', hex: '#F4F1EA', role: 'ground' }];
+  const screen = H.pattern({ mark, brand: 'Carrock', colours });
+  assert.strictEqual(screen.chose, 'lattice', 'the door no longer opens on the logo pattern');
+  const dirs = [];
+  const built = async (over) => {
+    const params = Object.assign(JSON.parse(JSON.stringify(screen.params.lattice)), over);
+    const out = fs.mkdtempSync(path.join(os.tmpdir(), 'screen-'));
+    dirs.push(out);
+    await H.make({ mark, brand: 'Carrock', colours,
+      answers: { brand: 'Carrock', colours, pattern: { generator: 'lattice', params } } }, out);
+    return fs.readFileSync(path.join(out, '07-pattern', 'lattice-full-colour.svg'), 'utf8');
+  };
+  try {
+    const base = await built({});
+    // Every control the screen offers, pushed. Each one has to change the file.
+    for (const [key, to] of [['scale', 0.3], ['gap', 0.35], ['drop', 0.5], ['turn', 30],
+      ['flip', 'columns'], ['extrude', 0.4], ['glitch', 0.5], ['jitter', 0.5],
+      ['intensity', 'quiet']]) {
+      const svg = await built({ [key]: to });
+      assert.notStrictEqual(svg, base,
+        `the screen's ${key} reached brand.json and changed nothing in the drawing`);
+    }
+    // And the one that cannot, on this mark, is the one the screen greys out.
+    // Its own claim, checked rather than excused: the drawing has no corners,
+    // the tile is unchanged, and the control says so.
+    const MR = require('../src/patterns/motif-read');
+    assert.strictEqual(screen.motif.corners, 0, 'carrock has corners now — pick another curve-drawn mark');
+    assert.strictEqual(await built({ radius: 0.6 }), base,
+      'rounding changed a drawing with no corners in it, so the count is wrong');
+    const control = PENG.GENERATORS.lattice.controls.find((c) => c.key === 'radius');
+    assert.ok(control.needs && control.needs.of === 'motif' && control.needs.key === 'corners',
+      'the rounding control does not declare that it needs corners, so both studios offer it anyway');
+    // and it is not always idle, or the declaration would be a way of hiding a
+    // control that never works.
+    const cornered = MR.read(fs.readFileSync(
+      path.join(__dirname, '..', 'projects', 'hallward', 'mark.svg'), 'utf8'));
+    assert.ok(cornered.corners >= control.needs.least,
+      'no drawing in the repository has corners to round, so the control is dead everywhere');
+  } finally {
+    for (const d of dirs) fs.rmSync(d, { recursive: true, force: true });
+  }
+});
+
 test('a wordmark is never mirrored into a pattern', () => {
   // marlow's only asset is a wordmark. The shape that ranks best out of it is
   // 79% of the drawing — the word — and the mirroring rule keys on symmetry,
