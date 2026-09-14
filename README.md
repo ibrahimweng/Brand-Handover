@@ -3841,3 +3841,80 @@ position modulo the lattice first makes all three periodic by construction.
 
 The test is proved by reverting each of the three fixes in turn, separately. It
 fails on each and passes when all three are back.
+
+## The third thing to ask for
+
+The brief was to ask a client for three things at the start rather than one: the
+mark, the logotype, and anything they already have that gives the engine more to
+work from. Checking it first was worth more than building it, because two of the
+three were already in the engine and neither was reachable from the front door.
+
+**The logotype was never missing.** All thirty-three fixtures carry a wordmark
+and thirty-two carry both; `intake.read({ mark, wordmark })` builds the lockups
+off whichever it has, and the pattern engine has read the logotype as a second
+motif since the round that added it, so a poster sets the client's own drawing
+of their name rather than re-typesetting it in a face that is not theirs.
+
+**Nor was the reference.** `assets.patternReference` has been in the schema, the
+loader has read it as bytes, `build.js` has matched against it and `match.js`
+has had tests since it was written.
+
+**What was missing was the door.** `handlers.js` took a mark and a wordmark and
+nothing else. Exactly one project in the repository — salvage — ever supplied a
+reference, and it is a fixture somebody wrote by hand. A whole subsystem, with
+its own tests, had never once run on something a person supplied.
+
+### Vector only was the wrong rule, and the codebase said so
+
+The recommendation given was to take vector only, on the grounds that the engine
+measures and a JPEG cannot be measured. That conflated two different things. A
+*moodboard* cannot be measured. A *pattern* can, whatever it is saved as —
+period, ink share, angle, edge hardness and colour count all come off pixels,
+which is why `referenceField` decodes PNG and why salvage's reference is a PNG
+and matches correctly.
+
+`src/project.js` had already settled it, in a comment written for exactly this:
+`REFERENCE_KINDS = { '.svg', '.png' }` — "the one asset that may be pixels rather
+than a drawing, because a client's existing pattern usually arrives as an export
+rather than as source." The door now agrees with the loader instead of holding a
+second opinion about it. The line it draws is a pattern against not-a-pattern,
+and the measurement draws it rather than the file extension: a reference the six
+measurements cannot read is reported as unreadable, never guessed at.
+
+### The matcher searched two of thirty-two
+
+`weave` and `zigzag`. Everything else is excluded on purpose and correctly —
+those tools draw pictures *made of* this client's mark, and fitting a stranger's
+pattern to one answers "the pattern you already use is made of your logo".
+
+But that exclusion had swept up the two things a client is most likely to
+actually arrive with. A house that owns a pattern usually owns a check or a
+stripe, and a sett is pure geometry: every line of it is a number somebody wrote
+down and none of it is made of anybody's drawing. `tartan` and `stripe` are
+matchable now, which takes the search from two generators to four.
+
+`stripe` declares a motif because it can carry the mark in its widest band.
+Matching never turns `carry`, so what is being fitted is the sett alone.
+
+That change broke a test, which is the test doing its job. A reference of plain
+bars at eight periods across now matches `stripe` — correctly, it is a stripe —
+but landed at six because the scale knob's list stopped at six, and a list that
+stops short of the reference's period cannot reach it however many rounds it is
+given. It reads its period exactly now, at a score of zero.
+
+### The screen and the build disagreed about it
+
+The pattern step derives every generator from the mark and opens on the one the
+mark suits. The build, given a reference, chooses the *matched* generator with
+the *matched* numbers. Two answers to one question — so a person could drop
+their pattern, tune the chip the screen opened on, and find the package had
+built something else. The screen matches too now, with the same generators and
+the same rounds, and a test asserts the two agree on the name *and* on every
+parameter rather than on the name alone.
+
+What the round did not build is the rest of the brief: "any other thing that
+might guide you". A photograph of a shop front, a deck of things somebody likes,
+a palette torn out of a magazine — none of those is a pattern, and there is
+nothing in them the six measurements can read. Letting them in would mean the
+engine inferring where everything else in it measures. That is a real gap and it
+is stated rather than filled.

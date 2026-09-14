@@ -12694,6 +12694,124 @@ test('the page the site deploys is the page the server serves', () => {
   assert.deepStrictEqual(fetched(page), [], 'the deployed page reaches outside the product');
 });
 
+test('a pattern dropped at the door reaches the match, in both formats it takes', async () => {
+  /* The third slot, end to end.
+
+     Worth a test of its own because the subsystem behind it had never run on
+     anything a person supplied. `assets.patternReference` has been in the
+     schema, the loader has read it, build.js has matched against it and
+     match.js has had tests since it was written — and the front door took the
+     mark and the wordmark and nothing else, so exactly one project in the
+     repository ever supplied one and it was a fixture somebody wrote by hand.
+
+     And a check that the file was written is not a check that it was used. So
+     this asserts the whole way through: posted at the door, named in the
+     project, read by the loader, measured by the matcher, and recorded in
+     brand.json as the reference the tile was generated against.
+
+     Both formats, because the two go down different paths — an SVG arrives as
+     text and a PNG as base64 that has to survive being decoded. A PNG that
+     went through a string is a different file by the time a decoder sees it,
+     which is the fault src/project.js reads bytes to avoid, and the door is
+     the other place it could happen. */
+  const APP3 = require('../src/app/handlers');
+  const colours = [{ name: 'ink', hex: '#0A2A33', role: 'primary' },
+    { name: 'paper', hex: '#FFFFFF', role: 'ground' }];
+
+  // A reference with an answer somebody can check: bars every 32 px, so the
+  // measurement is against the picture rather than against itself.
+  const svgRef = `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256">`
+    + `<rect width="256" height="256" fill="#FFFFFF"/>`
+    + Array.from({ length: 4 }, (_, i) =>
+      `<rect x="${i * 64}" y="0" width="32" height="256" fill="#0A2A33"/>`).join('')
+    + `</svg>`;
+  const pngRef = PSEAM.pixels(svgRef, 256);
+  const asPng = require('fast-png').encode(
+    { width: pngRef.w, height: pngRef.h, data: pngRef.px, channels: 4 });
+
+  for (const [what, reference] of [
+    ['svg', { name: 'ours.svg', mime: 'image/svg+xml', data: svgRef }],
+    ['png', { name: 'ours.png', mime: 'image/png',
+      data: 'data:image/png;base64,' + Buffer.from(asPng).toString('base64') }],
+  ]) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-ref-'));
+    try {
+      await APP3.make({ brand: 'Reference ' + what, mark: markSrc(), wordmark: wordSrc(),
+        colours, lockups: ['horizontal', 'stacked', 'mark', 'wordmark'], slots: ['ink'],
+        patternReference: reference }, dir);
+      const bj = JSON.parse(fs.readFileSync(path.join(dir, 'brand.json'), 'utf8'));
+      const m = bj.system.patterns.matched;
+      assert.ok(m, `${what}: a reference was posted at the door and no match was recorded`);
+      assert.strictEqual(m.reference, `pattern-reference.${what}`,
+        `${what}: the match names ${m.reference}`);
+      // used, not merely written: the chosen generator is the matched one and
+      // the tile carries the matched parameters
+      assert.strictEqual(bj.system.patterns.chose, m.generator,
+        `${what}: the package chose one generator and matched another`);
+      const made = bj.system.patterns.made.filter((x) => x.generator === m.generator);
+      assert.ok(made.length, `${what}: the matched generator wrote no tile`);
+      for (const one of made) {
+        assert.deepStrictEqual(one.params, m.params,
+          `${what}: the tile was written with parameters the match did not choose`);
+      }
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  /* And the screen agrees with the build about it.
+
+     The pattern step derives every generator from the mark and opens on the one
+     the mark suits. The build, given a reference, chooses the *matched*
+     generator with the *matched* numbers instead. Those are two different
+     answers to one question, and a person who drops their pattern, tunes the
+     chip the screen opened on, and then finds the package built something else
+     has been told a lie by the screen. So the screen matches too, and this is
+     what says the two agree. */
+  {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-refscr-'));
+    try {
+      const posted = { name: 'ours.svg', mime: 'image/svg+xml', data: svgRef };
+      const bare = APP3.pattern({ brand: 'Reference screen', mark: markSrc(), wordmark: wordSrc(),
+        colours });
+      const withRef = APP3.pattern({ brand: 'Reference screen', mark: markSrc(), wordmark: wordSrc(),
+        colours, patternReference: posted });
+      assert.ok(withRef.matched, 'the pattern screen was given a reference and matched nothing');
+      assert.strictEqual(withRef.matched.reference, 'pattern-reference.svg');
+      assert.strictEqual(withRef.chose, withRef.matched.generator,
+        'the screen matched one generator and opened on another');
+      assert.ok(!bare.matched, 'the screen matched with no reference to match against');
+
+      await APP3.make({ brand: 'Reference screen', mark: markSrc(), wordmark: wordSrc(),
+        colours, lockups: ['horizontal', 'stacked', 'mark', 'wordmark'], slots: ['ink'],
+        patternReference: posted }, dir);
+      const bj = JSON.parse(fs.readFileSync(path.join(dir, 'brand.json'), 'utf8'));
+      assert.strictEqual(bj.system.patterns.chose, withRef.chose,
+        `the screen opened on ${withRef.chose} and the package built ${bj.system.patterns.chose}`);
+      // and on the same numbers, not merely the same name
+      const built = bj.system.patterns.made.find((x) => x.generator === withRef.chose);
+      assert.ok(built, 'the generator the screen opened on wrote no tile');
+      for (const k of Object.keys(built.params)) {
+        if (k === 'motif' || k === 'word') continue;
+        assert.deepStrictEqual(withRef.params[withRef.chose][k], built.params[k],
+          `the screen and the build disagree about ${withRef.chose}.${k}`);
+      }
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  // And what it refuses. A moodboard is not a pattern: there is no period in it
+  // to read, and inferring one would be the engine guessing where everywhere
+  // else it measures.
+  const nope = [['a.jpg', 'image/jpeg', 'not a picture at all'],
+    ['a.png', 'image/png', 'data:image/png;base64,' + Buffer.from('still not a png').toString('base64')]];
+  for (const [name, mime, data] of nope) {
+    assert.throws(() => APP3.asReference({ name, mime, data }), /pattern you already use/,
+      `${name} was taken as a pattern`);
+  }
+});
+
 test('the artwork is measured before anything is asked', () => {
   const got = APP.ask({ mark: markSrc(), wordmark: wordSrc() });
   assert.strictEqual(got.ok, true);

@@ -109,6 +109,18 @@ button{font:inherit;color:inherit}
 .drop.small{padding:16px 20px;margin-top:26px}
 .drop.small h3{font-size:15px;font-weight:500;color:var(--ink-2)}
 .drop.small p,.drop.small .mono{display:none}
+/* The reference slot is small from the start rather than small once it is
+   filled, so it never competes with the artwork above it — but it still has to
+   say what it is for, so it keeps the two lines the shrunk artwork slot drops.
+   After that rule, not before it: `display:none` above this would win. */
+#dropref p,#dropref .mono{display:block}
+#dropref.has h3{color:var(--accent)}
+/* `tagged`, not `opt` — this page already has an `.opt`, it is a display:flex
+   card, it is defined further down, and a chip given that name came out as a
+   full-width bar across the slot. */
+.drop .tagged{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink-3);border:1px solid var(--line-2);border-radius:20px;
+  padding:2px 8px;margin-left:8px;vertical-align:middle}
 .drop:hover,.drop.hot{border-color:var(--accent);background:var(--sunk)}
 .drop h3{font-size:19px}
 .drop p{margin-top:8px;color:var(--ink-2);font-size:15px}
@@ -271,6 +283,14 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
       <p id="droph">or press to choose a file</p>
       <p class="mono">.svg · up to 2 MB</p>
       <input type="file" id="file" accept=".svg,image/svg+xml" multiple class="sr">
+    </div>
+
+    <div class="drop small" id="dropref" tabindex="0" role="button" aria-describedby="refh">
+      <h3>A pattern you already use <span class="tagged">optional</span></h3>
+      <p id="refh">The engine measures it and generates one that measures the same &mdash;
+        it never traces it.</p>
+      <p class="mono">.svg or .png &middot; one tile, not a page</p>
+      <input type="file" id="fileref" accept=".svg,.png,image/svg+xml,image/png" class="sr">
     </div>
 
     <div id="seen" hidden></div>
@@ -518,6 +538,46 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.remove('hot'); }); });
   drop.addEventListener('drop', function (e) { take(e.dataTransfer.files); });
   file.addEventListener('change', function () { take(file.files); });
+
+  /* The pattern a brand already has, if it has one.
+
+     Read as a data URL rather than as text, because this is the one slot that
+     takes a PNG: a client's existing pattern usually arrives as an export
+     rather than as source, and the engine measures this one rather than
+     drawing with it. The server decodes it; see asReference in handlers.js for
+     why the vector-only rule that governs the artwork does not govern this. */
+  var dropref = $('dropref'), fileref = $('fileref');
+  dropref.addEventListener('click', function () { fileref.click(); });
+  dropref.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileref.click(); } });
+  ['dragenter', 'dragover'].forEach(function (t) {
+    dropref.addEventListener(t, function (e) { e.preventDefault(); dropref.classList.add('hot'); }); });
+  ['dragleave', 'drop'].forEach(function (t) {
+    dropref.addEventListener(t, function (e) { e.preventDefault(); dropref.classList.remove('hot'); }); });
+  dropref.addEventListener('drop', function (e) { takeRef(e.dataTransfer.files); });
+  fileref.addEventListener('change', function () { takeRef(fileref.files); });
+
+  function takeRef(files) {
+    var f = [].slice.call(files || [])[0];
+    if (!f) return;
+    if (!/\.(svg|png)$/i.test(f.name)) {
+      fail({ message: 'A pattern has to be an SVG or a PNG.',
+        how: 'Those are the two the engine can measure. Export one tile of the repeat.' });
+      return;
+    }
+    var png = /\.png$/i.test(f.name);
+    var r = new FileReader();
+    r.onload = function () {
+      S.patternReference = { name: f.name, mime: png ? 'image/png' : 'image/svg+xml',
+        data: String(r.result) };
+      clearErr();
+      dropref.classList.add('has');
+      dropref.querySelector('h3').textContent = f.name + ' will be measured';
+      say('Pattern reference taken. The generated one is fitted to it and both are '
+        + 'measured the same six ways.');
+    };
+    if (png) r.readAsDataURL(f); else r.readAsText(f);
+  }
 
   function take(files) {
     var list = [].slice.call(files || []).filter(function (f) { return /\.svg$/i.test(f.name); });
@@ -821,6 +881,7 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     post('/api/build', { brand: S.answers.brand, latinName: S.answers.latinName || undefined,
       mark: S.mark, wordmark: S.wordmark,
       colours: S.answers.colours, lockups: S.seen.lockups,
+      patternReference: S.patternReference || undefined,
       slots: S.seen.slots, answers: S.answers, overrides: S.overrides }).then(function (j) {
       S.built = j;
       $('done-sub').textContent = j.files + ' files, ' + Math.round(j.bytes / 1024) + ' KB. '
@@ -1192,6 +1253,7 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     if (P) { pdraw(); return; }               // already loaded: keep what was pushed
     busy(true, 'Reading the shape');
     post('/api/pattern', {
+      patternReference: S.patternReference || undefined,
       mark: S.mark, wordmark: S.wordmark, brand: S.answers.brand,
       latinName: S.answers.latinName, language: S.answers.language,
       colours: S.answers.colours, answers: S.answers,

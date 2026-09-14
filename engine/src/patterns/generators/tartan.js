@@ -133,6 +133,6 @@
     { group: 'pattern', key: 'seed', label: 'Seed', type: 'seed' },
   ];
 
-  return { key: 'tartan', kind: 'pattern', vector: true, motif: false, ratio: 1,
+  return { key: 'tartan', kind: 'pattern', matchable: true, vector: true, motif: false, ratio: 1,
     controls, paint, settOf, threads, weaveOf, WEAVES };
 }));

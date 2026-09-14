@@ -92,7 +92,8 @@ function projectJson(opts) {
     language: opts.language || undefined,
     version: opts.version || '1.0.0',
     assets: Object.assign(opts.mark ? { mark: 'mark.svg' } : {},
-      opts.wordmark ? { wordmark: 'wordmark.svg' } : {}),
+      opts.wordmark ? { wordmark: 'wordmark.svg' } : {},
+      opts.patternReference ? { patternReference: 'pattern-reference' + opts.patternReference.ext } : {}),
     tokens: {
       colour: colours,
       // The engine's shape, not a second vocabulary for it. This was
@@ -169,6 +170,10 @@ function stage(opts) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-app-'));
   if (opts.mark) fs.writeFileSync(path.join(dir, 'mark.svg'), opts.mark);
   if (opts.wordmark) fs.writeFileSync(path.join(dir, 'wordmark.svg'), opts.wordmark);
+  if (opts.patternReference) {
+    const r = opts.patternReference;
+    fs.writeFileSync(path.join(dir, 'pattern-reference' + r.ext), r.bytes || r.text);
+  }
   const file = path.join(dir, 'project.json');
   // Where the six answers came through, they decide the project: the layout,
   // the formats, the sizes, the stock, what it is made as and what must never
@@ -217,6 +222,67 @@ const asSvg = (v, what) => {
       'Export from your drawing tool as SVG. A PNG or a JPEG cannot be measured or recoloured.');
   }
   return v;
+};
+
+/* The pattern a brand already uses, on its way in.
+
+   Every other asset at this door is artwork the engine *draws with*, and those
+   have to be vector: a PNG has no geometry to recolour, re-scale or cut a motif
+   out of. This one is artwork the engine *measures* and never redraws, so the
+   argument does not apply to it — and it must not, because a client's existing
+   pattern almost always arrives as an export rather than as source. The one
+   real reference in the repository is a PNG.
+
+   So this takes what the loader takes, which is SVG or PNG, and it takes them
+   for the same stated reason. src/project.js owns that list; this door agrees
+   with it rather than holding a second opinion about it.
+
+   What comes back is `{ ext, text }` or `{ ext, bytes }`, which is what `stage`
+   needs to write the file the loader will read.
+
+   Note what is *not* accepted, because the brief asked for more than this: a
+   moodboard, a photograph of a shop front, a deck of things somebody likes.
+   Those are not patterns and there is nothing in them to measure, so letting
+   them in would mean the engine inferring a period from a picture that has
+   none — and everything else here measures rather than infers. A reference the
+   measurements cannot read is reported as unreadable rather than guessed at;
+   see the warning build.js raises for exactly that. */
+const asReference = (v) => {
+  const what = 'the pattern you already use';
+  const raw = v && typeof v === 'object' ? v : { data: v };
+  const name = String(raw.name || '');
+  const data = raw.data == null ? raw : raw.data;
+  const png = /^image\/png$/i.test(String(raw.mime || '')) || /\.png$/i.test(name);
+  if (!png) {
+    const text = typeof data === 'string' ? data : '';
+    if (!text.trim()) throw bad(`${what} is missing.`, `Drop an SVG or a PNG on ${what}.`);
+    if (text.length > MAX_SVG) {
+      throw bad(`${what} is ${(text.length / 1048576).toFixed(1)} MB, which is more than a pattern.`,
+        'A repeat is one tile. Export the tile rather than a page of it.');
+    }
+    if (!/<svg[\s>]/i.test(text)) {
+      throw bad(`${what} is neither an SVG nor a PNG.`,
+        'Save the pattern as SVG if you have the source, or as PNG if you only have an export. '
+        + 'Both can be measured; a JPEG cannot be read back exactly and a PDF is not one picture.');
+    }
+    return { ext: '.svg', text };
+  }
+  // A PNG arrives base64'd, with or without the data: prefix the FileReader puts
+  // on it. Decoded here and kept as bytes from here on — a PNG that has been
+  // through a string is a different file by the time a decoder sees it, and the
+  // error it gives is about a CRC rather than about anybody's pattern.
+  const b64 = String(data || '').replace(/^data:[^,]*,/, '');
+  if (!b64) throw bad(`${what} is missing.`, `Drop an SVG or a PNG on ${what}.`);
+  const bytes = Buffer.from(b64, 'base64');
+  if (bytes.length > MAX_SVG) {
+    throw bad(`${what} is ${(bytes.length / 1048576).toFixed(1)} MB, which is more than a pattern.`,
+      'A repeat is one tile. Export the tile at a few hundred pixels rather than a page at print size.');
+  }
+  if (bytes.length < 24 || bytes.readUInt32BE(0) !== 0x89504e47) {
+    throw bad(`${what} says it is a PNG and is not one.`,
+      'Re-export it. A file renamed to .png is still whatever it was.');
+  }
+  return { ext: '.png', bytes };
 };
 
 // Every file in the package is named after the brand, and a name in kana or in
@@ -276,6 +342,7 @@ async function make(input, outDir) {
   }
   const mark = input.mark ? asSvg(input.mark, 'the mark') : null;
   const wordmark = input.wordmark ? asSvg(input.wordmark, 'the wordmark') : null;
+  const patternReference = input.patternReference ? asReference(input.patternReference) : null;
   if (!input.brand || !String(input.brand).trim()) {
     throw bad('The identity has no name.', 'Type the brand name. It titles the manual, the deck and every file in the package.');
   }
@@ -302,7 +369,7 @@ async function make(input, outDir) {
     brand: String(input.brand).trim(),
     latinName: input.latinName || undefined,
     language: input.language || undefined,
-    mark, wordmark, colours, lockups,
+    mark, wordmark, colours, lockups, patternReference,
     slots: input.slots && input.slots.length ? input.slots : undefined,
     type: input.type,
     content: input.content,
@@ -471,6 +538,13 @@ function pattern(input) {
     mark, wordmark, colours, answers: input.answers || null,
     lockups: input.lockups && input.lockups.length ? input.lockups : undefined,
     slots: input.slots,
+    // The reference goes through this screen too. Without it the pattern step
+    // would derive every generator from the mark, show the one the mark suits,
+    // and then the build would quietly produce a different generator with
+    // different numbers — because the build matches and this did not. A screen
+    // that disagrees with the build about the client's own pattern is worse
+    // than no screen.
+    patternReference: input.patternReference ? asReference(input.patternReference) : null,
   });
   try {
     const project = projectLoader.load(file);
@@ -490,9 +564,43 @@ function pattern(input) {
       made[name] = PENG.derive(name, read, route, motif && motif.ok ? motif : null);
       if (PENG.GENERATORS[name].motif && motif && motif.ok) made[name].motif = motif;
     }
+    /* Matched here as the build matches, against the same generators with the
+       same rounds, so the chip this screen opens on is the chip the package
+       comes out with. The failure is reported rather than swallowed: a
+       reference the measurements cannot read is a thing the person who dropped
+       it needs to be told, and the pattern falls back to the mark. */
+    let matched = null;
+    let matchWhy = null;
+    if (project.assets.patternReference) {
+      const MATCH = require('../patterns/match');
+      const cw0 = (project.rules.colourways || [])[0];
+      const makeTile = (g, params) => PENG.tile({ mark: read, generator: g, route,
+        motif: motif && motif.ok ? motif : null, params: params || undefined,
+        colours: project.tokens.colour, colourway: cw0,
+        size: require('../system').patternRules((project.system || {}).pattern).tile,
+        id: `fit-${g}` });
+      try {
+        const r = MATCH.fit(MATCH.referenceField(project.assets.patternReference), makeTile,
+          { px: 256, rounds: 2 });
+        if (r && r.generator && made[r.generator]) {
+          matched = { generator: r.generator, score: r.score, says: r.verdict.says,
+            reference: project.assets.patternReference.file };
+          // The matched generator carries the matched numbers; the others keep
+          // what the mark chose, so the rail still opens on real patterns
+          // rather than on one and the rest bent towards a stranger's.
+          made[r.generator] = Object.assign({}, made[r.generator], r.params);
+          if (PENG.GENERATORS[r.generator].motif && motif && motif.ok) made[r.generator].motif = motif;
+        }
+      } catch (e) {
+        matchWhy = `${project.assets.patternReference.file} could not be measured, so the `
+          + `pattern is derived from the mark instead. ${e.message}`;
+      }
+    }
     return { ok: true,
       route, routes: PENG.ROUTES,
-      chose: made[PENG.suits(read, route)] ? PENG.suits(read, route) : Object.keys(made)[0],
+      matched, matchWhy,
+      chose: matched ? matched.generator
+        : made[PENG.suits(read, route)] ? PENG.suits(read, route) : Object.keys(made)[0],
       measured: read,
       motif: motif && motif.ok ? motif : null,
       why: motif && !motif.ok ? motif.why : null,
@@ -511,4 +619,4 @@ function editable() {
   return { ok: true, values: O.ALLOWED, keyed: O.PATTERNS.map((p) => ({ what: p.what, kind: p.kind })) };
 }
 
-module.exports = { ask, preview, render, pattern, editable, make, paletteFrom, projectJson, MAX_SVG };
+module.exports = { ask, preview, render, pattern, editable, make, paletteFrom, projectJson, asReference, MAX_SVG };

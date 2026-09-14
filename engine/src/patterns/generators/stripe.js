@@ -254,6 +254,6 @@
     { group: 'pattern', key: 'seed', label: 'Seed', type: 'seed' },
   ];
 
-  return { key: 'stripe', kind: 'pattern', vector: true, motif: true, ratio: 1,
+  return { key: 'stripe', kind: 'pattern', matchable: true, vector: true, motif: true, ratio: 1,
     controls, paint, settOf, edges, bandInks, SETTS };
 }));

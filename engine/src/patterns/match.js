@@ -52,6 +52,35 @@ const KNOBS = {
     style: null,
     length: [0.08, 0.15, 0.25, 0.4],
   },
+  /* The two cloths a house is most likely to already own.
+
+     A client who arrives with a pattern of their own is usually arriving with a
+     check or a stripe, because those are the two that houses have actually had
+     for two hundred years. Both are pure geometry: every line of a sett is a
+     number somebody wrote down, and none of it is made of this client's
+     drawing, which is the test everything in this table has to pass.
+
+     `stripe` can carry the mark in its widest band, and that is why it declares
+     a motif. Matching never turns `carry`, so the picture being fitted here is
+     the sett alone — the same reason a wordmark on a poster does not make the
+     poster matchable. */
+  tartan: {
+    weave: ['tartan', 'houndstooth', 'madras', 'tattersall'],
+    bands: [2, 3, 4, 5, 7, 9],
+    thread: [2, 3, 5, 8, 14, 22],
+    // Up to twelve setts across, because this is the knob that carries the
+    // scale and a list that stops short of the reference's period cannot reach
+    // it however many rounds it is given. A reference of plain bars at eight
+    // periods across landed at six and read a third wide.
+    repeats: [1, 2, 3, 4, 6, 8, 12],
+  },
+  stripe: {
+    kind: ['sett', 'signature', 'web', 'ombre'],
+    bands: [2, 3, 4, 5, 7, 9],
+    thread: [2, 3, 5, 8, 14, 22],
+    repeats: [1, 2, 3, 4, 6, 8, 12],
+    angle: [0, 90],
+  },
 };
 
 // Render any tile — vector or raster — to a field, so the six measurements
@@ -194,6 +223,11 @@ function opening(name, base, theirs) {
   if (across) {
     if (name === 'weave') p.cells = near(Math.round(across), KNOBS.weave.cells);
     if (name === 'zigzag') p.stripe = near(1 / (across * 2), KNOBS.zigzag.stripe);
+    // For a sett the repeat is the sett, not the thread: threads change how
+    // fine the bands inside it run, and the period the reference reports is how
+    // many whole setts fit across the cloth. So that is what inverts.
+    if (name === 'tartan') p.repeats = near(Math.round(across), KNOBS.tartan.repeats);
+    if (name === 'stripe') p.repeats = near(Math.round(across), KNOBS.stripe.repeats);
   }
   return p;
 }
