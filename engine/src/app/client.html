@@ -45,7 +45,7 @@ button{font:inherit;color:inherit}
    it is on, so nineteen of them read as a list rather than as two hundred
    sliders. */
 .pfxhead{display:flex;align-items:center;gap:8px;margin:0 0 8px}
-.pfxhead .pfxat{font-size:10px;color:var(--ink-3);letter-spacing:.06em;text-transform:uppercase}
+.pfxhead .pfxfield{width:26px;height:26px;border:1px solid var(--line);border-radius:2px;overflow:hidden;flex:0 0 auto;margin-left:auto}
 .pfxhead.on{margin-bottom:10px}
 .pctl.pfxctl{margin-left:12px;padding-left:10px;border-left:1px solid var(--line);margin-bottom:9px}
 .pctl.idle{opacity:.55}
@@ -1068,21 +1068,30 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     var fx = PS.params.effects;
     wrap.appendChild(el('div', 'pgrp', 'Effect layers'));
     FX.NAMES.forEach(function (key) {
-      var on = !!(fx[key] && fx[key].amount > 0);
+      var on = !!(fx[key] && FX.live(fx[key]));
       var head = el('div', on ? 'pfxhead on' : 'pfxhead');
       var b = el('button', on ? 'pchip on' : 'pchip', FX.LAYERS[key].label);
       b.type = 'button';
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
       b.addEventListener('click', function () {
-        // Switched on at something visible, never at zero: a toggle that turns
-        // a thing on and leaves the page identical is a toggle that looks
-        // broken.
+        // Switched on at the channel the layer suggests, at something visible:
+        // a toggle that changes nothing looks broken.
         if (on) delete fx[key];
-        else { fx[key] = FX.defaultsOf(key); fx[key].amount = 0.6; }
+        else fx[key] = FX.wakeOf(key);
         pcontrols(); pdraw();
       });
       head.appendChild(b);
-      head.appendChild(el('span', 'pfxat', FX.LAYERS[key].at));
+      if (on) {
+        // The field itself, so a client can see what they are driving with.
+        var thumb = el('div', 'pfxfield');
+        var s = window.PatternSurface.svg({ width: 60, height: 60, id: 'fld-' + key });
+        var over = {}; for (var k in fx[key]) over[k] = fx[key][k];
+        over.motif = PS.params.motif; over.seed = PS.params.seed;
+        FX.show(s, 60, 60, key, over, 12);
+        thumb.innerHTML = s.toSVG('style="width:100%;height:100%;display:block"');
+        thumb.title = 'what this layer measures';
+        head.appendChild(thumb);
+      }
       wrap.appendChild(head);
       if (!on) return;
       FX.controlsOf(key).forEach(function (c) {

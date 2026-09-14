@@ -292,34 +292,47 @@
     if (!FX) return;
     if (!state.params.effects) state.params.effects = {};
     const fx = state.params.effects;
-    // "Effect layers", not "Effects". `lattice` already declares a group called
-    // Effects for the things it does to the motif itself — rounding its
-    // corners, extruding it, shoving its bands — and a rail with the same
-    // heading twice reads as a mistake. These are a different thing: they act
-    // on the whole tile, and they stack.
     wrap.appendChild(el('div', 'grp', 'Effect layers'));
     for (const key of FX.NAMES) {
-      const on = !!(fx[key] && fx[key].amount > 0);
+      const on = !!(fx[key] && FX.live(fx[key]));
       const head = el('div', on ? 'fxhead on' : 'fxhead');
       const b = el('button', 'chip' + (on ? ' on' : ''), esc(FX.LAYERS[key].label));
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
       b.addEventListener('click', () => {
+        // Switched on at the channel the layer suggests, at something you can
+        // see. A toggle that turns a thing on and leaves the page identical is
+        // a toggle that looks broken.
         if (on) delete fx[key];
-        else { fx[key] = FX.defaultsOf(key); fx[key].amount = 0.6; }
+        else fx[key] = FX.wakeOf(key);
         controls(); draw();
       });
       head.appendChild(b);
-      head.appendChild(el('span', 'fxat', esc(FX.LAYERS[key].at)));
+      if (on) {
+        /* The field itself, as a picture.
+
+           A field is invisible until something is driven by it, which makes
+           these controls hard to learn: a client turns Scale up and sees the
+           pattern change in a way they cannot connect to anything. The thumbnail
+           is the thing they are driving with. */
+        const thumb = el('div', 'fxfield');
+        const s = SURF.svg({ width: 60, height: 60, id: `fld-${key}` });
+        FX.show(s, 60, 60, key, Object.assign({}, fx[key],
+          { motif: state.params.motif, seed: state.params.seed }), 12);
+        thumb.innerHTML = s.toSVG('style="width:100%;height:100%;display:block"');
+        thumb.title = 'what this layer measures';
+        head.appendChild(thumb);
+      }
       wrap.appendChild(head);
       if (!on) continue;
       for (const c of FX.controlsOf(key)) {
-        const r = row(c, fx[key], `fx-${key}-${c.key}`);
+        const r = row(c, fx[key], `fx-${key}-${c.key}`, () => { controls(); draw(); });
         r.line.classList.add('fxctl');
         wrap.appendChild(r.line);
         r.set();
       }
     }
   }
+
   // Every group any generator declares, named by the engine rather than here:
   // two copies of this map is two things to forget to update, and the second
   // one was already a line behind the first.

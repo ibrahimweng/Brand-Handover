@@ -959,83 +959,93 @@ has ink, loose and large where it does not, so the shape shows as a change of
 `static`, `tokens`, `riso`, `totem`, `fete`, `kiosk`, `specimen`. Written to
 `16-posters`, at their own proportions. See *Posters*, below.
 
-### Effects, layered
+### Effects: nineteen fields, seven channels
 
-`src/patterns/layers.js` — nineteen of them, and they are not generators.
+`src/patterns/layers.js` and `src/patterns/modulate.js`.
 
-PLAYGRND files these under *Backgrounds*, and as tools they are pages you look
-at. Here a background is a thing you put behind or over something else, and
-nineteen more entries in the pattern list would have been nineteen more tiles a
-client has to choose between rather than nineteen more things they can do to
-the one they chose. So each is a layer. Any number can be on at once, they stack
-in a fixed order, every parameter each of them has is a control, and the stack
-is recorded in `brand.json` beside the generator's own numbers so a rebuild
-returns the same tile.
+The first version of this was wrong in a way worth writing down, because it is
+the same mistake this engine keeps making in new clothes. PLAYGRND files these
+nineteen tools under *Backgrounds*, and the first version took that literally:
+each one painted under the pattern, over it, or around it — grounds and grain
+and fibres.
 
-**Three places, and that is the whole ordering.**
+An effect is a thing you do **to** a pattern. A client asking for a noise effect
+on a wave pattern does not want noise drawn on top of the waves. They want the
+noise to *drive* the waves: dark makes the wave bigger, light makes it smaller —
+or the reverse — or the noise becomes a displacement the picture flows along, or
+a blur that is soft in one place and sharp in another, or a gradient the colour
+steps through. Painting beside the pattern is not an effect. It is a second
+pattern.
 
-    under   painted before the generator — contours, bands, panes, cells, washes
-    wrap    re-invokes everything below it — the glitch, the blur, the colorama,
-            the emboss
-    over    painted on top — grain, fibres, flecks, threads, scorch
+So a layer is a **field** and nothing else: a scalar over the tile, with its own
+shape and its own controls. What it does is the seven **channels**:
 
-A layer cannot be moved. What it does depends on what is under it, and a studio
-that let somebody put a blur under a ground would be offering a control that
-does nothing.
+    displace   push every shape along the field's own slope
+    size       scale each shape about its own centre — bigger where the field is
+               dark, smaller where it is light, or the reverse
+    turn       rotate each shape about its own centre
+    weight     thicken and thin the stroke
+    tone       step the colour through the palette and wash it toward the
+               ground — the gradient overlay and the colorama in one control
+    blur       redraw a shape at small offsets, by how much the field says
+    thin       drop shapes where the field is quiet
 
-**Nothing is filtered.** A `wrap` layer works because the picture below it is a
-*function*: it is called again, under a clip, at an offset, with the palette
-turned. That is the only way an effect can come out as an SVG a designer opens
-and recolours rather than as a bitmap with a filter attached. It is also what it
-costs — a wrap emits the picture below it once per band, so a seven-slice glitch
-over a dense generator is seven times the file. Measured over `relief` at 480
-units: 165 KB plain, 2.8 MB spliced.
+Every channel is signed and centred on zero, so the "or vice versa" is the same
+slider rather than a second control that has to be found.
 
-**The depth map.** A layer that measures something exposes it as `field(u, v)`
-and the stack hands the last one down to everything after it. Fibres over a
-contour layer lie along the contours; scorch over a cell layer burns the walls.
-That is what a stack buys over a set of checkboxes, and it is why the fibre and
-scorch layers each have a *Follow the field* control rather than a fixed
-behaviour.
+**Why a surface wrapper and not a generator argument.** The obvious place is in
+each generator: hand it the field and let it decide. That is twenty-five
+separate pieces of work, twenty-five chances to do it differently, and a new
+generator that forgets is one whose effects silently do nothing. Instead
+`modulate.js` wraps the surface. A generator draws exactly as it always did and
+never learns anything is happening; the calls pass through on their way to the
+real surface and what comes out is bent, resized, turned, recoloured, softened
+or thinned. Every channel works on every generator the day it is written,
+including the ones written afterwards.
 
-**The four things a designer asks for by name** are all here, and each is the
-honest version rather than the borrowed word:
+**The unit is the overlapping run of subpaths, not the subpath.** A ring is two
+subpaths — an outer boundary and an inner one — and the hole exists only because
+the fill rule sees both at once. Transformed and filled separately, the inner
+ring becomes a disc painted over the outer one, and every ring in the repository
+came out solid. Nor can the unit be the whole path: the grid painter draws ten
+thousand cells as subpaths of one path, and treating those as one shape would
+scale the sheet rather than the cells. So subpaths whose boxes overlap are moved
+and filled together, bucketed into a coarse grid first because the honest test is
+every pair against every other.
 
-    depth map   terrain, delta, culture, sonar — a banded scalar field, and the
-                thing later layers read
-    blur        aura and bloom — concentric rings and offset copies at falling
-                opacity. A stepped gradient, not a gaussian, and `steps` is a
-                control rather than a secret
-    colorama    prism — the picture below run again band by band with the
-                palette turned. Not a hue rotation applied to pixels, which this
-                could not do; the same drawing dealt a different set of the
-                client's own inks in each band, which is the version a brand can
-                use
-    glitch      splice — the picture below sliced and shoved, and `carve` is the
-                same trick used as a bevel
+**The sheet is never modulated.** Every generator lays a full-bleed ground
+first, and that fill is the sheet rather than a shape: resized it leaves a corner
+of the tile empty, turned it leaves two. A full-tile fill passes straight
+through. The check for it looks for *bare canvas* rather than at the corner
+pixels — a motif displaced into a corner darkens it too, which is what the first
+version of that test read as the sheet having moved.
 
-**Every one of them is periodic.** Bands run across or down and never at an
-angle, ramps run on whole-step lattice directions, every distance is measured on
-a torus, every displacement is a whole-number sine, and a fibre that runs off
-one edge is drawn again on the other. A layer that did not would put a seam
-through every sheet made from the tile — and an effect that breaks the tiling of
-the pattern under it is worse than no effect.
+**Two faults the checks found.** `aura` and `bloom` each had a shape control
+called `size`, which is also a channel name — they share one object, so both
+layers came out switched on the moment they were looked at, and a layer that
+cannot be at rest is a layer whose off switch does not work. And `displace` took
+both its direction and its distance from the field's slope, which on a terraced
+field is zero almost everywhere: `terrain` steps into six bands and the channel
+moved nothing at all. The distance comes from the value now and only the
+direction from the slope, with the diagonal as the fallback where the field is
+flat.
 
-**Off by default.** Every layer starts at zero and the build writes plain tiles
-until a project file says otherwise. A pattern that arrives already blurred,
-glitched and scorched is a decision made on somebody's behalf about their own
-logo — the same argument that keeps the lattice's own effects off — and it is
-what keeps the package the size it is.
+**What it costs.** Measured against the model it replaced: a wrap layer emitted
+the whole picture below it once per band, so a seven-slice glitch over `relief`
+went from 165 KB to 2.8 MB. The wrapper is at most 1.5 times the time and 1.7
+times the size on the heaviest generator in the set.
 
-**One thing they made necessary elsewhere.** Every generator opened by filling
-the tile with its own ground, which is right until a ground layer is on: an
-opaque fill over the top made all eight of them invisible while still costing
-their own weight in the file. `palette.paper(surface, W, H, hex)` is where that
-is read now — once, rather than in twenty-six copies of the same two lines — and
-the stack hands the generator a palette that says the paper is already down.
-Nothing else about the palette changes, so a generator that uses the ground
-colour as an *ink* — a counterchange figure, a quilt medallion, a punched glyph
-— still gets it.
+**Off by default, and clipped to the tile.** Every channel starts at zero. And
+the tile is clipped to its own bounds before any of it — load-bearing rather
+than tidy: a tile is used clipped, so anything painted outside is thrown away,
+and a generator that leans on a neighbour's overhang has a join. Measured:
+without the clip, seventeen of sixty generator-and-identity pairs drew a tile
+that differed from the same tile with its eight neighbours around it.
+
+**Seeing the field.** A field is invisible until something is driven by it,
+which makes the controls hard to learn. Both studios draw the field itself as a
+grey step wedge beside the layer's name, so the thing being driven with is on
+screen next to the thing it drives.
 
 ### The pattern that was not made of the logo
 

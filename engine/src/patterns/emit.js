@@ -37,7 +37,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
 // happened to load it first; the app's pattern screen did not, and that is
 // exactly the bug this list exists to make impossible.
 const SOURCES = ['../contrast.js', 'rand.js', 'noise.js', 'surface.js', 'palette.js', 'tone.js',
-  'grid.js', 'motif.js', 'layers.js']
+  'grid.js', 'motif.js', 'modulate.js', 'layers.js']
   .concat(Object.keys(PE.GENERATORS).sort().map((g) => `generators/${g}.js`))
   .concat(['index.js']);
 
@@ -75,7 +75,7 @@ h2+*{margin-bottom:6px}
    it is on, so nineteen of them read as a list of nineteen things rather than
    as two hundred sliders. */
 .fxhead{display:flex;align-items:center;gap:8px;margin:0 0 8px}
-.fxhead .fxat{font-size:10px;color:var(--dim);letter-spacing:.06em;text-transform:uppercase}
+.fxhead .fxfield{width:26px;height:26px;border:1px solid var(--line);border-radius:2px;overflow:hidden;flex:0 0 auto;margin-left:auto}
 .fxhead.on{margin-bottom:10px}
 .ctl.fxctl{margin-left:12px;padding-left:10px;border-left:1px solid var(--line);margin-bottom:10px}
 .ctl.idle{opacity:.55}

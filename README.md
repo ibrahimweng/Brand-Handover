@@ -3678,3 +3678,61 @@ would be "the pattern you already use is made of your logo". `lattice` was
 excluded for that reason and was excluded by accident — it had no `KNOBS` entry.
 Twelve more now qualify, so a generator declares whether it can be matched, and
 the test asserts that the declaration and the knobs agree in both directions.
+
+## An effect is a thing you do to a pattern
+
+The nineteen tools were built as layers that paint under the pattern, over it,
+or around it. That is what PLAYGRND's *Backgrounds* are as standalone tools, and
+taking the name literally was the mistake.
+
+A client asking for a noise effect on a wave pattern does not want noise drawn
+on top of the waves. They want the noise to **drive** the waves: dark makes the
+wave bigger, light makes it smaller, or the reverse, or the noise becomes a
+displacement the picture flows along, or a blur soft in one place and sharp in
+another, or a gradient the colour steps through. Painting beside the pattern is
+not an effect. It is a second pattern.
+
+So a layer is now a **field** and nothing else, and what it does is seven
+**channels**: displace, size, turn, weight, tone, blur, thin. Every one is
+signed and centred on zero, so the "or vice versa" is the same slider rather
+than a second control nobody finds.
+
+**The driving happens in a surface wrapper.** The obvious place is each
+generator — hand it the field and let it decide — and that is twenty-five
+separate pieces of work, twenty-five chances to do it differently, and a new
+generator that forgets is one whose effects silently do nothing. Wrapping the
+surface instead means a generator draws exactly as it always did and never
+learns anything is happening. Every channel works on every generator the day it
+is written.
+
+It is also far cheaper than what it replaced. A wrap layer emitted the whole
+picture below it once per band, so a seven-slice glitch over `relief` went from
+165 KB to 2.8 MB. The wrapper is at most 1.5 times the time and 1.7 times the
+size on the heaviest generator in the set.
+
+### Three things the pictures said
+
+**The unit is not the subpath.** A ring is two subpaths and the hole exists only
+because the fill rule sees both at once. Transformed and filled separately the
+inner ring becomes a disc painted over the outer one, and every ring in the
+repository came out solid the first time this ran. Nor is the unit the whole
+path: the grid painter draws ten thousand cells as subpaths of one path.
+Subpaths whose boxes overlap are moved and filled together.
+
+**A layer that cannot be at rest has no off switch.** `aura` and `bloom` each
+had a shape control called `size`, which is also a channel name. They share one
+object. Both layers came out switched on the moment they were looked at, and the
+test that found it now asserts no layer's control is ever named after a channel.
+
+**A stepped field has no slope.** `displace` took both its direction and its
+distance from the field's gradient, and `terrain` steps into six terraces, so the
+gradient inside a band is nothing and the channel moved 0.00% of the page. The
+distance comes from the field's *value* now; only the direction comes from the
+slope, with the diagonal as the fallback where the field is flat.
+
+And one that had teeth before it had a subject: **the sheet is never
+modulated**. Every generator lays a full-bleed ground, and that fill is the
+sheet rather than a shape — resized it leaves a corner of the tile empty. The
+check looks for *bare canvas* rather than at corner pixels, because a motif
+displaced into a corner darkens it too, which is what the first version of that
+test read as the sheet having moved.

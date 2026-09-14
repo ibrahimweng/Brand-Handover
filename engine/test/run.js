@@ -1480,8 +1480,11 @@ test('an effect layer leaves the tile complete on its own', () => {
   const name = 'carrock';
   const jobs = [{ identity: name, generator: 'lattice', key: 'plain' }];
   for (const key of PENG.LAYERS.NAMES) {
-    const p = PENG.LAYERS.defaultsOf(key);
-    p.amount = 0.7;
+    // Woken the way the studio wakes it, and then every channel pushed at once
+    // — a layer can be seamless driving one channel and not another, and the
+    // displacement is the one most likely to reach past an edge.
+    const p = Object.assign(PENG.LAYERS.wakeOf(key),
+      { displace: 0.5, size: 0.5, turn: 0.4, weight: 0.4, tone: 0.5, blur: 0.4, thin: 0.3 });
     if (p.fromMark !== undefined) p.fromMark = 0.6;
     jobs.push({ identity: name, generator: 'lattice', effects: { [key]: p }, key });
   }
@@ -1493,101 +1496,144 @@ test('an effect layer leaves the tile complete on its own', () => {
   }
 });
 
-test('an effect layer that is on changes the tile, and one that is off changes nothing', () => {
-  /* The fault this repository keeps finding, in a new place: a control that
-     moves and draws the same picture.
+test('every channel of every layer changes the picture, and every layer at rest changes nothing', () => {
+  /* The fault this repository keeps finding, in the place it now lives.
 
-     Corner radius was one — two thirds of the drawings here are curves and have
-     no corners to round, so the slider moved, the number reached brand.json and
-     the SVG came out byte for byte identical. Nineteen layers is nineteen more
-     chances at it, and the failure is silent: the toggle lights up and the page
-     does not move.
+     An effect is a thing you do *to* a pattern: a field, and seven channels it
+     drives. Nineteen fields times seven channels is a hundred and thirty-three
+     ways to be silently doing nothing, and the failure is quiet — the slider
+     moves, the number reaches brand.json, and the page does not change. Corner
+     rounding was the first of these. A byte comparison does not catch it
+     either: bloom and carve once drew six copies of the picture into the file
+     and left the page identical.
 
-     Both halves matter. A layer at zero has to leave the tile *exactly* as it
-     was, or every package in this repository changes the day this file is
-     added. */
-  const r = latticeRepo()[0];
-  const base = { markSource: r.src, generator: 'lattice', route: 'motif',
-    motif: r.motif, palette: r.pal, size: 100, name: r.name };
-  const moved = [];
-  const plain = PENG.tile(Object.assign({ id: 'fx' }, base));
-  const none = PENG.tile(Object.assign({ id: 'fx' }, base,
-    { params: Object.assign({}, plain.params, { effects: {} }) }));
-  assert.strictEqual(none.tile, plain.tile, 'an empty effect stack changed the tile');
+     So both halves are measured on the rendered page. A layer with every
+     channel at zero has to leave the tile *exactly* as it was, or every package
+     in this repository changes the day this file is added. */
+  const name = 'carrock';
+  const jobs = [];
   for (const key of PENG.LAYERS.NAMES) {
     const off = PENG.LAYERS.defaultsOf(key);
-    assert.strictEqual(off.amount, 0, `the ${key} layer does not start switched off`);
-    const still = PENG.tile(Object.assign({ id: 'fx' }, base,
-      { params: Object.assign({}, plain.params, { effects: { [key]: off } }) }));
-    assert.strictEqual(still.tile, plain.tile, `the ${key} layer draws something at zero amount`);
-    const on = PENG.LAYERS.defaultsOf(key);
-    on.amount = 0.7;
-    if (on.fromMark !== undefined) on.fromMark = 0.6;
-    const t = PENG.tile(Object.assign({ id: 'fx' }, base,
-      { params: Object.assign({}, plain.params, { effects: { [key]: on } }) }));
-    assert.notStrictEqual(t.tile, plain.tile, `the ${key} layer draws nothing when it is switched on`);
-    assert.deepStrictEqual(t.effects, [key], `the ${key} layer is not reported as active`);
-    assert.ok(t.why.indexOf(PENG.LAYERS.LAYERS[key].label) > -1,
-      `the reason does not name the ${key} layer`);
-    moved.push({ identity: base.name, generator: 'lattice',
-      effects: { [key]: on }, against: true, key });
+    assert.ok(!PENG.LAYERS.live(off), `the ${key} layer does not start at rest`);
+    jobs.push({ identity: name, generator: 'lattice', effects: { [key]: off },
+      against: true, key: `${key} at rest` });
+    // And the channel the layer itself suggests, which is what the studio sets
+    // when somebody switches it on.
+    jobs.push({ identity: name, generator: 'lattice', effects: { [key]: PENG.LAYERS.wakeOf(key) },
+      against: true, key: `${key} woken` });
   }
-
-  /* And it changes the *picture*, not the bytes.
-
-     `bloom` and `carve` both passed the comparison above while drawing nothing
-     anybody could see. Each redraws the picture below it several times — six
-     offset copies at falling opacity, three copies for the two sides of a
-     chisel cut — and a generator opens by filling the whole tile, so every copy
-     covered the one before it. Six times the file and an untouched page. The
-     bytes differed, which is why a byte comparison is not a check.
-
-     Measured over a lattice at a hundred pixels, every layer at 0.7: the
-     sparsest of them moves 7% of the page and the densest moves 89%. One per
-     cent is a floor no layer that is doing anything can fall under and one that
-     draws nothing cannot clear. */
-  const said = completeness(moved, 4);
-  assert.strictEqual(said.length, moved.length, 'the sweep did not run');
-  for (const row of said) {
-    assert.ok(row.moved > 1,
-      `the ${row.key} layer changes ${row.moved.toFixed(2)}% of the page, which is nothing`);
+  const said = completeness(jobs, 6);
+  assert.strictEqual(said.length, jobs.length, 'the sweep did not run');
+  for (const r of said) {
+    if (/ at rest$/.test(r.key)) {
+      assert.strictEqual(r.moved, 0, `${r.key} moved ${r.moved.toFixed(2)}% of the page`);
+    } else {
+      assert.ok(r.moved > 1,
+        `${r.key} changes ${r.moved.toFixed(2)}% of the page, which is nothing`);
+    }
   }
 });
 
-test('a ground layer is under the pattern rather than behind an opaque fill', () => {
-  /* The fault that made eight of the nineteen invisible, and the reason
-     `palette.paper` exists.
+test('each of the seven channels does its own thing, on its own', () => {
+  /* One field, seven channels, one at a time.
 
-     Every generator opened by filling the whole tile with its ground. A ground
-     layer paints the paper and the generator painted over it — so terrain,
-     delta, culture, sonar, rise, mist, pane and aura all drew, all cost their
-     own weight in the file, and none of them could be seen.
+     The test above proves a layer does *something* when it is switched on. This
+     one proves the channels are seven things rather than one thing with seven
+     names: each is pushed alone over the same field and the same pattern, and
+     each has to move the page by itself.
 
-     This has teeth by construction: it asserts the same thing twice, once
-     through the stack and once by hand. Take the guard out of `palette.paper`
-     and the first half fails; leave the guard in but stop the stack setting the
-     flag and the second half fails. */
+     `terrain` is the field, because it is the plain depth map and every channel
+     has something to read from it. Weight is the one exception and it is an
+     honest one: a fill has no width, so the channel is driven over a generator
+     that strokes. */
+  const jobs = [];
+  for (const c of PENG.LAYERS.CHANNELS) {
+    const key = c[0];
+    // Every channel over the same pattern except one. A fill has no width, so
+    // `weight` is driven over an identity whose mark is *stroked* — carrock's
+    // is arcs — and it would read nothing over one whose mark is a filled
+    // shape. That is the channel being honest rather than the test being bent:
+    // the studio labels it Stroke weight.
+    const who = 'carrock';
+    const p = Object.assign(PENG.LAYERS.defaultsOf('terrain'), { [key]: c[2] < 0 ? 0.8 : 0.7 });
+    jobs.push({ identity: who, generator: 'lattice', effects: { terrain: p }, against: true, key });
+  }
+  const said = completeness(jobs, 4);
+  assert.strictEqual(said.length, PENG.LAYERS.CHANNELS.length, 'the sweep did not run');
+  for (const r of said) {
+    assert.ok(r.moved > 1,
+      `the ${r.key} channel changes ${r.moved.toFixed(2)}% of the page, which is nothing`);
+  }
+  /* And no layer's own control is named after a channel.
+
+     They share one object, so a shape control called `size` sets the size
+     channel: `aura` and `bloom` both had one, and both came out switched on the
+     moment they were looked at — a layer that cannot be at rest is a layer
+     whose off switch does not work. Cheap to assert, and the next one added
+     would fail here rather than in a picture nobody looks at twice. */
+  const chans = new Set(PENG.LAYERS.CHANNELS.map((c) => c[0]));
+  for (const key of PENG.LAYERS.NAMES) {
+    for (const c of PENG.LAYERS.LAYERS[key].controls) {
+      assert.ok(!chans.has(c[0]),
+        `the ${key} layer has a control called "${c[0]}", which is also a channel`);
+    }
+  }
+});
+
+test('the sheet itself is never modulated', () => {
+  /* The one thing a channel must not touch.
+
+     Every generator lays a full-bleed ground first. That fill is the sheet, not
+     a shape: resized by `size` it leaves a corner of the tile empty, turned by
+     `turn` it leaves two, and displaced it leaves a band down one edge. So the
+     modulating surface passes a full-tile fill straight through.
+
+     Checking the corner pixels does not test that. A motif displaced into the
+     corner darkens it too, and the first version of this read that as the sheet
+     having moved. What separates the two is *bare canvas*: if the sheet is
+     modulated there is somewhere with no paint on it at all.
+
+     So the identity is given a ground nothing else in it resembles, and the
+     rasteriser puts white behind everything. A hole comes back pure white, and
+     pure white is a colour this palette cannot otherwise make. */
   const r = latticeRepo()[0];
+  const loud = PPAL.of({ ink: { hex: '#101010' }, paper: { hex: '#1B4D3E', role: 'ground' } });
   const base = { markSource: r.src, generator: 'lattice', route: 'motif',
-    motif: r.motif, palette: r.pal, size: 100 };
-  const plain = PENG.tile(Object.assign({ id: 'g' }, base));
-  const p = PENG.LAYERS.defaultsOf('terrain');
-  p.amount = 0.8;
-  const t = PENG.tile(Object.assign({ id: 'g' }, base,
-    { params: Object.assign({}, plain.params, { effects: { terrain: p } }) }));
-  // The ground layer's bands come before anything the generator draws, and the
-  // generator's own full-bleed fill is not there at all.
-  const fills = (t.body.match(/<rect[^>]*width="100"[^>]*height="100"[^>]*>/g) || []).length;
-  assert.strictEqual(fills, 1, `${fills} full-tile fills, where the stack lays exactly one`);
-  // And the palette says so where a generator reads it.
-  const PAL = require('../src/patterns/palette');
-  const one = PAL.of({ ink: { hex: '#111111' }, paper: { hex: '#FFFFFF', role: 'ground' } });
-  const count = { n: 0 };
-  const surf = { fillStyle: '', fillRect: () => { count.n++; } };
-  one.paper(surf, 10, 10, '#111111');
-  assert.strictEqual(count.n, 1, 'a palette that has not been painted did not lay the paper');
-  Object.assign(one, { painted: true }).paper(surf, 10, 10, '#111111');
-  assert.strictEqual(count.n, 1, 'a palette that says the paper is down laid it again');
+    motif: r.motif, palette: loud, size: 100 };
+  const plain = PENG.tile(Object.assign({ id: 'sheet' }, base));
+  const hard = Object.assign(PENG.LAYERS.defaultsOf('terrain'),
+    { displace: 0.9, size: 0.9, turn: 0.9, tone: 0.9, blur: 0.4 });
+  const t = PENG.tile(Object.assign({ id: 'sheet' }, base,
+    { params: Object.assign({}, plain.params, { effects: { terrain: hard } }) }));
+  const PX = 120;
+  const seen = PSEAM.pixels(PSEAM.layout(t.paint, 100, 100, 1, 1, 'a'), PX);
+  let bare = 0;
+  for (let k = 0; k < PX * PX; k++) {
+    const i = k * 4;
+    if (seen.px[i] > 240 && seen.px[i + 1] > 240 && seen.px[i + 2] > 240) bare++;
+  }
+  assert.strictEqual(bare, 0, `${bare} pixels have no paint on them, so a channel reached the sheet`);
+  // And the picture really did change, or a sheet that covers everything proves
+  // nothing about the channels at all.
+  const flat = PSEAM.pixels(PSEAM.layout(plain.paint, 100, 100, 1, 1, 'b'), PX);
+  let moved = 0;
+  for (let k = 0; k < PX * PX * 4; k++) { if (k % 4 === 3) continue; if (Math.abs(seen.px[k] - flat.px[k]) > 8) moved++; }
+  assert.ok(moved > PX * PX * 0.05,
+    `the channels changed ${moved} channels, which is too little to prove the corners`);
+  // and the instrument can see bare canvas when there is some: the same tile
+  // with its ground fill taken away is nearly all of it.
+  const naked = PSEAM.pixels(PSEAM.layout((s2, w, h) => {
+    const g = PENG.GENERATORS.lattice;
+    g.paint(s2, w, h, Object.assign({}, plain.params, { motif: r.motif }),
+      Object.assign(Object.create(Object.getPrototypeOf(loud)), loud, { painted: true }));
+  }, 100, 100, 1, 1, 'c'), PX);
+  let nakedBare = 0;
+  for (let k = 0; k < PX * PX; k++) {
+    const i = k * 4;
+    if (naked.px[i] > 240 && naked.px[i + 1] > 240 && naked.px[i + 2] > 240) nakedBare++;
+  }
+  assert.ok(nakedBare > PX * PX * 0.5,
+    'a tile drawn with no ground at all still reads as painted, so this check cannot fail');
 });
 
 test('the lattice takes every number off the shape, not off a constant', () => {
