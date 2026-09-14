@@ -830,7 +830,23 @@ two of the five through. It is 1.5 and 0.4% now, which is where the gap is.
 
 ### The generators
 
-`src/patterns/generators/` — three. All vector, and they say so.
+`src/patterns/generators/` — twenty-five, in three families. All vector, and
+they say so. The registry is one list in `index.js`, in the order a studio
+should offer them, and everything else derives from it: the bundle, the studio
+rails, the folder each file is written to, the count every test asserts.
+
+Every one of them draws something a client can see their own artwork in. That
+is not a house style, it is the brief: the round before this one shipped
+patterns generated *from measurements of* a logo, and the answer to "does this
+look like my logo" was honestly no. The machinery that fixed it is three
+pieces, and each unlocked what came after — `thicken.js`, which gives a
+stroked drawing a fillable silhouette (twelve of the thirty-three identities
+here had one before; all thirty-three do now); the 48×48 mark bitmap, which
+lets any generator ask "is the mark here?" per cell; and reading the logotype
+as a second motif, so a tool that sets type can set the client's own drawing of
+their name rather than re-setting it in a face that is not theirs.
+
+**Patterns — a square tile that repeats.**
 
 **`lattice`** — the mark's own shape, tiled, and nothing else drawn. After
 Method A: isolate the most structurally distinct path group out of the logo,
@@ -854,6 +870,172 @@ chevron, stairs, ricrac, waves, scales. A stripe is a pair of neighbouring
 boundary chains; only alternate stripes are painted, so the unpainted ones are
 the ground and the two colours interlock exactly rather than being drawn over
 each other. Two colours per tile and no more.
+
+**`oddgrid`** — pixel compositions. The coverage field has the mark's bitmap in
+it, so the logo arrives as a dense patch in a field of grain. The one number
+that decides whether that reads is the *noise frequency*: at two periods across
+the tile the grain blobs are the same size as the mark and the sheet is
+camouflage; at fourteen the grain is grain and the logo is the one large thing
+on the page. Compared at 2, 8 and 14 over six identities — findable in all six
+at fourteen, in none at two.
+
+**`quilt`** — pieced blocks, mirror-symmetric about both axes, with the mark as
+the medallion. A quilt block is built from one quarter and turned to face
+itself, which is exactly where a logo goes. The medallion is the *paper*, not a
+fourth ink: on a three-colour identity a fourth ink wraps round to the first and
+the mark came out the same colour as the patches beside it.
+
+**`warp`** — the lattice, bent. The same motif at the same measured size and
+spacing, with every point of every copy pushed through a displacement field.
+Every warp is built from whole-number sines so the displacement is itself
+periodic and the tile still meets itself — which rules out the keystone and the
+bulge this tool has elsewhere, because neither comes back round.
+
+**`vee`** — mirrored chevrons with the mark counterchanged out of them. The
+angle is a *lattice direction* — one across and two down — not a number of
+degrees, because bars at 43° do not come back round at the tile edge. Inside the
+figure the bar becomes the paper and the paper becomes the bar, so nothing at
+all is drawn on the figure's edge.
+
+**`sampler`** — modular tiles dealt in bands, after PLAYGRND's Sampler. Eight
+geometric tiles and a ninth that is the client's mark. Bands run on a wrapping
+row so no band edge is pinned to the top of the tile, and every cell is scaled
+before it is rotated — the other order makes a quarter-turned tile overhang its
+neighbour and leaves clipped slivers down the right-hand edge.
+
+**`relief`** — isometric blocks on a rhombille tiling, with the mark in relief.
+Three ways the drawing can enter were built and put side by side: cubes that
+*stand* where the drawing is and lie flat elsewhere; cubes that all agree in
+orientation inside it; cubes that change *ink*. The first is the only one where
+every mark could be found across six identities, so it is the default and the
+other two are kept as looks. Seamless by construction — one repeat unit is dealt
+once and the tile is indexed into it modulo the unit.
+
+**`whorl`** — warped op-art contours with the field's centres taken from where
+the drawing has ink. The distance is the chord distance on a torus,
+`sin²(π dx) + sin²(π dy)`, which is smooth everywhere, behaves like a distance
+near a centre and is exactly periodic — the ordinary distance is not, and a
+field of cones measured with it has a join down it.
+
+**`sprig`** — drawn botanicals with the mark among them, placed by
+best-candidate sampling with the wrapped distance. Every path is stroked by
+building an explicit outline polygon rather than by setting a line width, which
+is what makes the line read as a pen with pressure in it. A closed line comes
+back as *two* rings wound against each other; one ring that goes up one side and
+back down the other fills as a lumpy blob with a notch in it, and a sheet of
+those reads as a chain rather than as leaves.
+
+**Textures — a tile that repeats, drawn as a surface rather than as a
+structure.** Filed with the patterns, in `07-pattern`, because a texture is a
+tile; named apart because a client is being handed a ground rather than a
+pattern, and the studio and the manual both say which.
+
+**`stipple`** — halftone dots over a field that is the drawing. In contour mode
+a dot is kept where the field is steepest, so the dots gather along the mark's
+edges; in lattice mode a dot grows with how far the field sits above the
+threshold, the way a printed halftone works. Both are normalised against the
+field's own range, so the threshold means the same thing whatever the drawing
+is.
+
+**`atlas`** — terraced terrain drawn in small marks, with the client's own mark
+as one of the glyph sets. It sets no type: the surface contract is paths and
+rectangles, and a tile whose appearance depended on the fonts installed on the
+machine opening it is not something a brand package can ship. The mark glyph is
+flattened first — curves to their endpoints, points closer than a
+twenty-fifth of the glyph dropped — which took the twenty-one outlined drawings
+here from 258 moves each to 56, and carrock's tile from 660 KB to 146 KB.
+
+**`mosh`** — corrupted signal, where the signal is the logo. Five failure modes
+dealt from a shuffled deck so a page shows every one of them before it repeats
+any. The signal is drawn from the inks that read best on the ground and the
+damage around it from the ones that read least, which is what keeps the drawing
+legible through five kinds of corruption.
+
+**`pith`** — cell tissue seeded by the drawing: dense and regular where the mark
+has ink, loose and large where it does not, so the shape shows as a change of
+*texture* rather than as a change of colour. Toroidal distance throughout.
+
+**Posters — a composition that does not repeat.** `optic`, `modular`, `parcel`,
+`static`, `tokens`, `riso`, `totem`, `fete`, `kiosk`, `specimen`. Written to
+`16-posters`, at their own proportions. See *Posters*, below.
+
+### Effects, layered
+
+`src/patterns/layers.js` — nineteen of them, and they are not generators.
+
+PLAYGRND files these under *Backgrounds*, and as tools they are pages you look
+at. Here a background is a thing you put behind or over something else, and
+nineteen more entries in the pattern list would have been nineteen more tiles a
+client has to choose between rather than nineteen more things they can do to
+the one they chose. So each is a layer. Any number can be on at once, they stack
+in a fixed order, every parameter each of them has is a control, and the stack
+is recorded in `brand.json` beside the generator's own numbers so a rebuild
+returns the same tile.
+
+**Three places, and that is the whole ordering.**
+
+    under   painted before the generator — contours, bands, panes, cells, washes
+    wrap    re-invokes everything below it — the glitch, the blur, the colorama,
+            the emboss
+    over    painted on top — grain, fibres, flecks, threads, scorch
+
+A layer cannot be moved. What it does depends on what is under it, and a studio
+that let somebody put a blur under a ground would be offering a control that
+does nothing.
+
+**Nothing is filtered.** A `wrap` layer works because the picture below it is a
+*function*: it is called again, under a clip, at an offset, with the palette
+turned. That is the only way an effect can come out as an SVG a designer opens
+and recolours rather than as a bitmap with a filter attached. It is also what it
+costs — a wrap emits the picture below it once per band, so a seven-slice glitch
+over a dense generator is seven times the file. Measured over `relief` at 480
+units: 165 KB plain, 2.8 MB spliced.
+
+**The depth map.** A layer that measures something exposes it as `field(u, v)`
+and the stack hands the last one down to everything after it. Fibres over a
+contour layer lie along the contours; scorch over a cell layer burns the walls.
+That is what a stack buys over a set of checkboxes, and it is why the fibre and
+scorch layers each have a *Follow the field* control rather than a fixed
+behaviour.
+
+**The four things a designer asks for by name** are all here, and each is the
+honest version rather than the borrowed word:
+
+    depth map   terrain, delta, culture, sonar — a banded scalar field, and the
+                thing later layers read
+    blur        aura and bloom — concentric rings and offset copies at falling
+                opacity. A stepped gradient, not a gaussian, and `steps` is a
+                control rather than a secret
+    colorama    prism — the picture below run again band by band with the
+                palette turned. Not a hue rotation applied to pixels, which this
+                could not do; the same drawing dealt a different set of the
+                client's own inks in each band, which is the version a brand can
+                use
+    glitch      splice — the picture below sliced and shoved, and `carve` is the
+                same trick used as a bevel
+
+**Every one of them is periodic.** Bands run across or down and never at an
+angle, ramps run on whole-step lattice directions, every distance is measured on
+a torus, every displacement is a whole-number sine, and a fibre that runs off
+one edge is drawn again on the other. A layer that did not would put a seam
+through every sheet made from the tile — and an effect that breaks the tiling of
+the pattern under it is worse than no effect.
+
+**Off by default.** Every layer starts at zero and the build writes plain tiles
+until a project file says otherwise. A pattern that arrives already blurred,
+glitched and scorched is a decision made on somebody's behalf about their own
+logo — the same argument that keeps the lattice's own effects off — and it is
+what keeps the package the size it is.
+
+**One thing they made necessary elsewhere.** Every generator opened by filling
+the tile with its own ground, which is right until a ground layer is on: an
+opaque fill over the top made all eight of them invisible while still costing
+their own weight in the file. `palette.paper(surface, W, H, hex)` is where that
+is read now — once, rather than in twenty-six copies of the same two lines — and
+the stack hands the generator a palette that says the paper is already down.
+Nothing else about the palette changes, so a generator that uses the ground
+colour as an *ink* — a counterchange figure, a quilt medallion, a punched glyph
+— still gets it.
 
 ### The pattern that was not made of the logo
 

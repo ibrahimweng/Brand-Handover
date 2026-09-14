@@ -3532,3 +3532,149 @@ dependency undefined for good — and the failure surfaces three files away as
 Both package bundles happened to load it first. The app did not. There is one
 source list now, derived from the generator registry rather than typed, and
 three surfaces read it.
+
+## Twenty-five tools, and the one line that made eight of them invisible
+
+The round before this shipped three generators. The brief was the rest of the
+catalogue — the Playground specification's forty-three tools, every one of them
+tailored so that what comes out is made of the client's own artwork rather than
+generated in its general direction.
+
+Twenty-five generators now: eleven patterns, four textures, ten posters. Plus
+nineteen effect layers, which are the specification's *Backgrounds* and are not
+generators at all.
+
+**Three pieces of shared machinery, and each unlocked what came after.**
+`thicken.js` gives a stroked drawing a fillable silhouette — twelve of the
+thirty-three identities here had one, and all thirty-three do now. A 48×48
+bitmap of the mark lets any generator ask *is the mark here?* per cell, which is
+what every one of the new tools is built on. And the logotype is read as a
+second motif, so a tool that sets type sets the client's own drawing of their
+name rather than re-setting it in a face that is not theirs.
+
+**The backgrounds became layers rather than nineteen more tiles.** A background
+is a thing you put behind or over something else; nineteen more entries in the
+pattern list would have been nineteen more things to choose between instead of
+nineteen more things you can do to the one you chose. Any number stack, in a
+fixed order, every parameter is a control, and the stack is recorded in
+`brand.json` so a rebuild returns the same tile.
+
+Nothing in them is filtered. A layer that re-invokes what is under it — the
+glitch, the blur, the colorama, the emboss — works because the picture below is
+a *function*: it is called again, under a clip, at an offset, with the palette
+turned. That is the only way an effect comes out as an SVG a designer opens and
+recolours. It is also what it costs: a wrap emits the picture below it once per
+band, so a seven-slice glitch over a dense generator is seven times the file —
+165 KB plain, 2.8 MB spliced. Every layer is off until somebody turns it on.
+
+**And one line in every generator made eight of them invisible.** Every
+generator opened by filling the tile with its own ground. Eight of the nineteen
+layers *paint the paper* — contours, bands, panes, cells, washes — so they were
+drawn, they cost their own weight in the file, and then the generator painted
+over them. `palette.paper` is where that is decided now, once, and the stack
+hands the generator a palette that says the paper is already down. Nothing else
+about the palette changes, so a generator that uses the ground colour as an
+*ink* — a counterchange figure, a quilt medallion, a punched glyph — still gets
+it.
+
+### The seam check was measuring the wrong thing
+
+Every tile here claims to repeat, and the engine has had a check for that since
+the patterns were written: lay the tile out nine times, rasterise, and ask
+whether the columns of pixels at the join are unusual members of their own
+distribution. `beyond` at or under one means there is nothing at the join the
+pattern does not do elsewhere.
+
+Put against twelve new generators it got both halves wrong. It called `relief`
+the worst tile in the set at 2.81 — a tiling that is seamless by construction,
+dealt once into a repeat unit and indexed modulo, and **pixel-for-pixel
+identical** across the join. And it called `warp` clean at 0.79 while `warp` was
+missing nine per cent of its own page. The reason is simple in hindsight: it
+measures whether the join band is an unusual band, and for a generator whose
+cells have hard edges the join *is* an unusual band, honestly and harmlessly.
+
+What replaced it has no threshold. A tile is used clipped to its own bounds — a
+`<pattern>` fill, a texture in a layout, a bitmap copied across — so the
+property is: **what the generator draws inside the tile, on its own, is what is
+there when all eight neighbours are drawn around it.** Either the two bitmaps
+are the same or they are not.
+
+That measurement had to be built twice. Rendering the lone tile on a lone-tile
+canvas showed a five per cent difference on a tile that turned out to be
+perfect: every one of the nine positions in a 3×3 differed from the lone render
+by *exactly the same amount*, which is the signature of the instrument and not
+of the artwork — the rasteriser rounds differently at a different canvas size.
+Painting the single tile at the centre of a canvas the same size as the nine
+leaves exactly one difference between the two renders, which is the one being
+measured.
+
+Measured that way, seventeen of sixty generator-and-identity pairs were
+incomplete: `warp` by 8.8% of its page, `sprig` by 6%, `sampler` by 2.2%,
+`relief` by 0.95%, and `weave` — which predates all of this — by 0.086%. Not one
+of them was a mismatch in the artwork. Every one was a neighbour's overhang
+landing on top of this tile's own drawing, which a clip throws away.
+
+The fix is one line in the layer stack: every tile is clipped to its own bounds.
+`lattice` clipped itself and the other twenty-four did not, which is exactly the
+kind of thing that is true of the first generator somebody writes and of none of
+the rest. With it, all sixty read **exactly zero**. Take it out again and the
+seventeen come back — which is how the check is known to have teeth.
+
+### What the pictures said that the code did not
+
+Four of the twelve were wrong in a way only rendering them showed.
+
+**`relief`** was built three ways and put side by side, because the obvious one
+was wrong. Cubes that *stand* where the drawing is; cubes that all agree in
+orientation inside it; cubes that change ink. The second is the cleverest on
+paper — the logo as a patch of agreement in a field of disagreement — and is
+nearly invisible on the page. The first is the one where every mark could be
+found across six identities. Its first version put the flat ground at the mid
+tone, which is the ground's own colour, so the field came out as a blank wall
+with a textured logo on it: the exact fault this engine exists to fix, in a new
+place.
+
+**`oddgrid`** hid the mark behind its own noise. The first answer was two or
+three noise periods across the tile "so the noise does not argue with the
+drawing", and at two the blobs are the same size as the mark and the sheet is
+camouflage. The mark only reads when the grain around it is *finer* than it is.
+Compared at 2, 8 and 14 periods across six identities: findable in all six at
+fourteen, in none at two.
+
+**`sprig`** drew two motifs where its count said forty-eight. `motif.path`
+begins a path, and every motif was going into one path per pass so the whole
+field could be a single fill — so the mark's own drawing threw away everything
+placed before it, and what survived was whatever came after the last mark. It
+reads as a placement bug and is a path-state one. Its leaves also came out as
+figures of eight: a closed line offset on both sides has to become *two* rings
+wound against each other, and going up one side and back down the other gives a
+polygon that jumps across the stroke at the seam.
+
+**`atlas`** shipped a 660 KB tile. A stroked logo's silhouette is an offset
+outline running to hundreds of moves, and stamping it into six hundred cells is
+six hundred times that — for detail that lands inside a tenth of a millimetre on
+a printed page. Flattened to glyph size, the twenty-one outlined drawings here
+go from 258 moves each to 56, and the tile from 660 KB to 146.
+
+### The reachability rule, restated rather than relaxed
+
+One test asks that every generator can be arrived at, on the principle that a
+style nothing reaches is a style the package does not really have. With three
+generators it passed. With twenty-five it failed, and the honest answer was not
+to make `suits` scatter identities across all of them.
+
+The engine *chooses* from three and *offers* twenty-five. Everything else is
+built in every colourway, in both studios, with its parameters in `brand.json`.
+What a client does not get is the engine picking a corrupted-signal texture as
+their brand's default pattern on the strength of a stroke-weight measurement.
+The set is declared in `index.js` rather than inferred, and the test asserts both
+halves: every member of it is reachable, and every generator outside it is still
+built and still offered.
+
+The same distinction settled the pattern matcher. It measures a pattern a brand
+already uses and finds the generator that reproduces it, and that is meaningless
+against a generator whose picture is *made of* this client's drawing: the answer
+would be "the pattern you already use is made of your logo". `lattice` was
+excluded for that reason and was excluded by accident — it had no `KNOBS` entry.
+Twelve more now qualify, so a generator declares whether it can be matched, and
+the test asserts that the declaration and the knobs agree in both directions.
