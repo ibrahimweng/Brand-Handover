@@ -3663,6 +3663,83 @@ test('every construction makes a tile that repeats seamlessly', () => {
     geo.inkBox(t.svg);                     // throws if the renderer cannot read it
   }
 });
+test('every generator that deals a cell by its position deals it periodically', () => {
+  /* The same argument as the weave test above, applied to the three tools that
+     deal a *cell* rather than compute one: monogram deals a derived form,
+     ornament deals one of the eight ways a square sort can be set, and dynamic
+     deals a point in the parameter space. In all three the answer is an
+     expression on (i, j), defined outside the tile as well as inside it, so
+     "it repeats" is a thing to prove rather than a thing to squint at.
+
+     It needs proving because all three got it wrong, and only one of the three
+     was visible at the size these are usually looked at. Every one indexed the
+     raw i and j, so the cell at column `cols` was not the cell at column 0
+     unless the count happened to divide — which it mostly did not. Rendered 2x2
+     monogram showed a vertical break with a different arrangement either side
+     of it on three of the five identities tried.
+
+     Worth saying why this is not caught elsewhere. The suite's tile-complete
+     check asks whether a tile paints everything it should, which is a different
+     property and passes for a tile that repeats badly. And "every construction
+     makes a tile that repeats seamlessly" is the mark-tiler's test: for a
+     generator it asserts the tile exists, has a size and is clipped to itself,
+     and never looks at periodicity at all. A pixel hunt for the seam was tried
+     and thrown away — it called three good generators broken and read clean on
+     the axis that was actually broken, because the tile's boundary happened to
+     fall in empty ground. The arithmetic is where this is answerable. */
+  const PMONO = require('../src/patterns/generators/monogram');
+  const PORN = require('../src/patterns/generators/ornament');
+  const PDYN = require('../src/patterns/generators/dynamic');
+  const m = (n, q) => ((n % q) + q) % q;
+  const bad = [];
+  const note = (s2) => { if (!bad.includes(s2)) bad.push(s2); };
+  // Probe well outside the tile in both directions, at coordinates that are not
+  // multiples of anything: a scheme that only closes on its own step is a
+  // scheme that has not closed.
+  const probes = (L) => {
+    const out = [];
+    for (let t = 0; t < 40; t++) {
+      out.push([(t * 37) % (L.cols * 3) - L.cols, (t * 53) % (L.rows * 3) - L.rows]);
+    }
+    return out;
+  };
+
+  for (const layout of PMONO.LAYOUTS) {
+    for (const cells of [3, 4, 5, 6, 7, 8, 9, 10, 12, 16, 18, 24]) {
+      for (const forms of [1, 2, 3, 4]) {
+        const L = PMONO.lattice(600, 600, { cells, layout });
+        const at = (i, j) => (layout === 'diagonal' && m(i + j, 2)) ? 'skip'
+          : String(PMONO.dealt(i, j, L, layout, forms));
+        for (const [i, j] of probes(L)) {
+          if (at(i, j) !== at(i + L.cols, j)) note(`monogram ${layout} across, ${L.cols} cells, ${forms} forms`);
+          if (at(i, j) !== at(i, j + L.rows)) note(`monogram ${layout} down, ${L.rows} rows, ${forms} forms`);
+        }
+      }
+    }
+  }
+  for (const cells of [2, 3, 4, 5, 6, 7, 8, 9, 12, 16, 24]) {
+    for (const ways of [1, 2, 3, 4, 5, 6, 7, 8]) {
+      const L = PORN.lattice(600, 600, { cells });
+      const at = (i, j) => PORN.settingOf(i, j, ways, L).join(',');
+      for (const [i, j] of probes(L)) {
+        if (at(i, j) !== at(i + L.cols, j)) note(`ornament across, ${L.cols} cells, ${ways} ways`);
+        if (at(i, j) !== at(i, j + L.rows)) note(`ornament down, ${L.rows} rows, ${ways} ways`);
+      }
+    }
+  }
+  for (const way of PDYN.WAYS) {
+    for (const cells of [2, 3, 4, 5, 6, 8, 9, 11, 12, 16]) {
+      const L = PDYN.lattice(600, 600, { cells });
+      const at = (i, j) => PDYN.pointOf(i, j, L.cols, L.rows, way).map((v) => v.toFixed(9)).join(',');
+      for (const [i, j] of probes(L)) {
+        if (at(i, j) !== at(i + L.cols, j)) note(`dynamic ${way} across, ${L.cols} cells`);
+        if (at(i, j) !== at(i, j + L.rows)) note(`dynamic ${way} down, ${L.rows} rows`);
+      }
+    }
+  }
+  assert.deepStrictEqual(bad, [], `${bad.length} combinations do not come round:\n${bad.slice(0, 6).join('\n')}`);
+});
+
 test('cleaning an export does not move the artwork', () => {
   // Two passes read geometry in one coordinate space and used it in another.
   // placePass measured where a shape lands — which means applying its own

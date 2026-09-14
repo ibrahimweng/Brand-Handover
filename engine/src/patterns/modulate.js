@@ -14,8 +14,8 @@
                                                             generator argument
 
    The obvious place to put this is in each generator: hand it the field and let
-   it decide what to do with it. That is twenty-five separate pieces of work,
-   twenty-five chances to do it slightly differently, and a new generator that
+   it decide what to do with it. That is thirty-two separate pieces of work,
+   thirty-two chances to do it slightly differently, and a new generator that
    forgets is a generator whose effects silently do nothing.
 
    Instead this wraps the surface. A generator draws exactly as it always did

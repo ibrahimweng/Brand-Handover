@@ -18,7 +18,7 @@
    own shape and its own controls. What it *does* is the seven channels in
    `modulate.js`, and every one of them works on every generator the day it is
    written, because the driving happens in a surface wrapper rather than in
-   twenty-five separate generators.
+   thirty-two separate generators.
 
    ------------------------------------------------------------------ the stack
 

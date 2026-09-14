@@ -830,7 +830,7 @@ two of the five through. It is 1.5 and 0.4% now, which is where the gap is.
 
 ### The generators
 
-`src/patterns/generators/` — twenty-five, in three families. All vector, and
+`src/patterns/generators/` — thirty-two, in three families. All vector, and
 they say so. The registry is one list in `index.js`, in the order a studio
 should offer them, and everything else derives from it: the bundle, the studio
 rails, the folder each file is written to, the count every test asserts.
@@ -854,6 +854,34 @@ strip it to a single-colour motif token, lay it on a staggered lattice. This is
 the one a client means when they ask for a pattern made of their logo, and for
 a long time the engine did not have it — see *The pattern that was not made of
 the logo*, below.
+
+**`monogram`** — the LV/Gucci construction, and the thing that makes it one is
+that a monogram has **more than one motif**. Louis Vuitton's has four and they
+alternate so no cell touches its own kind; one motif repeated is a lattice,
+which the engine already has. So the tool derives a family out of the client's
+single drawing — the mark, the mark in a ring, the mark in a diamond, and four
+of it turned about a centre — and deals them by cell position rather than by a
+hash, because a hash puts two of a kind side by side about a quarter of the time
+and the cloth stops reading as pieced. Four armatures: diagonal, ogee, damier,
+grid.
+
+**`tartan`** — a true sett, mirrored about both pivots so it reads the same from
+either selvedge, crossed on a two-and-two twill. `houndstooth`, `madras` and
+`tattersall` are other setts on the same loom. The band widths are the
+identity's own proportions — how much of its box the drawing inks, its stroke
+against its width, its width against its height, how much of its turning happens
+on a curve — so two identities give two cloths and the manual can print the
+arithmetic beside the result. A sett has always been a list of numbers somebody
+wrote down.
+
+**`stripe`** — the same written list, uncrossed. Four ways of writing one:
+`sett` mirrors about both ends (the regimental, the awning), `signature` runs a
+long unmirrored list of narrow bands straight through (the Paul Smith
+construction, and the reason that stripe reads as chosen rather than ruled),
+`web` is a plain ground with one tight symmetrical group in it (a club ribbon, a
+racing stripe), and `ombre` walks the colour across the same widths. The mark
+can be woven into the widest band at the band's own width, which is how a house
+stripe carries a crest — inside a stripe, not laid over one.
 
 **`weave`** — index-grid blankets, after PLAYGRND's Quilt. All fourteen of its
 styles: bands, plaid, basket, dither, steps, diamond, cross, gingham, tabs,
@@ -925,6 +953,41 @@ back as *two* rings wound against each other; one ring that goes up one side and
 back down the other fills as a lumpy blob with a notch in it, and a sheet of
 those reads as a chain rather than as leaves.
 
+**`terrazzo`** — the mark as aggregate, and what makes it read as stone rather
+than as confetti is the **grading**. A real floor has a few coarse chips, more
+middling, and a great many fines, and the small ones sit in the gaps the large
+ones leave — so the chips are laid coarsest first and each grade is placed
+against everything already down. A chip is broken along a chord, by a clip
+rather than an even-odd cut, because a clip works on a stroked path as well as a
+filled one and the flat face it leaves is what a break looks like.
+
+**`damask`** — an ogee trellis, half-dropped. Two things software usually gets
+wrong about damask and both are here on purpose. The armature is an *ogee* —
+a pointed arch whose sides reverse their curve at the half height — not a
+lozenge, which reads as harlequin. And the colour is **self**: damask is a
+weave, where figure and ground are the same thread and only the direction of the
+weave separates them, so it defaults to tone on tone and two inks would make a
+chintz. The figure is the drawing and its own reflection, facing, which is the
+one place this engine mirrors a client's artwork on purpose.
+
+**`ornament`** — the mark cut as a printer's sort. What compositors did with a
+fleuron for four hundred years was not repeat one: they set the same sort in
+different *orientations*, and the ornament is what happens at the joins. So this
+deals the eight symmetries of the square, by position rather than by chance —
+a compositor works to a scheme, and a random one reads as a case of pied type —
+and a rosette falls at the centre of every block of four. Four settings: `lace`,
+`band` between two rules, `border` with the corners at the turn, and `diaper` on
+alternate cells.
+
+**`dynamic`** — the mark as a system rather than a drawing. A dynamic identity
+is a logo defined as a rule with free variables, where what the client owns is
+the rule; so the tile is the parameter space laid out, with one variable
+travelling across each row and another down each column, and every cell the
+client's own mark read at that point. Six variables — turn, size, weight, slant,
+ink, crop — and three readings: stepped ranks, a continuous drift, and a Latin
+square. The traverse goes out and back rather than straight across, because a
+variable that ends where it did not start puts a seam down every join.
+
 **Textures — a tile that repeats, drawn as a surface rather than as a
 structure.** Filed with the patterns, in `07-pattern`, because a texture is a
 tile; named apart because a client is being handed a ground rather than a
@@ -994,8 +1057,8 @@ Every channel is signed and centred on zero, so the "or vice versa" is the same
 slider rather than a second control that has to be found.
 
 **Why a surface wrapper and not a generator argument.** The obvious place is in
-each generator: hand it the field and let it decide. That is twenty-five
-separate pieces of work, twenty-five chances to do it differently, and a new
+each generator: hand it the field and let it decide. That is thirty-two
+separate pieces of work, thirty-two chances to do it differently, and a new
 generator that forgets is one whose effects silently do nothing. Instead
 `modulate.js` wraps the surface. A generator draws exactly as it always did and
 never learns anything is happening; the calls pass through on their way to the

@@ -3663,7 +3663,7 @@ style nothing reaches is a style the package does not really have. With three
 generators it passed. With twenty-five it failed, and the honest answer was not
 to make `suits` scatter identities across all of them.
 
-The engine *chooses* from three and *offers* twenty-five. Everything else is
+The engine *chooses* from three and *offers* twenty-nine. Everything else is
 built in every colourway, in both studios, with its parameters in `brand.json`.
 What a client does not get is the engine picking a corrupted-signal texture as
 their brand's default pattern on the strength of a stroke-weight measurement.
@@ -3698,8 +3698,8 @@ signed and centred on zero, so the "or vice versa" is the same slider rather
 than a second control nobody finds.
 
 **The driving happens in a surface wrapper.** The obvious place is each
-generator — hand it the field and let it decide — and that is twenty-five
-separate pieces of work, twenty-five chances to do it differently, and a new
+generator — hand it the field and let it decide — and that is thirty-two
+separate pieces of work, thirty-two chances to do it differently, and a new
 generator that forgets is one whose effects silently do nothing. Wrapping the
 surface instead means a generator draws exactly as it always did and never
 learns anything is happening. Every channel works on every generator the day it
@@ -3736,3 +3736,108 @@ sheet rather than a shape — resized it leaves a corner of the tile empty. The
 check looks for *bare canvas* rather than at corner pixels, because a motif
 displaced into a corner darkens it too, which is what the first version of that
 test read as the sheet having moved.
+
+## Seven patterns a house would actually own
+
+The catalogue was thirteen PLAYGRND ports and a lattice. What it did not have
+was any of the patterns that houses actually own, which are older than
+generative design and are built out of written rules rather than out of noise
+fields. Seven of them are here now, and each one turns on a piece of
+construction that software usually skips.
+
+**`monogram` — a monogram has more than one motif.** Vuitton's has four, and
+they alternate so that no cell touches its own kind. One motif repeated is a
+lattice, which the engine already had. So the tool derives a family out of the
+client's single drawing — the mark, the mark ringed, the mark framed in a
+diamond, four of it turned about a centre — and deals them by cell position.
+
+**`tartan` and `stripe` — a sett is a list of numbers somebody wrote down.**
+Mirrored about both pivots for tartan and for the regimental stripe, unmirrored
+for the signature stripe, whose whole point is that the eye cannot find the
+repeat. The band widths are the identity's own proportions, so the manual can
+print the arithmetic beside the cloth.
+
+**`terrazzo` — the grading is the thing.** A floor has a few coarse chips, more
+middling, and a great many fines, and the fines sit in the gaps the coarse ones
+leave. Laid coarsest first and each grade placed against everything already
+down. Throw one size and it is spots; throw a continuous range and it is mush.
+
+**`damask` — it is a weave, not a print.** Figure and ground are the same
+thread; only the direction of the weave separates them. It defaults to tone on
+tone, and two inks would make a chintz. The armature is an ogee — a pointed arch
+whose sides reverse their curve at the half height — because a lozenge trellis
+reads as harlequin.
+
+**`ornament` — a compositor set orientations, not repeats.** The eight
+symmetries of the square, dealt by position rather than by chance, so a rosette
+falls at the centre of every block of four.
+
+**`dynamic` — the tile is the parameter space.** One variable across each row,
+another down each column, every cell the client's own mark read at that point.
+
+### Three defaults that could not reach the value they were written for
+
+`monogram`'s form count was `round(1 + simple * 3)`, written as though `simple`
+spanned nought to one. Over the thirty-three fixtures it spans 0.08 to 0.64. So
+it could never reach four, twenty-nine of thirty-three identities were dealt
+two, and two forms alternating on a diagonal is not a monogram — it is spots,
+which is exactly what the sheet showed. Four forms now, whenever there is a
+drawing to derive from.
+
+Its cell count came off the scale rule, which grows with the drawing's fineness
+— so the most detailed marks were dealt the *smallest* cells. hallward, at 450
+moves, inked 98% of its tile. The count falls as the drawing grows now: a busy
+mark needs a bigger cell to stay legible, not a smaller one.
+
+`terrazzo`'s chip radius was set against the cell spacing at a ratio that closed
+the bed at every setting the control offered — median coverage 81% at the
+smallest chip and 100% at the middle of the range. A terrazzo you cannot see the
+cement through is a collage.
+
+### Two measurements that were themselves wrong
+
+**The coverage probe read pixel (0,0) as the cement.** At 80% coverage that
+pixel is inside a chip, so every reading was inverted, and the sweep showed
+chips *shrinking* as the size control grew. Impossible, and the tell. The cement
+is computed from the palette now, not sampled.
+
+**The old chip filled open stroked paths.** `fill('evenodd')` on a squiggle
+fills the region it encloses, so a hairline logo came out as a solid blob and
+coverage read a healthy 36%. Stroking it honestly gives 7%. Both numbers were of
+the same code; only one was of the drawing. Chips are cast with *body* now —
+the same argument the mark-tiler makes for its seven per cent floor, at the
+scale this pattern needs.
+
+### The tile that did not repeat, and the check that did not check
+
+`dynamic` lays a variable across a row, and a variable that runs nought to one
+from the first column to the last does not close: the next tile starts at the
+near end of the system while this one ends at the far end. Rendered 2×2 that is
+a hard band down every join. The traverse goes out and comes back now, which
+closes exactly and shows the same range.
+
+The suite did not catch it. Reverting the fix and running `repeats seamlessly`
+passed — because that test is the mark-tiler's, and for a generator it asserts
+the tile exists, has a size and is clipped to itself, and never looks at
+periodicity. The tile-complete check asks whether a tile paints everything it
+should, which is a different property that a badly-repeating tile satisfies
+happily.
+
+A pixel hunt for the seam was written and thrown away. It called `whorl`,
+`sampler` and `oddgrid` broken — all three are fine — and read 0.00 on the axis
+that was actually broken, because the tile's boundary happened to fall in empty
+ground. This is the second time a seam measured in pixels has measured the wrong
+thing.
+
+Where it is answerable is the arithmetic, which is where the weave test has
+always answered it: a cell's state at (i, j) and at (i + cols, j) is the same
+value or it is not. Asked that way, **all three new cell-dealing generators
+failed**. Every one indexed the raw i and j, so the cell at column `cols` was
+not the cell at column 0 unless the count happened to divide — and it mostly did
+not. `monogram` showed a vertical break with a different arrangement either side
+of it on three of five identities; `ornament` and `dynamic` failed the
+arithmetic while looking fine at the size anyone renders them. Taking the
+position modulo the lattice first makes all three periodic by construction.
+
+The test is proved by reverting each of the three fixes in turn, separately. It
+fails on each and passes when all three are back.

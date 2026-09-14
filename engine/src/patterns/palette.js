@@ -89,7 +89,7 @@
          them made every one of them invisible while still costing its own
          weight in the file. The layer stack hands the generator a palette that
          says the paper is already down, and this is where that is read — once,
-         rather than in twenty-six copies of the same two lines.
+         rather than in thirty-three copies of the same two lines.
 
          It reads `this` rather than a captured flag so that a palette copied
          for an effect — `prism` turns the inks, `carve` tints them — carries

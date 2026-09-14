@@ -26,7 +26,7 @@
 // They used to be positional, and at fifteen the factory signature was three
 // lines of the same word twice — once in the require list, once in the
 // parameter list — and adding one meant editing four places in this header
-// without the language checking that they lined up. At twenty-five it would be
+// without the language checking that they lined up. At thirty-two it would be
 // unreadable. The browser keeps its globals, because that is what a page of
 // script tags gives you; this only asks for them by the same name.
 (function (root, factory) {
@@ -56,8 +56,9 @@
      from last. */
   const CATALOGUE = [
     // patterns — the mark, tiled
-    'lattice', 'weave', 'zigzag', 'oddgrid', 'quilt', 'warp', 'vee', 'sampler', 'relief',
-    'whorl', 'sprig',
+    'lattice', 'monogram', 'tartan', 'stripe', 'weave', 'zigzag', 'oddgrid', 'quilt', 'warp', 'vee',
+    'sampler', 'relief',
+    'whorl', 'sprig', 'terrazzo', 'damask', 'ornament', 'dynamic',
     // textures — the mark, as a surface
     'stipple', 'atlas', 'mosh', 'pith',
     // posters — the mark, as a page
@@ -125,7 +126,7 @@
      measurements ask for, when nobody has said. It is the default a package
      opens on, and there are three answers to it.
 
-     There are twenty-five generators. Twenty-two of them are offered — built in
+     There are thirty-two generators. Twenty-nine of them are offered — built in
      every colourway, in both studios, with their parameters in brand.json — and
      none of them is ever the answer to that question. That is a decision and it
      is worth stating, because "a style nothing reaches is a style the package
@@ -715,6 +716,215 @@
     spread: Math.round(Math.max(0, Math.min(1, 0.45 - d.ink * 0.3)) * 100) / 100,
     seed: 1 });
 
+  PATTERN_FROM.monogram = (d) => ({
+    // Which armature. A drawing that is its own mirror sits square in a grid
+    // without looking like it was set down carelessly; one that is not wants
+    // the diagonal, which is where a monogram has always been.
+    layout: d.sym >= SYMMETRIC ? 'ogee' : 'diagonal',
+    /* How many cells. Not from the scale rule, which the first draft used and
+       which had it exactly backwards: that rule grows with the drawing's
+       fineness, so the most detailed marks were dealt the smallest cells and
+       flooded — hallward inked 98% of its tile and read as a black wall.
+
+       A monogram is read close, on a bag rather than a wall, and the count it
+       wants is small and fairly flat. What it should key off is how much
+       drawing there is to fit: a 450-move mark needs a bigger cell to stay
+       legible, not a smaller one. So the count falls as the drawing grows, by
+       halvings rather than by counts, because the difference between 2 moves
+       and 20 matters and the difference between 200 and 220 does not. */
+    cells: Math.max(5, Math.min(12,
+      Math.round(11 - Math.log2(Math.max(1, d.mo.moves || 1)) * 1.1))),
+    // A solid mark fills its cell at a smaller size than an open one.
+    scale: Math.round(Math.max(0.5, Math.min(1.2, 1.15 - d.ink * 0.6)) * 100) / 100,
+    turn: 0,
+    chequer: 0,
+    /* How many derived forms: all of them, whenever there is a drawing to
+       derive from.
+
+       The first draft scaled this by `simple` and that was a bug rather than a
+       judgement. `simple` is not a 0-to-1 spread in practice — over the
+       thirty-three fixtures it runs 0.08 to 0.64 — so `round(1 + simple * 3)`
+       could never reach 4 and only four identities ever reached 3. Twenty-nine
+       of thirty-three were dealt two forms, and two forms alternating on a
+       diagonal is not a monogram, it is spots. That is exactly what the
+       rendering showed.
+
+       Four is also the right answer on its own terms. More than one motif is
+       the whole construction — it is what separates a monogram from a lattice,
+       which this engine already has — and the forms are all made out of the
+       client's own drawing, so a fourth costs nothing in coherence. Anyone who
+       wants fewer can pull the control down. */
+    forms: d.mo.moves ? 4 : 1,
+    // And how many inks they step through: as many as read on the ground,
+    // capped where a monogram stops being a monogram and starts being a print.
+    colours: 2, seed: 1 });
+
+  PATTERN_FROM.tartan = (d) => {
+    /* The sett, written from the drawing.
+
+       A tartan's sett has always been a list of numbers somebody wrote down.
+       These are the identity's own numbers: how much of its box the shape inks,
+       how heavy its stroke is against its width, how wide it is against how
+       tall, and how much of its turning happens on a curve. Four proportions,
+       dealt round the sett in order — so two identities give two different
+       cloths, and the manual can print the arithmetic beside the result. */
+    const widths = [
+      Math.max(0.15, Math.min(1, d.ink)),
+      Math.max(0.15, Math.min(1, (d.mo.weight || 0.06) * 8)),
+      Math.max(0.15, Math.min(1, Math.min(d.aspect, 1 / d.aspect))),
+      Math.max(0.15, Math.min(1, d.curvy)),
+    ];
+    return {
+      weave: 'tartan',
+      // How many bands in the half-sett, from how much drawing there is: a
+      // simple mark says little and gets a short sett.
+      bands: Math.max(2, Math.min(7, Math.round(2 + (1 - d.simple) * 5))),
+      // And how many threads a band is, from the scale rule.
+      thread: Math.max(2, Math.min(18, Math.round(scaleFrom(d.m) / 3))),
+      repeats: 1,
+      colours: 3,
+      widths,
+      seed: 1 };
+  };
+
+  PATTERN_FROM.stripe = (d) => {
+    /* Same four proportions as the tartan's sett, and deliberately so: a stripe
+       and a plaid are the same written list, one of them crossed with itself.
+       An identity that gets a recognisable tartan gets the stripe that tartan
+       is woven from, which is what a house with both actually has. */
+    const widths = [
+      Math.max(0.15, Math.min(1, d.ink)),
+      Math.max(0.15, Math.min(1, (d.mo.weight || 0.06) * 8)),
+      Math.max(0.15, Math.min(1, Math.min(d.aspect, 1 / d.aspect))),
+      Math.max(0.15, Math.min(1, d.curvy)),
+    ];
+    return {
+      /* Which sett. A drawing that is its own mirror can carry the symmetrical
+         setts; one that is not gets the signature stripe, whose whole point is
+         that it does not mirror. */
+      kind: d.sym >= SYMMETRIC ? 'sett' : 'signature',
+      bands: Math.max(2, Math.min(9, Math.round(2 + (1 - d.simple) * 5))),
+      thread: Math.max(2, Math.min(24, Math.round(scaleFrom(d.m) / 3))),
+      repeats: 1,
+      // Down the cloth for a tall mark, across for a wide one: the stripe runs
+      // the way the drawing already runs.
+      angle: d.aspect < 1 ? 90 : 0,
+      slant: 0,
+      density: 0.5,
+      colours: 3,
+      widths,
+      // Carried only where there is a drawing to carry and the sett is wide
+      // enough to hold it. Off by default even then — a stripe with a crest in
+      // it is a decision, not a starting point.
+      carry: 0,
+      upright: false,
+      seed: 1 };
+  };
+
+  PATTERN_FROM.terrazzo = (d) => ({
+    // Whole chips where the drawing is simple enough to survive being thrown
+    // small, a mixed grade otherwise — which is most identities, and is also
+    // what a real floor is.
+    cut: d.simple > 0.5 ? 'whole' : 'mixed',
+    /* How many chips. The scale rule points the right way here — a fine
+       drawing grades finer, and more chips of a smaller stone is exactly what a
+       fine aggregate is — but taken straight it is far too steep: marlow was
+       dealt 113 chips in a tile and the floor came out as dust. Most of the
+       count is flat, with the drawing's fineness adding to it rather than
+       setting it. */
+    chips: Math.max(18, Math.min(110, Math.round(20 + scaleFrom(d.m) * 0.55))),
+    size: Math.round(Math.max(0.6, Math.min(1, 1.05 - d.ink * 0.4)) * 100) / 100,
+    // How even the throw is. A symmetrical drawing can take an even bed; an
+    // asymmetric one wants the looser throw, where the irregularity of the
+    // drawing and the irregularity of the scatter agree.
+    spread: d.sym >= SYMMETRIC ? 0.8 : 0.5,
+    // How far a chip may turn. A drawing with a right way up keeps more of one.
+    turn: Math.round((d.m && d.m.turned ? 1 : 0.5) * 100) / 100,
+    colours: 3,
+    tint: 0.5,
+    /* How solid a chip is cast. Two thirds by default: enough that an open
+       stroked drawing reads as stone rather than as wire, short of the weight
+       that would close the counters in a drawing that has them. */
+    body: 0.9,
+    seed: 1 });
+
+  PATTERN_FROM.damask = (d) => ({
+    /* Which way. A drawing open enough to read through an armature gets the
+       trellis, which is the quietest of the three. A busy one gets the brocade,
+       where the arch is filled and the figure is counterchanged out of it —
+       that is the version that separates a dense figure from its own armature,
+       and on the three busiest fixtures here it is the difference between a
+       damask and a smudge. `sprigged` drops the armature entirely and stays on
+       the control for anyone who wants it. */
+    way: d.simple > 0.3 ? 'trellis' : 'brocade',
+    /* How many arches. A damask is a wall pattern and reads across a room, so
+       the count is low and flat — the same argument the monogram makes, one
+       scale further out. Four to seven arches across a width is where every
+       damask in every pattern book sits. */
+    cells: Math.max(4, Math.min(8, Math.round(8 - Math.log2(Math.max(1, d.mo.moves || 1)) * 0.5))),
+    // Wide enough that neighbouring arches meet. Below about 0.9 they stand
+    // apart and the trellis stops being a trellis — it reads as a column of
+    // teardrops, which is what the first draft drew.
+    belly: Math.round((0.98 + d.curvy * 0.14) * 100) / 100,
+    weight: Math.round(Math.max(0.012, Math.min(0.04, (d.mo.weight || 0.06) * 0.35)) * 1000) / 1000,
+    // The figure fills a good half of its arch. Below that it rattles around
+    // inside the armature and the pattern reads as a trellis with specks in it.
+    scale: Math.round(Math.max(0.4, Math.min(0.82, 0.82 - d.ink * 0.34)) * 100) / 100,
+    // How far apart the facing pair stand. A drawing that is already its own
+    // mirror needs no gap — the reflection lands on itself — so it is closed
+    // up; an asymmetric one is opened so the pair reads as a pair.
+    gap: d.sym >= SYMMETRIC ? 0 : 0.24,
+    /* Tone on tone, which is what damask is — but a quarter of the way to the
+       ink was quiet past the point of being visible, and a pattern nobody can
+       see is not a quiet pattern, it is a blank sheet. A third is where the
+       figure resolves at arm's length and still disappears across a room,
+       which is the effect the weave actually has. */
+    contrast: 0.34,
+    ink: 0,
+    seed: 1 });
+
+  PATTERN_FROM.ornament = (d) => ({
+    // The full field by default. A band or a border is a decision about where
+    // the ornament goes on a page, and a pattern tile has no page to decide
+    // about; both stay on the control for the studio.
+    setting: 'lace',
+    // How many sorts across. A fleuron is small type — twelve point beside
+    // twelve point text — so the count runs higher than a monogram's and lower
+    // than a texture's.
+    cells: Math.max(3, Math.min(16, Math.round(6 + scaleFrom(d.m) * 0.12))),
+    lead: 1,
+    rule: 0.5,
+    scale: Math.round(Math.max(0.45, Math.min(1.05, 1.05 - d.ink * 0.5)) * 100) / 100,
+    /* How many settings are in the case. Four — the quarter turns — whenever
+       the drawing has a direction to turn; one where it is its own mirror in
+       both axes, because turning a shape onto itself four times is four
+       identical cells and a compositor would have reached for one sort. */
+    ways: d.sym >= SYMMETRIC ? 2 : 4,
+    body: 0.5,
+    colours: 1,
+    ink: 0,
+    seed: 1 });
+
+  PATTERN_FROM.dynamic = (d) => ({
+    way: 'matrix',
+    // Enough states that the axes read as axes. Below about five a row is a
+    // handful of marks rather than a traverse of a variable, and the whole
+    // point of the construction is lost.
+    cells: Math.max(5, Math.min(12, Math.round(5 + scaleFrom(d.m) * 0.06))),
+    /* Which two variables. Turning is the one every mark can take, so it runs
+       across. Down is the axis the drawing itself suggests: a stroked mark has
+       a weight to travel along and a filled one does not, so a filled mark
+       travels in size instead. */
+    across: 'turn',
+    down: d.mo.stroked ? 'weight' : 'size',
+    range: 0.6,
+    scale: Math.round(Math.max(0.5, Math.min(0.92, 0.95 - d.ink * 0.4)) * 100) / 100,
+    colours: 1,
+    ink: 0,
+    // A hairline, because the grid is the part that says these are states.
+    grid: 0.14,
+    seed: 1 });
+
   PATTERN_FROM.relief = (d) => ({
     way: 'raise',
     // How many cubes across, from the scale rule — and capped well below where
@@ -960,6 +1170,95 @@
     return mo.name ? `"${mo.name}"` : 'the shape read out of the drawing';
   };
   const inked = (params) => Math.round(((params.motif || {}).ink || 0) * 100);
+
+  BECAUSE.monogram = (m, p, w) => `${w.fine} — ${p.cells} cells across on ${p.layout === 'diagonal'
+    ? 'the diagonal, which is where a monogram has always been'
+    : p.layout === 'ogee' ? 'an ogee armature, rows dropped by half into the pointed arch damask is built on'
+      : p.layout === 'damier' ? 'a chequerboard' : 'a square grid'}. `
+    + `${p.forms > 1 ? `${p.forms} forms are dealt so that a cell never touches its own kind — `
+      + `${named(p)}, and ${p.forms > 1 ? 'the same shape ringed' : ''}`
+      + `${p.forms > 2 ? ', framed in a diamond' : ''}${p.forms > 3 ? ', and four of it turned about a centre'
+        : ''}. A monogram has more than one motif; one repeated is a lattice`
+      : 'One form only: no shape could be read out of this drawing, or it is busy enough that '
+        + 'deriving from it would crowd the cloth'}.`;
+
+  BECAUSE.tartan = (m, p, w) => `a sett of ${p.bands} bands at ${p.thread} threads each, mirrored `
+    + 'about both pivots so it reads the same in either direction, crossed on a two-and-two twill. '
+    + `${p.weave === 'houndstooth' ? 'Houndstooth is that loom with the shortest sett there is — four '
+      + 'threads of each colour — and the broken point is the twill rather than a drawn shape. '
+      : ''}`
+    + `The band widths are this identity's own proportions: ${Math.round((p.widths || [0])[0] * 100)}% `
+    + 'of its box inked, its stroke against its width, its width against its height, and how much of '
+    + 'its turning happens on a curve. A sett has always been a list of numbers somebody wrote down.';
+
+  BECAUSE.stripe = (m, p, w) => `${w.fine} — ${p.kind === 'signature'
+    ? `an unmirrored list of narrow bands run straight through, which is what makes a signature `
+      + `stripe read as chosen rather than ruled: there is no repeat inside one cloth for the eye `
+      + `to catch`
+    : p.kind === 'web'
+      ? `a plain ground with one tight symmetrical group of bands in it, the way a club ribbon or a `
+        + `racing stripe is built`
+      : p.kind === 'ombre'
+        ? `a sett of ${p.bands} bands mirrored about both pivots, its colour walked between the inks `
+          + `across the span rather than stepped`
+        : `a sett of ${p.bands} bands at ${p.thread} threads each, mirrored about both pivots so it `
+          + `reads the same from either selvedge`}, `
+    + `running ${p.angle >= 45 ? 'down' : 'across'} the cloth${p.slant ? ' on a slant' : ''}. `
+    + `The band widths are this identity's own proportions: ${Math.round((p.widths || [0])[0] * 100)}% `
+    + 'of its box inked, its stroke against its width, its width against its height, and how much of '
+    + 'its turning happens on a curve. '
+    + `${p.carry > 0 ? `${named(p)} is woven into the widest band at the band's own width — a house `
+      + `stripe carries its crest inside a stripe, not laid over one` : 'The mark is not carried; the '
+      + 'sett is the pattern'}.`;
+
+  BECAUSE.terrazzo = (m, p, w) => `${w.fine} — ${p.chips} chips of ${named(p)} graded in three `
+    + 'sizes and laid coarsest first, so the fines land in the gaps the coarse chips leave rather '
+    + 'than competing with them for the same room. That grading is what separates terrazzo from '
+    + `confetti. ${p.cut === 'whole' ? 'The chips are thrown whole: this drawing is simple enough to '
+      + 'read at chip size'
+      : p.cut === 'shard' ? 'Every chip is broken along a chord, which is what happens to stone'
+        : 'The coarse chips are whole and the fines are broken along a chord — legible where there '
+          + 'is room to be legible, and honest about it where there is not'}. `
+    + `The cement is the paper with ${Math.round(p.tint * 22)}% of the first ink in it; there is no `
+    + 'grey here the palette did not ask for.';
+
+  BECAUSE.damask = (m, p, w) => `${w.fine} — ${p.cells} ogee arches across, half-dropped so they `
+    + 'interlock. The arch is a pointed one whose sides reverse their curve at the half height, '
+    + 'which is what makes it a damask rather than a harlequin lozenge. '
+    + `${p.way === 'brocade' ? 'Alternate arches are filled and the figure is counterchanged out of '
+      + 'them' : p.way === 'sprigged' ? 'The armature is dropped and the half-drop and the mirror '
+      + 'carry it, which is the plainest damask there is and the one that survives being printed '
+      + 'small' : `${named(p)} sits inside the armature`}. `
+    + `The figure is ${named(p)} and its own reflection, facing — bilateral symmetry about the `
+    + 'arch\'s axis is what makes a damask motif formal rather than scattered. '
+    + `And it is self-coloured at ${Math.round(p.contrast * 100)}% : damask is a weave, where the `
+    + 'figure and the ground are one thread and only the direction of the weave separates them. Two '
+    + 'inks would make a chintz.';
+
+  BECAUSE.ornament = (m, p, w) => `${w.fine} — ${named(p)} cut as a printer's sort and set `
+    + `${p.cells} to the measure in ${p.ways} of the eight ways a square sort can be set: `
+    + `${p.ways > 4 ? 'the four quarter turns and their mirrors' : p.ways > 1
+      ? 'quarter turns, no mirrors' : 'one way only'}. `
+    + 'The setting is by position rather than by chance — a compositor works to a scheme, and a '
+    + 'random one reads as a case of pied type — so a rosette falls at the centre of every block '
+    + `of four. ${p.setting === 'band' ? `It is set as a course between two rules with ${p.lead} `
+      + 'cells of leading above and below'
+      : p.setting === 'border' ? 'It is set as a border inside a rule, with the corners at the turn '
+        + 'and the middle left open'
+        : p.setting === 'diaper' ? 'It is set on alternate cells, so the ground shows through in a '
+          + 'lattice of its own' : 'It is set as a full field, which is the printers\'-flowers page'}.`;
+
+  BECAUSE.dynamic = (m, p, w) => `${w.fine} — not a repeat. ${p.cells} states of ${named(p)} `
+    + `across, with ${p.across} travelling along each row and ${p.down} down each column, so the `
+    + 'cloth is the system\'s parameter space laid out rather than one drawing tiled. '
+    + `${p.way === 'permute' ? 'The states are dealt as a Latin square, every value once in every '
+      + 'row and once in every column, so no value is favoured by where it sits'
+      : p.way === 'drift' ? 'The variables run continuously across the field rather than stepping '
+        + 'between cells, so it reads as a gradient made of marks'
+        : 'The states are stepped into ranks and files, which is how a system is presented on the '
+          + 'page it is announced on'}. `
+    + `Travel is ${Math.round(p.range * 100)}%: at nothing at all every cell is the mark as drawn `
+    + 'and this is a lattice, which is the true picture of a system whose variables are not varying.';
 
   BECAUSE.relief = (m, p, w) => `${w.fine} — a field ${p.cubes} cubes across, on a repeat unit `
     + `that brings ${named(p)} round every ${p.unit} of them. `
