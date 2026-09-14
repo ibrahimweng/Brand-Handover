@@ -4004,3 +4004,19 @@ two-line clamp were both being stretched down a column that had no
 
 **`aspect-ratio` loses to two definite lengths.** `height:100%` and
 `max-width:100%` on the same box gave a 533×581 "square" preview.
+
+### A control that leads to a refusal is a fault in the control
+
+`build.js` refuses a poster as an identity's pattern, and it is right to: a
+poster is a finished page rather than a repeat, and filing one under "pattern"
+would be the engine telling somebody their pattern is a poster.
+
+The pattern screen offered all thirty-two generators, posters included, and
+wrote whichever was chosen into the project. So choosing one walked a person to
+the last screen and then a refusal. The screen filters the list the same way the
+build does now — twenty-two offered — and a test asserts the two filters agree
+rather than merely that one exists.
+
+Nothing is lost by leaving them out. Every poster is built into every package
+from the same artwork whatever is chosen, and filed under `16-posters`; the
+sheet says so where the posters used to be.

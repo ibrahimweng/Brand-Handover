@@ -3663,6 +3663,37 @@ test('every construction makes a tile that repeats seamlessly', () => {
     geo.inkBox(t.svg);                     // throws if the renderer cannot read it
   }
 });
+test('the pattern screen never offers what the build will refuse', () => {
+  /* A poster is a finished page rather than a repeat, and build.js refuses one
+     as an identity's pattern — rightly, because filing a poster under "pattern"
+     would be the engine telling somebody their pattern is a poster.
+
+     The front door's pattern screen listed every generator in the registry,
+     posters included, and wrote whichever was chosen into the project as
+     `system.patterns`. Choosing one got a person to the last screen and then a
+     refusal. A control that leads to a refusal is a fault in the control, so
+     the screen filters the list the same way the build does — and this asserts
+     the two filters agree rather than merely that one exists.
+
+     Nothing is lost by leaving them out: every poster is built into every
+     package from the same artwork whatever is chosen, and filed under
+     16-posters. */
+  const page = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'client.html'), 'utf8');
+  assert.ok(/function poffered\(\)/.test(page), 'the screen has no filter on what it offers');
+  assert.ok(/kindOf\(n\) !== 'poster'/.test(page),
+    'the screen does not filter posters out of what it offers as the pattern');
+  // and the build still refuses them, so the filter is load-bearing rather than
+  // a belt over a rule nobody enforces
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'build.js'), 'utf8');
+  assert.ok(/is a poster and was chosen as this identity's pattern/.test(src),
+    'the build no longer refuses a poster, so the screen is filtering for nothing');
+  // there has to be something on each side of the line for this to mean anything
+  const posters = PENG.NAMES.filter((g) => PENG.kindOf(g) === 'poster');
+  const offered = PENG.NAMES.filter((g) => PENG.kindOf(g) !== 'poster');
+  assert.ok(posters.length >= 1, 'no generator is a poster, so nothing is being excluded');
+  assert.ok(offered.length >= 2, 'everything is a poster, so nothing can be offered');
+});
+
 test('every generator says which two or three of its controls come first', () => {
   /* The pattern screen shows a generator's primary controls and folds the rest
      behind a press, so what is `primary` decides what a person meets. That is a

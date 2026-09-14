@@ -715,7 +715,7 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
         <h3 class="sr" id="pg-h">Pattern</h3>
         <div class="pchips pgens" id="pgens" aria-labelledby="pg-h"></div>
         <button type="button" class="pmore" id="pall" aria-expanded="false">
-          All 32 patterns<i></i></button>
+          <span id="pall-n">All patterns</span><i></i></button>
         <div class="pscroll" id="pctls"></div>
         <div class="pfoot">
           <button type="button" class="prevert" id="prevert">Back to what the engine chose</button>
@@ -1816,8 +1816,26 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
      Six, because the rail holds two rows of them and because a list you choose
      from is a different thing from a list you read. The other twenty-six are
      one press away, grouped by what they are. */
+  /* What this screen may choose from.
+
+     Not the posters. A poster is a finished page rather than a repeat, and the
+     build refuses one as an identity's pattern — rightly: filing a poster under
+     "pattern" would be the engine telling somebody their pattern is a poster.
+     But the picker offered all thirty-two, so choosing one led to a screen
+     saying the build had stopped. A control that leads to a refusal is a fault
+     in the control.
+
+     Nothing is lost by leaving them out: every poster is built into every
+     package from the same artwork whatever is chosen here, and they are filed
+     under 16-posters where they belong. */
+  function poffered() {
+    return Object.keys(P.params).filter(function (n) {
+      return window.PatternEngine.kindOf(n) !== 'poster';
+    });
+  }
+
   function psuggested() {
-    var all = Object.keys(P.params);
+    var all = poffered();
     var out = [P.chose];
     // `kindOf`, not `.kind`: the three generators the engine will actually
     // choose declare no kind of their own, so reading the property put lattice,
@@ -1827,6 +1845,9 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
       if (out.length >= 6 || n === P.chose) return;
       if (fam(n) === fam(P.chose)) out.push(n);
     });
+    // A mark whose family is small enough that six were not found takes the
+    // rest from whatever else is offered, rather than showing three chips.
+    all.forEach(function (n) { if (out.length < 6 && out.indexOf(n) < 0) out.push(n); });
     // and whatever is on now, so the rail never hides the pattern it is showing
     if (out.indexOf(PS.generator) < 0) out[out.length - 1] = PS.generator;
     return out;
@@ -1842,6 +1863,7 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
   function prails() {
     var g = $('pgens'); g.textContent = '';
     psuggested().forEach(function (name) { g.appendChild(pchip(name)); });
+    $('pall-n').textContent = 'All ' + poffered().length + ' patterns';
     var w = $('pways'); w.textContent = '';
     P.colourways.forEach(function (way) {
       var b = el('button', PS.colourway === way.name ? 'pchip on' : 'pchip', way.name);
@@ -1867,11 +1889,11 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     var o = $('pall-sheet');
     var body = $('pall-body'); body.textContent = '';
     var G = window.PatternEngine.GENERATORS;
-    var LABEL = { pattern: 'Patterns — a square tile that repeats',
-      texture: 'Textures — a tile drawn as a surface',
-      poster: 'Posters — a finished page, cut once' };
-    ['pattern', 'texture', 'poster'].forEach(function (kind) {
-      var names = Object.keys(P.params).filter(function (n) { return G[n].kind === kind; });
+    var LABEL = { pattern: 'Patterns \u2014 a square tile that repeats',
+      texture: 'Textures \u2014 a tile drawn as a surface' };
+    var offered = poffered();
+    ['pattern', 'texture'].forEach(function (kind) {
+      var names = offered.filter(function (n) { return window.PatternEngine.kindOf(n) === kind; });
       if (!names.length) return;
       var sec = el('div');
       sec.appendChild(el('div', 'pallgrp', LABEL[kind] || kind));
@@ -1880,6 +1902,14 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
       sec.appendChild(row);
       body.appendChild(sec);
     });
+    // What is in the package but not on this list, said rather than left out.
+    var posters = Object.keys(P.params).length - poffered().length;
+    if (posters) {
+      body.appendChild(el('p', 'pfxnone', 'Your package also carries ' + posters
+        + ' poster compositions built from the same artwork, filed under 16-posters. '
+        + 'A poster is a finished page rather than a repeat, so it is not something '
+        + 'this screen chooses between.'));
+    }
     o.hidden = false;
     $('pall').setAttribute('aria-expanded', 'true');
     var first = o.querySelector('.pchip.on') || o.querySelector('.pchip');
