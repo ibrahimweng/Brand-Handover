@@ -357,8 +357,7 @@
     const C = q.C;
     const cw = W / C, ch = H / C;
     const R3 = (n) => Math.round(n * 1000) / 1000;
-    surface.fillStyle = palette.ground;
-    surface.fillRect(0, 0, W, H);
+    palette.paper(surface, W, H, palette.ground);
     for (let y = 0; y < C; y++) {
       let x = 0;
       while (x < C) {
@@ -416,6 +415,6 @@
     { group: 'pattern', key: 'seed', label: 'Seed', type: 'seed' },
   ];
 
-  return { key: 'weave', vector: true, motif: true, styles: STYLES, controls,
+  return { key: 'weave', chosen: true, matchable: true, vector: true, motif: true, styles: STYLES, controls,
     plan, cellAt, paint, divisorNear };
 }));

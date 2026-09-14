@@ -155,8 +155,7 @@
     const m = p.motif;
     const quiet = p.intensity === 'quiet';
     const ground = pal.ground;
-    surface.fillStyle = ground;
-    surface.fillRect(0, 0, W, H);
+    pal.paper(surface, W, H, ground);
     if (!m || !m.ops || !m.ops.length) return;
 
     // The ink, and the one place Method A's guardrail lives.
@@ -171,10 +170,12 @@
     const shape = Object.assign({}, m, { ops: round(m.ops, p.radius) });
     const { cols, rows, stepX, stepY, boxW, boxH } = steps(W, H, p, m.ratio);
     const r = Math.max(boxW, boxH) / 2;
+    // The tile is clipped to itself by the layer stack, which every draw goes
+    // through — so this no longer clips a second time. It did, and it was the
+    // only generator that did: twenty-four others painted past their own edges
+    // and relied on the neighbour's copy to cover it, which is a join under any
+    // clip. See layers.js.
     surface.save();
-    surface.beginPath();
-    surface.rect(0, 0, W, H);
-    surface.clip();
     // One column and one row past each edge, so a motif straddling the join is
     // drawn on both sides of it rather than appearing out of nothing.
     for (let j = -1; j <= rows; j++) {
@@ -243,6 +244,6 @@
     return { cols: s.cols, rows: s.rows, motifs: s.cols * s.rows };
   }
 
-  return { key: 'lattice', vector: true, motif: true, needsMotif: true,
+  return { key: 'lattice', chosen: true, vector: true, motif: true, needsMotif: true,
     variants: ['bold', 'quiet'], controls, paint, plan, steps, round, mix };
 }));

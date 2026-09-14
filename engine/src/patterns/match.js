@@ -230,6 +230,14 @@ function fit(reference, make, opts) {
     const gen = PT.GENERATORS[name];
     const knobs = KNOBS[name];
     if (!gen) continue;
+    // A poster is not a pattern and cannot be matched to one.
+    //
+    // This measures a picture a client already uses and finds the generator
+    // that reproduces it. A poster is a composition rather than a repeat: it
+    // has no period to read, and answering "your pattern is a poster" is not
+    // an answer. It has no knobs either, so it was already skipped — by an
+    // omission behaving correctly rather than by a decision.
+    if (gen.kind === 'poster') continue;
     // A generator that draws nothing but the client's own mark cannot be
     // matched to somebody else's pattern.
     //
@@ -243,6 +251,29 @@ function fit(reference, make, opts) {
     // behaving correctly rather than a decision, and the next generator added
     // without knobs would be skipped for a reason nobody meant.
     if (gen.needsMotif) continue;
+    /* And nor can any generator whose picture is *made of* the client's
+       drawing rather than merely sized by it.
+
+       That was one generator and it is now thirteen. Every tool added since —
+       a pixel field whose coverage is the mark's bitmap, a quilt whose
+       medallion is the mark, a chevron field the mark is counterchanged out of,
+       a block field the mark stands up out of — draws a picture the matcher
+       cannot vary, because the part that decides what it looks like is a logo
+       and not a number. Scoring a stranger's pattern against one is asking
+       which of our pictures of *your* logo their pattern most resembles, and
+       the answer is meaningless whatever it is.
+
+       So a generator says whether it can be matched. `weave` and `zigzag` can:
+       their pictures are structures derived from measurements, and every
+       measurement is a knob the search can turn. The flag is explicit rather
+       than inferred, because the last two exclusions here were both omissions
+       that happened to behave correctly — a missing `KNOBS` entry — and the
+       next generator added without one would have been skipped for a reason
+       nobody meant. This one fails loudly instead: an unmatchable generator
+       with knobs, or a matchable one without them, is a fault in the registry.
+       See test/run.js, which asserts the matcher recovers every generator it
+       does search. */
+    if (!gen.matchable) continue;
     if (!knobs) continue;
     const base = make(name, null).params;
     let best = null;

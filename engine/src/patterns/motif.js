@@ -50,8 +50,15 @@
   // with no enclosed area fills to nothing. `pattern.js` has answered this
   // question since the mark-tiler was written, and this reads its answer rather
   // than forming a second one.
-  function draw(surface, m, cx, cy, r) {
-    if (!m || !m.ops || !m.ops.length) return;
+  // The shape as a path on the surface, and nothing painted.
+  //
+  // Split out of `draw` because a poster wants the mark as a *clip* — the
+  // counterchange figure is the client's own logo, and what makes it read as a
+  // figure rather than a sticker is that nothing is drawn on its edge. A
+  // generator that had to call `draw` to get the path would get a fill it did
+  // not ask for.
+  function path(surface, m, cx, cy, r) {
+    if (!m || !m.ops || !m.ops.length) return false;
     const s = r * 2;
     const X = (v) => cx + v * s;
     const Y = (v) => cy + v * s;
@@ -62,6 +69,12 @@
       else if (o[0] === 'C') surface.bezierCurveTo(X(o[1]), Y(o[2]), X(o[3]), Y(o[4]), X(o[5]), Y(o[6]));
       else if (o[0] === 'Z') surface.closePath();
     }
+    return true;
+  }
+
+  function draw(surface, m, cx, cy, r) {
+    if (!path(surface, m, cx, cy, r)) return;
+    const s = r * 2;
     if (m.stroked) {
       // The weight is a share of the tile, which is how the mark-tiler states
       // it, so a motif drawn small is drawn thin — the same hand at any size.
@@ -107,5 +120,59 @@
     return { w: hi[0] - lo[0], h: hi[1] - lo[1] };
   }
 
-  return { draw, box, MOST };
+  /* Is the mark here?
+
+     `u` and `v` are 0..1 across the shape's own box. The bitmap is packed a bit
+     per cell and base64'd, so this unpacks once and caches on the mask object
+     rather than decoding a string per cell — a poster asks this a few thousand
+     times per page.
+
+     Out of range reads as empty, so a generator can ask about a coordinate
+     outside the mark without a bounds check of its own. */
+  function at(mask, u, v) {
+    if (!mask || !mask.bits) return 0;
+    if (u < 0 || u >= 1 || v < 0 || v >= 1) return 0;
+    let bytes = mask._bytes;
+    if (!bytes) {
+      const raw = typeof atob === 'function'
+        ? atob(mask.bits)
+        : Buffer.from(mask.bits, 'base64').toString('binary');
+      bytes = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+      try { Object.defineProperty(mask, '_bytes', { value: bytes, enumerable: false }); }
+      catch (ignored) { mask._bytes = bytes; }
+    }
+    const n = mask.n || 48;
+    const i = Math.min(n - 1, Math.floor(u * n));
+    const j = Math.min(n - 1, Math.floor(v * n));
+    const k = j * n + i;
+    return (bytes[k >> 3] >> (k & 7)) & 1;
+  }
+
+  /* Is the mark here, in a square somebody else is drawing in?
+
+     `at` asks the bitmap in the shape's own coordinates, and a shape is rarely
+     square: a 3:1 logotype asked at (0.5, 0.5) of a square cell is being asked
+     about the middle of a box three times too tall. Every generator that wants
+     the mark as a field wants it fitted into their square, not stretched to
+     fill it — a stretched logo is the one thing a client will notice before
+     anything else on the sheet.
+
+     So this letterboxes. The shape keeps its proportion, sits centred, and the
+     margins read as empty. `spread` opens the shape out toward the edges of
+     the square before sampling, which is how a generator asks for "the mark,
+     but bigger in this cell" without redrawing it. */
+  function inside(m, u, v, spread) {
+    if (!m || !m.mask) return 0;
+    const r = m.ratio > 0 ? m.ratio : 1;
+    const k = spread > 0 ? 1 / (1 + spread) : 1;
+    // Whichever way round the shape is, the long side spans the square.
+    const sx = r >= 1 ? 1 : r;
+    const sy = r >= 1 ? 1 / r : 1;
+    const x = 0.5 + ((u - 0.5) / (sx * k));
+    const y = 0.5 + ((v - 0.5) / (sy * k));
+    return at(m.mask, x, y);
+  }
+
+  return { draw, path, box, at, inside, MOST };
 }));

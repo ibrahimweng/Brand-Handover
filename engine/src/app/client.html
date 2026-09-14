@@ -41,6 +41,13 @@ button{font:inherit;color:inherit}
 .pgrp{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);
   margin:18px 0 10px;padding-top:13px;border-top:1px solid var(--line)}
 .pctl{margin-bottom:13px}
+/* The effect layers: a head per layer, its own controls indented under it when
+   it is on, so nineteen of them read as a list rather than as two hundred
+   sliders. */
+.pfxhead{display:flex;align-items:center;gap:8px;margin:0 0 8px}
+.pfxhead .pfxat{font-size:10px;color:var(--ink-3);letter-spacing:.06em;text-transform:uppercase}
+.pfxhead.on{margin-bottom:10px}
+.pctl.pfxctl{margin-left:12px;padding-left:10px;border-left:1px solid var(--line);margin-bottom:9px}
 .pctl.idle{opacity:.55}
 .pctl .pcant{margin:5px 0 0;font-size:11px;line-height:1.45;color:var(--ink-3)}
 .pctl .pk{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-2);
@@ -304,7 +311,7 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
       </aside>
       <div class="pstage" id="psheet" aria-label="The pattern, repeating"></div>
       <aside class="pside">
-        <h3>One tile</h3>
+        <h3 id="pone-h">One tile</h3>
         <div class="ptile" id="ptile"></div>
         <p class="pwhy" id="pwhy"></p>
         <p class="phold" id="phold"></p>
@@ -938,6 +945,15 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
   var PS = null;                     // { generator, params, colourway }
 
   function pgen() { return window.PatternEngine.GENERATORS[PS.generator]; }
+  /* The generator, inside whatever effect layers are on.
+
+     Three places draw — the one tile, the sheet and the poster — and all three
+     go through this. Leaving any of them calling the generator directly means a
+     layer somebody switched on changes nothing they can see. */
+  function ppainted(surf, w, h, palette) {
+    window.PatternEngine.LAYERS.paint(surf, w, h, PS.params, palette,
+      function (s2, p2) { pgen().paint(s2, w, h, PS.params, p2 || palette); });
+  }
   function ppal() {
     var way = null;
     for (var i = 0; i < P.colourways.length; i++) {
@@ -945,9 +961,14 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     }
     return window.PatternPalette.of(P.colours, way || P.colourways[0]);
   }
+  // A tile is square; a poster is cut at its own proportion and does not
+  // repeat. Drawn square and tiled, a 4:5 fly-poster is squashed wallpaper.
+  function pratio() { return window.PatternEngine.ratioOf(PS.generator); }
+  function prepeats() { return window.PatternEngine.tilesOf(PS.generator); }
   function ptileSvg(size) {
-    var s = window.PatternSurface.svg({ width: size, height: size, id: 'pt' });
-    pgen().paint(s, size, size, PS.params, ppal());
+    var h = Math.round((size / pratio()) * 1000) / 1000;
+    var s = window.PatternSurface.svg({ width: size, height: h, id: 'pt' });
+    ppainted(s, size, h, ppal());
     return s;
   }
 
@@ -956,17 +977,26 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     var box = $('psheet');
     // Laid out as copies of one paint rather than an SVG <pattern>, so what is
     // on screen is exactly what the file will contain.
-    var across = 4, down = 4;
-    var sheet = window.PatternSurface.svg({ width: across * size, height: down * size, id: 'psh' });
-    for (var j = 0; j < down; j++) {
-      for (var i = 0; i < across; i++) {
-        sheet.save(); sheet.translate(i * size, j * size);
-        pgen().paint(sheet, size, size, PS.params, ppal());
-        sheet.restore();
+    var ph = Math.round((size / pratio()) * 1000) / 1000;
+    var sheet;
+    if (prepeats()) {
+      var across = 4, down = 4;
+      sheet = window.PatternSurface.svg({ width: across * size, height: down * ph, id: 'psh' });
+      for (var j = 0; j < down; j++) {
+        for (var i = 0; i < across; i++) {
+          sheet.save(); sheet.translate(i * size, j * ph);
+          ppainted(sheet, size, ph, ppal());
+          sheet.restore();
+        }
       }
+    } else {
+      sheet = window.PatternSurface.svg({ width: size, height: ph, id: 'psh' });
+      ppainted(sheet, size, ph, ppal());
     }
-    box.innerHTML = sheet.toSVG('preserveAspectRatio="xMidYMid slice"');
+    box.innerHTML = sheet.toSVG('preserveAspectRatio="xMidYMid '
+      + (prepeats() ? 'slice' : 'meet') + '"');
     $('ptile').innerHTML = ptileSvg(size).toSVG('');
+    if ($('pone-h')) $('pone-h').textContent = prepeats() ? 'One tile' : 'One page';
     $('pwhy').textContent = window.PatternEngine.because(PS.generator, P.measured, PS.params);
     pholds();
     // and the answer the build will read. It goes in beside the others so the
@@ -978,6 +1008,16 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
   function pholds() {
     var n = $('phold');
     var f;
+    // A poster has no tile to be fine or coarse, and asking one for its cell
+    // count prints "Holds from NaN px".
+    if (!prepeats()) {
+      n.className = 'phold';
+      n.textContent = 'A finished page, cut '
+        + (pratio() === 1 ? 'square' : pratio().toFixed(2) + ' as wide as it is tall')
+        + '. It does not repeat: use it at the size it is cut. Vector, so there is no size '
+        + 'beyond which it stops being sharp.';
+      return;
+    }
     if (PS.generator === 'lattice') {
       var m = PS.params.motif || {};
       f = PS.params.scale * Math.max(0.07, m.weight || 0.06);
@@ -992,7 +1032,10 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
 
   function pcontrols() {
     var wrap = $('pctls'); wrap.textContent = '';
-    var GROUPS = { lattice: 'The lattice', effect: 'Effects', pattern: 'Its controls' };
+    // Every group any generator declares. A group with no name here falls back
+    // to "Its controls", and a generator declaring two of those prints the same
+    // heading twice in a row — which is what kiosk did with `ground` and `type`.
+    var GROUPS = window.PatternEngine.GROUPS;
     var group = null;
     var list = pgen().controls;
     for (var i = 0; i < list.length; i++) {
@@ -1005,6 +1048,49 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
       }
       wrap.appendChild(pcontrol(c));
     }
+    peffects(wrap);
+  }
+
+  /* The effect layers.
+
+     Nineteen of them, off until switched on, each with every one of its own
+     parameters, listed in the order they stack — a ground under a fibre field
+     makes the fibres lie along it, so the order is what they do and moving one
+     would be a control that does nothing.
+
+     "Effect layers" and not "Effects": `lattice` already declares a group by
+     that name for what it does to the motif itself, and a rail with the same
+     heading twice reads as a mistake. */
+  function peffects(wrap) {
+    var FX = window.PatternEngine.LAYERS;
+    if (!FX) return;
+    if (!PS.params.effects) PS.params.effects = {};
+    var fx = PS.params.effects;
+    wrap.appendChild(el('div', 'pgrp', 'Effect layers'));
+    FX.NAMES.forEach(function (key) {
+      var on = !!(fx[key] && fx[key].amount > 0);
+      var head = el('div', on ? 'pfxhead on' : 'pfxhead');
+      var b = el('button', on ? 'pchip on' : 'pchip', FX.LAYERS[key].label);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.addEventListener('click', function () {
+        // Switched on at something visible, never at zero: a toggle that turns
+        // a thing on and leaves the page identical is a toggle that looks
+        // broken.
+        if (on) delete fx[key];
+        else { fx[key] = FX.defaultsOf(key); fx[key].amount = 0.6; }
+        pcontrols(); pdraw();
+      });
+      head.appendChild(b);
+      head.appendChild(el('span', 'pfxat', FX.LAYERS[key].at));
+      wrap.appendChild(head);
+      if (!on) return;
+      FX.controlsOf(key).forEach(function (c) {
+        var row = pcontrol(c, fx[key]);
+        row.className += ' pfxctl';
+        wrap.appendChild(row);
+      });
+    });
   }
 
   function pshown(c, v) {
@@ -1012,11 +1098,12 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     return c.max <= 2.5 ? Math.round(v * 100) + '%' : String(v);
   }
 
-  function pcontrol(c) {
+  function pcontrol(c, into) {
+    var P2 = into || PS.params;
     var row = el('div', 'pctl');
     var k = el('label', 'pk');
     k.appendChild(el('span', null, c.label));
-    var v = el('span', 'pv', pshown(c, PS.params[c.key]));
+    var v = el('span', 'pv', pshown(c, P2[c.key]));
     k.appendChild(v);
     row.appendChild(k);
     // A control with nothing to work on says so. Corner rounding takes the
@@ -1028,32 +1115,32 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     if (c.type === 'range') {
       var r = document.createElement('input');
       r.type = 'range'; r.min = c.min; r.max = c.max; r.step = c.step;
-      r.value = PS.params[c.key];
+      r.value = P2[c.key];
       r.setAttribute('aria-label', c.label);
       r.addEventListener('input', function () {
-        PS.params[c.key] = Number(r.value);
-        v.textContent = pshown(c, PS.params[c.key]);
+        P2[c.key] = Number(r.value);
+        v.textContent = pshown(c, P2[c.key]);
         pdraw();
       });
       row.appendChild(r);
     } else if (c.type === 'chips') {
       var box = el('div', 'pchips');
       c.options.forEach(function (o) {
-        var b = el('button', PS.params[c.key] === o ? 'pchip on' : 'pchip', o);
+        var b = el('button', P2[c.key] === o ? 'pchip on' : 'pchip', o);
         b.type = 'button';
-        b.addEventListener('click', function () { PS.params[c.key] = o; pcontrols(); pdraw(); });
+        b.addEventListener('click', function () { P2[c.key] = o; pcontrols(); pdraw(); });
         box.appendChild(b);
       });
       row.appendChild(box);
     } else if (c.type === 'seed') {
       var seed = el('div', 'pseed');
       var n = document.createElement('input');
-      n.type = 'number'; n.value = PS.params[c.key] || 1;
+      n.type = 'number'; n.value = P2[c.key] || 1;
       n.setAttribute('aria-label', 'Seed');
-      n.addEventListener('input', function () { PS.params[c.key] = Number(n.value) || 1; pdraw(); });
+      n.addEventListener('input', function () { P2[c.key] = Number(n.value) || 1; pdraw(); });
       var b = el('button', null, 'New variation'); b.type = 'button';
       b.addEventListener('click', function () {
-        PS.params[c.key] = (PS.params[c.key] || 1) + 1; n.value = PS.params[c.key]; pdraw();
+        P2[c.key] = (P2[c.key] || 1) + 1; n.value = P2[c.key]; pdraw();
       });
       seed.appendChild(n); seed.appendChild(b);
       row.appendChild(seed);
@@ -1112,7 +1199,7 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
         : 'Nothing in this drawing could be cut out and repeated, so the patterns here are '
           + 'built from what the mark measures rather than from its shape.';
       prails(); pcontrols(); pdraw();
-      say('This is your logo, repeated. Every slider changes the package.');
+      say('This is your logo. Every slider changes the package.');
     }).catch(function (e) { busy(false); fail(e); });
   }
 

@@ -1228,6 +1228,17 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     }
   }
 
+  // And the logotype, for the posters that set type. Read the same way the
+  // mark is, so a generator handed one cannot tell the difference: it is a
+  // drawing of the name, and this engine's answer to "set the name" has always
+  // been "use the drawing of it".
+  let word = null;
+  if (project.assets.wordmark && project.assets.wordmark.source) {
+    const got = require('./patterns/motif-read').read(project.assets.wordmark.source, rules, measured,
+      'whole', { lettering: true });
+    if (got.ok) word = got;
+  }
+
   const SET = ((project.system || {}).patterns) || null;
   const setGenerator = SET && PATTERNS.GENERATORS[SET.generator] ? SET.generator : null;
   if (SET && SET.generator && !setGenerator) {
@@ -1263,7 +1274,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   for (const cw of rules.colourways) {
     for (const name of PATTERNS.NAMES) {
       try {
-        const t = PATTERNS.tile({ mark: patternMark, generator: name, route: ROUTE, motif,
+        const t = PATTERNS.tile({ mark: patternMark, generator: name, route: ROUTE, motif, word,
           // The matched generator carries the parameters the match found, in
           // every colourway. The others keep the ones the mark chose, so the
           // studio still opens on five real patterns rather than on one and
@@ -1299,7 +1310,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
         // on press, an alpha channel is a phone call from the printer.
         for (const v of (PATTERNS.GENERATORS[name].variants || []).slice(1)) {
           try {
-            const alt = PATTERNS.tile({ mark: patternMark, generator: name, route: ROUTE, motif,
+            const alt = PATTERNS.tile({ mark: patternMark, generator: name, route: ROUTE, motif, word,
               params: Object.assign({}, t.params, { intensity: v }),
               colours: project.tokens.colour, colourway: cw, size: sys.pattern.tile,
               id: `${name}-${v}-${naming.slug(cw.name)}` });
@@ -1324,8 +1335,16 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   //
   // A generator that says it is not vector is now a fault in the engine rather
   // than a case to fall back from: there is nothing left to write the pixels.
+  // Patterns to 07-pattern, posters to 16-posters.
+  //
+  // They are one registry and they behave alike — derived defaults off the
+  // artwork, controls in both studios, parameters in brand.json — but they are
+  // not the same thing to open. A pattern is a tile a client repeats; a poster
+  // is a finished page. Filing a poster under "pattern" would be the engine
+  // telling somebody their pattern is a poster.
   for (const g of generated) {
-    const stem = `07-pattern/${g.name}${g.variant ? `-${g.variant}` : ''}-${naming.slug(g.colourway)}`;
+    const where = PATTERNS.kindOf(g.name) === 'poster' ? '16-posters' : '07-pattern';
+    const stem = `${where}/${g.name}${g.variant ? `-${g.variant}` : ''}-${naming.slug(g.colourway)}`;
     if (!g.tile.vector) throw new Error(`${g.name} says it is not vector, and nothing here writes pixels`);
     write(`${stem}.svg`, g.tile.tile);
   }
@@ -1334,6 +1353,9 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // What the mark asks for, unless the brand brought a pattern — in which case
   // the one that measures like theirs is the one they should be given.
   const patternChoice = setGenerator || (matched ? matched.generator : PATTERNS.suits(patternMark, ROUTE));
+  if (PATTERNS.kindOf(patternChoice) === 'poster') {
+    throw new Error(`${patternChoice} is a poster and was chosen as this identity's pattern`);
+  }
   const patternPick = generated.find((g) => g.name === patternChoice) || generated[0];
   // Which of the two families is *the* pattern.
   //
@@ -1614,7 +1636,9 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
           // one. Absent on a generator that ships a single pattern, so nothing
           // in a package that has never heard of intensities changes.
           intensity: g.variant || undefined,
-          file: `07-pattern/${g.name}${g.variant ? `-${g.variant}` : ''}-${naming.slug(g.colourway)}.svg`,
+          kind: PATTERNS.kindOf(g.name),
+          file: `${PATTERNS.kindOf(g.name) === 'poster' ? '16-posters' : '07-pattern'}/`
+            + `${g.name}${g.variant ? `-${g.variant}` : ''}-${naming.slug(g.colourway)}.svg`,
           // Every pattern is vector. This said `vector: !!g.tile.vector` and
           // carried `printedAt` and `pixels` beside it, for the one generator
           // that shipped a PNG at a stated size. It is gone, and so is the
@@ -1749,6 +1773,15 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
         + `${sizes.length ? `: ${sizes.join(', ')}` : ''}`
         + '. The name of each file says which is which.';
     },
+    '16-posters': () => {
+      const made = [...new Set(filesUnder('16-posters')
+        .map((f) => (/\/([a-z]+)-/.exec(f.path) || [])[1]).filter(Boolean))].sort();
+      return `${made.length} poster${made.length === 1 ? '' : 's'} — ${made.join(', ')} — each one a `
+        + 'finished page rather than a tile, built out of this identity: its own mark, its own '
+        + 'colours, and numbers measured off its own artwork. One of each per colourway. They do '
+        + 'not repeat, so use them at the proportion they are cut at; pattern-studio.html cuts '
+        + 'more, at any size.';
+    },
     '08-photography': () => {
       const t = filesUnder('08-photography').filter((f) => /-treated\./.test(f.path)).length;
       return 'the photographs this identity is built from'
@@ -1845,8 +1878,11 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
         '                  measurements. The generated ones below are the',
         '                  alternatives.'] : [])] : []),
     ...(patternPick ? [
-      `  ${primary === 'repeat' ? 'And generated ' : 'The pattern   '}  ${generated.length} tiles in 07-pattern, built from the mark's own`,
-      '                  measurements rather than from a shape cut out of it.',
+      `  ${primary === 'repeat' ? 'And generated ' : 'The pattern   '}  ${generated.filter((g) => PATTERNS.kindOf(g.name) !== 'poster').length} tiles in 07-pattern. `
+        + `${generated.filter((g) => PATTERNS.kindOf(g.name) !== 'poster' && g.tile.motif).length} of them are drawn`,
+      '                  out of a shape cut from your own artwork; the rest are built',
+      "                  from what it measures. This line used to say they were all",
+      '                  the second kind, and for a long time they were.',
       // the reasoning is a sentence and the read me is a fixed column, so it
       // is folded here rather than running off the side of somebody's terminal
       ...wrapTo(patternPick.tile.why, 58).map((l) => `                  ${l}`),

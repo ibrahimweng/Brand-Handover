@@ -42,6 +42,84 @@ function normalise(segs) {
   return { ops, ratio: +(w / Math.max(h, 1e-9)).toFixed(3) };
 }
 
+// ------------------------------------------------------- the shape as a mask
+
+/* The silhouette as a small bitmap, for anything that wants to ask "is the
+   mark here?" rather than draw it.
+
+   A clip puts the mark's shape around what a generator draws. A mask lets the
+   generator *compose* with it — pixelate it, erode it, blur it, offset one
+   colour channel from another, scatter blocks only where the ink is. Several of
+   the poster tools are built out of exactly that question asked per cell, and
+   so is every "depth map" and "glitch" treatment a background could carry.
+
+   Computed here, in Node, where there is a rasteriser, and carried as bits so
+   the studio and the browser replay it without one — the same division of
+   labour as `fillOps` and the moves themselves.
+
+   Forty-eight across. A mark is a logo rather than a photograph: at this size
+   the coarsest tool asks two or three cells per module and the finest asks one
+   per pixel unit, and it costs 288 bytes. */
+const MASK = 48;
+
+/* The same shape is read many times, and each read rasterises.
+
+   `maskOf` draws the silhouette into a 384-square bitmap through resvg, which
+   holds its parsed tree and its pixmap in native memory. V8 does not count
+   that, so it feels no pressure, so it never collects it — and a test run that
+   reads all thirty-three drawings four times over held a hundred and thirty of
+   those renders at once and was killed by the kernel.
+
+   The answer is not to rasterise less finely; it is to rasterise a given shape
+   once. The key is the drawing itself, so two identities that happen to ship
+   the same shape share one bitmap and the same drawing read four times is read
+   once. Bounded, because a long-running process reading many different marks
+   should not grow without limit — and at 288 bytes a mask the bound is
+   generous.
+
+   It also makes the build faster, which is the same fact from the other side. */
+const MASKS = new Map();
+const MASK_MOST = 512;
+
+function maskOf(ops) {
+  if (!ops || !ops.length) return null;
+  const key = JSON.stringify(ops);
+  if (MASKS.has(key)) return MASKS.get(key);
+  const made = maskFrom(ops);
+  if (MASKS.size >= MASK_MOST) MASKS.delete(MASKS.keys().next().value);
+  MASKS.set(key, made);
+  return made;
+}
+
+function maskFrom(ops) {
+  const surface = require('./surface');
+  const seam = require('./seam');
+  // Drawn white on black rather than the other way round, so a cell is "ink"
+  // when it is bright: the rasteriser puts a white page under everything and a
+  // black shape on a white page would read every empty cell as ink.
+  const s = surface.svg({ width: MASK * 8, height: MASK * 8, id: 'mask' });
+  s.fillStyle = '#000000';
+  s.fillRect(0, 0, MASK * 8, MASK * 8);
+  s.fillStyle = '#ffffff';
+  require('./motif').draw(s, { ops, stroked: false }, MASK * 4, MASK * 4, MASK * 4);
+  let im;
+  try { im = seam.pixels(s.toSVG(''), MASK); } catch (e) { return null; }
+  const bits = new Uint8Array(Math.ceil((MASK * MASK) / 8));
+  let on = 0;
+  for (let j = 0; j < MASK; j++) {
+    for (let i = 0; i < MASK; i++) {
+      const px = Math.min(im.w - 1, Math.round((i / MASK) * im.w));
+      const py = Math.min(im.h - 1, Math.round((j / MASK) * im.h));
+      if (im.px[(py * im.w + px) * 4] > 127) { bits[(j * MASK + i) >> 3] |= 1 << ((j * MASK + i) & 7); on++; }
+    }
+  }
+  // A mask with nothing in it is not a mask. It happens when the shape is
+  // thinner than a cell, and a generator handed one draws an empty page.
+  if (!on) return null;
+  return { n: MASK, on: +(on / (MASK * MASK)).toFixed(4),
+    bits: Buffer.from(bits).toString('base64') };
+}
+
 // ------------------------------------------------ what the shape is like
 
 /* Two questions a lattice has and nothing else asked.
@@ -175,7 +253,21 @@ function read(markSource, rules, measured, which, opts) {
         + 'megabytes in the package and thousands of curves in each cell. Simplify the shape, or '
         + 'pick a simpler part of the drawing — the alternatives are listed beside this one.' };
   }
-  return Object.assign({ ok: true, ops, ratio, key: chosen.key, name: chosen.name, nameKey: chosen.nameKey,
+  // The region the ink covers, for everything that wants to mask with the mark
+  // rather than draw it. Only for a stroked drawing: a filled one already is
+  // its own region.
+  const fillOps = chosen.stroked
+    ? require('./thicken').outline(ops, Math.max(0.07, sp && sp.strokeRatio ? sp.strokeRatio : 0.06))
+    : null;
+  // And the same silhouette as a bitmap, for generators that compose with the
+  // mark rather than draw it.
+  const mask = maskOf(fillOps || (chosen.stroked ? null : ops));
+  return Object.assign({ ok: true, ops, ratio, mask: mask || undefined,
+    // Whether there *is* a bitmap, as a number a control can ask about. A
+    // drawing finer than the grid that reads it comes back with nothing on, and
+    // every generator that composes with the mark as a field needs to be able
+    // to say so rather than quietly drawing a plain one.
+    masked: mask ? 1 : 0, key: chosen.key, name: chosen.name, nameKey: chosen.nameKey,
     // How much of its own box the shape inks, and how many moves it takes to
     // draw — `pattern.js` measured both to rank the candidates, and the lattice
     // spaces and sizes by them. Read, not recomputed: two readings of one
@@ -189,6 +281,23 @@ function read(markSource, rules, measured, which, opts) {
     // a different thing and mirrors happily; the share is what tells them
     // apart, and 0.4 is comfortably clear of every ornament here.
     mirrorable: (opts && opts.lettering && (chosen.share || 0) > 0.4) ? 0 : 1,
+    // Whether this shape has an interior — whether it can be a clip, a mask, a
+    // counterchange figure.
+    //
+    // A drawing made of strokes has none: its path is a centreline, and filling
+    // it gives the blob the strokes travel around rather than the drawing.
+    // Twenty-one of the thirty-three here are strokes, so two thirds of the
+    // identities had nothing to mask with, and "put the logo in it" quietly did
+    // something else for them.
+    //
+    // `thicken` offsets the centreline into the region the ink covers, which is
+    // what a renderer does to draw a stroke in the first place. Where it can,
+    // the shape has a silhouette after all — `fillOps` — and everything that
+    // needs a region uses that instead of the centreline. Where the drawing is
+    // too detailed to carry one it says so, and the caller has a fallback that
+    // says so out loud rather than drawing the blob.
+    silhouette: chosen.stroked ? (fillOps ? 1 : 0) : 1,
+    fillOps: fillOps || undefined,
     ink: typeof chosen.ink === 'number' ? chosen.ink : 0.3,
     simple: typeof chosen.simple === 'number' ? chosen.simple : 0.4,
     // Filled or stroked, and at what weight — the drawing's answer, carried so
@@ -200,4 +309,5 @@ function read(markSource, rules, measured, which, opts) {
   character(ops));
 }
 
-module.exports = { read, movesOf, normalise, character, cornersIn, segsOf: outline.segsOf };
+module.exports = { read, movesOf, normalise, character, cornersIn, maskOf, MASK,
+  segsOf: outline.segsOf };

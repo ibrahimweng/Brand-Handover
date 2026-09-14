@@ -81,6 +81,24 @@
       pair: () => [ground, list[0].hex],
       // how well the ink a generator picked reads on the ground it picked
       reads: (hex) => contrast.ratio(hex, ground),
+      /* The sheet, laid down — or not.
+
+         Every generator starts by filling the whole tile with its ground, and
+         that is right until somebody switches on a ground layer: eight of the
+         nineteen effects paint the paper, and an opaque fill over the top of
+         them made every one of them invisible while still costing its own
+         weight in the file. The layer stack hands the generator a palette that
+         says the paper is already down, and this is where that is read — once,
+         rather than in twenty-six copies of the same two lines.
+
+         It reads `this` rather than a captured flag so that a palette copied
+         for an effect — `prism` turns the inks, `carve` tints them — carries
+         the answer with it. */
+      paper(surface, W, H, hex) {
+        if (this.painted) return;
+        surface.fillStyle = hex == null ? this.ground : hex;
+        surface.fillRect(0, 0, W, H);
+      },
     };
   }
 

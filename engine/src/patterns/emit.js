@@ -36,7 +36,8 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
 // inside a palette, three files away from the missing script tag. Both bundles
 // happened to load it first; the app's pattern screen did not, and that is
 // exactly the bug this list exists to make impossible.
-const SOURCES = ['../contrast.js', 'rand.js', 'noise.js', 'surface.js', 'palette.js', 'motif.js']
+const SOURCES = ['../contrast.js', 'rand.js', 'noise.js', 'surface.js', 'palette.js', 'tone.js',
+  'grid.js', 'motif.js', 'layers.js']
   .concat(Object.keys(PE.GENERATORS).sort().map((g) => `generators/${g}.js`))
   .concat(['index.js']);
 
@@ -70,6 +71,13 @@ h2+*{margin-bottom:6px}
 .chip:hover{border-color:#3B4145}
 .chip.on{background:var(--sel);border-color:var(--sel);color:#fff}
 .ctl{margin-bottom:14px}
+/* The effect layers. A head per layer, its own controls indented under it when
+   it is on, so nineteen of them read as a list of nineteen things rather than
+   as two hundred sliders. */
+.fxhead{display:flex;align-items:center;gap:8px;margin:0 0 8px}
+.fxhead .fxat{font-size:10px;color:var(--dim);letter-spacing:.06em;text-transform:uppercase}
+.fxhead.on{margin-bottom:10px}
+.ctl.fxctl{margin-left:12px;padding-left:10px;border-left:1px solid var(--line);margin-bottom:10px}
 .ctl.idle{opacity:.55}
 .ctl .cant{margin:5px 0 0;font-size:10.5px;line-height:1.45;color:var(--dim)}
 .grp{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim);

@@ -58,9 +58,27 @@
     PE.GENERATORS[g].motif && motif ? { motif } : {});
 
   // ---------------------------------------------------------------- the tile
+  // A tile is square; a poster is cut at its own proportion. Drawn square, a
+  // 4:5 fly-poster comes out squashed, and the stage repeats it — which is a
+  // poster shown as wallpaper.
+  const ratio = () => PE.ratioOf(state.generator);
+  const repeats = () => PE.tilesOf(state.generator);
+  /* The generator, inside whatever effect layers are switched on.
+
+     Every place that draws goes through this. There are five of them — the one
+     tile, the sheet, the poster, the export and the kept thumbnails — and the
+     first version left four of them calling the generator directly, so
+     switching a layer on changed nothing anybody could see and the toggles
+     looked broken. */
+  function painted(surf, w, h, params, palette, g) {
+    const G = g || gen();
+    PE.LAYERS.paint(surf, w, h, params, palette,
+      (s2, p2) => G.paint(s2, w, h, params, p2 || palette));
+  }
   function tileSVG(size) {
-    const s = SURF.svg({ width: size, height: size, id: 'st' });
-    gen().paint(s, size, size, state.params, pal());
+    const w = size, h = Math.round((size / ratio()) * 1000) / 1000;
+    const s = SURF.svg({ width: w, height: h, id: 'st' });
+    painted(s, w, h, state.params, pal());
     return s;
   }
 
@@ -73,6 +91,10 @@
     // motif is 1.4% of the tile. Reading `cells` here, as this did before the
     // lattice existed, gave `undefined` and a note about a pattern finer than
     // the mark on every lattice in every package.
+    // A poster has no tile to be fine or coarse. Asked for `cells` it returned
+    // undefined and the note read "Holds from NaN px and NaN mm" — a sentence
+    // about a repeat, printed under a finished page.
+    if (!repeats()) return { poster: true, ratio: ratio() };
     const finest = state.generator === 'lattice'
       ? state.params.scale * Math.max(0.07, (motif && motif.weight) || 0.06)
       : state.generator === 'weave' ? 1 / state.params.cells : state.params.stripe;
@@ -115,21 +137,36 @@
     // Laid out as nine-and-more copies of one paint rather than an SVG
     // <pattern>: the same reason the seam check does it, and here it also means
     // what is on screen is exactly what the file contains.
-    const sheet = SURF.svg({ width: across * size, height: down * size, id: 'sh' });
-    for (let j = 0; j < down; j++) {
-      for (let i = 0; i < across; i++) {
-        sheet.save(); sheet.translate(i * size, j * size);
-        gen().paint(sheet, size, size, state.params, pal());
-        sheet.restore();
+    const ph = Math.round((size / ratio()) * 1000) / 1000;
+    let sheet;
+    if (repeats()) {
+      sheet = SURF.svg({ width: across * size, height: down * ph, id: 'sh' });
+      for (let j = 0; j < down; j++) {
+        for (let i = 0; i < across; i++) {
+          sheet.save(); sheet.translate(i * size, j * ph);
+          painted(sheet, size, ph, state.params, pal());
+          sheet.restore();
+        }
       }
+    } else {
+      // One page, whole. A poster laid out nine times is not what anybody is
+      // looking at when they open this.
+      sheet = SURF.svg({ width: size, height: ph, id: 'sh' });
+      painted(sheet, size, ph, state.params, pal());
     }
-    box.innerHTML = sheet.toSVG('preserveAspectRatio="xMidYMid slice" style="width:100%;height:100%;display:block"');
+    box.innerHTML = sheet.toSVG(`preserveAspectRatio="xMidYMid ${repeats() ? 'slice' : 'meet'}" `
+      + 'style="width:100%;height:100%;display:block"');
     $('#one').innerHTML = svg.toSVG('style="width:100%;height:auto;display:block"');
 
     const f = fineness();
     $('#why').textContent = PE.because(state.generator, B.measured, state.params);
     $('#holds').className = f.over ? 'note over' : 'note';
-    $('#holds').textContent = !f.over
+    const cutAt = f.poster && f.ratio === 1 ? 'square'
+      : f.poster ? `${f.ratio.toFixed(2)} as wide as it is tall` : '';
+    $('#holds').textContent = f.poster
+      ? `A finished page, cut ${cutAt}. It does not repeat: use it at the size it is cut, or `
+        + 'export it at any size — it is vector, so there is none beyond which it stops being sharp.'
+      : !f.over
       ? `Holds from ${f.px} px and ${f.mm} mm, which is the size the mark itself holds at or larger.`
       : state.generator === 'lattice'
         ? `Smaller than you are cutting it. The mark is drawn at `
@@ -150,6 +187,9 @@
     }, null, 2);
     // The SVG button is not offered for a pattern that has no vector form, and
     // the note says which kind this is rather than leaving it to be discovered.
+    // "One tile" is the wrong label for something that does not tile.
+    const oneLabel = document.querySelector('[for=one], #one-h');
+    if (oneLabel) oneLabel.textContent = repeats() ? 'One tile' : 'One page';
     const vector = isVector();
     $('#svg').disabled = !vector;
     $('#svg').title = vector ? '' : 'this pattern is raster — use PNG';
@@ -161,6 +201,62 @@
   }
 
   // ------------------------------------------------------------- the controls
+
+  /* One row, for any control against any parameters object.
+
+     The generator's own controls and the nineteen effect layers' controls are
+     the same shape — a key, a label, a type and a range — so they are rendered
+     by the same function against different objects. The alternative was a
+     second copy of this that would have drifted from the first the first time
+     a control type was added. */
+  function row(c, into, id, after) {
+    const line = el('div', 'ctl');
+    line.appendChild(el('label', 'k', `${esc(c.label)}<span class="v" id="${id}-v"></span>`));
+    // A control that has nothing to work on says so, rather than sitting there
+    // moving and drawing the same tile. Corner rounding takes the joins where
+    // two straight runs meet, and two thirds of the drawings in this repository
+    // are drawn in curves and have none.
+    const want = c.needs && (state.params[c.needs.of] || {})[c.needs.key];
+    const idle = !!c.needs && !(want >= c.needs.least);
+    let input;
+    if (c.type === 'range') {
+      input = el('input'); input.type = 'range';
+      input.min = c.min; input.max = c.max; input.step = c.step;
+      input.value = into[c.key];
+      input.addEventListener('input', () => {
+        into[c.key] = Number(input.value);
+        const v = $(`#${id}-v`);
+        if (v) v.textContent = shown(c, into[c.key]);
+        draw();
+      });
+    } else if (c.type === 'chips') {
+      input = el('div', 'chips');
+      for (const o of c.options) {
+        const b = el('button', into[c.key] === o ? 'chip on' : 'chip', esc(o));
+        b.addEventListener('click', () => { into[c.key] = o; (after || controls)(); draw(); });
+        input.appendChild(b);
+      }
+    } else if (c.type === 'seed') {
+      input = el('div', 'seedrow');
+      const n = el('input'); n.type = 'number'; n.value = into[c.key] || 1; n.className = 'seed';
+      n.addEventListener('input', () => { into[c.key] = Number(n.value) || 1; draw(); });
+      const b = el('button', 'btn', 'New variation');
+      b.addEventListener('click', () => {
+        into[c.key] = (into[c.key] || 1) + 1;
+        n.value = into[c.key]; draw();
+      });
+      input.appendChild(n); input.appendChild(b);
+    }
+    line.appendChild(input);
+    if (idle) {
+      line.classList.add('idle');
+      if (input.tagName === 'INPUT') input.disabled = true;
+      else input.querySelectorAll('button,input').forEach((n) => { n.disabled = true; });
+      line.appendChild(el('p', 'cant', esc(c.needs.without)));
+    }
+    return { line, set: () => { const v = $(`#${id}-v`); if (v) v.textContent = shown(c, into[c.key]); } };
+  }
+
   function controls() {
     const wrap = $('#controls');
     wrap.innerHTML = '';
@@ -173,56 +269,61 @@
         group = c.group;
         if (group !== 'pattern') wrap.appendChild(el('div', 'grp', esc(GROUPS[group] || group)));
       }
-      const row = el('div', 'ctl');
-      const id = `c-${c.key}`;
-      row.appendChild(el('label', 'k', `${esc(c.label)}<span class="v" id="${id}-v"></span>`));
-      // A control that has nothing to work on says so, rather than sitting
-      // there moving and drawing the same tile. Corner rounding takes the
-      // joins where two straight runs meet, and two thirds of the drawings in
-      // this repository are drawn in curves and have none.
-      const want = c.needs && (state.params[c.needs.of] || {})[c.needs.key];
-      const idle = !!c.needs && !(want >= c.needs.least);
-      let input;
-      if (c.type === 'range') {
-        input = el('input'); input.type = 'range';
-        input.min = c.min; input.max = c.max; input.step = c.step;
-        input.value = state.params[c.key];
-        input.addEventListener('input', () => {
-          state.params[c.key] = Number(input.value);
-          $(`#${id}-v`).textContent = shown(c, state.params[c.key]);
-          draw();
-        });
-      } else if (c.type === 'chips') {
-        input = el('div', 'chips');
-        for (const o of c.options) {
-          const b = el('button', state.params[c.key] === o ? 'chip on' : 'chip', esc(o));
-          b.addEventListener('click', () => { state.params[c.key] = o; controls(); draw(); });
-          input.appendChild(b);
-        }
-      } else if (c.type === 'seed') {
-        input = el('div', 'seedrow');
-        const n = el('input'); n.type = 'number'; n.value = state.params[c.key] || 1; n.className = 'seed';
-        n.addEventListener('input', () => { state.params[c.key] = Number(n.value) || 1; draw(); });
-        const b = el('button', 'btn', 'New variation');
-        b.addEventListener('click', () => {
-          state.params[c.key] = (state.params[c.key] || 1) + 1;
-          n.value = state.params[c.key]; draw();
-        });
-        input.appendChild(n); input.appendChild(b);
+      const r = row(c, state.params, `c-${c.key}`);
+      wrap.appendChild(r.line);
+      r.set();
+    }
+    effects(wrap);
+  }
+
+  /* The effect layers.
+
+     Nineteen of them, each off until it is switched on, each with every one of
+     its own parameters. They are listed in the order they stack rather than
+     alphabetically, because the order is what they do: a ground under a fibre
+     field makes the fibres lie along it, and moving one would be offering a
+     control that does nothing.
+
+     Switching one on sets its amount to something visible rather than to zero.
+     A toggle that turns a thing on and leaves it looking identical is a toggle
+     that appears broken, and the first version of this did exactly that. */
+  function effects(wrap) {
+    const FX = PE.LAYERS;
+    if (!FX) return;
+    if (!state.params.effects) state.params.effects = {};
+    const fx = state.params.effects;
+    // "Effect layers", not "Effects". `lattice` already declares a group called
+    // Effects for the things it does to the motif itself — rounding its
+    // corners, extruding it, shoving its bands — and a rail with the same
+    // heading twice reads as a mistake. These are a different thing: they act
+    // on the whole tile, and they stack.
+    wrap.appendChild(el('div', 'grp', 'Effect layers'));
+    for (const key of FX.NAMES) {
+      const on = !!(fx[key] && fx[key].amount > 0);
+      const head = el('div', on ? 'fxhead on' : 'fxhead');
+      const b = el('button', 'chip' + (on ? ' on' : ''), esc(FX.LAYERS[key].label));
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.addEventListener('click', () => {
+        if (on) delete fx[key];
+        else { fx[key] = FX.defaultsOf(key); fx[key].amount = 0.6; }
+        controls(); draw();
+      });
+      head.appendChild(b);
+      head.appendChild(el('span', 'fxat', esc(FX.LAYERS[key].at)));
+      wrap.appendChild(head);
+      if (!on) continue;
+      for (const c of FX.controlsOf(key)) {
+        const r = row(c, fx[key], `fx-${key}-${c.key}`);
+        r.line.classList.add('fxctl');
+        wrap.appendChild(r.line);
+        r.set();
       }
-      row.appendChild(input);
-      if (idle) {
-        row.classList.add('idle');
-        if (input.tagName === 'INPUT') input.disabled = true;
-        else input.querySelectorAll('button,input').forEach((n) => { n.disabled = true; });
-        row.appendChild(el('p', 'cant', esc(c.needs.without)));
-      }
-      wrap.appendChild(row);
-      const v = $(`#${id}-v`);
-      if (v) v.textContent = shown(c, state.params[c.key]);
     }
   }
-  const GROUPS = { lattice: 'The lattice', effect: 'Effects' };
+  // Every group any generator declares, named by the engine rather than here:
+  // two copies of this map is two things to forget to update, and the second
+  // one was already a line behind the first.
+  const GROUPS = PE.GROUPS;
   const shown = (c, v) => {
     if (c.type !== 'range') return '';
     return c.max <= 2.5 ? `${Math.round(v * 100)}%` : String(v);
@@ -278,7 +379,7 @@
     const ctx = cv.getContext('2d');
     const s = SURF.canvas(ctx, B.tile, B.tile);
     ctx.scale(size / B.tile, size / B.tile);
-    gen().paint(s, B.tile, B.tile, state.params, pal());
+    painted(s, B.tile, B.tile, state.params, pal());
     cv.toBlob((blob) => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -303,7 +404,7 @@
       const b = el('button', 'keptone');
       const s = SURF.svg({ width: B.tile, height: B.tile, id: `k${i}` });
       const p = PAL.of(B.colours, B.colourways.find((c) => c.name === k.colourway) || B.colourways[0]);
-      PE.GENERATORS[k.generator].paint(s, B.tile, B.tile, k.params, p);
+      painted(s, B.tile, B.tile, k.params, p, PE.GENERATORS[k.generator]);
       b.innerHTML = s.toSVG('style="width:100%;height:100%;display:block"');
       b.title = `${k.generator} · ${k.colourway}`;
       b.addEventListener('click', () => {

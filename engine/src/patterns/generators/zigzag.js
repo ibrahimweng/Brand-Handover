@@ -184,8 +184,7 @@
     const across = q.style === 'chevron' || q.style === 'ricrac';
     surface.save();
     surface.beginPath(); surface.rect(0, 0, W, H); surface.clip();
-    surface.fillStyle = two[0];
-    surface.fillRect(0, 0, W, H);
+    palette.paper(surface, W, H, two[0]);
     surface.translate(0, 0);
     surface.scale(W / q.W, H / q.H);
     if (across) { surface.translate(q.W, 0); surface.rotate(Math.PI / 2); }
@@ -214,6 +213,6 @@
     { group: 'pattern', key: 'style', label: 'Style', type: 'chips', options: STYLES },
   ];
 
-  return { key: 'zigzag', vector: true, styles: STYLES, controls,
+  return { key: 'zigzag', chosen: true, matchable: true, vector: true, styles: STYLES, controls,
     plan, chain, chainPoints, paint, rounded, smoothed, evenCount };
 }));

@@ -1620,6 +1620,146 @@ test('a wordmark is never mirrored into a pattern', () => {
     'the mirror control does not say when it is unavailable, so it sits there doing nothing');
 });
 
+// ------------------------------------------------- a stroke made fillable
+
+test('the outline of a stroke covers what the stroke covers', () => {
+  // A path is a centreline. Everything that wants the *region* a drawing
+  // occupies — a clip, a mask, a counterchange figure — gets the area the line
+  // travels around instead, which for carrock's three concentric arcs is a
+  // solid disc and for ancroft's open chevron is a sliver. Twenty-one of the
+  // thirty-three drawings here are strokes, so that was two thirds of the
+  // identities for which "put the logo in it" quietly did something else.
+  //
+  // Measured rather than eyeballed: fill the outline, stroke the original, and
+  // count the pixels that agree.
+  const T = require('../src/patterns/thicken');
+  const MOTIF = require('../src/patterns/motif');
+  const seam = require('../src/patterns/seam');
+  const SURF = require('../src/patterns/surface');
+  const S = 400, PX = 300;
+  const inked = (svg) => {
+    const im = seam.pixels(svg, PX);
+    const on = new Uint8Array(im.w * im.h);
+    for (let i = 0; i < on.length; i++) on[i] = im.px[i * 4] < 128 ? 1 : 0;
+    return on;
+  };
+  const agree = (a, b) => {
+    let both = 0, either = 0;
+    for (let i = 0; i < a.length; i++) { if (a[i] && b[i]) both++; if (a[i] || b[i]) either++; }
+    return either ? both / either : 1;
+  };
+  // `motif.draw` paints a stroke in the *fill* colour, so a generator sets one
+  // colour and not two. Setting strokeStyle here draws the mark in white, and
+  // every comparison comes back 0.000 against an empty picture.
+  const shot = (m, r) => {
+    const s = SURF.svg({ width: S, height: S, id: 'th' });
+    s.fillStyle = '#ffffff'; s.fillRect(0, 0, S, S);
+    s.fillStyle = '#000000'; MOTIF.draw(s, m, S / 2, S / 2, r);
+    return inked(s.toSVG(''));
+  };
+  const scores = [];
+  for (const r of latticeRepo()) {
+    const m = r.motif;
+    if (!m.stroked) {
+      assert.strictEqual(m.silhouette, 1, `${r.name} is filled and says it has no silhouette`);
+      continue;
+    }
+    assert.strictEqual(m.silhouette, 1,
+      `${r.name} is stroked and no outline could be made of it`);
+    assert.ok(m.fillOps && m.fillOps.length, `${r.name} says it has a silhouette and carries none`);
+    const w = Math.max(0.07, m.weight || 0.06);
+    const score = agree(shot(m, S * 0.36), shot({ ops: m.fillOps, stroked: false }, S * 0.36));
+    scores.push([r.name, score]);
+    assert.ok(score > 0.9,
+      `${r.name}: the outline covers ${(score * 100).toFixed(1)}% of what the stroke covers`);
+    // and the outline is small enough to travel in brand.json beside everything
+    // else the motif carries
+    assert.ok(m.fillOps.length <= T.MOST,
+      `${r.name}: ${m.fillOps.length} ops is past the cap and should have been refused`);
+  }
+  assert.ok(scores.length >= 15, `only ${scores.length} stroked marks were checked`);
+  // and the check has teeth: the centreline filled, which is what happened
+  // before, agrees with the stroke nowhere near as well.
+  const worst = scores.slice().sort((a, b) => a[1] - b[1])[0];
+  const bad = [];
+  for (const r of latticeRepo()) {
+    if (!r.motif.stroked) continue;
+    bad.push(agree(shot(r.motif, S * 0.36),
+      shot({ ops: r.motif.ops, stroked: false }, S * 0.36)));
+  }
+  const worstCentre = Math.max(...bad);
+  assert.ok(worstCentre < worst[1],
+    `filling the centreline agrees with the stroke as well as the outline does `
+    + `(${worstCentre.toFixed(3)} against ${worst[1].toFixed(3)}), so this proves nothing`);
+});
+
+test('a poster is not a pattern, and the engine knows which is which', () => {
+  // One registry, two families. A poster is a composition that does not repeat;
+  // a pattern is a square tile that does. They want the same everything else,
+  // so they are one registry with a flag rather than two engines — and the flag
+  // has to reach the three places where confusing them does damage.
+  assert.ok(PENG.POSTERS.length >= 1, 'no posters are registered');
+  assert.ok(PENG.PATTERNS.length >= 2, 'the patterns have gone missing');
+  assert.deepStrictEqual(PENG.PATTERNS.concat(PENG.POSTERS).sort(), PENG.NAMES.slice().sort(),
+    'a generator is in neither family, so nothing knows what to do with it');
+  // 1. `suits` never answers a pattern question with a poster.
+  for (const route of PENG.ROUTES) {
+    for (const fineness of [6, 15, 25, 40, 80]) {
+      for (const curviness of [0, 0.5, 1]) {
+        const g = PENG.suits({ aspect: 1, fineness, curviness, turned: true }, route);
+        assert.ok(PENG.PATTERNS.indexOf(g) > -1,
+          `the ${route} route chose ${g}, which is a poster`);
+      }
+    }
+  }
+  // 2. A poster says it does not tile, so the seam check never asks it about a
+  //    join it cannot have.
+  for (const g of PENG.POSTERS) {
+    assert.strictEqual(PENG.tilesOf(g), false, `${g} is a poster and claims to tile`);
+    assert.ok(PENG.ratioOf(g) > 0, `${g} has no proportion to be cut at`);
+  }
+  for (const g of PENG.PATTERNS) {
+    assert.strictEqual(PENG.tilesOf(g), true, `${g} is a pattern and does not tile`);
+  }
+});
+
+test('the counterchange figure is the identity own mark, on every drawing', () => {
+  // Optic's figure is a diamond, a circle, a peak or a square. Here it is the
+  // client's logo, which is the whole reason this tool came first: a
+  // counterchange needs a silhouette and a logo is a silhouette.
+  //
+  // It reached twelve of the thirty-three before the outline converter existed,
+  // because the other twenty-one are drawn in strokes and a stroke has no
+  // interior to cut a figure out of.
+  const repo = latticeRepo();
+  for (const r of repo) {
+    const p = PENG.derive('optic', PENG.read(r.src, measure(r.pr), r.pr.rules), 'motif', r.motif);
+    assert.strictEqual(p.figure, 'mark',
+      `${r.name} does not get its own mark as the figure`);
+    // and the numbers come off the drawing rather than off a constant
+    assert.ok(p.stripes >= 6 && p.stripes <= 28, `${r.name}: ${p.stripes} bars is outside the range`);
+  }
+  const bars = new Set(repo.map((r) =>
+    PENG.derive('optic', PENG.read(r.src, measure(r.pr), r.pr.rules), 'motif', r.motif).stripes));
+  assert.ok(bars.size >= 6,
+    `every identity got one of only ${bars.size} bar counts — it is close to a constant`);
+  // It draws, and what it draws is the client's shape: a different shape is a
+  // different poster.
+  const r = repo[0];
+  const tile = (motif) => {
+    const s = require('../src/patterns/surface').svg({ width: 200, height: 200, id: 'op' });
+    PENG.GENERATORS.optic.paint(s, 200, 200,
+      Object.assign(PENG.derive('optic', PENG.read(r.src, measure(r.pr), r.pr.rules), 'motif', r.motif),
+        { motif }), r.pal);
+    return s.toSVG('');
+  };
+  const mine = tile(r.motif);
+  assert.ok(mine.indexOf('<path') > -1 || mine.indexOf('<rect') > -1, 'the poster drew nothing');
+  assert.notStrictEqual(mine, tile(Object.assign({}, r.motif,
+    { ops: [['M', -0.5, -0.5], ['L', 0.5, -0.5], ['L', 0.5, 0.5], ['Z']], fillOps: undefined })),
+  'the poster draws the same page whatever shape it is given');
+});
+
 test('the three routes make three different packages', async () => {
   // They did not. The question went in at the door, the answer went into the
   // project file and into brand.json, and `suits` was handed it — and `suits`
@@ -2080,6 +2220,11 @@ test('every generator draws every identity, and the tile never runs finer than t
     // Every generator some mark on some route opens on. Keyed on the route as
     // well as the mark, because the motif route has a generator of its own now
     // and no sweep over drawings alone will ever arrive at it.
+    //
+    // Patterns only. `suits` answers "which pattern does this mark want", and a
+    // poster is not an answer to that — it is asked for by name. Counting
+    // posters here said `optic` could not be arrived at, which is true and is
+    // the design rather than a fault.
     for (const route of PENG.ROUTES) reached.add(PENG.suits(mk, route));
     const motif = PMOTIFREAD.read(src, pr.rules, mm);
     for (const g of PENG.NAMES) {
@@ -2134,9 +2279,12 @@ test('every generator draws every identity, and the tile never runs finer than t
   // and every heavy one to the other would pass it. The variety a client
   // actually sees is in the styles: fourteen in weave and six in zigzag, chosen
   // by three measurements of their own drawing.
-  assert.strictEqual(reached.size, PENG.NAMES.length,
-    `every mark on every route opens on only ${reached.size} of the ${PENG.NAMES.length} generators — `
-    + `${PENG.NAMES.filter((g) => !reached.has(g)).join(', ')} cannot be arrived at`);
+  assert.strictEqual(reached.size, PENG.PATTERNS.length,
+    `every mark on every route opens on only ${reached.size} of the ${PENG.PATTERNS.length} patterns — `
+    + `${PENG.PATTERNS.filter((g) => !reached.has(g)).join(', ')} cannot be arrived at`);
+  for (const g of PENG.POSTERS) {
+    assert.ok(!reached.has(g), `${g} is a poster and a mark opened on it`);
+  }
   const styles = reachedStyle;
   assert.ok(styles.size >= 8, `32 identities between them reached only ${styles.size} styles, `
     + `out of ${PENG.NAMES.reduce((a, g) => a + (PENG.GENERATORS[g].styles || []).length, 0)}`);
@@ -2321,7 +2469,7 @@ test('a pattern this engine drew is matched back to the generator that drew it',
   // excluded on purpose: it draws nothing but the client's own mark, so
   // matching a stranger's pattern to it would be claiming their existing
   // pattern is made of their logo. See match.js.
-  const searchable = PENG.NAMES.filter((g) => !PENG.GENERATORS[g].needsMotif);
+  const searchable = PENG.PATTERNS.filter((g) => !PENG.GENERATORS[g].needsMotif);
   assert.ok(searchable.length >= 2 && searchable.length < PENG.NAMES.length,
     'the matcher either searches everything or nothing, so this proves nothing about the exclusion');
   for (const truth of searchable) {
