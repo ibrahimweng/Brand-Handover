@@ -100,13 +100,13 @@
   }
 
   const controls = [
-    { group: 'pattern', key: 'cells', label: 'Cells across', type: 'range', min: 12, max: 96, step: 2 },
+    { group: 'pattern', key: 'cells', primary: true, label: 'Cells across', type: 'range', min: 12, max: 96, step: 2 },
     { group: 'pattern', key: 'blocks', label: 'Blocks across', type: 'range', min: 1, max: 6, step: 1 },
-    { group: 'pattern', key: 'style', label: 'Piecing', type: 'chips', options: PIECINGS },
+    { group: 'pattern', key: 'style', primary: true, label: 'Piecing', type: 'chips', options: PIECINGS },
     { group: 'pattern', key: 'pieces', label: 'Patches', type: 'range', min: 1, max: 12, step: 1 },
     { group: 'pattern', key: 'plain', label: 'Plain blocks', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'pattern', key: 'border', label: 'Border', type: 'range', min: 0, max: 1, step: 0.01 },
-    { group: 'mark', key: 'mark', label: 'Mark in the block', type: 'range', min: 0, max: 1, step: 0.01,
+    { group: 'mark', key: 'mark', primary: true, label: 'Mark in the block', type: 'range', min: 0, max: 1, step: 0.01,
       needs: { of: 'motif', key: 'masked', least: 1,
         without: 'No bitmap could be taken of this shape — it is finer than the grid that '
           + 'reads it. The blocks are pieced without a medallion.' } },

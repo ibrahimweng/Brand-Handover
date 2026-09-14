@@ -155,11 +155,11 @@
   }
 
   const controls = [
-    { group: 'pattern', key: 'way', label: 'Way', type: 'chips', options: WAYS },
-    { group: 'lattice', key: 'cells', label: 'Arches across', type: 'range', min: 1, max: 12, step: 1 },
+    { group: 'pattern', key: 'way', primary: true, label: 'Way', type: 'chips', options: WAYS },
+    { group: 'lattice', key: 'cells', primary: true, label: 'Arches across', type: 'range', min: 1, max: 12, step: 1 },
     { group: 'lattice', key: 'belly', label: 'Arch width', type: 'range', min: 0.4, max: 1.3, step: 0.02 },
     { group: 'lattice', key: 'weight', label: 'Armature', type: 'range', min: 0.004, max: 0.06, step: 0.002 },
-    { group: 'mark', key: 'scale', label: 'Figure size', type: 'range', min: 0.15, max: 0.9, step: 0.02,
+    { group: 'mark', key: 'scale', primary: true, label: 'Figure size', type: 'range', min: 0.15, max: 0.9, step: 0.02,
       needs: { of: 'motif', key: 'moves', least: 1,
         without: 'No shape could be read out of this drawing, so there is no figure to face. '
           + 'The trellis is still here.' } },

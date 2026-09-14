@@ -131,9 +131,9 @@
 
   const controls = [
     { group: 'pattern', key: 'run', label: 'Angle', type: 'chips', options: RUNS.map((r) => r.key) },
-    { group: 'pattern', key: 'structure', label: 'Structure', type: 'chips', options: STRUCTURES },
-    { group: 'pattern', key: 'count', label: 'Bars', type: 'range', min: 2, max: 40, step: 1 },
-    { group: 'pattern', key: 'weight', label: 'Bar weight', type: 'range', min: 0.15, max: 0.85, step: 0.01 },
+    { group: 'pattern', key: 'structure', primary: true, label: 'Structure', type: 'chips', options: STRUCTURES },
+    { group: 'pattern', key: 'count', primary: true, label: 'Bars', type: 'range', min: 2, max: 40, step: 1 },
+    { group: 'pattern', key: 'weight', primary: true, label: 'Bar weight', type: 'range', min: 0.15, max: 0.85, step: 0.01 },
     { group: 'pattern', key: 'bands', label: 'Bands', type: 'range', min: 1, max: 8, step: 1 },
     { group: 'pattern', key: 'shift', label: 'Band offset', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'mark', key: 'mark', label: 'Counterchange the mark', type: 'range', min: 0, max: 1, step: 0.01,

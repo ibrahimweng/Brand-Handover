@@ -237,12 +237,12 @@
   }
 
   const controls = [
-    { group: 'pattern', key: 'kind', label: 'Sett', type: 'chips', options: SETTS },
+    { group: 'pattern', key: 'kind', primary: true, label: 'Sett', type: 'chips', options: SETTS },
     { group: 'stripes', key: 'bands', label: 'Bands in the sett', type: 'range', min: 2, max: 9, step: 1 },
-    { group: 'stripes', key: 'thread', label: 'Threads per band', type: 'range', min: 2, max: 24, step: 1 },
+    { group: 'stripes', key: 'thread', primary: true, label: 'Threads per band', type: 'range', min: 2, max: 24, step: 1 },
     { group: 'stripes', key: 'repeats', label: 'Setts across', type: 'range', min: 1, max: 6, step: 1 },
     { group: 'stripes', key: 'density', label: 'Ground', type: 'range', min: 0, max: 1, step: 0.01 },
-    { group: 'stripes', key: 'angle', label: 'Run', type: 'chips', options: [0, 90],
+    { group: 'stripes', key: 'angle', primary: true, label: 'Run', type: 'chips', options: [0, 90],
       labels: ['across', 'down'] },
     { group: 'stripes', key: 'slant', label: 'Slant', type: 'range', min: -1, max: 1, step: 0.05 },
     { group: 'stripes', key: 'colours', label: 'Colours', type: 'range', min: 1, max: 6, step: 1 },

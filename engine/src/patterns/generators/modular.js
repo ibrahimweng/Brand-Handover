@@ -173,15 +173,15 @@
   }
 
   const controls = [
-    { group: 'poster', key: 'modules', label: 'Modules across', type: 'range', min: 2, max: 12, step: 1 },
-    { group: 'poster', key: 'unit', label: 'Units per module', type: 'range', min: 2, max: 12, step: 1 },
+    { group: 'poster', key: 'modules', primary: true, label: 'Modules across', type: 'range', min: 2, max: 12, step: 1 },
+    { group: 'poster', key: 'unit', primary: true, label: 'Units per module', type: 'range', min: 2, max: 12, step: 1 },
     { group: 'poster', key: 'merging', label: 'Merging', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'treatment', key: 'empty', label: 'Empty', type: 'range', min: 0, max: 100, step: 1 },
     { group: 'treatment', key: 'solid', label: 'Solid', type: 'range', min: 0, max: 100, step: 1 },
     { group: 'treatment', key: 'blocks', label: 'Blocks', type: 'range', min: 0, max: 100, step: 1 },
     { group: 'treatment', key: 'dots', label: 'Dot matrix', type: 'range', min: 0, max: 100, step: 1 },
     { group: 'treatment', key: 'lines', label: 'Line grid', type: 'range', min: 0, max: 100, step: 1 },
-    { group: 'treatment', key: 'mark', label: 'The mark', type: 'range', min: 0, max: 100, step: 1,
+    { group: 'treatment', key: 'mark', primary: true, label: 'The mark', type: 'range', min: 0, max: 100, step: 1,
       needs: { of: 'motif', key: 'silhouette', least: 1,
         without: 'No shape could be read out of this drawing, so a module has nothing to knock out.' } },
     { group: 'detail', key: 'fill', label: 'Block fill', type: 'range', min: 0.1, max: 0.9, step: 0.01 },

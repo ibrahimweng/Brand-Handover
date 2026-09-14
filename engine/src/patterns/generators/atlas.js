@@ -206,16 +206,16 @@
   }
 
   const controls = [
-    { group: 'terrain', key: 'scale', label: 'Scale', type: 'range', min: 1, max: 12, step: 1 },
+    { group: 'terrain', key: 'scale', primary: true, label: 'Scale', type: 'range', min: 1, max: 12, step: 1 },
     { group: 'terrain', key: 'warp', label: 'Warp', type: 'range', min: 0, max: 1.6, step: 0.01 },
-    { group: 'terrain', key: 'terraces', label: 'Terraces', type: 'range', min: 2, max: 10, step: 1 },
+    { group: 'terrain', key: 'terraces', primary: true, label: 'Terraces', type: 'range', min: 2, max: 10, step: 1 },
     { group: 'terrain', key: 'contrast', label: 'Contrast', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'type', key: 'set', label: 'Glyphs', type: 'chips', options: NAMES,
       needs: { of: 'motif', key: 'silhouette', least: 1,
         without: 'This mark is drawn in strokes too fine to outline, so it cannot be a glyph. '
           + 'The drawn sets are still here.' } },
     { group: 'type', key: 'columns', label: 'Columns', type: 'range', min: 16, max: 160, step: 1 },
-    { group: 'type', key: 'density', label: 'Density', type: 'range', min: 0, max: 1, step: 0.01 },
+    { group: 'type', key: 'density', primary: true, label: 'Density', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'type', key: 'variety', label: 'Variety', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'type', key: 'weight', label: 'Weight', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'mark', key: 'mark', label: 'The mark is the terrain', type: 'range', min: 0, max: 1, step: 0.01,

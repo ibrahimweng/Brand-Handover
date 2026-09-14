@@ -137,11 +137,11 @@
   }
 
   const controls = [
-    { group: 'dots', key: 'mode', label: 'Mode', type: 'chips', options: MODES },
+    { group: 'dots', key: 'mode', primary: true, label: 'Mode', type: 'chips', options: MODES },
     { group: 'dots', key: 'lattice', label: 'Lattice', type: 'chips', options: LATTICES },
     { group: 'dots', key: 'shape', label: 'Shape', type: 'chips', options: SHAPES },
-    { group: 'dots', key: 'resolution', label: 'Resolution', type: 'range', min: 12, max: 160, step: 1 },
-    { group: 'dots', key: 'size', label: 'Dot size', type: 'range', min: 0.05, max: 1.4, step: 0.01 },
+    { group: 'dots', key: 'resolution', primary: true, label: 'Resolution', type: 'range', min: 12, max: 160, step: 1 },
+    { group: 'dots', key: 'size', primary: true, label: 'Dot size', type: 'range', min: 0.05, max: 1.4, step: 0.01 },
     { group: 'dots', key: 'variation', label: 'Size variation', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'dots', key: 'cutout', label: 'Cutout', type: 'range', min: 0, max: 0.95, step: 0.01 },
     { group: 'dots', key: 'jitter', label: 'Jitter', type: 'range', min: 0, max: 1, step: 0.01 },

@@ -119,12 +119,12 @@
   }
 
   const controls = [
-    { group: 'poster', key: 'patch', label: 'Patch detail', type: 'range', min: 12, max: 60, step: 1,
+    { group: 'poster', key: 'patch', primary: true, label: 'Patch detail', type: 'range', min: 12, max: 60, step: 1,
       needs: { of: 'motif', key: 'silhouette', least: 1,
         without: 'No shape could be read out of this drawing, so the colour fields have nothing to grow from.' } },
-    { group: 'poster', key: 'bands', label: 'Colour bands', type: 'range', min: 2, max: 10, step: 1 },
+    { group: 'poster', key: 'bands', primary: true, label: 'Colour bands', type: 'range', min: 2, max: 10, step: 1 },
     { group: 'poster', key: 'chunk', label: 'Mark size', type: 'range', min: 0.3, max: 1.2, step: 0.02 },
-    { group: 'poster', key: 'size', label: 'Line size', type: 'range', min: 0.3, max: 1, step: 0.01 },
+    { group: 'poster', key: 'size', primary: true, label: 'Line size', type: 'range', min: 0.3, max: 1, step: 0.01 },
     { group: 'poster', key: 'line', label: 'Line weight', type: 'range', min: 0, max: 3, step: 0.05 },
     { group: 'poster', key: 'dots', label: 'Dots', type: 'range', min: 0, max: 80, step: 1 },
     { group: 'poster', key: 'seed', label: 'Seed', type: 'seed' },

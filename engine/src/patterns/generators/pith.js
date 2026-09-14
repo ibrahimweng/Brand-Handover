@@ -111,15 +111,15 @@
   }
 
   const controls = [
-    { group: 'field', key: 'cells', label: 'Cells', type: 'range', min: 1, max: 40, step: 1 },
-    { group: 'field', key: 'size', label: 'Size', type: 'range', min: 0, max: 1, step: 0.01 },
+    { group: 'field', key: 'cells', primary: true, label: 'Cells', type: 'range', min: 1, max: 40, step: 1 },
+    { group: 'field', key: 'size', primary: true, label: 'Size', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'field', key: 'zoom', label: 'Wobble scale', type: 'range', min: 1, max: 8, step: 1 },
     { group: 'field', key: 'resolution', label: 'Resolution', type: 'range', min: 40, max: 260, step: 2 },
     { group: 'cells', key: 'wobble', label: 'Wobble', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'cells', key: 'width', label: 'Band width', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'cells', key: 'dither', label: 'Dither', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'cells', key: 'grain', label: 'Grain', type: 'range', min: 0, max: 1, step: 0.01 },
-    { group: 'veins', key: 'veins', label: 'Veins', type: 'range', min: 0, max: 1, step: 0.01 },
+    { group: 'veins', key: 'veins', primary: true, label: 'Veins', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'veins', key: 'thickness', label: 'Thickness', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'mark', key: 'mark', label: 'Seeded by the mark', type: 'range', min: 0, max: 1, step: 0.01,
       needs: { of: 'motif', key: 'masked', least: 1,

@@ -187,9 +187,9 @@
   }
 
   const controls = [
-    { group: 'pattern', key: 'cut', label: 'Cut', type: 'chips', options: CUTS },
-    { group: 'pattern', key: 'chips', label: 'Chips', type: 'range', min: 8, max: 260, step: 1 },
-    { group: 'pattern', key: 'size', label: 'Chip size', type: 'range', min: 0.05, max: 1, step: 0.01 },
+    { group: 'pattern', key: 'cut', primary: true, label: 'Cut', type: 'chips', options: CUTS },
+    { group: 'pattern', key: 'chips', primary: true, label: 'Chips', type: 'range', min: 8, max: 260, step: 1 },
+    { group: 'pattern', key: 'size', primary: true, label: 'Chip size', type: 'range', min: 0.05, max: 1, step: 0.01 },
     { group: 'pattern', key: 'spread', label: 'Evenness', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'pattern', key: 'turn', label: 'Tumble', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'pattern', key: 'body', label: 'Chip body', type: 'range', min: 0, max: 1, step: 0.01 },

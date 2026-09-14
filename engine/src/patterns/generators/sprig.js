@@ -284,10 +284,10 @@
   }
 
   const controls = [
-    { group: 'pattern', key: 'count', label: 'Count', type: 'range', min: 2, max: 120, step: 1 },
-    { group: 'pattern', key: 'size', label: 'Size', type: 'range', min: 0, max: 1, step: 0.01 },
+    { group: 'pattern', key: 'count', primary: true, label: 'Count', type: 'range', min: 2, max: 120, step: 1 },
+    { group: 'pattern', key: 'size', primary: true, label: 'Size', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'pattern', key: 'variation', label: 'Variation', type: 'range', min: 0, max: 1, step: 0.01 },
-    { group: 'pattern', key: 'family', label: 'Motifs', type: 'chips', options: NAMES },
+    { group: 'pattern', key: 'family', primary: true, label: 'Motifs', type: 'chips', options: NAMES },
     { group: 'mark', key: 'mark', label: 'How many are the mark', type: 'range', min: 0, max: 1, step: 0.01,
       needs: { of: 'motif', key: 'silhouette', least: 1,
         without: 'This mark is drawn in strokes too fine to outline, and a scattered motif has '

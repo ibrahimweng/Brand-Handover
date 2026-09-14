@@ -145,12 +145,12 @@
   }
 
   const controls = [
-    { group: 'poster', key: 'regions', label: 'Regions', type: 'range', min: 1, max: 5, step: 1 },
+    { group: 'poster', key: 'regions', primary: true, label: 'Regions', type: 'range', min: 1, max: 5, step: 1 },
     { group: 'poster', key: 'resolution', label: 'Resolution', type: 'range', min: 32, max: 160, step: 4 },
-    { group: 'poster', key: 'chunk', label: 'Mark size', type: 'range', min: 0.4, max: 1.6, step: 0.02,
+    { group: 'poster', key: 'chunk', primary: true, label: 'Mark size', type: 'range', min: 0.4, max: 1.6, step: 0.02,
       needs: { of: 'motif', key: 'silhouette', least: 1,
         without: 'No shape could be read out of this drawing, so no region can be the mark.' } },
-    { group: 'poster', key: 'glitch', label: 'Glitch', type: 'range', min: 0, max: 1, step: 0.01 },
+    { group: 'poster', key: 'glitch', primary: true, label: 'Glitch', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'poster', key: 'seed', label: 'Seed', type: 'seed' },
   ];
 

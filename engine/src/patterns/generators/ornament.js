@@ -157,11 +157,11 @@
   }
 
   const controls = [
-    { group: 'pattern', key: 'setting', label: 'Setting', type: 'chips', options: SETTINGS },
-    { group: 'pattern', key: 'cells', label: 'Sorts across', type: 'range', min: 2, max: 24, step: 1 },
+    { group: 'pattern', key: 'setting', primary: true, label: 'Setting', type: 'chips', options: SETTINGS },
+    { group: 'pattern', key: 'cells', primary: true, label: 'Sorts across', type: 'range', min: 2, max: 24, step: 1 },
     { group: 'pattern', key: 'lead', label: 'Leading', type: 'range', min: 0, max: 8, step: 1 },
     { group: 'pattern', key: 'rule', label: 'Rule', type: 'range', min: 0, max: 1, step: 0.02 },
-    { group: 'mark', key: 'scale', label: 'Sort size', type: 'range', min: 0.2, max: 1.2, step: 0.02,
+    { group: 'mark', key: 'scale', primary: true, label: 'Sort size', type: 'range', min: 0.2, max: 1.2, step: 0.02,
       needs: { of: 'motif', key: 'moves', least: 1,
         without: 'No shape could be read out of this drawing, so there is no sort to set. '
           + 'The rules are still here.' } },

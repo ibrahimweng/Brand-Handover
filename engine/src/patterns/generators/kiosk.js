@@ -137,14 +137,14 @@
   }
 
   const controls = [
-    { group: 'ground', key: 'split', label: 'Split', type: 'range', min: 0.15, max: 0.95, step: 0.01 },
+    { group: 'ground', key: 'split', primary: true, label: 'Split', type: 'range', min: 0.15, max: 0.95, step: 0.01 },
     { group: 'ground', key: 'sweep', label: 'Sweep bands', type: 'range', min: 2, max: 40, step: 1 },
     { group: 'ground', key: 'shift', label: 'Band shift', type: 'range', min: 0, max: 8, step: 1 },
-    { group: 'ground', key: 'stripes', label: 'Stripes', type: 'range', min: 2, max: 24, step: 1 },
+    { group: 'ground', key: 'stripes', primary: true, label: 'Stripes', type: 'range', min: 2, max: 24, step: 1 },
     { group: 'ground', key: 'blocks', label: 'Blocks', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'type', key: 'columns', label: 'Columns', type: 'range', min: 3, max: 30, step: 1 },
     { group: 'type', key: 'bigSize', label: 'Large size', type: 'range', min: 0.3, max: 1.6, step: 0.01 },
-    { group: 'type', key: 'large', label: 'How many large', type: 'range', min: 0, max: 1, step: 0.01 },
+    { group: 'type', key: 'large', primary: true, label: 'How many large', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'type', key: 'smallSize', label: 'Small size', type: 'range', min: 0.1, max: 0.9, step: 0.01 },
     { group: 'type', key: 'small', label: 'How many small', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'type', key: 'words', label: 'Name against mark', type: 'range', min: 0, max: 1, step: 0.01 },

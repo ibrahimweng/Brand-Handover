@@ -179,9 +179,9 @@
   }
 
   const controls = [
-    { group: 'pattern', key: 'layout', label: 'Layout', type: 'chips', options: LAYOUTS },
-    { group: 'pattern', key: 'cells', label: 'Cells across', type: 'range', min: 2, max: 24, step: 1 },
-    { group: 'pattern', key: 'scale', label: 'Motif size', type: 'range', min: 0.3, max: 1.4, step: 0.02 },
+    { group: 'pattern', key: 'layout', primary: true, label: 'Layout', type: 'chips', options: LAYOUTS },
+    { group: 'pattern', key: 'cells', primary: true, label: 'Cells across', type: 'range', min: 2, max: 24, step: 1 },
+    { group: 'pattern', key: 'scale', primary: true, label: 'Motif size', type: 'range', min: 0.3, max: 1.4, step: 0.02 },
     { group: 'pattern', key: 'turn', label: 'Rotation', type: 'range', min: 0, max: 180, step: 1 },
     { group: 'pattern', key: 'chequer', label: 'Chequer', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'mark', key: 'forms', label: 'Derived forms', type: 'range', min: 1, max: 4, step: 1,

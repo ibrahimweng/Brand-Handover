@@ -126,13 +126,13 @@
   }
 
   const controls = [
-    { group: 'poster', key: 'cells', label: 'Cells across', type: 'range', min: 8, max: 44, step: 1,
+    { group: 'poster', key: 'cells', primary: true, label: 'Cells across', type: 'range', min: 8, max: 44, step: 1,
       needs: { of: 'motif', key: 'silhouette', least: 1,
         without: 'No shape could be read out of this drawing, so the field has nothing to be made of.' } },
     { group: 'poster', key: 'chunk', label: 'Mark size', type: 'range', min: 0.4, max: 1.6, step: 0.02 },
-    { group: 'poster', key: 'coverage', label: 'Grow or shrink', type: 'range', min: 0.2, max: 0.8, step: 0.01 },
+    { group: 'poster', key: 'coverage', primary: true, label: 'Grow or shrink', type: 'range', min: 0.2, max: 0.8, step: 0.01 },
     { group: 'poster', key: 'grids', label: 'Survey clusters', type: 'range', min: 0, max: 8, step: 1 },
-    { group: 'poster', key: 'weight', label: 'Line weight', type: 'range', min: 0.5, max: 3, step: 0.5 },
+    { group: 'poster', key: 'weight', primary: true, label: 'Line weight', type: 'range', min: 0.5, max: 3, step: 0.5 },
     { group: 'poster', key: 'seed', label: 'Seed', type: 'seed' },
   ];
 

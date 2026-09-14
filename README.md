@@ -3918,3 +3918,89 @@ a palette torn out of a magazine — none of those is a pattern, and there is
 nothing in them the six measurements can read. Letting them in would mean the
 engine inferring where everything else in it measures. That is a real gap and it
 is stated rather than filled.
+
+## An app is a frame, not a document
+
+Six screens, and five of them ran off the bottom of a 1440×900 laptop — the
+questions step by 1,824 px and the pattern step by 1,633. Both still overflowed
+at 1920×1080, which is the largest display anybody here uses. Measured rather
+than noticed: `engine/tools/does-it-fit.mjs` walks the flow at a viewport and
+reports, per step, whether the page scrolls and whether the work area inside it
+does.
+
+The body is a three-row grid the height of the viewport now, and it never
+scrolls. The step nav and the bar are always where they were a moment ago, which
+is the whole difference between a web page and an app. Where a screen genuinely
+holds more than a viewport — a phone — the *work area* scrolls inside its frame
+rather than the page moving under the chrome. `dvh` and not `vh`, because on a
+phone `vh` is the tallest the viewport ever gets, so a `vh`-sized app is one
+whose footer hides under the browser's own toolbar until you scroll.
+
+At 1920×1080, 1600×900, 1440×900 and an iPad, every step of the flow now fits
+with nothing scrolling at all.
+
+### Fitting is not the same as calm
+
+Everything fitted, and the pattern screen still met a person with thirty-two
+generator chips, up to twelve sliders, a colourway and an effects picker. About
+fifty controls and no indication which one to touch.
+
+So it is ranked rather than merely arranged. On the surface: the six patterns
+the engine suits this mark to, the two or three knobs a designer actually
+reaches for, and the way forward. One press away and labelled with what is
+behind it: the other twenty-six patterns, grouped by whether they are a repeat,
+a ground or a page; the rest of this generator's controls; the effect layers.
+
+**Which two or three is a judgement, so each generator makes it.** What you
+reach for first on a tartan is the weave and on a terrazzo is the cut, and no
+rule about declaration order or group names knows that — all thirty-two mark
+their own, and a test asserts each marks between two and four and never puts the
+seed first. A generator added without an opinion fails rather than quietly
+showing everything again.
+
+Nothing is hidden. Every press is visible, says what is behind it, and carries a
+count: "Fine tuning · 9", "Effects · 1 on". A layer that is doing something says
+so on the shut fold as well as in the open list.
+
+### Feedback is the answer to a control you cannot see working
+
+Every control on that screen changes a picture two hundred pixels away, and a
+control that changes something far from the finger has to say so where the
+finger is. A chip presses in. The number beside a slider lifts and warms for a
+third of a second. The sheet cross-fades rather than cutting, so a change reads
+as the same pattern moving instead of a different one arriving. Nothing lasts
+longer than a quarter second, because a transition you wait for has become an
+obstacle, and all of it is off under `prefers-reduced-motion`.
+
+### What the tap-likelihood script found
+
+`engine/tools/where-they-press.mjs` scores every target on a screen — reading
+order, size, visual weight, and what it is — and prints each one's share of the
+predicted presses, with a heat overlay. It is a prediction, not a recording,
+but it is made of things that can be measured.
+
+It found its own bug first: the layout step reported two targets, because the
+four specimen choices are `role="radio"` divs and the selector only looked for
+buttons. The script was wrong, not the screen.
+
+Then it found a real one. **Eight of the thirty-two targets on the pattern
+screen were under 24 px in one direction, and all eight were sliders** — 292 px
+wide by 13 px tall — which are also the most-pressed thing on that screen after
+the chips. Thirteen pixels is a fiddle with a mouse and a miss with a thumb. The
+input is 24 px of hit area now (34 where the pointer is coarse) with a 4 px
+track drawn inside it, and the fill is painted rather than left to
+`accent-color`, because styling the track at all gives up the browser's own
+filled portion. No target on any screen is under 24 px now.
+
+### Three CSS faults worth writing down
+
+**`display:grid` on a class beats `[hidden]`.** An author rule beats a
+user-agent one whatever the specificity, so the "every pattern" sheet was open
+from the moment the screen drew.
+
+**A stretched grid row makes a pill into a circle.** The colourway chips and a
+two-line clamp were both being stretched down a column that had no
+`align-content: start` on it — the clamp had five lines of room and used them.
+
+**`aspect-ratio` loses to two definite lengths.** `height:100%` and
+`max-width:100%` on the same box gave a 533×581 "square" preview.

@@ -156,10 +156,10 @@
   }
 
   const controls = [
-    { group: 'signal', key: 'bands', label: 'Bands', type: 'range', min: 1, max: 14, step: 1 },
+    { group: 'signal', key: 'bands', primary: true, label: 'Bands', type: 'range', min: 1, max: 14, step: 1 },
     { group: 'signal', key: 'resolution', label: 'Resolution', type: 'range', min: 24, max: 300, step: 2 },
-    { group: 'signal', key: 'spread', label: 'Colour spread', type: 'range', min: 0, max: 1, step: 0.01 },
-    { group: 'damage', key: 'smear', label: 'Smear', type: 'range', min: 0, max: 1, step: 0.01 },
+    { group: 'signal', key: 'spread', primary: true, label: 'Colour spread', type: 'range', min: 0, max: 1, step: 0.01 },
+    { group: 'damage', key: 'smear', primary: true, label: 'Smear', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'damage', key: 'flashes', label: 'Flashes', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'mark', key: 'mark', label: 'The signal is the mark', type: 'range', min: 0, max: 1, step: 0.01,
       needs: { of: 'motif', key: 'masked', least: 1,

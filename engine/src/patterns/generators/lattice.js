@@ -212,10 +212,10 @@
   }
 
   const controls = [
-    { group: 'lattice', key: 'scale', label: 'Motif size', type: 'range', min: 0.05, max: 0.45, step: 0.005 },
-    { group: 'lattice', key: 'gap', label: 'Spacing', type: 'range', min: 0.02, max: 2.5, step: 0.02 },
+    { group: 'lattice', key: 'scale', primary: true, label: 'Motif size', type: 'range', min: 0.05, max: 0.45, step: 0.005 },
+    { group: 'lattice', key: 'gap', primary: true, label: 'Spacing', type: 'range', min: 0.02, max: 2.5, step: 0.02 },
     { group: 'lattice', key: 'drop', label: 'Row drop', type: 'range', min: 0, max: 1, step: 0.01 },
-    { group: 'lattice', key: 'turn', label: 'Rotation', type: 'range', min: 0, max: 180, step: 1 },
+    { group: 'lattice', key: 'turn', primary: true, label: 'Rotation', type: 'range', min: 0, max: 180, step: 1 },
     { group: 'lattice', key: 'flip', label: 'Mirror', type: 'chips', options: ['none', 'rows', 'columns', 'both'],
       needs: { of: 'motif', key: 'mirrorable', least: 1,
         without: 'This shape is the wordmark. A word mirrored reads as a mistake, not a pattern.' } },

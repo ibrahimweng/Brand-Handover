@@ -409,9 +409,9 @@
   }
 
   const controls = [
-    { group: 'pattern', key: 'cells', label: 'Cells', type: 'range', min: 8, max: 72, step: 4 },
-    { group: 'pattern', key: 'chunk', label: 'Coarseness', type: 'range', min: 0.6, max: 2, step: 0.05 },
-    { group: 'pattern', key: 'style', label: 'Style', type: 'chips', options: STYLES },
+    { group: 'pattern', key: 'cells', primary: true, label: 'Cells', type: 'range', min: 8, max: 72, step: 4 },
+    { group: 'pattern', key: 'chunk', primary: true, label: 'Coarseness', type: 'range', min: 0.6, max: 2, step: 0.05 },
+    { group: 'pattern', key: 'style', primary: true, label: 'Style', type: 'chips', options: STYLES },
     { group: 'pattern', key: 'seed', label: 'Seed', type: 'seed' },
   ];
 

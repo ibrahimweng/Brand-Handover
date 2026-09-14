@@ -186,11 +186,11 @@
   }
 
   const controls = [
-    { group: 'pattern', key: 'way', label: 'Reading', type: 'chips', options: WAYS },
-    { group: 'pattern', key: 'cells', label: 'States across', type: 'range', min: 2, max: 16, step: 1 },
+    { group: 'pattern', key: 'way', primary: true, label: 'Reading', type: 'chips', options: WAYS },
+    { group: 'pattern', key: 'cells', primary: true, label: 'States across', type: 'range', min: 2, max: 16, step: 1 },
     { group: 'field', key: 'across', label: 'Varies across', type: 'chips', options: AXES },
     { group: 'field', key: 'down', label: 'Varies down', type: 'chips', options: AXES },
-    { group: 'field', key: 'range', label: 'Travel', type: 'range', min: 0, max: 1, step: 0.01,
+    { group: 'field', key: 'range', primary: true, label: 'Travel', type: 'range', min: 0, max: 1, step: 0.01,
       needs: { of: 'motif', key: 'moves', least: 1,
         without: 'No shape could be read out of this drawing, so there are no states to read. '
           + 'The grid is still here.' } },

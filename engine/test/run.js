@@ -3663,6 +3663,33 @@ test('every construction makes a tile that repeats seamlessly', () => {
     geo.inkBox(t.svg);                     // throws if the renderer cannot read it
   }
 });
+test('every generator says which two or three of its controls come first', () => {
+  /* The pattern screen shows a generator's primary controls and folds the rest
+     behind a press, so what is `primary` decides what a person meets. That is a
+     judgement about each tool — the first thing to reach for on a tartan is the
+     weave and on a terrazzo is the cut — and no rule about declaration order or
+     group names knows it, so each generator states its own.
+
+     Asserted because the failure is silent. A generator added without the flag
+     would show nothing on the surface and everything behind the fold, and the
+     screen would look like it was working. */
+  const bad = [];
+  for (const name of PENG.NAMES) {
+    const controls = PENG.GENERATORS[name].controls || [];
+    const first = controls.filter((c) => c.primary);
+    if (first.length < 2 || first.length > 4) {
+      bad.push(`${name} marks ${first.length} controls primary, and it should mark two to four`);
+      continue;
+    }
+    // a primary control has to be one a person can actually move
+    for (const c of first) {
+      if (!c.key || !c.label) bad.push(`${name} marks a control with no key or label primary`);
+      if (c.type === 'seed') bad.push(`${name} puts the seed first, and a seed is not a decision`);
+    }
+  }
+  assert.deepStrictEqual(bad, [], bad.slice(0, 5).join('\n'));
+});
+
 test('every generator that deals a cell by its position deals it periodically', () => {
   /* The same argument as the weave test above, applied to the three tools that
      deal a *cell* rather than compute one: monogram deals a derived form,

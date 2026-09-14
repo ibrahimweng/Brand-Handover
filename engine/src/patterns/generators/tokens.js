@@ -161,15 +161,15 @@
   }
 
   const controls = [
-    { group: 'poster', key: 'grid', label: 'Grid', type: 'range', min: 6, max: 40, step: 1 },
+    { group: 'poster', key: 'grid', primary: true, label: 'Grid', type: 'range', min: 6, max: 40, step: 1 },
     { group: 'poster', key: 'rect', label: 'Rule spacing', type: 'range', min: 1, max: 10, step: 1 },
     { group: 'poster', key: 'rules', label: 'Grid lines', type: 'range', min: 0, max: 1, step: 0.01 },
-    { group: 'cluster', key: 'count', label: 'Clusters', type: 'range', min: 1, max: 120, step: 1 },
+    { group: 'cluster', key: 'count', primary: true, label: 'Clusters', type: 'range', min: 1, max: 120, step: 1 },
     { group: 'cluster', key: 'clustering', label: 'Clustering', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'cluster', key: 'alignment', label: 'Alignment', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'cluster', key: 'chain', label: 'Chain length', type: 'range', min: 2, max: 12, step: 1 },
     { group: 'cluster', key: 'upright', label: 'Upright chains', type: 'range', min: 0, max: 1, step: 0.01 },
-    { group: 'token', key: 'size', label: 'Size', type: 'range', min: 0.1, max: 1, step: 0.01 },
+    { group: 'token', key: 'size', primary: true, label: 'Size', type: 'range', min: 0.1, max: 1, step: 0.01 },
     { group: 'token', key: 'variation', label: 'Size variation', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'token', key: 'hierarchy', label: 'Hierarchy', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'token', key: 'markShare', label: 'The mark', type: 'range', min: 0, max: 1, step: 0.01,

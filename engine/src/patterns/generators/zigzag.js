@@ -206,11 +206,11 @@
   }
 
   const controls = [
-    { group: 'pattern', key: 'stripe', label: 'Stripe width', type: 'range', min: 0.03, max: 0.25, step: 0.005 },
-    { group: 'pattern', key: 'depth', label: 'Tooth depth', type: 'range', min: 0.2, max: 1.4, step: 0.02 },
+    { group: 'pattern', key: 'stripe', primary: true, label: 'Stripe width', type: 'range', min: 0.03, max: 0.25, step: 0.005 },
+    { group: 'pattern', key: 'depth', primary: true, label: 'Tooth depth', type: 'range', min: 0.2, max: 1.4, step: 0.02 },
     { group: 'pattern', key: 'length', label: 'Tooth length', type: 'range', min: 0.05, max: 0.4, step: 0.01 },
     { group: 'pattern', key: 'rounding', label: 'Rounding', type: 'range', min: 0, max: 1, step: 0.01 },
-    { group: 'pattern', key: 'style', label: 'Style', type: 'chips', options: STYLES },
+    { group: 'pattern', key: 'style', primary: true, label: 'Style', type: 'chips', options: STYLES },
   ];
 
   return { key: 'zigzag', chosen: true, matchable: true, vector: true, styles: STYLES, controls,

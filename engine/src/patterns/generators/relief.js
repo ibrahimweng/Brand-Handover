@@ -181,8 +181,8 @@
   }
 
   const controls = [
-    { group: 'blocks', key: 'way', label: 'The mark is', type: 'chips', options: WAYS },
-    { group: 'blocks', key: 'cubes', label: 'Cubes across', type: 'range', min: 4, max: 40, step: 1 },
+    { group: 'blocks', key: 'way', primary: true, label: 'The mark is', type: 'chips', options: WAYS },
+    { group: 'blocks', key: 'cubes', primary: true, label: 'Cubes across', type: 'range', min: 4, max: 40, step: 1 },
     { group: 'blocks', key: 'unit', label: 'Repeat', type: 'range', min: 2, max: 24, step: 1 },
     { group: 'blocks', key: 'interlock', label: 'Interlock', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'blocks', key: 'flats', label: 'Flats', type: 'range', min: 0, max: 1, step: 0.01 },
@@ -190,7 +190,7 @@
     // the field is the plain tumbling block; at one the drawing decides every
     // cube. It says what it needs, because a mark too thin to raster has no
     // bitmap and this control would otherwise sit there doing nothing.
-    { group: 'blocks', key: 'mark', label: 'Mark in relief', type: 'range', min: 0, max: 1, step: 0.01,
+    { group: 'blocks', key: 'mark', primary: true, label: 'Mark in relief', type: 'range', min: 0, max: 1, step: 0.01,
       needs: { of: 'motif', key: 'masked', least: 1,
         without: 'No bitmap could be taken of this shape — it is finer than the grid '
           + 'that reads it. The blocks are dealt at random instead.' } },

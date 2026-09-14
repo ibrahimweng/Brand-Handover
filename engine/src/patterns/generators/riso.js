@@ -185,9 +185,9 @@
   }
 
   const controls = [
-    { group: 'poster', key: 'bands', label: 'Bands', type: 'range', min: 1, max: 8, step: 1 },
-    { group: 'poster', key: 'rough', label: 'Tear', type: 'range', min: 0, max: 2, step: 0.02 },
-    { group: 'poster', key: 'mark', label: 'The mark', type: 'range', min: 0, max: 1, step: 0.01,
+    { group: 'poster', key: 'bands', primary: true, label: 'Bands', type: 'range', min: 1, max: 8, step: 1 },
+    { group: 'poster', key: 'rough', primary: true, label: 'Tear', type: 'range', min: 0, max: 2, step: 0.02 },
+    { group: 'poster', key: 'mark', primary: true, label: 'The mark', type: 'range', min: 0, max: 1, step: 0.01,
       needs: { of: 'motif', key: 'silhouette', least: 1,
         without: 'No shape could be read out of this drawing, so there is nothing to tear out.' } },
     { group: 'poster', key: 'scribbles', label: 'Scribbles', type: 'range', min: 0, max: 2, step: 0.05 },

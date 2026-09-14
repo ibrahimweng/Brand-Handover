@@ -20,65 +20,322 @@
   --ink:#F0F1F2; --ink-2:#A0A5A9; --ink-3:#767B7F; --accent:#7FBFA6;
 }}
 *{box-sizing:border-box}
-html,body{height:100%}
-body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--ui);
+/* The app is a frame, not a document.
+
+   Every screen used to be a column that grew until it was done and the page
+   scrolled to meet it. Measured, that was not a Pattern-screen problem: at
+   1440x900 the artwork step ran 159 px past the fold, the layout step 47, the
+   words step 197, the pattern step 1,633 and the questions step 1,824 — and
+   questions and pattern still overflowed at 1920x1080. Six screens, five of
+   them overflowing, on the largest display anybody here uses.
+
+   So the body is a three-row grid the height of the viewport, and it never
+   scrolls. The bar and the step nav are always where they were a moment ago,
+   which is the whole difference between a web page and an app. Where a screen
+   genuinely holds more than a viewport — a phone, mostly — the *work area*
+   scrolls inside its frame rather than the page moving underneath the chrome.
+
+   dvh rather than vh: on a phone vh is the tallest the viewport ever gets, so
+   a vh-sized app is one whose footer sits under the browser's own toolbar until
+   you scroll, which is exactly the thing being fixed. */
+html{height:100%}
+body{margin:0;height:100dvh;display:grid;grid-template-rows:auto minmax(0,1fr) auto;
+  overflow:hidden;background:var(--paper);color:var(--ink);font-family:var(--ui);
   font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
 h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.025em;text-wrap:balance}
 p{margin:0}
 button{font:inherit;color:inherit}
 
 /* ------------------------------------------------------------- the pattern */
-.patt{display:grid;grid-template-columns:250px minmax(0,1fr) 260px;gap:18px;
-  align-items:start;margin-top:22px}
-.prail h3,.pside h3{font-size:11px;letter-spacing:.09em;text-transform:uppercase;
-  color:var(--ink-3);margin:0 0 8px}
-.prail h3+*{margin-bottom:16px}
-.pchips{display:flex;flex-wrap:wrap;gap:5px}
+/* Three columns, each filling the frame it is in.
+
+   It used to be one rail that grew: thirty-two generator chips at 304 px, the
+   generator's own controls at about 900, and nineteen effect layers listed one
+   per row at 702 — 2,081 px of rail beside a 542 px preview, on a screen with
+   555 px to give. Three quarters of the height was in a column a third of the
+   width.
+
+   So the generators come out of the rail and run as a strip over the preview,
+   where they are two rows rather than eleven; the generator's own controls keep
+   the left column to themselves; and the effect layers become one picker on the
+   right with the chosen layer's channels under it. Each column is its own
+   scroll region rather than the page being one, so the preview never moves. */
+/* A wider control column, holding two columns of controls.
+
+   One column at 220 px gave 460 px of room, and fifteen of the thirty-two
+   generators need more than that — stipple wants 709. No amount of line-height
+   closes a gap like that, and hiding half a generator's controls behind a
+   disclosure is the thing this screen exists not to do. Two columns of controls
+   doubles the room and costs the preview about eighty pixels, which it has. */
+.patt{display:grid;grid-template-columns:clamp(200px,23vw,296px) minmax(0,1fr) clamp(192px,16vw,224px);
+  gap:clamp(10px,1.2vw,18px);min-height:0;height:100%}
+#pctls{display:grid;grid-template-columns:repeat(auto-fill,minmax(146px,1fr));
+  gap:0 clamp(8px,1vw,14px);align-content:start}
+#pctls>.pgrp{grid-column:1/-1}
+/* A control with a note under it explains itself and wants its own line.
+
+   A row of chips was given the width too, and measured, that was worse: it
+   wraps three deep in half a column and once across the whole one, but taking
+   the whole row breaks the packing for everything under it — stipple went from
+   fitting to 69 px over. Chips wrap. */
+#pctls>.pctl:has(.pcant),#pctls>.pctl:has(.pseed){grid-column:1/-1}
+/* The rail in flow order: the six chips, the press that opens the rest, the
+   controls, and the one button that undoes everything. Only the controls take
+   the slack — naming two rows for four children gave the slack to the first and
+   left the controls sitting on the floor of the column. */
+.prail{display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;min-height:0}
+/* Hugging the top, not stretched down the column: a stretched row makes a
+   pill-shaped chip into a circle and gives a two-line clamp five lines to fill.
+   Both were on screen before this line existed. */
+.pside{display:grid;min-height:0;align-content:start}
+.pside{grid-template-rows:auto auto auto auto}
+.pways{margin-top:8px;display:flex;justify-content:center;align-items:center}
+/* The square is the smaller of the two sides, asked for directly. Setting
+   height:100% and max-width:100% and hoping aspect-ratio arbitrates gives a
+   533x581 "square": the ratio loses to two definite lengths. */
+.pmid{display:grid;place-items:center;min-height:0;container-type:size}
+/* The one place a column may run past its frame. The preview beside it does not
+   move when it does, which is the difference that matters. */
+.pscroll{min-height:0;overflow:auto;overscroll-behavior:contain;padding-right:4px;
+  scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
+.pscroll::-webkit-scrollbar{width:7px}
+.pscroll::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:7px}
+.pfoot{padding-top:7px;border-top:1px solid var(--line);margin-top:7px}
+
+/* ------------------------------------------------- layered, not laid out flat
+
+   Everything on this screen used to be on this screen: thirty-two chips, every
+   control the generator has, nineteen effect layers. It fitted, after the last
+   round, and fitting is not the same as calm — a person opening it met about
+   fifty controls and no indication which one to touch.
+
+   So it is ranked. What the engine chose, six patterns it suits, and the two or
+   three knobs a designer actually reaches for are on the surface. Everything
+   else is one press away and says what it is: the other twenty-six patterns,
+   the rest of this generator's controls, the effect layers. Nothing is removed
+   and nothing is buried — the press is always visible and always labelled with
+   what is behind it. */
+.pmore{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;
+  border:1px solid var(--line);background:transparent;border-radius:9px;
+  padding:6px 10px;font-size:12px;color:var(--ink-2);cursor:pointer;margin-top:7px;
+  transition:background .16s var(--step),border-color .16s var(--step),color .16s var(--step)}
+.pmore:hover{background:var(--sunk);border-color:var(--line-2);color:var(--ink)}
+.pmore i{width:7px;height:7px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;
+  transform:rotate(45deg) translate(-1px,-1px);font-style:normal;flex:none;
+  transition:transform .22s var(--step)}
+.pmore[aria-expanded=true] i{transform:rotate(-135deg) translate(-1px,-1px)}
+.pmore.on{color:var(--ink);border-color:var(--line-2)}
+.pmore b{font-weight:400;font-family:var(--mono);font-size:10px;color:var(--ink-3);
+  letter-spacing:.06em}
+/* A disclosure that opens rather than appears. Height is animated from what the
+   content actually measures, so nothing is clipped and nothing jumps. */
+.pfold{display:grid;grid-template-rows:0fr;transition:grid-template-rows .26s var(--step),
+  opacity .2s var(--step);opacity:0}
+.pfold.open{grid-template-rows:1fr;opacity:1}
+.pfold>div{overflow:hidden;min-height:0}
+@media (prefers-reduced-motion:reduce){.pfold{transition:none}}
+
+/* The full set, as a sheet over the screen rather than a rail that grows. */
+/* `display:grid` on a class beats the browser's own `[hidden] {display:none}`,
+   because an author rule beats a user-agent one whatever the specificity. The
+   sheet was open from the moment the screen drew. */
+.psheetover[hidden]{display:none}
+.psheetover{position:fixed;inset:0;z-index:60;display:grid;place-items:center;
+  background:color-mix(in srgb,var(--ink) 34%,transparent);
+  backdrop-filter:blur(3px);animation:fade .18s var(--step) both;padding:18px}
+.psheetin{width:min(760px,100%);max-height:min(76vh,640px);display:grid;
+  grid-template-rows:auto minmax(0,1fr);background:var(--paper);border:1px solid var(--line);
+  border-radius:16px;overflow:hidden;box-shadow:0 24px 70px -20px color-mix(in srgb,var(--ink) 40%,transparent);
+  animation:rise .24s var(--step) both}
+.psheetin header{display:flex;align-items:center;gap:12px;padding:13px 16px;
+  border-bottom:1px solid var(--line)}
+.psheetin header b{font-size:14px}
+.pclose{margin-left:auto;border:0;background:transparent;font-size:22px;line-height:1;
+  color:var(--ink-3);cursor:pointer;padding:0 4px;border-radius:7px;transition:color .14s}
+.pclose:hover{color:var(--ink)}
+.pallbody{overflow:auto;padding:14px 16px 18px;display:grid;gap:14px;align-content:start}
+.pallgrp{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);
+  margin-bottom:7px}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes rise{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.psheetover,.psheetin{animation:none}}
+.prail h3,.pside h3{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 6px}
+.pchips{display:flex;flex-wrap:wrap;gap:4px}
+/* The generator strip: every tool the engine has, across the full width, in the
+   two rows that eleven rows of a 250 px rail used to cost. Full width and not
+   over the preview alone, because thirty-two chips in a 560 px column is four
+   rows and a strip that shows two and a half of them is worse than a rail. */
+.pgens{align-content:flex-start;row-gap:4px}
+/* ---------------------------------------------------------------- feedback
+
+   Every control on this screen changes a picture two hundred pixels away, and
+   a control that changes something far from the finger has to say so where the
+   finger is. That is the whole of the motion here: not decoration, an answer.
+
+   A chip presses in. A slider's number lifts and warms for as long as it takes
+   to notice. The preview cross-fades rather than cutting, so a change reads as
+   the same pattern moving instead of a different pattern arriving. All of it
+   is short — nothing here is longer than a quarter of a second, because a
+   transition you wait for is a transition that has become an obstacle. */
 .pchip{border:1px solid var(--line-2);background:var(--raised);border-radius:999px;
-  padding:4px 11px;font-size:12.5px;cursor:pointer;transition:.12s var(--step)}
-.pchip:hover{border-color:var(--ink-3)}
+  padding:3px 9px;font-size:12px;cursor:pointer;white-space:nowrap;
+  transition:background .16s var(--step),color .16s var(--step),
+    border-color .16s var(--step),transform .12s var(--step)}
+.pchip:hover{border-color:var(--ink-3);background:var(--sunk)}
+.pchip:active{transform:scale(.95)}
 .pchip.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
-.pgrp{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);
-  margin:18px 0 10px;padding-top:13px;border-top:1px solid var(--line)}
-.pctl{margin-bottom:13px}
-/* The effect layers: a head per layer, its own controls indented under it when
-   it is on, so nineteen of them read as a list rather than as two hundred
-   sliders. */
-.pfxhead{display:flex;align-items:center;gap:8px;margin:0 0 8px}
-.pfxhead .pfxfield{width:26px;height:26px;border:1px solid var(--line);border-radius:2px;overflow:hidden;flex:0 0 auto;margin-left:auto}
-.pfxhead.on{margin-bottom:10px}
-.pctl.pfxctl{margin-left:12px;padding-left:10px;border-left:1px solid var(--line);margin-bottom:9px}
+.pchip.on:hover{background:var(--ink)}
+.pchip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.pgrp{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);
+  margin:7px 0 4px;padding-top:6px;border-top:1px solid var(--line)}
+/* A control is a line and a track, not a paragraph. */
+.pctl{margin-bottom:4px}
 .pctl.idle{opacity:.55}
-.pctl .pcant{margin:5px 0 0;font-size:11px;line-height:1.45;color:var(--ink-3)}
-.pctl .pk{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-2);
-  margin-bottom:4px}
-.pctl .pk .pv{color:var(--ink);font-variant-numeric:tabular-nums}
-.pctl input[type=range]{width:100%;accent-color:var(--accent)}
-.pseed{display:flex;gap:6px}
-.pseed input{width:68px;border:1px solid var(--line-2);background:var(--raised);
-  border-radius:7px;padding:3px 7px;font:inherit;font-size:12.5px;color:inherit}
+.pctl .pcant{margin:3px 0 0;font-size:10.5px;line-height:1.4;color:var(--ink-3);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pctl .pk{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--ink-2);
+  margin-bottom:0;line-height:1.25}
+.pctl .pk span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pctl .pk .pv{color:var(--ink);font-variant-numeric:tabular-nums;flex:none;
+  padding:0 4px;margin:0 -4px;border-radius:5px;
+  transition:background .5s var(--step),color .5s var(--step)}
+/* The number says it heard you, then stops saying it. */
+.pctl .pk .pv.just{background:color-mix(in srgb,var(--accent) 17%,transparent);
+  color:var(--accent);transition-duration:.06s}
+/* The sheet fades between one pattern and the next rather than cutting. */
+.pstage svg{transition:opacity .2s var(--step)}
+.pstage.swap svg{opacity:.3}
+@media (prefers-reduced-motion:reduce){
+  .pchip,.pctl .pk .pv,.pstage svg{transition:none}
+  .pchip:active{transform:none}
+}
+/* A slider is a 13 px target.
+
+   That is what the tap-likelihood script measured: eight of the thirty-two
+   targets on this screen were under 24 px in one direction and all eight were
+   sliders, which are also the most-pressed thing on it after the chips. Thirteen
+   pixels is a fiddle with a mouse and a miss with a thumb.
+
+   So the input is 24 px of hit area — 34 where the pointer is coarse — with a
+   4 px track drawn inside it. The fill has to be painted rather than left to
+   `accent-color`, because styling the track at all gives up the browser's own
+   filled portion; `--fill` is written by the same handler that writes the
+   value. The thumb grows under the finger, which is the one bit of motion on
+   the whole control and the only one it needs: it says "this one, still". */
+.pctl input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:24px;
+  margin:0;display:block;background:transparent;cursor:pointer}
+.pctl input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:4px;
+  background:linear-gradient(to right,var(--accent) var(--fill,50%),var(--line-2) var(--fill,50%))}
+.pctl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+  width:14px;height:14px;margin-top:-5px;border:0;border-radius:50%;background:var(--accent);
+  transition:transform .13s var(--step),box-shadow .18s var(--step)}
+.pctl input[type=range]::-moz-range-track{height:4px;border-radius:4px;background:var(--line-2)}
+.pctl input[type=range]::-moz-range-progress{height:4px;border-radius:4px;background:var(--accent)}
+.pctl input[type=range]::-moz-range-thumb{width:14px;height:14px;border:0;border-radius:50%;
+  background:var(--accent);transition:transform .13s var(--step)}
+.pctl input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.14)}
+.pctl input[type=range]:active::-webkit-slider-thumb{transform:scale(1.3);
+  box-shadow:0 0 0 6px color-mix(in srgb,var(--accent) 20%,transparent)}
+.pctl input[type=range]:hover::-moz-range-thumb{transform:scale(1.14)}
+.pctl input[type=range]:focus-visible{outline:0}
+.pctl input[type=range]:focus-visible::-webkit-slider-thumb{
+  box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 34%,transparent)}
+.pctl input[type=range]:focus-visible::-moz-range-thumb{
+  box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 34%,transparent)}
+@media (pointer:coarse){.pctl input[type=range]{height:34px}
+  .pctl input[type=range]::-webkit-slider-thumb{width:18px;height:18px;margin-top:-7px}}
+@media (prefers-reduced-motion:reduce){
+  .pctl input[type=range]::-webkit-slider-thumb{transition:none}
+  .pctl input[type=range]::-moz-range-thumb{transition:none}}
+.pseed{display:flex;gap:5px}
+.pseed input{width:58px;border:1px solid var(--line-2);background:var(--raised);
+  border-radius:6px;padding:2px 6px;font:inherit;font-size:12px;color:inherit}
 .pseed button{flex:1;border:1px solid var(--line-2);background:var(--raised);
-  border-radius:7px;padding:3px 9px;font-size:12.5px;cursor:pointer}
-.prevert{width:100%;margin-top:18px;border:1px solid var(--line-2);background:var(--raised);
-  border-radius:9px;padding:7px 10px;font-size:12.5px;cursor:pointer}
+  border-radius:6px;padding:2px 8px;font-size:12px;cursor:pointer}
+.prevert{width:100%;margin-top:8px;border:1px solid var(--line-2);background:var(--raised);
+  border-radius:8px;padding:5px 9px;font-size:12px;cursor:pointer}
 .prevert:hover{border-color:var(--ink-3)}
-.pstage{aspect-ratio:1;border:1px solid var(--line);border-radius:12px;overflow:hidden;
-  background:var(--sunk);min-height:320px}
+/* The sheet keeps the shape it was drawn in. Stretching it to the column would
+   be showing the client a pattern their package does not contain. */
+.pstage{border:1px solid var(--line);border-radius:12px;overflow:hidden;
+  background:var(--sunk);display:grid;place-items:stretch;
+  width:min(100cqw,100cqh);height:min(100cqw,100cqh)}
 .pstage svg{width:100%;height:100%;display:block}
-.ptile{aspect-ratio:1;border:1px solid var(--line);border-radius:9px;overflow:hidden;
-  margin-bottom:12px}
+/* The single tile fills the column it is in. It was sized by a max-height and
+   an auto width, which resolved to 102 px in a 224 px column — a thumbnail of
+   a thumbnail, in the one place on the screen with room to spare. */
+.ptile{aspect-ratio:1;border:1px solid var(--line);border-radius:10px;overflow:hidden;width:100%}
 .ptile svg{width:100%;height:100%;display:block}
-.pwhy{color:var(--ink-2);font-size:13px;line-height:1.5}
-.phold{color:var(--ink-3);font-size:12.5px;line-height:1.5;margin-top:9px}
+/* Why these numbers: two lines, and the rest on request. It is the reasoning
+   behind every slider on the screen and it is also 230 px of prose, which on a
+   900-tall laptop is more room than the preview it explains. */
+.pwhy{color:var(--ink-2);font-size:11.5px;line-height:1.45;margin-top:7px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
+.pwhy.open{-webkit-line-clamp:unset;max-height:34vh;overflow:auto;cursor:default}
+.pwhy::after{content:' more';color:var(--ink-3);font-family:var(--mono);font-size:10px}
+.pwhy.open::after{content:''}
+.phold{color:var(--ink-3);font-size:11px;line-height:1.4;margin-top:5px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+/* The effect layers: one picker, and the chosen layer's channels under it. A
+   layer that is doing something says so in the list, so nothing is hidden by
+   being unselected. */
+.pfx{display:grid;grid-template-rows:auto auto minmax(0,1fr);min-height:0;
+  padding-top:9px;border-top:1px solid var(--line);margin-top:9px}
+#pfxpick{width:100%;padding:5px 8px;font:inherit;font-size:12px;border-radius:8px;
+  border:1px solid var(--line-2);background:var(--raised);color:var(--ink);margin-bottom:7px}
+.pfxfield{width:100%;height:clamp(26px,4vh,40px);border:1px solid var(--line);border-radius:6px;
+  overflow:hidden;margin-bottom:7px}
+.pfxnone{font-size:11px;color:var(--ink-3);line-height:1.45}
 .phold.over{color:var(--bad)}
+/* Narrower than a laptop: the preview and its strip come first, the two control
+   columns share the row under it. Below that it is one column and the work area
+   scrolls, which is what a phone does. */
 @media (max-width:1000px){
-  .patt{grid-template-columns:1fr}
-  .pstage{min-height:260px}
+  .patt{grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    grid-template-rows:minmax(160px,1.1fr) minmax(0,1fr)}
+  .pmid{grid-column:1/-1}
+}
+/* A phone.
+
+   Three columns become one, and the order changes: the preview is the thing
+   being changed, so it comes first rather than after a column of sliders. The
+   work area scrolls — a phone has 500 px of height and this screen has more
+   than that in it — but the header and the bar do not, so Continue is always
+   where it was.
+
+   `display:block` on the two asides, not a one-column grid: they are
+   grid-template-rows grids on a desktop and leaving that in place stacked their
+   rows on top of each other, which is what the first attempt at this drew. */
+@media (max-width:640px){
+  /* `align-content:start` and items that will not shrink: the work area is a
+     fixed-height frame, so a grid row of `auto` inside it is still squeezed to
+     fit and a flex column inside that squeezed row shrinks its items. The
+     preview came out 143 px tall holding a 358 px drawing, which is what drew
+     the sliders over the pattern. Here the content keeps its size and the frame
+     scrolls, which is the whole arrangement. */
+  #p-pattern .pbd{grid-template-rows:auto auto;align-content:start;overflow:auto}
+  .patt{display:flex;flex-direction:column;height:auto;gap:12px}
+  .pmid,.prail,.pside{flex:0 0 auto}
+  .pmid{order:-1}
+  .prail,.pside{display:block;min-height:0}
+  .pscroll{overflow:visible;min-height:0}
+  .pfoot,.pfx{padding-top:10px;margin-top:10px}
+  .pstage{aspect-ratio:1;width:100%;height:auto;max-height:none;justify-self:stretch}
+  .ptile{max-height:104px}
+  .pwhy{-webkit-line-clamp:3}
+  /* One row that swipes, rather than eight rows of chips that push the preview
+     off the screen before it has been looked at. */
+  .pgens{flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;
+    scroll-snap-type:x proximity;padding-bottom:3px;scrollbar-width:none}
+  .pgens::-webkit-scrollbar{display:none}
+  .pchip{scroll-snap-align:start;flex:none}
+  #pctls{grid-template-columns:repeat(auto-fill,minmax(132px,1fr))}
 }
 
 /* ---------------------------------------------------------------- furniture */
-.top{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:20px;
-  padding:0 clamp(18px,4vw,46px);height:62px;background:color-mix(in srgb,var(--paper) 88%,transparent);
+.top{z-index:30;display:flex;align-items:center;gap:20px;
+  padding:0 clamp(18px,4vw,46px);height:clamp(50px,6.4vh,62px);flex:none;background:color-mix(in srgb,var(--paper) 88%,transparent);
   backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
 .logo{display:flex;align-items:center;gap:9px;font-weight:600;letter-spacing:-.03em;font-size:16.5px}
 .logo i{width:15px;height:15px;border:2.5px solid var(--ink);border-radius:50%;
@@ -89,24 +346,75 @@ button{font:inherit;color:inherit}
 .steps b.done{color:var(--ink-2)}
 @media (max-width:700px){.steps b:not(.on){display:none}}
 
-.wrap{max-width:1180px;margin:0 auto;padding:clamp(28px,5vw,68px) clamp(18px,4vw,46px) 120px}
-.panel{display:none;animation:in .38s var(--step) both}
-.panel.on{display:block}
+/* One row of the frame, and the only one that may be short of room. Its
+   padding is in vh as well as px so a 720-tall laptop does not spend a fifth of
+   its screen on margins. */
+.wrap{width:100%;max-width:1180px;margin:0 auto;min-height:0;display:grid;overflow:hidden;
+  padding:clamp(14px,2.6vh,34px) clamp(16px,4vw,46px)}
+.panel{display:none;animation:in .38s var(--step) both;min-height:0}
+/* head, then the work: the head is whatever it needs, the work takes the rest */
+.panel.on{display:grid;grid-template-rows:auto minmax(0,1fr);gap:clamp(8px,1.5vh,20px);
+  min-height:0;overflow:hidden}
+.phd{min-height:0}
+/* The work area. `auto` rather than `hidden` is deliberate: the aim is that it
+   never needs to scroll on a desktop, and the design below is measured against
+   that — but a phone in landscape is 390 px tall and no amount of layout makes
+   seven questions fit in it. When it does scroll, the chrome stays put. */
+.pbd{min-height:0;overflow:auto;overscroll-behavior:contain;
+  scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
+.pbd::-webkit-scrollbar{width:9px;height:9px}
+.pbd::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:9px;
+  border:3px solid var(--paper)}
+.pbd::-webkit-scrollbar-track{background:transparent}
 @keyframes in{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.panel{animation:none}}
 
-.lede{max-width:34ch;font-size:clamp(30px,4.6vw,46px);line-height:1.08;letter-spacing:-.035em;font-weight:600}
-.sub{margin-top:14px;max-width:56ch;color:var(--ink-2);font-size:17px}
-.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
-  color:var(--ink-3);margin-bottom:20px}
+/* Sized by the height it is given as well as the width. A 46 px headline is
+   right on a 27-inch display and is a tenth of a laptop's screen. */
+.lede{max-width:34ch;font-size:clamp(21px,2.9vw + 1.1vh,42px);line-height:1.08;
+  letter-spacing:-.035em;font-weight:600}
+.sub{margin-top:clamp(5px,1vh,13px);max-width:60ch;color:var(--ink-2);
+  font-size:clamp(13.5px,.5vw + .7vh,17px)}
+.eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--ink-3);margin-bottom:clamp(6px,1.3vh,18px)}
+/* On a phone the headline is a banner taking a third of the screen before any
+   work is visible. It keeps its place in the flow and stops shouting. */
+@media (max-width:700px){
+  .lede{font-size:clamp(19px,5.4vw,25px);max-width:none}
+  .sub{font-size:13.5px;max-width:none;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .eyebrow{margin-bottom:5px}
+}
 
 /* ------------------------------------------------------------------- drop */
-.drop{margin-top:38px;border:1.5px dashed var(--line-2);border-radius:16px;background:var(--raised);
-  padding:clamp(34px,7vw,76px) 28px;text-align:center;cursor:pointer;
+.drop{border:1.5px dashed var(--line-2);border-radius:16px;background:var(--raised);
+  padding:clamp(16px,3.4vh,50px) 28px;text-align:center;cursor:pointer;
+  display:flex;flex-direction:column;justify-content:center;min-height:0;
   transition:border-color .18s,background .18s,padding .25s var(--step)}
 /* once the artwork is in, the thing to look at is what was measured, not the
    place to put it */
-.drop.small{padding:16px 20px;margin-top:26px}
+.drop.small{padding:clamp(10px,1.6vh,16px) 20px}
+/* The artwork screen: the two slots stack in one column, and once the drawing
+   has been read the measurements stand beside them rather than under them. */
+#p-style .pbd{display:grid}
+#p-done .pbd{display:grid;align-content:start;gap:clamp(10px,1.6vh,18px)}
+/* One row: the three columns, filling the frame. The generator strip used to
+   sit above them in a row of its own; it belongs at the top of the rail with
+   the rest of the choosing, and leaving the two-row template behind starved the
+   columns to their content height and left a third of the screen empty. */
+#p-pattern .pbd{display:grid;grid-template-rows:minmax(0,1fr);overflow:hidden}
+#p-pattern .sub{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  overflow:hidden;max-width:78ch}
+#p-art .pbd{display:grid;grid-template-columns:minmax(0,1fr);gap:clamp(10px,1.8vh,20px);
+  align-content:start}
+#p-art .pbd.read{grid-template-columns:minmax(300px,.85fr) minmax(0,1.15fr);
+  grid-template-rows:auto auto minmax(0,1fr);align-content:stretch}
+#p-art .pbd.read #drop{grid-column:1}
+#p-art .pbd.read #dropref{grid-column:1}
+#p-art .pbd.read #seen{grid-column:2;grid-row:1 / span 3;min-height:0;overflow:auto}
+#p-art .pbd.read .errbox{grid-column:1/-1}
+@media (max-width:820px){#p-art .pbd.read{grid-template-columns:minmax(0,1fr)}
+  #p-art .pbd.read #seen{grid-column:1;grid-row:auto}}
 .drop.small h3{font-size:15px;font-weight:500;color:var(--ink-2)}
 .drop.small p,.drop.small .mono{display:none}
 /* The reference slot is small from the start rather than small once it is
@@ -125,10 +433,10 @@ button{font:inherit;color:inherit}
 .drop h3{font-size:19px}
 .drop p{margin-top:8px;color:var(--ink-2);font-size:15px}
 .drop .mono{font-family:var(--mono);font-size:12px;color:var(--ink-3);margin-top:18px}
-.seen{display:grid;grid-template-columns:220px minmax(0,1fr);gap:34px;margin-top:34px;align-items:start}
+.seen{display:grid;grid-template-columns:150px minmax(0,1fr);gap:clamp(12px,2vw,24px);align-items:start}
 @media (max-width:760px){.seen{grid-template-columns:1fr}}
-.art{background:var(--sunk);border:1px solid var(--line);border-radius:14px;padding:30px;
-  display:flex;align-items:center;justify-content:center;min-height:190px}
+.art{background:var(--sunk);border:1px solid var(--line);border-radius:14px;padding:16px;
+  display:flex;align-items:center;justify-content:center;min-height:120px}
 .art svg{max-width:100%;max-height:150px;height:auto;display:block}
 .facts{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
 .fact{display:flex;justify-content:space-between;gap:18px;padding:12px 16px;background:var(--raised);font-size:14.5px}
@@ -136,46 +444,105 @@ button{font:inherit;color:inherit}
 .fact span{font-family:var(--mono);font-size:13px;color:var(--ink);text-align:right}
 
 /* ------------------------------------------------------------- questions */
-.q{padding:34px 0;border-top:1px solid var(--line)}
+/* Seven questions as seven cards on a grid, not seven sections down a page.
+
+   They were 34 px of padding and a 21 px heading each, stacked, which came to
+   2,724 px — three screens of a 900-tall laptop to answer seven things, most of
+   which the engine has already answered for you. As cards they are a couple of
+   rows, and the answer to every one of them is visible at once, which is what
+   makes "change any of them" a real offer rather than a scroll. */
+/* Four narrow columns rather than three, and a wide question takes two of them
+   rather than the whole row. At three columns with full-width wides, "how close
+   should the pattern be" sat alone on a row with two-thirds of it empty and the
+   screen still ran 219 px over. `dense` lets a short question backfill a gap a
+   wide one left behind. */
+#qs{display:grid;grid-template-columns:repeat(auto-fit,minmax(clamp(196px,19vw,262px),1fr));
+  gap:clamp(7px,1.2vh,13px);align-content:start;align-items:start;grid-auto-flow:row dense}
+.q{padding:clamp(8px,1.2vh,13px) 14px;border:1px solid var(--line);border-radius:12px;
+  background:var(--raised);min-width:0;container-type:inline-size}
+.q.wide{grid-column:span 2}
+.q.wider{grid-column:span 3}
+@media (max-width:1180px){.q.wider{grid-column:span 2}}
+/* Below two columns a span of two is a column that is not there. */
+@media (max-width:760px){.q.wide,.q.wider{grid-column:auto}}
 .q:first-of-type{border-top:none;padding-top:8px}
-.q h3{font-size:21px;letter-spacing:-.02em}
-.q .why{margin-top:9px;max-width:62ch;color:var(--ink-2);font-size:14.8px;line-height:1.6}
-.q .body{margin-top:20px}
+.q h3{font-size:14.5px;letter-spacing:-.015em;line-height:1.3}
+/* Seven cards carry seven headings and seven notes, which came to about 490 px
+   of the 968 the screen needed — more than half of it was the asking rather
+   than the answering. The note is one line until the card is touched. */
+.q .why{margin-top:3px;max-width:62ch;color:var(--ink-3);font-size:12.5px;line-height:1.4;
+  display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.q:hover .why,.q:focus-within .why{-webkit-line-clamp:9;color:var(--ink-2)}
+.q .body{margin-top:8px}
 input[type=text]{width:100%;max-width:620px;padding:13px 15px;border:1px solid var(--line-2);
   border-radius:10px;background:var(--raised);color:var(--ink);font:inherit;font-size:16px}
 input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:transparent}
 /* one of a list, where the answer is a word rather than a picture */
-.q .body>select{max-width:620px;width:100%;padding:13px 15px;font:inherit;font-size:16px;
+.q .body>select{max-width:none;width:100%;padding:8px 11px;font:inherit;font-size:14px;
   border:1px solid var(--line-2);border-radius:10px;background:var(--raised);color:var(--ink)}
 .q .body>select:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:transparent}
 .q .body>.why{margin-top:10px}
 /* the roman spelling, asked for only when the typed name cannot carry a file */
-.latin{margin-top:18px;padding:16px 18px;max-width:620px;border-radius:12px;
+.latin{margin-top:9px;padding:10px 12px;max-width:none;border-radius:10px;
   border:1px solid var(--line-2);background:var(--sunk)}
 .latin b{display:block;font-weight:600;margin-bottom:6px;font-size:15px}
 .latin span{display:block;color:var(--ink-2);font-size:14.2px;line-height:1.55;margin-bottom:12px}
-.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
-.opt{display:flex;gap:12px;padding:15px 16px;border:1px solid var(--line-2);border-radius:12px;
-  background:var(--raised);cursor:pointer;transition:border-color .16s,background .16s}
+/* An option is one row.
+
+   It was a card: a checkbox, a bold label and a two-line note, 55 px each. Four
+   of them made a question 350 px tall and "what must never be done to it" has
+   more than four — so two questions alone were taller than the screen they were
+   asked on. The note is the part that costs the height and the part nobody
+   reads twice, so it sits on the same line, clipped, and opens on hover or
+   keyboard focus. Nothing is hidden that was not already read. */
+/* Two things had to be true and the first two attempts each got one.
+
+   A track floor wider than its share overflows rather than shrinking, which ran
+   "On buildings and vehicles" out past the edge of its card. Dropping the floor
+   to zero fixed that and lost the labels instead: with the label and its note
+   both able to shrink, the note won and nine options rendered as nine
+   checkboxes and no words.
+
+   So the floor is set where two options fit a card rather than four, the note
+   gives up its width first — `flex:1 1 0`, basis zero — and the label keeps a
+   readable minimum before it clips. */
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,186px),1fr));gap:5px}
+.opt{display:flex;align-items:center;gap:8px;padding:6px 9px;border:1px solid var(--line-2);
+  border-radius:9px;min-width:0;overflow:hidden;cursor:pointer;background:var(--raised);
+  transition:border-color .14s,background .14s}
+.opt>div{display:flex;align-items:baseline;gap:7px;min-width:0;flex:1}
 .opt:hover{border-color:var(--ink-3)}
 .opt.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--raised))}
 .opt input{margin:3px 0 0}
-.opt b{display:block;font-weight:600;font-size:15px}
-.opt span{display:block;margin-top:4px;color:var(--ink-2);font-size:13.5px;line-height:1.5}
+.opt b{font-weight:600;font-size:13.5px;white-space:nowrap;flex:0 1 auto;
+  min-width:4.5em;overflow:hidden;text-overflow:ellipsis}
+.opt span{color:var(--ink-3);font-size:12px;line-height:1.4;flex:1 1 0;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.opt:hover,.opt:focus-within{background:var(--sunk)}
+.opt:hover span,.opt:focus-within span{white-space:normal;overflow:visible}
+.opt input{margin:0;flex:none}
 .opt.off{opacity:.42;cursor:not-allowed}
-.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+/* auto-fill with a ceiling, not auto-fit: with two colours in the drawing
+   auto-fit stretched each card to 490 px and the question was taller than the
+   three above it put together. */
+.cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(122px,168px));gap:8px}
 .col{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--raised)}
-.col .sw{height:74px}
-.col .m{padding:11px 13px;display:grid;gap:8px}
-.col input[type=text]{padding:7px 9px;font-size:14px;border-radius:7px}
-.col select{width:100%;padding:7px 9px;font:inherit;font-size:14px;border-radius:7px;
+.col .sw{height:clamp(26px,3.4vh,42px)}
+.col .m{padding:7px 9px;display:grid;gap:5px}
+.col input[type=text]{padding:5px 7px;font-size:13px;border-radius:6px}
+.col select{width:100%;padding:5px 7px;font:inherit;font-size:13px;border-radius:6px;
   border:1px solid var(--line-2);background:var(--raised);color:var(--ink)}
-.col .hex{font-family:var(--mono);font-size:12px;color:var(--ink-3)}
+.col .hex{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
 
 /* --------------------------------------------------------------- picking */
-.picks{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:30px}
+/* Four specimens across, filling the height they are given rather than a
+   height typed in pixels: the frame was 340 px tall, which with its caption and
+   the headline above it did not fit a 900-tall laptop. */
+.picks{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(8px,1vw,16px);
+  align-content:start;min-height:0}
 @media (max-width:1080px){.picks{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:600px){.picks{grid-template-columns:1fr}}
+@media (max-width:600px){.picks{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .pick .frame{min-height:110px}.pick .m span{display:none}}
 .pick{border:1.5px solid var(--line);border-radius:14px;overflow:hidden;background:var(--raised);
   cursor:pointer;transition:border-color .16s,transform .16s var(--step)}
 .pick:hover{border-color:var(--ink-3)}
@@ -183,21 +550,28 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
 /* the frame has to reach the specimen in all four, and the four do not put it
    at the same height: quiet and bold open with more air, so a crop that showed
    the mark in technical and warm cut it off in the other two */
-.pick .frame{height:340px;overflow:hidden;border-bottom:1px solid var(--line);background:#fff;position:relative}
+.pick{display:flex;flex-direction:column;min-height:0}
+.pick .frame{flex:1 1 auto;min-height:clamp(120px,30vh,340px);overflow:hidden;
+  border-bottom:1px solid var(--line);background:#fff;position:relative}
 .pick iframe{width:295%;height:1000px;border:0;transform:scale(.339);transform-origin:0 0;pointer-events:none}
-.pick .m{padding:15px 17px}
-.pick .m b{font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px}
+.pick .m{padding:clamp(8px,1.3vh,15px) 14px;flex:0 0 auto}
+.pick .m b{font-size:14.5px;font-weight:600;display:flex;align-items:center;gap:8px}
 .pick .m b i{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--line-2);font-style:normal;flex:none}
 .pick.on .m b i{background:var(--accent);border-color:var(--accent)}
-.pick .m span{display:block;margin-top:7px;color:var(--ink-2);font-size:13.5px;line-height:1.55;
-  display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.pick .m span{display:block;margin-top:5px;color:var(--ink-2);font-size:12.5px;line-height:1.45;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+@media (min-height:900px){.pick .m span{-webkit-line-clamp:4}}
 
 /* ------------------------------------------------------------------ edit */
-.editing{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:22px;margin-top:28px;align-items:start}
-@media (max-width:980px){.editing{grid-template-columns:1fr}}
-.sheet{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff;height:74vh;min-height:520px}
+/* The sheet fills the room it is in. It was 74vh with a 520 px floor, which on
+   a 900-tall laptop is taller than the space left after the headline. */
+.editing{display:grid;grid-template-columns:minmax(0,1fr) clamp(220px,24vw,300px);
+  gap:clamp(12px,1.6vw,22px);min-height:0;height:100%}
+@media (max-width:980px){.editing{grid-template-columns:1fr;grid-template-rows:minmax(0,1.6fr) minmax(0,1fr)}}
+.sheet{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff;
+  min-height:0;height:100%}
 .sheet iframe{width:100%;height:100%;border:0;display:block}
-.side{position:sticky;top:82px;display:grid;gap:12px}
+.side{display:grid;gap:12px;align-content:start;min-height:0;overflow:auto}
 .side h3{font-size:14px;font-weight:600}
 .side .hint{color:var(--ink-2);font-size:13.5px;line-height:1.55}
 .changed{display:grid;gap:8px;max-height:44vh;overflow:auto}
@@ -223,8 +597,8 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
   display:block;margin-bottom:5px;color:var(--ink-3);font-weight:400}
 
 /* -------------------------------------------------------------- controls */
-.bar{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;align-items:center;gap:14px;
-  padding:14px clamp(18px,4vw,46px);background:color-mix(in srgb,var(--paper) 90%,transparent);
+.bar{z-index:20;display:flex;align-items:center;gap:14px;flex:none;
+  padding:clamp(9px,1.5vh,14px) clamp(16px,4vw,46px);background:color-mix(in srgb,var(--paper) 90%,transparent);
   backdrop-filter:blur(14px);border-top:1px solid var(--line)}
 .bar .say{color:var(--ink-2);font-size:14px;margin-right:auto;max-width:60ch}
 .go{padding:12px 22px;border-radius:10px;border:1px solid transparent;background:var(--ink);
@@ -273,11 +647,13 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
 
   <!-- 1 ------------------------------------------------------------------ -->
   <section class="panel on" id="p-art" aria-labelledby="h-art">
+    <div class="phd">
     <p class="eyebrow">One master file in</p>
     <h1 class="lede" id="h-art">Drop your logo. Everything else is measured.</h1>
     <p class="sub">An SVG of the mark, the logotype, or both. Nothing is uploaded anywhere —
       this runs on your machine and the package it writes is yours.</p>
-
+    </div>
+    <div class="pbd">
     <div class="drop" id="drop" tabindex="0" role="button" aria-describedby="droph">
       <h3>Drop an SVG here</h3>
       <p id="droph">or press to choose a file</p>
@@ -295,57 +671,88 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
 
     <div id="seen" hidden></div>
     <div class="errbox"></div>
+    </div>
   </section>
 
   <!-- 2 ------------------------------------------------------------------ -->
   <section class="panel" id="p-ask" aria-labelledby="h-ask">
+    <div class="phd">
     <p class="eyebrow">Seven questions</p>
     <h1 class="lede" id="h-ask">Only what the file cannot be asked.</h1>
     <p class="sub">Four of these are the engine showing its own answer. Change any of them.</p>
+    </div>
+    <div class="pbd">
     <div id="qs"></div>
     <div class="errbox"></div>
+    </div>
   </section>
 
   <!-- 3 ------------------------------------------------------------------ -->
   <section class="panel" id="p-style" aria-labelledby="h-style">
+    <div class="phd">
     <p class="eyebrow">The book</p>
     <h1 class="lede" id="h-style">Four ways to lay it out, drawn with your logo.</h1>
     <p class="sub">These are not colour schemes. They change the scale the type is built on,
       the measure, how much air a specimen stands in, and how a chapter opens.</p>
+    </div>
+    <div class="pbd">
     <div class="picks" id="picks"></div>
     <div class="errbox"></div>
+    </div>
   </section>
 
   <!-- 4 ------------------------------------------------------------------ -->
   <section class="panel" id="p-pattern" aria-labelledby="h-pattern">
+    <div class="phd">
     <p class="eyebrow">The pattern</p>
     <h1 class="lede" id="h-pattern">Made of your logo. Push it as far as you like.</h1>
     <p class="sub" id="p-sub">Every number here was measured off the shape in your drawing.
       Move anything; the package is built with whatever you leave on screen.</p>
+    </div>
+    <div class="pbd">
     <div class="patt">
       <aside class="prail" aria-label="Pattern controls">
-        <h3 id="pg-h">Pattern</h3><div class="pchips" id="pgens" aria-labelledby="pg-h"></div>
-        <div id="pctls"></div>
-        <h3 id="pw-h">Colourway</h3><div class="pchips" id="pways" aria-labelledby="pw-h"></div>
-        <button type="button" class="prevert" id="prevert">Back to what the engine chose</button>
+        <h3 class="sr" id="pg-h">Pattern</h3>
+        <div class="pchips pgens" id="pgens" aria-labelledby="pg-h"></div>
+        <button type="button" class="pmore" id="pall" aria-expanded="false">
+          All 32 patterns<i></i></button>
+        <div class="pscroll" id="pctls"></div>
+        <div class="pfoot">
+          <button type="button" class="prevert" id="prevert">Back to what the engine chose</button>
+        </div>
       </aside>
-      <div class="pstage" id="psheet" aria-label="The pattern, repeating"></div>
+      <div class="pmid">
+        <div class="pstage" id="psheet" aria-label="The pattern, repeating"></div>
+      </div>
       <aside class="pside">
-        <h3 id="pone-h">One tile</h3>
         <div class="ptile" id="ptile"></div>
+        <div class="pways"><h3 id="pw-h" class="sr">Colourway</h3>
+          <div class="pchips" id="pways" aria-labelledby="pw-h"></div></div>
         <p class="pwhy" id="pwhy"></p>
         <p class="phold" id="phold"></p>
       </aside>
     </div>
+    <!-- Everything a person opens rather than arrives at. -->
+    <div class="psheetover" id="pall-sheet" hidden>
+      <div class="psheetin" role="dialog" aria-label="Every pattern">
+        <header><b>Every pattern</b>
+          <button type="button" class="pclose" id="pall-x" aria-label="Close">&times;</button></header>
+        <div class="pallbody" id="pall-body"></div>
+      </div>
+    </div>
     <div class="errbox"></div>
+    </div>
   </section>
 
   <!-- 5 ------------------------------------------------------------------ -->
   <section class="panel" id="p-edit" aria-labelledby="h-edit">
+    <div class="phd">
     <p class="eyebrow">Your words</p>
     <h1 class="lede" id="h-edit">Change anything the engine could not know.</h1>
     <p class="sub">Click a paragraph and type. Everything you do not touch stays derived from the
       artwork, so redraw the mark and the rest follows on its own.</p>
+    </div>
+    <div class="pbd">
     <div class="editing">
       <div class="sheet"><iframe id="sheet" title="The manual, as it stands"></iframe></div>
       <aside class="side">
@@ -355,16 +762,21 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
       </aside>
     </div>
     <div class="errbox"></div>
+    </div>
   </section>
 
   <!-- 6 ------------------------------------------------------------------ -->
   <section class="panel" id="p-done" aria-labelledby="h-done">
+    <div class="phd">
     <p class="eyebrow">Built</p>
     <h1 class="lede" id="h-done">It is yours.</h1>
     <p class="sub" id="done-sub"></p>
+    </div>
+    <div class="pbd">
     <div class="out" id="out"></div>
     <div class="errbox"></div>
     <div class="notes" id="notes"></div>
+    </div>
   </section>
 
 </main>
@@ -617,6 +1029,8 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
 
   function drawSeen() {
     var box = $('seen'); box.hidden = false; box.textContent = ''; box.className = 'seen';
+    // the slots move to one side and the measurements take the other
+    document.querySelector('#p-art .pbd').classList.add('read');
     var art = el('div', 'art');
     // the artwork as the engine has it, not as it arrived. Every number beside
     // it was measured off this, and this is what goes in the package.
@@ -765,7 +1179,18 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     var box = $('qs'); box.textContent = '';
     S.qs.forEach(function (q) {
       if (q.key === 'style') return;                 // asked by picture, on its own screen
-      var d = el('div', 'q');
+      // The colour confirmation is a row of swatches and a long pick-many is a
+      // column of cards; both are wider than they are tall and wrapping them
+      // into a third of the grid makes them taller than the six beside them.
+      // A row of swatches and a list of options are both wider than they are
+      // tall. Wrapped into a third of the grid the colours question ran to two
+      // rows of cards and was taller than the three questions beside it.
+      var many = (q.options || []).length;
+      var wide = q.kind === 'confirm-colours' || (q.kind === 'pick-many' && many > 3);
+      // Nine options in two columns is five rows; in four it is three, and the
+      // room it needs is sitting empty beside it either way.
+      var span = q.kind === 'pick-many' && many > 6 ? ' wider' : (wide ? ' wide' : '');
+      var d = el('div', 'q' + span);
       d.appendChild(el('h3', null, q.ask));
       d.appendChild(el('p', 'why', q.why));
       var b = el('div', 'body');
@@ -1036,6 +1461,15 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
   function pdraw() {
     var size = P.tile;
     var box = $('psheet');
+    /* A change of pattern reads as this pattern moving rather than a different
+       one arriving: the sheet dims for the two frames it takes to redraw and
+       comes back up. The class is taken off on the next frame rather than on a
+       timer, so a slider dragged quickly never leaves the sheet half-faded. */
+    box.classList.add('swap');
+    if (box._raf) cancelAnimationFrame(box._raf);
+    box._raf = requestAnimationFrame(function () {
+      box._raf = requestAnimationFrame(function () { box.classList.remove('swap'); });
+    });
     // Laid out as copies of one paint rather than an SVG <pattern>, so what is
     // on screen is exactly what the file will contain.
     var ph = Math.round((size / pratio()) * 1000) / 1000;
@@ -1058,7 +1492,19 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
       + (prepeats() ? 'slice' : 'meet') + '"');
     $('ptile').innerHTML = ptileSvg(size).toSVG('');
     if ($('pone-h')) $('pone-h').textContent = prepeats() ? 'One tile' : 'One page';
-    $('pwhy').textContent = window.PatternEngine.because(PS.generator, P.measured, PS.params);
+    var why = $('pwhy');
+    why.textContent = window.PatternEngine.because(PS.generator, P.measured, PS.params);
+    // Two lines, and the whole of it on a click. A change of generator starts
+    // it shut again: the reasoning is about the pattern on screen, and leaving
+    // the previous one's expanded is a different explanation at the same size.
+    why.classList.remove('open');
+    why.tabIndex = 0;
+    why.setAttribute('role', 'button');
+    why.title = 'Why these numbers';
+    why.onclick = function () { why.classList.toggle('open'); };
+    why.onkeydown = function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); why.classList.toggle('open'); }
+    };
     pholds();
     // and the answer the build will read. It goes in beside the others so the
     // one place that turns answers into a project file turns this into one too.
@@ -1079,11 +1525,28 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
         + 'beyond which it stops being sharp.';
       return;
     }
-    if (PS.generator === 'lattice') {
-      var m = PS.params.motif || {};
-      f = PS.params.scale * Math.max(0.07, m.weight || 0.06);
-    } else if (PS.generator === 'weave') f = 1 / PS.params.cells;
-    else f = PS.params.stripe;
+    /* The finest thing this generator draws, as a share of the tile.
+
+       This used to be three branches: lattice, weave, and `PS.params.stripe`
+       for everything else. There were three generators when it was written and
+       there are thirty-two now, and twenty-nine of them have no control called
+       `stripe` — so the line read "Holds from NaN px and NaN mm" for all of
+       them. Not a rounding error, a sentence of nonsense where a measurement
+       should be, on most of the screens anybody opens.
+
+       So it asks the generator's own controls rather than knowing the answer
+       for three of them. A count of cells across the tile makes each cell one
+       over that; a width stated as a share is the share. Where nothing on the
+       generator says how fine it goes, this says what is still true — it is
+       vector, and the mark inside it holds where the mark holds — rather than
+       inventing a number. */
+    f = pfineness();
+    if (!(f > 0)) {
+      n.className = 'phold';
+      n.textContent = 'Vector, so there is no size at which it stops being sharp. The drawing '
+        + 'inside it holds from ' + P.minStrokePx + ' px, as it does anywhere else.';
+      return;
+    }
     var px = Math.ceil(P.minStrokePx / f);
     var mm = Math.ceil((P.minStrokeMm / f) * 10) / 10;
     n.className = 'phold';
@@ -1091,23 +1554,92 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
       + 'itself holds at or larger.';
   }
 
+  /* How fine the finest run in this tile is, as a share of the tile's width.
+
+     Read off the parameters the generator actually declares. A count — cells,
+     cubes, chips, threads across — makes one of them 1/n of the tile; a width
+     already stated as a share is that share. `lattice` is the one special case
+     and it is a real one: what it draws is the motif's own stroke at the size
+     the motif is set, so its finest run is the drawing's weight scaled. */
+  var COUNTS = ['cells', 'cubes', 'chips', 'thread', 'count', 'resolution', 'dots', 'states'];
+  var SHARES = ['stripe', 'width', 'weight'];
+  function pfineness() {
+    var P2 = PS.params;
+    if (PS.generator === 'lattice') {
+      var m = P2.motif || {};
+      return P2.scale * Math.max(0.07, m.weight || 0.06);
+    }
+    for (var i = 0; i < COUNTS.length; i++) {
+      var n = P2[COUNTS[i]];
+      if (typeof n === 'number' && n >= 1) return 1 / n;
+    }
+    for (var j = 0; j < SHARES.length; j++) {
+      var w = P2[SHARES[j]];
+      if (typeof w === 'number' && w > 0 && w <= 1) return w;
+    }
+    return null;
+  }
+
+  /* Two or three controls, and then the rest behind a press.
+
+     Which two or three is a judgement and the generator makes it: every one of
+     the thirty-two marks its own `primary` controls, because what a designer
+     reaches for first on a tartan is the weave and on a terrazzo is the cut,
+     and no rule about groups or declaration order knows that. A test asserts
+     each of them marks between two and four, so a generator added without an
+     opinion fails rather than quietly showing everything again.
+
+     The rest is not hidden, it is folded: the press is always there, it says
+     how many are behind it, and opening it costs nothing. */
+  function pfold(label, count, build, openKey) {
+    var wrap = el('div');
+    var head = el('button', 'pmore');
+    head.type = 'button';
+    head.appendChild(document.createTextNode(label));
+    if (count) head.appendChild(el('b', null, String(count)));
+    head.appendChild(el('i'));
+    var fold = el('div', 'pfold');
+    var inner = el('div');
+    fold.appendChild(inner);
+    build(inner);
+    var open = !!PS.open[openKey];
+    head.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) { fold.classList.add('open'); head.classList.add('on'); }
+    head.addEventListener('click', function () {
+      open = !open;
+      PS.open[openKey] = open;
+      fold.classList.toggle('open', open);
+      head.classList.toggle('on', open);
+      head.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    wrap.appendChild(head); wrap.appendChild(fold);
+    return wrap;
+  }
+
   function pcontrols() {
     var wrap = $('pctls'); wrap.textContent = '';
+    if (!PS.open) PS.open = {};
     // Every group any generator declares. A group with no name here falls back
     // to "Its controls", and a generator declaring two of those prints the same
     // heading twice in a row — which is what kiosk did with `ground` and `type`.
     var GROUPS = window.PatternEngine.GROUPS;
-    var group = null;
     var list = pgen().controls;
-    for (var i = 0; i < list.length; i++) {
-      var c = list[i];
-      if (c.group !== group) {
-        group = c.group;
-        var h = el('div', 'pgrp', GROUPS[group] || 'Its controls');
-        if (!wrap.firstChild) { h.style.marginTop = '0'; h.style.paddingTop = '0'; h.style.borderTop = '0'; }
-        wrap.appendChild(h);
-      }
-      wrap.appendChild(pcontrol(c));
+    var first = list.filter(function (c) { return c.primary; });
+    var rest = list.filter(function (c) { return !c.primary; });
+    first.forEach(function (c) { wrap.appendChild(pcontrol(c)); });
+    if (rest.length) {
+      wrap.appendChild(pfold('Fine tuning', rest.length, function (into) {
+        var group = null;
+        rest.forEach(function (c) {
+          if (c.group !== group) {
+            group = c.group;
+            var h = el('div', 'pgrp', GROUPS[group] || 'Its controls');
+            if (!into.firstChild) { h.style.marginTop = '4px'; h.style.paddingTop = '0'; h.style.borderTop = '0'; }
+            into.appendChild(h);
+          }
+          into.appendChild(pcontrol(c));
+        });
+      }, 'tune'));
     }
     peffects(wrap);
   }
@@ -1119,48 +1651,83 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
      makes the fibres lie along it, so the order is what they do and moving one
      would be a control that does nothing.
 
-     "Effect layers" and not "Effects": `lattice` already declares a group by
-     that name for what it does to the motif itself, and a rail with the same
-     heading twice reads as a mistake. */
+     They were nineteen rows in the rail and that was 702 px, more than a laptop
+     has for the whole screen. Now they are the third thing on the rail rather
+     than the first: an effect is something you reach for after you have a
+     pattern, so it is folded shut, and inside it is one picker with the chosen
+     layer's channels and its field drawn above them.
+
+     A picker and a fold can both hide state in a way a list cannot, so neither
+     does: a layer that is doing something carries a mark in the list, and the
+     count of what is on sits on the fold itself, shut or open. Nothing is
+     switched on that the screen does not say is switched on. */
   function peffects(wrap) {
     var FX = window.PatternEngine.LAYERS;
     if (!FX) return;
     if (!PS.params.effects) PS.params.effects = {};
     var fx = PS.params.effects;
-    wrap.appendChild(el('div', 'pgrp', 'Effect layers'));
-    FX.NAMES.forEach(function (key) {
-      var on = !!(fx[key] && FX.live(fx[key]));
-      var head = el('div', on ? 'pfxhead on' : 'pfxhead');
-      var b = el('button', on ? 'pchip on' : 'pchip', FX.LAYERS[key].label);
-      b.type = 'button';
-      b.setAttribute('aria-pressed', on ? 'true' : 'false');
-      b.addEventListener('click', function () {
-        // Switched on at the channel the layer suggests, at something visible:
-        // a toggle that changes nothing looks broken.
-        if (on) delete fx[key];
-        else fx[key] = FX.wakeOf(key);
+    var live = FX.NAMES.filter(function (k) { return fx[k] && FX.live(fx[k]); });
+
+    wrap.appendChild(pfold('Effects', live.length ? live.length + ' on' : '', function (into) {
+      var pick = el('select');
+      pick.id = 'pfxpick';
+      pick.setAttribute('aria-label', 'Effect layer');
+      var want = PS.fxOpen && FX.LAYERS[PS.fxOpen] ? PS.fxOpen : (live[0] || '');
+      PS.fxOpen = want;
+      var none = el('option', null, live.length ? 'None \u2014 ' + live.length + ' still on' : 'None');
+      none.value = '';
+      pick.appendChild(none);
+      FX.NAMES.forEach(function (key) {
+        var o = el('option', null, FX.LAYERS[key].label
+          + (fx[key] && FX.live(fx[key]) ? '  \u25CF' : ''));
+        o.value = key;
+        pick.appendChild(o);
+      });
+      pick.value = want;
+      pick.onchange = function () {
+        PS.fxOpen = pick.value;
+        PS.open.fx = true;
+        // Choosing a layer switches it on at the channel it suggests, at
+        // something visible: a control that changes nothing looks broken.
+        if (pick.value && !(fx[pick.value] && FX.live(fx[pick.value]))) {
+          fx[pick.value] = FX.wakeOf(pick.value);
+        }
         pcontrols(); pdraw();
-      });
-      head.appendChild(b);
-      if (on) {
-        // The field itself, so a client can see what they are driving with.
-        var thumb = el('div', 'pfxfield');
-        var s = window.PatternSurface.svg({ width: 60, height: 60, id: 'fld-' + key });
-        var over = {}; for (var k in fx[key]) over[k] = fx[key][k];
-        over.motif = PS.params.motif; over.seed = PS.params.seed;
-        FX.show(s, 60, 60, key, over, 12);
-        thumb.innerHTML = s.toSVG('style="width:100%;height:100%;display:block"');
-        thumb.title = 'what this layer measures';
-        head.appendChild(thumb);
+      };
+      into.appendChild(pick);
+
+      var body = el('div');
+      body.id = 'pfxctls';
+      into.appendChild(body);
+      if (!want) {
+        body.appendChild(el('p', 'pfxnone', 'Nothing is driving the pattern. Choose a layer and '
+          + 'its field will push the drawing around \u2014 bigger where the field is dark, '
+          + 'smaller where it is light, or the other way about.'));
+        return;
       }
-      wrap.appendChild(head);
-      if (!on) return;
-      FX.controlsOf(key).forEach(function (c) {
-        var row = pcontrol(c, fx[key]);
-        row.className += ' pfxctl';
-        wrap.appendChild(row);
-      });
-    });
+      // The field itself, so a client can see what they are driving with.
+      var thumb = el('div', 'pfxfield');
+      var sf = window.PatternSurface.svg({ width: 160, height: 40, id: 'fld-' + want });
+      var over = {}; for (var k in (fx[want] || {})) over[k] = fx[want][k];
+      over.motif = PS.params.motif; over.seed = PS.params.seed;
+      FX.show(sf, 160, 40, want, over, 12);
+      thumb.innerHTML = sf.toSVG('style="width:100%;height:100%;display:block"');
+      thumb.title = 'what this layer measures';
+      body.appendChild(thumb);
+
+      if (fx[want] && FX.live(fx[want])) {
+        var off = el('button', 'prevert', 'Switch ' + FX.LAYERS[want].label + ' off');
+        off.type = 'button';
+        off.style.marginTop = '0';
+        off.style.marginBottom = '8px';
+        off.addEventListener('click', function () {
+          delete fx[want]; PS.fxOpen = ''; pcontrols(); pdraw();
+        });
+        body.appendChild(off);
+      }
+      if (!fx[want]) fx[want] = FX.wakeOf(want);
+      FX.controlsOf(want).forEach(function (c) { body.appendChild(pcontrol(c, fx[want])); });
+    }, 'fx'));
   }
 
   function pshown(c, v) {
@@ -1174,6 +1741,13 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     var k = el('label', 'pk');
     k.appendChild(el('span', null, c.label));
     var v = el('span', 'pv', pshown(c, P2[c.key]));
+    // Held on the element rather than in a variable, so a redraw that replaces
+    // the row cannot leave a timer pointing at a node nobody can see.
+    var flash = function () {
+      v.classList.add('just');
+      clearTimeout(v._t);
+      v._t = setTimeout(function () { v.classList.remove('just'); }, 320);
+    };
     k.appendChild(v);
     row.appendChild(k);
     // A control with nothing to work on says so. Corner rounding takes the
@@ -1187,9 +1761,17 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
       r.type = 'range'; r.min = c.min; r.max = c.max; r.step = c.step;
       r.value = P2[c.key];
       r.setAttribute('aria-label', c.label);
+      var fill = function () {
+        var lo = Number(c.min), hi = Number(c.max);
+        var at = hi > lo ? (Number(r.value) - lo) / (hi - lo) : 0;
+        r.style.setProperty('--fill', (Math.max(0, Math.min(1, at)) * 100).toFixed(2) + '%');
+      };
+      fill();
       r.addEventListener('input', function () {
         P2[c.key] = Number(r.value);
         v.textContent = pshown(c, P2[c.key]);
+        fill();
+        flash();
         pdraw();
       });
       row.appendChild(r);
@@ -1223,14 +1805,43 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     return row;
   }
 
+  /* The six on the surface.
+
+     What the engine chose comes first, because it is the answer and it is the
+     one most people keep. After it, the rest of the pattern family in the order
+     the registry declares — which is already an editorial order, "the order a
+     studio should offer them", rather than a ranking invented here. Anything
+     that cannot draw this particular mark is not offered at all.
+
+     Six, because the rail holds two rows of them and because a list you choose
+     from is a different thing from a list you read. The other twenty-six are
+     one press away, grouped by what they are. */
+  function psuggested() {
+    var all = Object.keys(P.params);
+    var out = [P.chose];
+    // `kindOf`, not `.kind`: the three generators the engine will actually
+    // choose declare no kind of their own, so reading the property put lattice,
+    // weave and zigzag in a family of undefined and offered three chips.
+    var fam = window.PatternEngine.kindOf;
+    all.forEach(function (n) {
+      if (out.length >= 6 || n === P.chose) return;
+      if (fam(n) === fam(P.chose)) out.push(n);
+    });
+    // and whatever is on now, so the rail never hides the pattern it is showing
+    if (out.indexOf(PS.generator) < 0) out[out.length - 1] = PS.generator;
+    return out;
+  }
+
+  function pchip(name) {
+    var b = el('button', PS.generator === name ? 'pchip on' : 'pchip', name);
+    b.type = 'button';
+    b.addEventListener('click', function () { ppick(name); pcloseAll(); });
+    return b;
+  }
+
   function prails() {
     var g = $('pgens'); g.textContent = '';
-    Object.keys(P.params).forEach(function (name) {
-      var b = el('button', PS.generator === name ? 'pchip on' : 'pchip', name);
-      b.type = 'button';
-      b.addEventListener('click', function () { ppick(name); });
-      g.appendChild(b);
-    });
+    psuggested().forEach(function (name) { g.appendChild(pchip(name)); });
     var w = $('pways'); w.textContent = '';
     P.colourways.forEach(function (way) {
       var b = el('button', PS.colourway === way.name ? 'pchip on' : 'pchip', way.name);
@@ -1240,12 +1851,50 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     });
   }
 
+  /* Every pattern, grouped by what it is, on a sheet rather than in the rail.
+
+     Grouped because "pattern", "texture" and "poster" are three different
+     things to be handed — a repeat, a ground, a finished page — and the studio
+     and the manual already say which is which. A flat list of thirty-two names
+     makes the reader do that sorting themselves. */
+  function pcloseAll() {
+    var o = $('pall-sheet');
+    if (o.hidden) return;
+    o.hidden = true;
+    $('pall').setAttribute('aria-expanded', 'false');
+  }
+  function popenAll() {
+    var o = $('pall-sheet');
+    var body = $('pall-body'); body.textContent = '';
+    var G = window.PatternEngine.GENERATORS;
+    var LABEL = { pattern: 'Patterns — a square tile that repeats',
+      texture: 'Textures — a tile drawn as a surface',
+      poster: 'Posters — a finished page, cut once' };
+    ['pattern', 'texture', 'poster'].forEach(function (kind) {
+      var names = Object.keys(P.params).filter(function (n) { return G[n].kind === kind; });
+      if (!names.length) return;
+      var sec = el('div');
+      sec.appendChild(el('div', 'pallgrp', LABEL[kind] || kind));
+      var row = el('div', 'pchips');
+      names.forEach(function (n) { row.appendChild(pchip(n)); });
+      sec.appendChild(row);
+      body.appendChild(sec);
+    });
+    o.hidden = false;
+    $('pall').setAttribute('aria-expanded', 'true');
+    var first = o.querySelector('.pchip.on') || o.querySelector('.pchip');
+    if (first) first.focus();
+  }
+
   // A generator, at the numbers the engine derived for it. Copied rather than
   // handed over, so wandering on one generator and coming back does not find
   // the other one's sliders moved.
   function ppick(name) {
     PS.generator = name;
     PS.params = JSON.parse(JSON.stringify(P.params[name]));
+    // The folds stay as the person left them. Someone who opened fine tuning is
+    // working in fine tuning, and shutting it under them on every chip press is
+    // the screen deciding it knows better.
     prails(); pcontrols(); pdraw();
   }
 
@@ -1261,7 +1910,7 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     }).then(function (out) {
       busy(false);
       P = out;
-      PS = { generator: out.chose, colourway: out.colourways[0].name,
+      PS = { generator: out.chose, colourway: out.colourways[0].name, open: {},
         params: JSON.parse(JSON.stringify(out.params[out.chose])) };
       $('p-sub').textContent = out.motif
         ? 'Every number here was measured off ' + out.motif.name + ' — the shape this engine '
@@ -1274,8 +1923,26 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     }).catch(function (e) { busy(false); fail(e); });
   }
 
+  $('pall').addEventListener('click', function () {
+    if ($('pall-sheet').hidden) popenAll(); else pcloseAll();
+  });
+  $('pall-x').addEventListener('click', pcloseAll);
+  $('pall-sheet').addEventListener('click', function (e) {
+    if (e.target === $('pall-sheet')) pcloseAll();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') pcloseAll();
+  });
+
   $('prevert').addEventListener('click', function () {
-    ppick(PS.generator);
+    /* All the way back, generator included.
+
+       It used to re-pick whatever generator was on screen, which resets that
+       one's knobs and leaves the rest alone — so after switching from lattice to
+       terrazzo and pressing a button that says "back to what the engine chose",
+       what came back was terrazzo. The sentence on the button is the promise;
+       this is it. */
+    ppick(P.chose);
     say('Back to what the artwork asked for.');
   });
 

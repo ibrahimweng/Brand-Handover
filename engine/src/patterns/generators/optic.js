@@ -121,13 +121,13 @@
   }
 
   const controls = [
-    { group: 'poster', key: 'figure', label: 'Figure', type: 'chips', options: FIGURES,
+    { group: 'poster', key: 'figure', primary: true, label: 'Figure', type: 'chips', options: FIGURES,
       needs: { of: 'motif', key: 'silhouette', least: 1,
         without: 'This mark is drawn in strokes, and a stroke has no interior to '
           + 'counterchange. The figure is a shape taken from how the mark turns instead.' } },
-    { group: 'poster', key: 'stripes', label: 'Stripes', type: 'range', min: 6, max: 28, step: 1 },
+    { group: 'poster', key: 'stripes', primary: true, label: 'Stripes', type: 'range', min: 6, max: 28, step: 1 },
     { group: 'poster', key: 'weight', label: 'Bar weight', type: 'range', min: 0.3, max: 0.7, step: 0.01 },
-    { group: 'poster', key: 'size', label: 'Figure size', type: 'range', min: 0.4, max: 1, step: 0.01 },
+    { group: 'poster', key: 'size', primary: true, label: 'Figure size', type: 'range', min: 0.4, max: 1, step: 0.01 },
     { group: 'poster', key: 'levels', label: 'Nested figures', type: 'range', min: 1, max: 3, step: 1 },
     { group: 'poster', key: 'seed', label: 'Seed', type: 'seed' },
   ];

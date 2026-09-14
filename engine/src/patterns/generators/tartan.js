@@ -125,11 +125,11 @@
   }
 
   const controls = [
-    { group: 'pattern', key: 'weave', label: 'Weave', type: 'chips', options: WEAVES },
+    { group: 'pattern', key: 'weave', primary: true, label: 'Weave', type: 'chips', options: WEAVES },
     { group: 'pattern', key: 'bands', label: 'Bands in the sett', type: 'range', min: 2, max: 9, step: 1 },
-    { group: 'pattern', key: 'thread', label: 'Threads per band', type: 'range', min: 2, max: 24, step: 1 },
+    { group: 'pattern', key: 'thread', primary: true, label: 'Threads per band', type: 'range', min: 2, max: 24, step: 1 },
     { group: 'pattern', key: 'repeats', label: 'Setts across', type: 'range', min: 1, max: 4, step: 1 },
-    { group: 'pattern', key: 'colours', label: 'Colours', type: 'range', min: 2, max: 6, step: 1 },
+    { group: 'pattern', key: 'colours', primary: true, label: 'Colours', type: 'range', min: 2, max: 6, step: 1 },
     { group: 'pattern', key: 'seed', label: 'Seed', type: 'seed' },
   ];
 

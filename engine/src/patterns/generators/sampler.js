@@ -177,11 +177,11 @@
   }
 
   const controls = [
-    { group: 'grid', key: 'cols', label: 'Tiles across', type: 'range', min: 4, max: 48, step: 1 },
+    { group: 'grid', key: 'cols', primary: true, label: 'Tiles across', type: 'range', min: 4, max: 48, step: 1 },
     { group: 'grid', key: 'bands', label: 'Bands', type: 'range', min: 1, max: 14, step: 1 },
-    { group: 'tiles', key: 'variety', label: 'Shapes per band', type: 'range', min: 0, max: 1, step: 0.01 },
+    { group: 'tiles', key: 'variety', primary: true, label: 'Shapes per band', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'tiles', key: 'rotation', label: 'Rotation', type: 'range', min: 0, max: 1, step: 0.01 },
-    { group: 'tiles', key: 'coverage', label: 'Coverage', type: 'range', min: 0.1, max: 1, step: 0.01 },
+    { group: 'tiles', key: 'coverage', primary: true, label: 'Coverage', type: 'range', min: 0.1, max: 1, step: 0.01 },
     { group: 'tiles', key: 'balance', label: 'Ink balance', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'mark', key: 'mark', label: 'Deal the mark', type: 'range', min: 0, max: 1, step: 0.01,
       needs: { of: 'motif', key: 'moves', least: 1,

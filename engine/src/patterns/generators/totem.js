@@ -208,14 +208,14 @@
     { group: 'border', key: 'flecks', label: 'Flecks', type: 'range', min: 0, max: 0.7, step: 0.01 },
     { group: 'border', key: 'fleckSize', label: 'Fleck size', type: 'range', min: 1, max: 6, step: 1 },
     { group: 'border', key: 'rule', label: 'Keyline', type: 'range', min: 0, max: 10, step: 1 },
-    { group: 'panel', key: 'regions', label: 'Regions', type: 'range', min: 1, max: 30, step: 1 },
+    { group: 'panel', key: 'regions', primary: true, label: 'Regions', type: 'range', min: 1, max: 30, step: 1 },
     { group: 'panel', key: 'grain', label: 'Pixel unit', type: 'range', min: 16, max: 200, step: 1 },
     { group: 'panel', key: 'mirror', label: 'Mirror', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'panel', key: 'variety', label: 'Variety', type: 'range', min: 0, max: 1, step: 0.01 },
-    { group: 'core', key: 'core', label: 'Core size', type: 'range', min: 0, max: 0.6, step: 0.01,
+    { group: 'core', key: 'core', primary: true, label: 'Core size', type: 'range', min: 0, max: 0.6, step: 0.01,
       needs: { of: 'motif', key: 'silhouette', least: 1,
         without: 'No shape could be read out of this drawing, so the core has nothing to crown it with.' } },
-    { group: 'core', key: 'rings', label: 'Rings', type: 'range', min: 0, max: 8, step: 1 },
+    { group: 'core', key: 'rings', primary: true, label: 'Rings', type: 'range', min: 0, max: 8, step: 1 },
     { group: 'core', key: 'seed', label: 'Seed', type: 'seed' },
   ];
 

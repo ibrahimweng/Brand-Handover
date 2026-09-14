@@ -138,16 +138,16 @@
   }
 
   const controls = [
-    { group: 'pattern', key: 'grid', label: 'Grid detail', type: 'range', min: 12, max: 120, step: 1 },
+    { group: 'pattern', key: 'grid', primary: true, label: 'Grid detail', type: 'range', min: 12, max: 120, step: 1 },
     { group: 'pattern', key: 'zoom', label: 'Field zoom', type: 'range', min: 1, max: 16, step: 1 },
-    { group: 'pattern', key: 'fill', label: 'Fill', type: 'range', min: 0, max: 1, step: 0.01 },
+    { group: 'pattern', key: 'fill', primary: true, label: 'Fill', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'pattern', key: 'grain', label: 'Grain', type: 'range', min: 0, max: 1.4, step: 0.01 },
     { group: 'pattern', key: 'patchiness', label: 'Patchiness', type: 'range', min: 0, max: 1.6, step: 0.01 },
     { group: 'pattern', key: 'blockiness', label: 'Blockiness', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'pattern', key: 'blockSize', label: 'Block size', type: 'range', min: 2, max: 16, step: 1 },
     { group: 'pattern', key: 'speckle', label: 'Speckle', type: 'range', min: 0, max: 0.6, step: 0.01 },
     { group: 'pattern', key: 'spreadInk', label: 'Colour spread', type: 'range', min: -1.2, max: 1.2, step: 0.05 },
-    { group: 'mark', key: 'mark', label: 'Mark in the field', type: 'range', min: 0, max: 1, step: 0.01,
+    { group: 'mark', key: 'mark', primary: true, label: 'Mark in the field', type: 'range', min: 0, max: 1, step: 0.01,
       needs: { of: 'motif', key: 'masked', least: 1,
         without: 'No bitmap could be taken of this shape — it is finer than the grid that '
           + 'reads it. The field is dealt from noise alone.' } },

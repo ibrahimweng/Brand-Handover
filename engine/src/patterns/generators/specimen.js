@@ -180,8 +180,8 @@
   }
 
   const controls = [
-    { group: 'grid', key: 'columns', label: 'Columns', type: 'range', min: 2, max: 16, step: 1 },
-    { group: 'grid', key: 'fill', label: 'Fill', type: 'range', min: 0.1, max: 1, step: 0.01 },
+    { group: 'grid', key: 'columns', primary: true, label: 'Columns', type: 'range', min: 2, max: 16, step: 1 },
+    { group: 'grid', key: 'fill', primary: true, label: 'Fill', type: 'range', min: 0.1, max: 1, step: 0.01 },
     { group: 'grid', key: 'spanning', label: 'Spanning', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'grid', key: 'gutter', label: 'Gutter', type: 'range', min: 0, max: 0.3, step: 0.005 },
     { group: 'grid', key: 'rules', label: 'Page rules', type: 'range', min: 0, max: 1, step: 0.01 },
@@ -189,7 +189,7 @@
       needs: { of: 'motif', key: 'silhouette', least: 1,
         without: 'No shape could be read out of this drawing, so no block can be the mark.' } },
     { group: 'blocks', key: 'inkShare', label: 'Ink share', type: 'range', min: 0, max: 1, step: 0.01 },
-    { group: 'blocks', key: 'weight', label: 'Line weight', type: 'range', min: 0.4, max: 10, step: 0.2 },
+    { group: 'blocks', key: 'weight', primary: true, label: 'Line weight', type: 'range', min: 0.4, max: 10, step: 0.2 },
     { group: 'blocks', key: 'seed', label: 'Seed', type: 'seed' },
   ];
 

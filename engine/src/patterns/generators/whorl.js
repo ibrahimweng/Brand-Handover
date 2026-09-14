@@ -137,11 +137,11 @@
 
   const controls = [
     { group: 'field', key: 'centres', label: 'Centres', type: 'range', min: 1, max: 14, step: 1 },
-    { group: 'field', key: 'pull', label: 'Pull', type: 'range', min: 0, max: 1, step: 0.01 },
+    { group: 'field', key: 'pull', primary: true, label: 'Pull', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'field', key: 'push', label: 'Push', type: 'range', min: 0, max: 1, step: 0.01 },
-    { group: 'stripes', key: 'count', label: 'Bands', type: 'range', min: 2, max: 60, step: 1 },
+    { group: 'stripes', key: 'count', primary: true, label: 'Bands', type: 'range', min: 2, max: 60, step: 1 },
     { group: 'stripes', key: 'weight', label: 'Band weight', type: 'range', min: 0, max: 1, step: 0.01 },
-    { group: 'warp', key: 'kind', label: 'Warp', type: 'chips', options: KINDS },
+    { group: 'warp', key: 'kind', primary: true, label: 'Warp', type: 'chips', options: KINDS },
     { group: 'warp', key: 'warp', label: 'Amount', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'warp', key: 'detail', label: 'Detail', type: 'range', min: 0, max: 1, step: 0.01 },
     { group: 'mark', key: 'mark', label: 'Centres from the mark', type: 'range', min: 0, max: 1, step: 0.01,
