@@ -377,8 +377,20 @@ function generatedTiles() {
   // this was a literal it had to be found by a failing count rather than by
   // anything saying what had changed.
   const PT = require('../src/patterns');
-  const each = PT.NAMES.reduce((n, g) => n + Math.max(1, (PT.GENERATORS[g].variants || []).length), 0);
+  // Everything that repeats — patterns and textures both. Posters are written
+  // to 16-posters, because a poster is a finished page rather than a tile a
+  // client repeats, and filing one under "pattern" would be the engine telling
+  // somebody their pattern is a poster. A texture is a tile, so it is one.
+  const each = PT.NAMES.filter(PT.TILING)
+    .reduce((n, g) => n + Math.max(1, (PT.GENERATORS[g].variants || []).length), 0);
   return each * project.rules.colourways.length - refused;
+}
+// And the posters, in their own folder.
+function posterFiles() {
+  const PT = require('../src/patterns');
+  const refused = result.warnings.filter((w) => /^the \w+ pattern was not built/.test(w)).length;
+  const each = PT.POSTERS.reduce((n, g) => n + Math.max(1, (PT.GENERATORS[g].variants || []).length), 0);
+  return Math.max(0, each * project.rules.colourways.length - refused);
 }
 // Four of the five write an SVG and one writes a PNG, which is the point of
 // having a raster family at all.
@@ -397,7 +409,8 @@ test('the file count is exactly what the rules ask for', () => {
     + (r.faviconSizes || []).length + ((r.faviconSizes || []).length ? 1 : 0)  // favicons plus the .ico
     + Object.keys(r.social || {}).length                    // social crops
     + repeatedTiles()                                       // the mark, tiled at every density in every colourway
-    + generatedTiles()                                      // and one generated tile per generator per colourway
+    + generatedTiles()                                      // and one generated tile per pattern per colourway
+    + posterFiles()                                         // and one page per poster per colourway, in 16-posters
     + 5                                                     // brand.json, README.txt, LICENCE.txt, usage.json
                                                             // and ACCESSIBILITY.txt
     + require('../src/typefaces').embed(project.tokens.type, null).used.length + 1  // 09-type and its OFL
@@ -1248,7 +1261,21 @@ test('the motif route only reaches for a generator that can hold a shape', () =>
 // ---------------------------------------------------------------- the lattice
 
 // Every fixture's chosen shape and the lattice it asks for, read once.
-const latticeRepo = () => fs.readdirSync(path.join(__dirname, '..', 'projects'))
+/* Every drawing in the repository, read once.
+
+   This loads thirty-three projects, measures each one and reads a motif out of
+   it — and measuring rasterises. Five tests ask for it and one asks twice, so
+   it was six full passes over the repository whose native memory resvg never
+   returns; the suite climbed to fourteen gigabytes and the kernel killed it
+   halfway through. The fixtures do not change while the suite runs, so reading
+   them again cannot tell anyone anything.
+
+   Callers read from what comes back and none of them writes to it. A test that
+   wants different parameters passes them to `latticeTile` rather than editing
+   the row. */
+let latticeRepoOnce = null;
+const latticeRepo = () => (latticeRepoOnce || (latticeRepoOnce = latticeRepoRead()));
+const latticeRepoRead = () => fs.readdirSync(path.join(__dirname, '..', 'projects'))
   .filter((n) => fs.existsSync(path.join(__dirname, '..', 'projects', n, 'project.json')))
   .map((name) => {
     const pr = projectLoader.load(path.join(__dirname, '..', 'projects', name, 'project.json'));
@@ -1354,6 +1381,213 @@ test('every lattice tiles without a seam', () => {
   // moving rather than as a threshold being crossed.
   worst.sort((a, b) => b[1] - a[1]);
   assert.ok(worst[0][1] <= 1.001, `worst join: ${worst[0][0]} at ${worst[0][1].toFixed(4)}`);
+});
+
+/* The completeness check, run in chunks in a child process.
+
+   `test/tile-complete.js` says what it measures and why it is not measured
+   here: resvg holds its parsed tree in native memory that V8 never collects,
+   and a hundred and thirty of these renders took the suite to a five gigabyte
+   peak and got it killed. Six at a time in a child that exits keeps the suite's
+   own peak where it was. */
+const completeness = (jobs, per) => {
+  const { execFileSync } = require('child_process');
+  const size = per || 6;
+  const out = [];
+  for (let i = 0; i < jobs.length; i += size) {
+    const chunk = jobs.slice(i, i + size);
+    const said = execFileSync(process.execPath,
+      [path.join(__dirname, 'tile-complete.js'), JSON.stringify(chunk)],
+      { cwd: __dirname, maxBuffer: 8 * 1024 * 1024, encoding: 'utf8' });
+    for (const r of JSON.parse(said)) out.push(r);
+  }
+  return out;
+};
+
+test('every generator that says it repeats draws a tile that is complete on its own', () => {
+  /* The one property a pattern has to have, measured rather than scored.
+
+     This replaced a z-score, and the replacement was not a preference. Put side
+     by side on sixty generator-and-identity pairs, the z-score called `relief`
+     the worst tile in the set at 2.81 — a tiling that is seamless by
+     construction, dealt once into a repeat unit and indexed modulo, and
+     pixel-for-pixel identical across the join — and called `warp` clean at 0.79
+     while it was missing 9% of its own page. It measures whether the join band
+     is an unusual band, and for a generator whose cells have hard edges the
+     join *is* an unusual band, honestly and harmlessly.
+
+     There is no bar here. Measured as `tile-complete.js` measures it, every
+     generator reads *exactly* zero — not nearly zero — so the assertion is
+     equality and there is no threshold to argue about.
+
+     And it has teeth, proved by reverting the one thing that makes it true.
+     `layers.paint` clips every tile to its own bounds; take that line out and
+     seventeen of these pairs go non-zero — warp by 8.8% of its page, sprig by
+     6%, sampler by 2.2%, relief by 0.95%, and weave, which predates all of
+     this, by 0.086%. Put it back and every one returns to zero.
+
+     Two identities rather than one: several of these tools take their
+     periodicity from the *mark* — a bitmap repeated across the tile, centres
+     dealt out of it, a grid sized from its stroke weight — so a tool can be
+     complete on a ring and incomplete on a wordmark. */
+  /* Two identities, named rather than found.
+
+     `latticeRepo()` reads every project in the repository and every one of
+     those reads rasterises a 48-square bitmap of the mark — thirty-three
+     renders whose native memory resvg never gives back. Calling it here to pick
+     two names cost the suite several gigabytes and got it killed by the kernel
+     at this exact test. The child does its own reading, and it reads two. */
+  const who = ['ancroft', 'carrock'];
+  for (const n of who) {
+    assert.ok(fs.existsSync(path.join(__dirname, '..', 'projects', n, 'project.json')),
+      `${n} is not in the repository, so this test is measuring nothing`);
+  }
+  const jobs = [];
+  for (const identity of who) {
+    for (const generator of PENG.NAMES.filter(PENG.TILING)) jobs.push({ identity, generator });
+  }
+  const said = completeness(jobs);
+  assert.strictEqual(said.length, jobs.length, 'the sweep did not run');
+  for (const r of said) {
+    assert.strictEqual(r.off, 0,
+      `${r.key}: ${r.off.toFixed(3)}% of the tile is drawn by its neighbours`);
+  }
+  /* And the instrument can read something other than zero.
+
+     A row of zeroes proves only that the check is switched off unless something
+     in it is known to fail. `warp` paints a ring of copies past every edge so a
+     bent shape straddling the join is drawn on both sides of it; painted
+     without the clip — which is exactly what the engine did before `layers.js`
+     added one — it leans on its neighbours for a measurable share of its own
+     page. That is the number this whole test exists to catch. */
+  const control = completeness(
+    [{ identity: who[0], generator: 'warp', broken: true, key: 'warp unclipped' }]);
+  assert.ok(control[0].off > 1,
+    `an unclipped warp reads ${control[0].off.toFixed(3)}%, so this check cannot fail`);
+});
+
+test('an effect layer leaves the tile complete on its own', () => {
+  /* An effect that breaks the tiling of the pattern under it is worse than no
+     effect: a client turns it on in the studio, likes it, exports it, and finds
+     the join on a printed sheet.
+
+     Every layer at once would prove nothing about any of them, so each is
+     switched on alone, over a lattice — the plainest base there is, and the one
+     that reads exactly zero without them, so anything found here is the
+     layer's own. */
+  // Named rather than found, for the reason above: reading the repository to
+  // pick one name rasterises thirty-three bitmaps that are never freed.
+  const name = 'carrock';
+  const jobs = [{ identity: name, generator: 'lattice', key: 'plain' }];
+  for (const key of PENG.LAYERS.NAMES) {
+    const p = PENG.LAYERS.defaultsOf(key);
+    p.amount = 0.7;
+    if (p.fromMark !== undefined) p.fromMark = 0.6;
+    jobs.push({ identity: name, generator: 'lattice', effects: { [key]: p }, key });
+  }
+  const said = completeness(jobs);
+  assert.strictEqual(said.length, jobs.length, 'the sweep did not run');
+  for (const r of said) {
+    assert.strictEqual(r.off, 0,
+      `the ${r.key} layer leaves ${r.off.toFixed(3)}% of the tile to its neighbours`);
+  }
+});
+
+test('an effect layer that is on changes the tile, and one that is off changes nothing', () => {
+  /* The fault this repository keeps finding, in a new place: a control that
+     moves and draws the same picture.
+
+     Corner radius was one — two thirds of the drawings here are curves and have
+     no corners to round, so the slider moved, the number reached brand.json and
+     the SVG came out byte for byte identical. Nineteen layers is nineteen more
+     chances at it, and the failure is silent: the toggle lights up and the page
+     does not move.
+
+     Both halves matter. A layer at zero has to leave the tile *exactly* as it
+     was, or every package in this repository changes the day this file is
+     added. */
+  const r = latticeRepo()[0];
+  const base = { markSource: r.src, generator: 'lattice', route: 'motif',
+    motif: r.motif, palette: r.pal, size: 100, name: r.name };
+  const moved = [];
+  const plain = PENG.tile(Object.assign({ id: 'fx' }, base));
+  const none = PENG.tile(Object.assign({ id: 'fx' }, base,
+    { params: Object.assign({}, plain.params, { effects: {} }) }));
+  assert.strictEqual(none.tile, plain.tile, 'an empty effect stack changed the tile');
+  for (const key of PENG.LAYERS.NAMES) {
+    const off = PENG.LAYERS.defaultsOf(key);
+    assert.strictEqual(off.amount, 0, `the ${key} layer does not start switched off`);
+    const still = PENG.tile(Object.assign({ id: 'fx' }, base,
+      { params: Object.assign({}, plain.params, { effects: { [key]: off } }) }));
+    assert.strictEqual(still.tile, plain.tile, `the ${key} layer draws something at zero amount`);
+    const on = PENG.LAYERS.defaultsOf(key);
+    on.amount = 0.7;
+    if (on.fromMark !== undefined) on.fromMark = 0.6;
+    const t = PENG.tile(Object.assign({ id: 'fx' }, base,
+      { params: Object.assign({}, plain.params, { effects: { [key]: on } }) }));
+    assert.notStrictEqual(t.tile, plain.tile, `the ${key} layer draws nothing when it is switched on`);
+    assert.deepStrictEqual(t.effects, [key], `the ${key} layer is not reported as active`);
+    assert.ok(t.why.indexOf(PENG.LAYERS.LAYERS[key].label) > -1,
+      `the reason does not name the ${key} layer`);
+    moved.push({ identity: base.name, generator: 'lattice',
+      effects: { [key]: on }, against: true, key });
+  }
+
+  /* And it changes the *picture*, not the bytes.
+
+     `bloom` and `carve` both passed the comparison above while drawing nothing
+     anybody could see. Each redraws the picture below it several times — six
+     offset copies at falling opacity, three copies for the two sides of a
+     chisel cut — and a generator opens by filling the whole tile, so every copy
+     covered the one before it. Six times the file and an untouched page. The
+     bytes differed, which is why a byte comparison is not a check.
+
+     Measured over a lattice at a hundred pixels, every layer at 0.7: the
+     sparsest of them moves 7% of the page and the densest moves 89%. One per
+     cent is a floor no layer that is doing anything can fall under and one that
+     draws nothing cannot clear. */
+  const said = completeness(moved, 4);
+  assert.strictEqual(said.length, moved.length, 'the sweep did not run');
+  for (const row of said) {
+    assert.ok(row.moved > 1,
+      `the ${row.key} layer changes ${row.moved.toFixed(2)}% of the page, which is nothing`);
+  }
+});
+
+test('a ground layer is under the pattern rather than behind an opaque fill', () => {
+  /* The fault that made eight of the nineteen invisible, and the reason
+     `palette.paper` exists.
+
+     Every generator opened by filling the whole tile with its ground. A ground
+     layer paints the paper and the generator painted over it — so terrain,
+     delta, culture, sonar, rise, mist, pane and aura all drew, all cost their
+     own weight in the file, and none of them could be seen.
+
+     This has teeth by construction: it asserts the same thing twice, once
+     through the stack and once by hand. Take the guard out of `palette.paper`
+     and the first half fails; leave the guard in but stop the stack setting the
+     flag and the second half fails. */
+  const r = latticeRepo()[0];
+  const base = { markSource: r.src, generator: 'lattice', route: 'motif',
+    motif: r.motif, palette: r.pal, size: 100 };
+  const plain = PENG.tile(Object.assign({ id: 'g' }, base));
+  const p = PENG.LAYERS.defaultsOf('terrain');
+  p.amount = 0.8;
+  const t = PENG.tile(Object.assign({ id: 'g' }, base,
+    { params: Object.assign({}, plain.params, { effects: { terrain: p } }) }));
+  // The ground layer's bands come before anything the generator draws, and the
+  // generator's own full-bleed fill is not there at all.
+  const fills = (t.body.match(/<rect[^>]*width="100"[^>]*height="100"[^>]*>/g) || []).length;
+  assert.strictEqual(fills, 1, `${fills} full-tile fills, where the stack lays exactly one`);
+  // And the palette says so where a generator reads it.
+  const PAL = require('../src/patterns/palette');
+  const one = PAL.of({ ink: { hex: '#111111' }, paper: { hex: '#FFFFFF', role: 'ground' } });
+  const count = { n: 0 };
+  const surf = { fillStyle: '', fillRect: () => { count.n++; } };
+  one.paper(surf, 10, 10, '#111111');
+  assert.strictEqual(count.n, 1, 'a palette that has not been painted did not lay the paper');
+  Object.assign(one, { painted: true }).paper(surf, 10, 10, '#111111');
+  assert.strictEqual(count.n, 1, 'a palette that says the paper is down laid it again');
 });
 
 test('the lattice takes every number off the shape, not off a constant', () => {
@@ -1700,8 +1934,17 @@ test('a poster is not a pattern, and the engine knows which is which', () => {
   // has to reach the three places where confusing them does damage.
   assert.ok(PENG.POSTERS.length >= 1, 'no posters are registered');
   assert.ok(PENG.PATTERNS.length >= 2, 'the patterns have gone missing');
-  assert.deepStrictEqual(PENG.PATTERNS.concat(PENG.POSTERS).sort(), PENG.NAMES.slice().sort(),
-    'a generator is in neither family, so nothing knows what to do with it');
+  assert.ok(PENG.TEXTURES.length >= 1, 'no textures are registered');
+  // Three families now. A texture repeats like a pattern and is filed with
+  // them; it is named apart because a client is being handed a surface rather
+  // than a structure, and the studio and the manual both say which.
+  assert.deepStrictEqual(PENG.PATTERNS.concat(PENG.TEXTURES).concat(PENG.POSTERS).sort(),
+    PENG.NAMES.slice().sort(),
+    'a generator is in no family, so nothing knows what to do with it');
+  for (const g of PENG.NAMES) {
+    assert.strictEqual(PENG.TILING(g), PENG.kindOf(g) !== 'poster',
+      `${g} disagrees with itself about whether it repeats`);
+  }
   // 1. `suits` never answers a pattern question with a poster.
   for (const route of PENG.ROUTES) {
     for (const fineness of [6, 15, 25, 40, 80]) {
@@ -2208,6 +2451,10 @@ test('every generator draws every identity, and the tile never runs finer than t
   const over = [];
   const styleless = [];
   const reached = new Set();
+  // Every generator that drew something for some identity, which is the other
+  // half of the reachability claim: the engine chooses from three and offers
+  // twenty-five, and "offers" has to mean a file somebody can open.
+  const built = new Set();
   // the style each identity's chosen generator gives it, which is where the
   // variety lives now that there are two generators rather than five
   const reachedStyle = new Set();
@@ -2233,6 +2480,7 @@ test('every generator draws every identity, and the tile never runs finer than t
         colourway: pr.rules.colourways[0] });
       assert.ok(t.tile.indexOf('<svg') === 0, `${g} drew nothing for ${name}`);
       assert.ok(t.why.length > 40, `${g} gave ${name} no reason`);
+      built.add(g);
       // `field` derived its look by name, spread the preset that name pointed
       // at, and dropped the name — so `params.style` was undefined for that one
       // generator. Nothing threw, and every tile drew correctly, because the
@@ -2279,9 +2527,30 @@ test('every generator draws every identity, and the tile never runs finer than t
   // and every heavy one to the other would pass it. The variety a client
   // actually sees is in the styles: fourteen in weave and six in zigzag, chosen
   // by three measurements of their own drawing.
-  assert.strictEqual(reached.size, PENG.PATTERNS.length,
-    `every mark on every route opens on only ${reached.size} of the ${PENG.PATTERNS.length} patterns — `
-    + `${PENG.PATTERNS.filter((g) => !reached.has(g)).join(', ')} cannot be arrived at`);
+  /* Every generator the engine chooses from is reachable, and every generator
+     it does not choose is still built and still offered.
+
+     This asked for every registered pattern and there were three of them. There
+     are eleven, and twenty-five generators altogether: the engine picks a
+     default from three of them and offers all twenty-five, which is a decision
+     stated in index.js rather than an omission — handing somebody a
+     corrupted-signal texture as their brand's default pattern because their
+     mark measures 19 stems across rather than 15 is not a measurement deciding.
+
+     Both halves are asserted, because the first on its own would pass on a
+     registry that had quietly lost twenty-two generators. */
+  assert.ok(PENG.CHOSEN.length >= 3, 'the engine has stopped choosing between generators');
+  assert.strictEqual(reached.size, PENG.CHOSEN.length,
+    `every mark on every route opens on only ${reached.size} of the ${PENG.CHOSEN.length} the engine `
+    + `chooses from — ${PENG.CHOSEN.filter((g) => !reached.has(g)).join(', ')} cannot be arrived at`);
+  for (const g of PENG.CHOSEN) {
+    assert.ok(PENG.PATTERNS.indexOf(g) > -1, `${g} is chosen by the engine and is not a pattern`);
+  }
+  const offered = PENG.NAMES.filter((g) => PENG.CHOSEN.indexOf(g) === -1);
+  assert.ok(offered.length >= 20, 'the catalogue has shrunk to what the engine chooses from');
+  for (const g of offered) {
+    assert.ok(built.has(g), `${g} is offered and no identity could build it`);
+  }
   for (const g of PENG.POSTERS) {
     assert.ok(!reached.has(g), `${g} is a poster and a mark opened on it`);
   }
@@ -2465,13 +2734,27 @@ test('a pattern this engine drew is matched back to the generator that drew it',
   // machinery for a family that no longer exists: it is how the manual names
   // the alternatives a client can take instead, and it stays.
   const { make } = matchAgainst('meridian');
-  // The generators the matcher searches. `lattice` is not one of them and is
-  // excluded on purpose: it draws nothing but the client's own mark, so
-  // matching a stranger's pattern to it would be claiming their existing
-  // pattern is made of their logo. See match.js.
-  const searchable = PENG.PATTERNS.filter((g) => !PENG.GENERATORS[g].needsMotif);
+  /* The generators the matcher searches, which is the ones that say they can
+     be. Everything else is excluded on purpose: those tools draw pictures
+     *made of* this client's own mark, and fitting a stranger's pattern to one
+     would be answering "the pattern you already use is made of your logo",
+     which is not something a picture can be measured into.
+
+     The exclusion has to be a declaration and not an accident. Twice now a
+     generator was skipped here because it happened to have no `KNOBS` entry,
+     which is an omission behaving correctly — and the next one added without
+     one would have been skipped for a reason nobody meant. So this asserts both
+     halves: every matchable generator has knobs, and every generator with knobs
+     is matchable. */
+  const searchable = PENG.NAMES.filter((g) => PENG.GENERATORS[g].matchable);
   assert.ok(searchable.length >= 2 && searchable.length < PENG.NAMES.length,
     'the matcher either searches everything or nothing, so this proves nothing about the exclusion');
+  for (const g of PENG.NAMES) {
+    const declared = !!PENG.GENERATORS[g].matchable;
+    const hasKnobs = !!PMATCH.KNOBS[g];
+    assert.strictEqual(declared, hasKnobs,
+      `${g} says matchable=${declared} and ${hasKnobs ? 'has' : 'has no'} knobs to search`);
+  }
   for (const truth of searchable) {
     const ref = PMATCH.asField(make(truth, null), 384);
     const r = PMATCH.fit(ref, make, { px: 256, rounds: 2 });
@@ -3635,6 +3918,7 @@ test('the rules reach brand.json, so a developer reads the same numbers', () => 
 });
 test('a tile is written for every density in every colourway, and for every generator', () => {
   const tiles = result.written.filter((f) => f.path.startsWith('07-pattern/'));
+  const posters = result.written.filter((f) => f.path.startsWith('16-posters/'));
   const repeated = tiles.filter((f) => /pattern-(fine|medium|coarse)-[a-z]+\.svg$/.test(f.path));
   const made = tiles.filter((f) => !/^07-pattern\/pattern-/.test(f.path));
   const raster = made.filter((f) => f.path.endsWith('.png'));
@@ -3644,9 +3928,27 @@ test('a tile is written for every density in every colourway, and for every gene
   assert.strictEqual(made.length, generatedTiles(), 'a generator did not write a tile in every colourway');
   assert.strictEqual(repeated.length + made.length, tiles.length,
     `${tiles.length - repeated.length - made.length} files in 07-pattern are named as neither`);
-  const names = require('../src/patterns').NAMES;
-  for (const g of names) {
+  const PT = require('../src/patterns');
+  for (const g of PT.PATTERNS) {
     assert.ok(made.some((f) => f.path.indexOf(`/${g}-`) > -1), `${g} wrote no tile at all`);
+    assert.ok(!posters.some((f) => f.path.indexOf(`/${g}-`) > -1),
+      `${g} is a pattern and wrote into 16-posters`);
+  }
+  // and every poster wrote its own page, in its own folder, at its own
+  // proportion rather than as a square tile.
+  assert.strictEqual(posters.length, posterFiles(),
+    `${posters.length} posters written where ${posterFiles()} were expected`);
+  for (const g of PT.POSTERS) {
+    const mine = posters.filter((f) => f.path.indexOf(`/${g}-`) > -1);
+    assert.ok(mine.length, `${g} wrote no poster at all`);
+    assert.ok(!made.some((f) => f.path.indexOf(`/${g}-`) > -1),
+      `${g} is a poster and wrote into 07-pattern`);
+    const svg = fs.readFileSync(path.join(out, mine[0].path), 'utf8');
+    const box = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(svg);
+    assert.ok(box, `${g} wrote a page with no viewBox`);
+    const ratio = Number(box[1]) / Number(box[2]);
+    assert.ok(Math.abs(ratio - PT.ratioOf(g)) < 0.02,
+      `${g} says it is cut at ${PT.ratioOf(g)} and was written at ${ratio.toFixed(3)}`);
   }
 });
 
@@ -7365,8 +7667,11 @@ test('the read me lists the folders the package has, not four fixed ones', async
   // 07-pattern is in every package now: a logotype has a pattern like anything
   // else, and before this it had one only if somebody hand-edited the master
   assert.deepStrictEqual(listed, ['04-wordmark']);
+  // 16-posters joined them: a poster is built out of the identity like
+  // anything else here, and a logotype has one for the same reason it has a
+  // pattern.
   assert.deepStrictEqual(onDisk.slice().sort(),
-    ['04-wordmark', '05-icons', '06-social', '07-pattern', '09-type']);
+    ['04-wordmark', '05-icons', '06-social', '07-pattern', '09-type', '16-posters']);
   // and the read me names all of them, wherever it names them
   assert.deepStrictEqual(onDisk.filter((f) => !txt.includes(f)), []);
   // and it says what a logotype is, rather than calling it a fallback for a
@@ -7809,7 +8114,8 @@ test('the pattern this project sets is cut at every density', async () => {
   // Generators, plus the extra intensities any of them ships — `lattice` writes
   // bold and quiet — in three colourways.
   const PT = require('../src/patterns');
-  const each = PT.NAMES.reduce((n, g) => n + Math.max(1, (PT.GENERATORS[g].variants || []).length), 0);
+  const each = PT.NAMES.filter(PT.TILING)
+    .reduce((n, g) => n + Math.max(1, (PT.GENERATORS[g].variants || []).length), 0);
   assert.strictEqual(made.length, each * 3,
     `${made.length} generated tiles, where ${each} per colourway in three colourways is ${each * 3}`);
   for (const d of ['fine', 'medium', 'coarse']) {
@@ -8122,7 +8428,9 @@ test('a lone logotype is built as a logotype, not as a mark called one', async (
   // in the shape the engine reads rather than in one of its own. What it must
   // NOT do is call the logotype a mark.
   const folders = fs.readdirSync(dir).filter((f) => /^\d\d-/.test(f));
-  assert.deepStrictEqual(folders, ['04-wordmark', '05-icons', '07-pattern', '09-type'], `it wrote ${folders.join(', ')}`);
+  assert.deepStrictEqual(folders,
+    ['04-wordmark', '05-icons', '07-pattern', '09-type', '16-posters'],
+    `it wrote ${folders.join(', ')}`);
   fs.rmSync(dir, { recursive: true, force: true });
 
   // and a symbol on its own is still a symbol
