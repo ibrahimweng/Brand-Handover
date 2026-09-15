@@ -4020,3 +4020,98 @@ rather than merely that one exists.
 Nothing is lost by leaving them out. Every poster is built into every package
 from the same artwork whatever is chosen, and filed under `16-posters`; the
 sheet says so where the posters used to be.
+
+## Six more, from references somebody sent
+
+Five pictures and a brief: add these, do not replace anything, and they have to
+be editable and derived from the logo like everything else. Read as
+constructions rather than as looks, they were five different things — and one of
+them the catalogue could not do at all.
+
+**`junction`** — a diagonal lattice of bars whose crossings are not crossings.
+The whole construction is what happens where four bars meet, and drawing two
+sets of crossing strokes gets it wrong: that is a plaid, with square wells. The
+wells are cut *out* of a solid sheet instead, so the pinch at each junction
+falls out of the well's own corner radius rather than being drawn. The first
+version had the wells rounded to their own maximum, which makes a circle — and
+a lattice of circles is a dot screen, which the catalogue already has three of.
+Capped at six tenths, the well stays a well.
+
+**`tracery`** — outlined solids on a lattice tighter than the solids are wide,
+so they pass through each other. Forms that meet at their edges are a mosaic;
+forms that cross make figures neither contains. Nothing may be filled: a filled
+shape hides the lines behind it and the crossings stop happening.
+
+**`screen`** — a line screen whose pitch is driven across the sheet, over a
+field of colour blocks. A screen at one pitch is a stripe; modulating it is what
+makes one flat colour read light in one place and dense in another. The pitch
+travels out and back rather than across, because a screen that ends where it did
+not start puts a seam down every join.
+
+**`plate`** — modular blocks with the setting-out left showing: the field they
+are snapped to, the lines that say where each sits, and each block's own grid
+position printed at its corner. The coordinates are real — a block tagged with a
+column and a row is at that column and row — so two blocks never carry the same
+tag.
+
+**`strata`** — panels of sky cut into flat steps with an ordered dither along
+every boundary. Stepped rather than blended on purpose: a gradient prints as a
+band of mud, cannot be separated into two spot inks, and is not a decision
+anybody can count. The dither is a fixed threshold matrix rather than noise, so
+the same boundary breaks up the same way twice and the tile comes round.
+
+**`signage`** — the icon set, arranged. Which needed the icon set first.
+
+### The icons, and all three ways rather than one
+
+Twenty-four glyphs, and every measurement they are drawn with comes off the
+client's drawing: the pen is the mark's own stroke ratio, the corner is how much
+of its turning happens on a curve, the terminals are its terminals. Change the
+logo and the whole set redraws, which is the same promise the patterns make.
+
+Three ways ship, because they are three jobs. `pen` strokes at the mark's own
+weight — for a user interface and anything set beside text. `solid` strokes at
+nearly twice it, so it holds where a hairline closes up. `stamp` knocks the
+glyph out of a tile whose corner is the mark's corner, which is the only one
+that survives being put on a photograph.
+
+The glyphs are declared as instructions on a 24 grid, not as finished paths, so
+one construction serves all three. A path drawn three times is three drawings
+that will drift.
+
+A trade swaps the last six for its own — a distillery gets a cask where a
+general set has a link. No project declares a trade yet, so the set opens on the
+twenty-four every brand needs and the sector is a control. Deriving a distillery
+from the word "spirit" in a positioning line would be the engine inventing a
+fact about somebody's business.
+
+## A straight line took the engine down
+
+Thirty-three fixtures is a good sample of logos somebody drew on purpose. It is
+not a sample of what arrives. Twelve inputs that could arrive — one line, one
+square, one dot, a hairline, text with no outlines, four thousand nodes, twelve
+thousand, an empty file, nothing but groups, a gradient fill, a rule a thousand
+units wide, a shape off the artboard.
+
+Eleven were handled. One was not, and it was the simplest: **a horizontal rule
+exhausted the heap.**
+
+A line has no height, so `w / max(h, 1e-9)` reports an aspect of eighty billion.
+Honest arithmetic, catastrophic number: `lattice` sizes its cell from the
+aspect, got a cell height of about 10⁻¹⁰, asked for a row count in the hundreds
+of billions, and died before writing a pixel. Not a slow render — a dead
+process, on a two-node SVG, on the simplest logo anybody could submit.
+
+Fixed at both ends, because one end alone leaves the other free to reintroduce
+it. The aspect is clamped where it is read — forty to one is already a rule
+rather than a mark, and past it is drawn as forty to one — so no generator ever
+divides by a degenerate box. And the lattice's own count is bounded, so no
+reading of any future artwork can put an unbounded loop there again. The test
+fails when either guard is removed.
+
+The other eleven are worth stating too, because "handled" meant two different
+things. Where a motif could be read, all thirty-eight generators drew. Where it
+could not — text with no outlines, four thousand nodes, an empty file — the
+engine refused in a sentence naming the reason, and thirty-three of the
+thirty-eight still drew, the five blanks being the ones that are nothing but the
+motif. Nothing threw.

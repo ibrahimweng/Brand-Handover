@@ -59,6 +59,7 @@
     'lattice', 'monogram', 'tartan', 'stripe', 'weave', 'zigzag', 'oddgrid', 'quilt', 'warp', 'vee',
     'sampler', 'relief',
     'whorl', 'sprig', 'terrazzo', 'damask', 'ornament', 'dynamic',
+    'junction', 'tracery', 'screen', 'plate', 'strata', 'signage',
     // textures — the mark, as a surface
     'stipple', 'atlas', 'mosh', 'pith',
     // posters — the mark, as a page
@@ -925,6 +926,118 @@
     grid: 0.14,
     seed: 1 });
 
+  PATTERN_FROM.junction = (d) => ({
+    // A drawing with a lean of its own gets the diagonal armature; a square one
+    // gets the square grid, where the junction still pinches but the lattice
+    // does not tilt under it.
+    weave: d.curvy > 0.4 ? 'diagonal' : 'square',
+    cells: Math.max(3, Math.min(12, Math.round(4 + scaleFrom(d.m) * 0.08))),
+    // The bar against the cell, from how heavy the drawing's stroke runs
+    // against its width. Capped at a third: past that the wells close and the
+    // pattern is a sheet with dimples in it.
+    bar: Math.round(Math.max(0.16, Math.min(0.36, (d.mo.weight || 0.06) * 3.6)) * 100) / 100,
+    // And the fillet from how much of its turning happens on a curve, which is
+    // the whole difference between a cast piece and a plaid.
+    /* Short of round by default. Taken to its own maximum the well becomes a
+       circle and the cloth becomes a dot screen, which is a pattern the
+       catalogue already has three of. The control still reaches all the way for
+       anyone who wants it. */
+    fillet: Math.round(Math.max(0.15, Math.min(0.62, 0.18 + d.curvy * 0.42)) * 100) / 100,
+    seam: 0, ink: 0, seed: 1 });
+
+  PATTERN_FROM.tracery = (d) => ({
+    // Four forms where the drawing is simple enough that four do not crowd it,
+    // two where it is not. Every one of them is line only, so the cost of a
+    // fourth is a crossing rather than a shape on top of another.
+    forms: Math.max(1, Math.min(4, Math.round(1 + d.simple * 4))),
+    cells: Math.max(2, Math.min(7, Math.round(2 + scaleFrom(d.m) * 0.04))),
+    /* How far a form runs past its own cell. This is the control that decides
+       whether it is tracery at all: at 1 the forms meet and it is a mosaic,
+       past 1 they pass through each other and every crossing is a new figure.
+       A curvy drawing takes more overlap because its crossings stay legible. */
+    reach: Math.round((1.25 + d.curvy * 0.5) * 100) / 100,
+    // The forms' own proportion, from the drawing's.
+    lean: Math.round(Math.max(0.4, Math.min(1.5, 1 / Math.max(0.4, d.aspect))) * 100) / 100,
+    drop: d.sym >= SYMMETRIC ? 0.5 : 0,
+    turn: 0,
+    // A hairline: the reference's whole character is one weight everywhere,
+    // including at a crossing, and a heavy line closes the figures up.
+    weight: Math.round(Math.max(0.006, Math.min(0.03, (d.mo.weight || 0.06) * 0.3)) * 1000) / 1000,
+    ink: 0, seed: 1 });
+
+  PATTERN_FROM.screen = (d) => ({
+    run: 'columns',
+    // How fine the screen runs, from the scale rule. This is the one place the
+    // rule points straight: a fine drawing asks for a fine screen.
+    pitch: Math.max(12, Math.min(140, Math.round(scaleFrom(d.m) * 0.7))),
+    // How much the pitch changes across the sheet. Without this it is a stripe.
+    depth: 0.45,
+    bands: Math.max(1, Math.min(6, Math.round(2 + (1 - d.simple) * 3))),
+    duty: Math.round(Math.max(0.2, Math.min(0.8, 0.3 + d.ink * 0.4)) * 100) / 100,
+    blocks: Math.max(4, Math.min(30, Math.round(6 + scaleFrom(d.m) * 0.06))),
+    fill: Math.round(Math.max(0.3, Math.min(1, 0.4 + d.ink * 0.5)) * 100) / 100,
+    colours: 3,
+    mark: d.masked ? 0.85 : 0,
+    spread: 0.5,
+    seed: 1 });
+
+  PATTERN_FROM.plate = (d) => ({
+    // A busy drawing gets a set-out composition with few blocks; a simple one
+    // can carry a scattered plate without the two fighting.
+    set: d.simple > 0.4 ? 'scattered' : 'quartered',
+    cells: Math.max(5, Math.min(20, Math.round(6 + scaleFrom(d.m) * 0.05))),
+    blocks: Math.max(2, Math.min(7, Math.round(2 + d.simple * 5))),
+    field: 0.22,
+    rules: 0.3,
+    tags: 0.55,
+    tagSize: 1,
+    mark: d.mo.moves ? 0.5 : 0,
+    colours: 3, ink: 0, seed: 1 });
+
+  PATTERN_FROM.strata = (d) => ({
+    sky: d.sym >= SYMMETRIC ? 'dawn' : 'dusk',
+    panels: Math.max(1, Math.min(4, Math.round(1 + d.simple * 4))),
+    // How many flat steps the sky is cut into. Few enough to count, which is
+    // the point of stepping it rather than blending it.
+    steps: Math.max(5, Math.min(14, Math.round(6 + (1 - d.simple) * 8))),
+    // Fine enough that the dither reads as a dither rather than as tiles. The
+    // first draft ran at a twelfth of this and came out as brickwork.
+    /* Fine enough that the dither is a dither. At a tile of six hundred, a
+       grain of seventy is eight-pixel cells and the ordered matrix reads as
+       brickwork rather than as a graded sky. */
+    grain: Math.max(130, Math.min(240, Math.round(130 + scaleFrom(d.m) * 0.4))),
+    gap: 0.06,
+    // A silhouette, not a wall. At 0.8 the mark's own bitmap filled most of the
+    // panel and the sky it was supposed to stand against was a rim round it.
+    relief: d.masked ? 0.24 : 0.42,
+    ridges: Math.max(1, Math.min(6, Math.round(1 + d.curvy * 4))),
+    mark: d.masked ? 0.34 : 0,
+    spread: 0.5,
+    top: 0,
+    bottom: 1,
+    seed: 1 });
+
+  PATTERN_FROM.signage = (d) => ({
+    layout: 'grid',
+    // The pen for a set read beside text, the stamp for a mark that is already
+    // heavy — a solid set under a solid logo is two weights arguing.
+    way: d.ink > 0.55 ? 'pen' : 'stamp',
+    cells: Math.max(3, Math.min(10, Math.round(4 + scaleFrom(d.m) * 0.03))),
+    size: 0.66,
+    drop: 0,
+    lead: 1,
+    count: 28,
+    vary: 0.3,
+    turn: 0,
+    icons: 24,
+    which: 0,
+    // No project declares its trade yet, so the set opens on the twenty-four
+    // every brand needs and a sector swaps its six in when one is named. That
+    // is a control rather than a guess: deriving a distillery from the word
+    // "spirit" in a positioning line is the engine inventing a fact.
+    sector: '',
+    colours: 1, ink: 0, seed: 1 });
+
   PATTERN_FROM.relief = (d) => ({
     way: 'raise',
     // How many cubes across, from the scale rule — and capped well below where
@@ -1259,6 +1372,54 @@
           + 'page it is announced on'}. `
     + `Travel is ${Math.round(p.range * 100)}%: at nothing at all every cell is the mark as drawn `
     + 'and this is a lattice, which is the true picture of a system whose variables are not varying.';
+
+  BECAUSE.junction = (m, p, w) => `${w.fine} — a ${p.weave} lattice of bars ${Math.round(p.bar * 100)}% `
+    + 'of a cell wide, and the pattern is where they meet rather than the bars themselves. The wells '
+    + 'between them are cut out of a solid sheet, so the pinch at each junction falls out of the '
+    + `well's own corner rather than being drawn; at a fillet of ${Math.round(p.fillet * 100)}% that `
+    + 'is a cast piece, and at nothing at all it is a plaid. The bar is this drawing\'s stroke against '
+    + 'its width and the fillet is how much of its turning happens on a curve.';
+
+  BECAUSE.tracery = (m, p, w) => `${w.fine} — ${p.forms} outlined forms on a ${p.cells}-cell lattice, `
+    + `each reaching ${Math.round(p.reach * 100)}% of its own cell so they pass through one another. `
+    + 'That overlap is the whole construction: forms that meet at their edges are a mosaic, and forms '
+    + 'that cross make figures neither of them contains. Nothing is filled — a filled shape hides the '
+    + 'lines behind it and the crossings stop happening — so it is one hairline everywhere, including '
+    + 'where four lines meet.';
+
+  BECAUSE.screen = (m, p, w) => `${w.fine} — a line screen of about ${p.pitch} rules ${p.run === 'rows'
+    ? 'across' : 'down'} the tile, over a field of ${p.blocks} blocks. The screen is modulated: its `
+    + `pitch travels ${Math.round(p.depth * 100)}% out and back over ${p.bands} passage`
+    + `${p.bands === 1 ? '' : 's'}, so one flat colour reads light in one place and dense in another. `
+    + 'A screen at one pitch is a stripe. '
+    + `${p.mark > 0 ? `${named(p)} is in the block field as a region rather than as a drawing`
+      : 'The blocks are dealt by the field, this drawing having no bitmap to read'}.`;
+
+  BECAUSE.plate = (m, p, w) => `${w.fine} — ${p.blocks} blocks set out on a ${p.cells}-cell grid, with `
+    + 'the setting-out left showing: the field they are snapped to, the lines that say where each one '
+    + 'sits, and each block\'s own grid position printed at its corner. Those coordinates are real — '
+    + 'a block tagged with a column and a row is at that column and that row — so two blocks never '
+    + `carry the same tag. ${p.mark > 0 ? `About ${Math.round(p.mark * 100)}% of them carry ${named(p)}`
+      : 'The blocks are plain'}.`;
+
+  BECAUSE.strata = (m, p, w) => `${w.fine} — ${p.panels} panel${p.panels === 1 ? '' : 's'} of sky cut `
+    + `into ${p.steps} flat steps, with an ordered dither along every boundary. Stepped rather than `
+    + 'blended on purpose: a gradient prints as a band of mud and cannot be separated into two spot '
+    + 'inks, and a stepped one reads the same at any size and is a decision somebody can count. The '
+    + 'dither is a fixed threshold matrix rather than noise, so the same boundary breaks up the same '
+    + `way twice and the tile comes round. ${p.mark > 0 ? `The skyline is ${named(p)}\u2019s own `
+      + 'silhouette' : 'The skyline is built from this identity\u2019s proportions'}.`;
+
+  BECAUSE.signage = (m, p, w) => `${w.fine} — the identity\u2019s own ${p.icons} icons, `
+    + `${p.layout === 'scatter' ? 'thrown over the tile at mixed sizes with the wrapped distance between them'
+      : p.layout === 'band' ? 'run in courses with plain leading between'
+        : p.layout === 'single' ? 'one of them repeated on a lattice'
+          : `set ${p.cells} to a rank`}, drawn ${p.way === 'stamp' ? 'as stamps knocked out of a tile '
+            + 'whose corner is this mark\u2019s corner' : p.way === 'solid'
+            ? 'at nearly twice the mark\u2019s weight, so they hold where a hairline would close up'
+            : 'with the mark\u2019s own pen — same weight, same terminals'}. `
+    + 'Every one of them is measured off the drawing rather than bought: change the logo and the whole '
+    + `set redraws.${p.sector ? ` The last six are the ${p.sector} vocabulary.` : ''}`;
 
   BECAUSE.relief = (m, p, w) => `${w.fine} — a field ${p.cubes} cubes across, on a repeat unit `
     + `that brings ${named(p)} round every ${p.unit} of them. `

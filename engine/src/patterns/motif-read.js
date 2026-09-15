@@ -39,7 +39,25 @@ function normalise(segs) {
     else if (s.op === 'cubic') ops.push(['C', X(s.c1[0]), Y(s.c1[1]), X(s.c2[0]), Y(s.c2[1]), X(s.to[0]), Y(s.to[1])]);
     else if (s.op === 'close') ops.push(['Z']);
   }
-  return { ops, ratio: +(w / Math.max(h, 1e-9)).toFixed(3) };
+  /* The aspect, bounded.
+
+     `w / max(h, 1e-9)` is honest arithmetic and a catastrophic number: a
+     horizontal rule has no height at all, so it reports an aspect of eighty
+     billion. Every generator that sizes a cell from the aspect then computes a
+     cell height of about 10^-10 and a row count in the hundreds of billions,
+     and the first one to try drawing it exhausts the heap. A single straight
+     line — the simplest logo anybody could submit — took the engine down.
+
+     So it is clamped to the range a drawing can actually be. Forty to one is
+     already a rule rather than a mark, and anything past it is drawn as forty
+     to one: a cell forty times wider than it is tall, which looks like what was
+     submitted, instead of a cell with no height, which looks like nothing and
+     costs everything. The reading stays honest — `moves`, `ink` and the bitmap
+     are untouched — this bounds only the number the layout arithmetic divides
+     by. */
+  const LIMIT = 40;
+  const raw = w / Math.max(h, 1e-9);
+  return { ops, ratio: +Math.max(1 / LIMIT, Math.min(LIMIT, raw)).toFixed(3) };
 }
 
 // ------------------------------------------------------- the shape as a mask

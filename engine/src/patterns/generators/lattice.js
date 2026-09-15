@@ -70,8 +70,19 @@
   function steps(W, H, p, ratio) {
     const boxW = W * p.scale * Math.min(1, ratio || 1);
     const boxH = W * p.scale * Math.min(1, 1 / (ratio || 1));
-    let cols = Math.max(1, Math.round(W / (boxW * (1 + p.gap))));
-    let rows = Math.max(1, Math.round(H / (boxH * (1 + p.gap))));
+    /* Bounded at both ends, and the upper end is not decoration.
+
+       These are divisions by a motif's own box, and a box can be degenerate —
+       a horizontal rule has no height. Unbounded, the count comes back as a
+       number in the billions and the draw loop below exhausts the heap before
+       it writes a pixel. The aspect is clamped where it is read now, which
+       fixes the cause; this is the guard that means no reading of any future
+       artwork can put an unbounded loop here again.
+
+       Four hundred across a tile is already finer than any press resolves. */
+    const most = 400;
+    let cols = Math.max(1, Math.min(most, Math.round(W / Math.max(1e-6, boxW * (1 + p.gap)))));
+    let rows = Math.max(1, Math.min(most, Math.round(H / Math.max(1e-6, boxH * (1 + p.gap)))));
     if (p.drop > 0.001 && rows % 2) rows += 1;
     return { cols, rows, stepX: W / cols, stepY: H / rows, boxW, boxH };
   }

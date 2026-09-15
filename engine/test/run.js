@@ -3663,6 +3663,61 @@ test('every construction makes a tile that repeats seamlessly', () => {
     geo.inkBox(t.svg);                     // throws if the renderer cannot read it
   }
 });
+test('a logo with no height does not ask for a hundred billion rows', () => {
+  /* The simplest logo anybody can submit is a straight line, and it took the
+     engine down.
+
+     A horizontal rule has no height, so `w / max(h, 1e-9)` reports an aspect of
+     eighty billion. Honest arithmetic, catastrophic number: `lattice` sizes its
+     cell from the aspect, got a cell height of about 10^-10, asked for a row
+     count in the hundreds of billions, and exhausted the heap before writing a
+     pixel. Not a slow render — a dead process, on a two-node SVG.
+
+     Two guards, because one of them is at the cause and the other makes the
+     class of fault impossible. The aspect is clamped where it is read, so no
+     generator ever divides by a degenerate box; and the lattice's own count is
+     bounded, so no reading of any future artwork can put an unbounded loop
+     there again. Both are asserted: a fix at one end only would leave the other
+     end free to reintroduce it. */
+  const PMR = require('../src/patterns/motif-read');
+  const PLAT = require('../src/patterns/generators/lattice');
+  const rules = { minStrokePx: 2, minStrokeMm: 0.5, colourways: [{ name: 'full-colour', on: 'paper' }] };
+  const line = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">'
+    + '<path d="M10,50 L90,50" stroke="#123" stroke-width="4" fill="none"/></svg>';
+  const flat = PMR.read(line, rules, undefined, undefined, {});
+  assert.ok(flat.ok, `a straight line could not be read at all: ${flat.why}`);
+  assert.ok(flat.ratio > 0 && flat.ratio <= 40,
+    `a line with no height reports an aspect of ${flat.ratio}`);
+  // the same for a vertical one, which is the same fault the other way up
+  const upright = PMR.read(line.replace('M10,50 L90,50', 'M50,10 L50,90'), rules, undefined, undefined, {});
+  assert.ok(upright.ratio >= 1 / 40 && upright.ratio <= 40,
+    `a line with no width reports an aspect of ${upright.ratio}`);
+
+  // and the lattice's own count stays finite however absurd the aspect it is
+  // handed, which is the guard rather than the fix
+  for (const ratio of [1e11, 1e-11, 0, Infinity, NaN]) {
+    const st = PLAT.steps(600, 600, { scale: 0.2, gap: 1.4, drop: 0.5 }, ratio);
+    assert.ok(Number.isFinite(st.cols) && Number.isFinite(st.rows),
+      `an aspect of ${ratio} gives ${st.cols}x${st.rows}`);
+    assert.ok(st.cols >= 1 && st.cols <= 400 && st.rows >= 1 && st.rows <= 400,
+      `an aspect of ${ratio} asks for ${st.cols}x${st.rows} cells`);
+  }
+
+  // and it actually draws, in bounded time, rather than merely having a count
+  const PENG2 = require('../src/patterns');
+  const mk = PENG2.read(line, undefined, rules);
+  const started = Date.now();
+  const t = PENG2.tile({ mark: mk, generator: 'lattice', route: 'motif', motif: flat,
+    colours: [{ name: 'ink', hex: '#0A2A33', role: 'primary' },
+      { name: 'paper', hex: '#FFFFFF', role: 'ground' }],
+    colourway: { name: 'full-colour', on: 'paper' }, size: 300, id: 'line' });
+  // `tile` returns the drawing and the sentence that explains it; `why` is the
+  // explanation, not a refusal, so this checks there is a drawing.
+  assert.ok(t.tile && t.tile.length > 400, 'a straight line produced no tile');
+  assert.ok(t.width > 0 && t.height > 0, 'the tile has no size');
+  assert.ok(Date.now() - started < 4000, 'a two-node logo took more than four seconds to tile');
+});
+
 test('the pattern screen never offers what the build will refuse', () => {
   /* A poster is a finished page rather than a repeat, and build.js refuses one
      as an identity's pattern — rightly, because filing a poster under "pattern"

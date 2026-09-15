@@ -37,7 +37,7 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
 // happened to load it first; the app's pattern screen did not, and that is
 // exactly the bug this list exists to make impossible.
 const SOURCES = ['../contrast.js', 'rand.js', 'noise.js', 'surface.js', 'palette.js', 'tone.js',
-  'grid.js', 'motif.js', 'modulate.js', 'layers.js']
+  'grid.js', 'motif.js', 'icons.js', 'modulate.js', 'layers.js']
   .concat(Object.keys(PE.GENERATORS).sort().map((g) => `generators/${g}.js`))
   .concat(['index.js']);
 
