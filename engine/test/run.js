@@ -369,28 +369,44 @@ function repeatedTiles() {
   const refused = result.warnings.filter((w) => /^pattern .+ was not written/.test(w)).length;
   return dens * project.rules.colourways.length - refused;
 }
-function generatedTiles() {
-  const refused = result.warnings.filter((w) => /^the \w+ pattern was not built/.test(w)).length;
-  // One file per generator per colourway, plus one more for each extra
-  // intensity a generator ships. `lattice` ships bold and quiet, so it writes
-  // two. Derived from the registry rather than typed, because the last time
-  // this was a literal it had to be found by a failing count rather than by
-  // anything saying what had changed.
-  const PT = require('../src/patterns');
-  // Everything that repeats — patterns and textures both. Posters are written
-  // to 16-posters, because a poster is a finished page rather than a tile a
-  // client repeats, and filing one under "pattern" would be the engine telling
-  // somebody their pattern is a poster. A texture is a tile, so it is one.
-  const each = PT.NAMES.filter(PT.TILING)
-    .reduce((n, g) => n + Math.max(1, (PT.GENERATORS[g].variants || []).length), 0);
-  return each * project.rules.colourways.length - refused;
+/* The generated tiles, which are no longer "all of them".
+
+   This counted every generator in every colourway and the answer was a hundred
+   and ninety-two files for pagrin, sixty of them posters. The build writes the
+   chosen pattern in every colourway and a shortlist beside it in the first, and
+   keeps the rest as recipes in brand.json and the studio — see
+   src/patterns/shortlist.js for the argument and `recipe` in
+   src/patterns/index.js for what a recipe costs.
+
+   So the arithmetic is the rule rather than the registry: MOST patterns and
+   POSTERS pages, and the chosen one counted once per colourway because it is
+   the one a client actually lays down. Derived from the constants rather than
+   typed, so changing the shortlist size changes this with it. */
+function patternsOf(dir) {
+  const bj = JSON.parse(fs.readFileSync(path.join(dir, 'brand.json'), 'utf8'));
+  return bj.system.patterns;
 }
-// And the posters, in their own folder.
-function posterFiles() {
+function generatedTiles(dir, proj) {
+  const pr = proj || project;
   const PT = require('../src/patterns');
-  const refused = result.warnings.filter((w) => /^the \w+ pattern was not built/.test(w)).length;
-  const each = PT.POSTERS.reduce((n, g) => n + Math.max(1, (PT.GENERATORS[g].variants || []).length), 0);
-  return Math.max(0, each * project.rules.colourways.length - refused);
+  const SHORT = require('../src/patterns/shortlist');
+  const S = patternsOf(dir || out);
+  if (!S) return 0;
+  const ways = pr.rules.colourways.length;
+  // the chosen pattern, in every colourway, at every intensity it ships
+  const intensities = Math.max(1, (PT.GENERATORS[S.chose].variants || []).length);
+  // and the shortlist beside it, in as many colourways as the rule allows
+  const beside = Math.min(SHORT.MOST, PT.NAMES.filter(PT.TILING).length) - 1;
+  return ways * intensities + beside * Math.min(Math.max(1, SHORT.WAYS), ways);
+}
+// And the posters, in their own folder: the shortlist's worth, in the first
+// colourway. A poster is a finished page rather than a tile, so it is counted
+// separately and ranked separately.
+function posterFiles(proj) {
+  const PT = require('../src/patterns');
+  const SHORT = require('../src/patterns/shortlist');
+  return Math.min(SHORT.POSTERS, PT.POSTERS.length)
+    * Math.min(Math.max(1, SHORT.WAYS), (proj || project).rules.colourways.length);
 }
 // Four of the five write an SVG and one writes a PNG, which is the point of
 // having a raster family at all.
@@ -409,8 +425,8 @@ test('the file count is exactly what the rules ask for', () => {
     + (r.faviconSizes || []).length + ((r.faviconSizes || []).length ? 1 : 0)  // favicons plus the .ico
     + Object.keys(r.social || {}).length                    // social crops
     + repeatedTiles()                                       // the mark, tiled at every density in every colourway
-    + generatedTiles()                                      // and one generated tile per pattern per colourway
-    + posterFiles()                                         // and one page per poster per colourway, in 16-posters
+    + generatedTiles()                                      // the chosen pattern in every colourway, the shortlist beside it
+    + posterFiles()                                         // and the poster shortlist, in 16-posters
     + 5                                                     // brand.json, README.txt, LICENCE.txt, usage.json
                                                             // and ACCESSIBILITY.txt
     + require('../src/typefaces').embed(project.tokens.type, null).used.length + 1  // 09-type and its OFL
@@ -4152,7 +4168,26 @@ test('the rules reach brand.json, so a developer reads the same numbers', () => 
   assert.strictEqual(bj.system.pattern.seamless, true);
   assert.strictEqual(bj.system.motion.durations.considered, 480);
 });
-test('a tile is written for every density in every colourway, and for every generator', () => {
+/* What used to be "a tile for every generator" and is now "a tile for the
+   patterns this identity is handed".
+
+   The claim it replaces was a claim about *volume*: every one of thirty-eight
+   generators, in every one of six colourways, is on disk. That produced a
+   hundred and ninety-two files in 07-pattern and sixty in 16-posters, and the
+   test passing meant the folder was long rather than that it was right.
+
+   What is checked instead is the rule the build now follows, which is a
+   stronger claim and a shorter folder:
+     - the chosen pattern is written in every colourway, at every intensity;
+     - the shortlist is written in the first colourway and nowhere else;
+     - nothing outside the shortlist is written at all;
+     - every generator that was not written is in brand.json with its
+       parameters, so the cut lost nothing but bytes.
+   The last one is the one that matters. A cut that dropped generators would
+   pass the first three. */
+test('the chosen pattern is written in every colourway, the shortlist beside it, and the rest as recipes', () => {
+  const PT = require('../src/patterns');
+  const SHORT = require('../src/patterns/shortlist');
   const tiles = result.written.filter((f) => f.path.startsWith('07-pattern/'));
   const posters = result.written.filter((f) => f.path.startsWith('16-posters/'));
   const repeated = tiles.filter((f) => /pattern-(fine|medium|coarse)-[a-z]+\.svg$/.test(f.path));
@@ -4161,22 +4196,83 @@ test('a tile is written for every density in every colourway, and for every gene
   assert.strictEqual(raster.length, rasterTiles(),
     `${raster.length} raster tiles where ${rasterTiles()} generators are not vector`);
   assert.strictEqual(repeated.length, repeatedTiles(), 'the tiled mark is not written at every density');
-  assert.strictEqual(made.length, generatedTiles(), 'a generator did not write a tile in every colourway');
+  assert.strictEqual(made.length, generatedTiles(), 'the shortlist is not the size the rule says');
   assert.strictEqual(repeated.length + made.length, tiles.length,
     `${tiles.length - repeated.length - made.length} files in 07-pattern are named as neither`);
-  const PT = require('../src/patterns');
+
+  const S = patternsOf(out);
+  const ways = project.rules.colourways.map((c) => naming.slug(c.name));
+  // The chosen one, in every colourway, at every intensity it ships.
+  for (const way of ways) {
+    assert.ok(made.some((f) => f.path === `07-pattern/${S.chose}-${way}.svg`),
+      `${S.chose} is this identity's pattern and was not written in ${way}`);
+    for (const v of (PT.GENERATORS[S.chose].variants || []).slice(1)) {
+      assert.ok(made.some((f) => f.path === `07-pattern/${S.chose}-${v}-${way}.svg`),
+        `the ${v} ${S.chose} was not written in ${way}`);
+    }
+  }
+  // The shortlist, in the first colourway and in no other.
+  const beside = S.shortlist.wrote.filter((g) => g !== S.chose);
+  assert.strictEqual(S.shortlist.wrote.length, Math.min(SHORT.MOST, PT.NAMES.filter(PT.TILING).length),
+    `the shortlist names ${S.shortlist.wrote.length} patterns where the rule is ${SHORT.MOST}`);
+  for (const g of beside) {
+    assert.ok(made.some((f) => f.path === `07-pattern/${g}-${ways[0]}.svg`),
+      `${g} is on the shortlist and wrote no tile`);
+    for (const way of ways.slice(1)) {
+      assert.ok(!made.some((f) => f.path.indexOf(`/${g}-${way}.svg`) > -1),
+        `${g} is on the shortlist and was written in ${way} as well as the first colourway`);
+    }
+  }
+  // And nothing else. A file whose generator is on neither list is the old
+  // behaviour coming back.
+  for (const f of made) {
+    const g = /^07-pattern\/([a-z]+)-/.exec(f.path)[1];
+    assert.ok(S.shortlist.wrote.indexOf(g) > -1,
+      `${g} wrote a tile and is not on the shortlist`);
+  }
   for (const g of PT.PATTERNS) {
-    assert.ok(made.some((f) => f.path.indexOf(`/${g}-`) > -1), `${g} wrote no tile at all`);
     assert.ok(!posters.some((f) => f.path.indexOf(`/${g}-`) > -1),
       `${g} is a pattern and wrote into 16-posters`);
   }
+
+  /* The half that keeps the cut honest: every generator is still in brand.json
+     with the parameters that would draw it, whether or not it is on disk. This
+     is what makes the shortlist a shortlist rather than a deletion. */
+  const rows = S.made.filter((m) => m.colourway === project.rules.colourways[0].name);
+  for (const g of PT.NAMES) {
+    const row = rows.find((m) => m.generator === g);
+    if (!row) {
+      // A generator that could not be built at all warned, and a warning is a
+      // different thing from a silent absence.
+      assert.ok(result.warnings.some((w) => w.indexOf(`the ${g} pattern was not built`) === 0),
+        `${g} is in neither the package nor brand.json, and nothing said why`);
+      continue;
+    }
+    assert.ok(row.params && Object.keys(row.params).length,
+      `${g} is in brand.json with no parameters, so nothing can draw it`);
+    assert.ok(row.why && row.why.length > 20, `${g} is in brand.json with no reason`);
+    const onDisk = S.shortlist.wrote.indexOf(g) > -1 || S.shortlist.posters.indexOf(g) > -1;
+    assert.strictEqual(!!row.file, onDisk,
+      `${g} ${row.file ? 'names a file' : 'names no file'} and is ${onDisk ? '' : 'not '}on the shortlist`);
+    if (row.file) assert.ok(result.written.some((f) => f.path === row.file),
+      `${g} names ${row.file} and no such file was written`);
+  }
+  // and the studio is handed all of them, not only the drawn ones, or the
+  // shortlist would be a shortening
+  const studio = fs.readFileSync(path.join(out, 'pattern-studio.html'), 'utf8');
+  for (const g of PT.NAMES) {
+    if (!rows.find((m) => m.generator === g)) continue;
+    assert.ok(studio.indexOf(`"${g}"`) > -1, `${g} is a recipe and the studio cannot draw it`);
+  }
+
   // and every poster wrote its own page, in its own folder, at its own
   // proportion rather than as a square tile.
   assert.strictEqual(posters.length, posterFiles(),
     `${posters.length} posters written where ${posterFiles()} were expected`);
-  for (const g of PT.POSTERS) {
+  assert.strictEqual(S.shortlist.posters.length, posterFiles(), 'the poster shortlist is the wrong size');
+  for (const g of S.shortlist.posters) {
     const mine = posters.filter((f) => f.path.indexOf(`/${g}-`) > -1);
-    assert.ok(mine.length, `${g} wrote no poster at all`);
+    assert.strictEqual(mine.length, 1, `${g} is on the poster shortlist and wrote ${mine.length} pages`);
     assert.ok(!made.some((f) => f.path.indexOf(`/${g}-`) > -1),
       `${g} is a poster and wrote into 07-pattern`);
     const svg = fs.readFileSync(path.join(out, mine[0].path), 'utf8');
@@ -4186,6 +4282,151 @@ test('a tile is written for every density in every colourway, and for every gene
     assert.ok(Math.abs(ratio - PT.ratioOf(g)) < 0.02,
       `${g} says it is cut at ${PT.ratioOf(g)} and was written at ${ratio.toFixed(3)}`);
   }
+  for (const f of posters) {
+    const g = /^16-posters\/([a-z]+)-/.exec(f.path)[1];
+    assert.ok(S.shortlist.posters.indexOf(g) > -1, `${g} wrote a page and is not on the poster shortlist`);
+  }
+});
+
+/* The claim the whole cut rests on: a recipe is a tile that has not been drawn.
+
+   The read me tells a client that the patterns not in their folder are "in
+   brand.json with their parameters, where drawing one gives you the same bytes
+   a file here would have". A package should not print that sentence unless
+   something checks it.
+
+   Checking it by comparing `recipe()` with `tile()` would prove only that two
+   functions agree, and they cannot disagree — `tile` calls `recipe` and paints
+   what comes back. Checking it by re-deriving each pattern here would prove
+   only that this file can guess what build.js passes, which it twice could
+   not: the first pass handed the wordmark's raw SVG where the build hands a
+   reading of it, and the second handed a motif read with different options.
+   Both looked like a fault in the recipe and were faults in the test.
+
+   So the shortlist is widened until the build writes everything, and the
+   recipes from the narrow build are compared against the files from the wide
+   one. Byte for byte, because a pattern that is nearly the same is a different
+   pattern, and because the generators are seeded and pure so there is no
+   reason for it to be anything less. */
+test('a pattern that was not drawn is the same pattern as one that was, to the byte', async () => {
+  const SHORT = require('../src/patterns/shortlist');
+  const PT = require('../src/patterns');
+  const S = patternsOf(out);
+  const onDisk = S.shortlist.wrote.concat(S.shortlist.posters);
+  const undrawn = S.made.filter((m) => onDisk.indexOf(m.generator) < 0);
+  assert.ok(undrawn.length > 100,
+    `${undrawn.length} patterns were kept as recipes, which is not enough of a cut to be worth checking`);
+
+  // The same build with nothing held back. `of` takes the size rather than
+  // reading the constant, so this needs no switch in the engine and leaves no
+  // way for a package to be built this way by accident.
+  const most = SHORT.MOST; const posters = SHORT.POSTERS; const ways = SHORT.WAYS;
+  const wide = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-wide-'));
+  let all;
+  try {
+    SHORT.MOST = PT.NAMES.length;
+    SHORT.POSTERS = PT.POSTERS.length;
+    SHORT.WAYS = project.rules.colourways.length;
+    all = await build(project, wide);
+  } finally { SHORT.MOST = most; SHORT.POSTERS = posters; SHORT.WAYS = ways; }
+  const W = JSON.parse(fs.readFileSync(path.join(wide, 'brand.json'), 'utf8')).system.patterns;
+  assert.ok(W.made.filter((m) => m.file).length > undrawn.length,
+    `widening the shortlist wrote ${W.made.filter((m) => m.file).length} of ${W.made.length} `
+    + `where the narrow build kept ${undrawn.length} of ${S.made.length} as recipes `
+    + `(wrote ${W.shortlist.wrote.length}, posters ${W.shortlist.posters.length})`);
+
+  try {
+    let checked = 0;
+    for (const m of undrawn) {
+      const wrote = W.made.find((x) => x.generator === m.generator && x.colourway === m.colourway);
+      assert.ok(wrote && wrote.file,
+        `${m.generator} in ${m.colourway} is a recipe in one build and absent from the other`);
+      // The parameters first. A recipe that kept different numbers would draw a
+      // different picture for a reason worth naming separately.
+      assert.deepStrictEqual(m.params, wrote.params,
+        `${m.generator} in ${m.colourway} kept different parameters than the build drew with`);
+      assert.strictEqual(m.why, wrote.why, `${m.generator} in ${m.colourway} kept a different reason`);
+      assert.deepStrictEqual(m.palette, wrote.palette, `${m.generator} in ${m.colourway} kept a different palette`);
+      // and then the picture those numbers make
+      const drawn = PT.tile({ mark: PT.read(projectLoader.masterOf(project).source,
+        result.measured, project.rules),
+      generator: m.generator, route: S.route, params: m.params,
+      colours: project.tokens.colour,
+      colourway: project.rules.colourways.find((c) => c.name === m.colourway),
+      size: require('../src/system').patternRules((project.system || {}).pattern).tile,
+      id: `${m.generator}-${naming.slug(m.colourway)}` });
+      assert.strictEqual(drawn.tile, fs.readFileSync(path.join(wide, wrote.file), 'utf8'),
+        `${m.generator} in ${m.colourway} draws differently from the recipe brand.json kept`);
+      checked += 1;
+    }
+    assert.strictEqual(checked, undrawn.length);
+    // and the narrow build's own files are what their own recipes draw, which
+    // is the same claim at the other end
+    let files = 0;
+    for (const m of S.made.filter((x) => x.file)) {
+      const wrote = W.made.find((x) => x.generator === m.generator && x.colourway === m.colourway);
+      assert.deepStrictEqual(m.params, wrote.params, `${m.file} was drawn with different numbers`);
+      assert.strictEqual(fs.readFileSync(path.join(out, m.file), 'utf8'),
+        fs.readFileSync(path.join(wide, wrote.file), 'utf8'),
+        `${m.file} is a different picture in a package that writes everything`);
+      files += 1;
+    }
+    assert.ok(files >= 5, `only ${files} rows in brand.json name a file`);
+  } finally { fs.rmSync(wide, { recursive: true, force: true }); }
+});
+
+
+/* And the shortlist is a measurement, not an order.
+
+   It is ranked by the six readings the reference match uses, against the mark
+   itself — see src/patterns/shortlist.js. Which means it has to come out
+   *different* for different marks. A ranking that returned the registry's own
+   order for every identity would pass every check above and be worth nothing,
+   and that is exactly what the fallback in build.js does when the ranking
+   throws, so the difference is the thing to check. */
+test('the shortlist a mark gets is a reading of that mark, not a fixed list', () => {
+  const SHORT = require('../src/patterns/shortlist');
+  const PT = require('../src/patterns');
+  const MOTIF = require('../src/patterns/motif-read');
+  const SYS = require('../src/system');
+  const seen = new Set();
+  const firsts = new Set();
+  for (const name of ['carrock', 'hallward', 'oriel', 'salvage', 'pagrin']) {
+    const pr = projectLoader.load(path.join(__dirname, '..', 'projects', name, 'project.json'));
+    const mm = measure(pr);
+    const src = projectLoader.masterOf(pr).source;
+    const mk = PT.read(src, mm, pr.rules);
+    const mo = MOTIF.read(src, pr.rules, mm);
+    const cw = pr.rules.colourways[0];
+    const size = SYS.patternRules((pr.system || {}).pattern).tile;
+    const drawn = [];
+    for (const g of PT.NAMES) {
+      if (PT.kindOf(g) === 'poster') continue;
+      try {
+        drawn.push({ name: g, tile: PT.tile({ mark: mk, generator: g, route: 'inspired',
+          motif: mo && mo.ok ? mo : null, colours: pr.tokens.colour, colourway: cw, size, id: g }) });
+      } catch (e) { /* warned in the build; not this test's claim */ }
+    }
+    const pal = require('../src/patterns/palette').of(pr.tokens.colour, cw);
+    const ranked = SHORT.rank(SHORT.logo(src, pal.ground), drawn);
+    assert.ok(ranked.length > 20, `${name} ranked only ${ranked.length} generators`);
+    assert.ok(ranked.every((r) => r.score != null), `${name} left a generator unscored`);
+    // sorted, and scored apart: a ranking where everything ties is a constant
+    for (let i = 1; i < ranked.length; i += 1) {
+      assert.ok(ranked[i].score >= ranked[i - 1].score, `${name} came back out of order`);
+    }
+    assert.ok(ranked[ranked.length - 1].score - ranked[0].score > 0.1,
+      `${name} scored its best and worst pattern ${(ranked[ranked.length - 1].score - ranked[0].score).toFixed(3)} apart`);
+    firsts.add(ranked[0].generator);
+    seen.add(ranked.slice(0, 6).map((r) => r.generator).join(','));
+    // and it is the same list twice running, or a rebuild would ship a
+    // different package from the same drawing
+    const again = SHORT.rank(SHORT.logo(src, pal.ground), drawn);
+    assert.deepStrictEqual(again.map((r) => r.generator), ranked.map((r) => r.generator),
+      `${name} ranked differently the second time`);
+  }
+  assert.ok(seen.size >= 4, `five marks produced ${seen.size} distinct shortlists`);
+  assert.ok(firsts.size >= 3, `five marks put ${firsts.size} distinct generators first`);
 });
 
 console.log('\nrule blocks: on the page');
@@ -8347,13 +8588,15 @@ test('the pattern this project sets is cut at every density', async () => {
   const cut = tiles.filter((f) => /^07-pattern\/pattern-/.test(f));
   const made = tiles.filter((f) => !/^07-pattern\/pattern-/.test(f));
   assert.strictEqual(cut.length, 9, `${cut.length} tiles cut from the mark, where three densities in three colourways is nine`);
-  // Generators, plus the extra intensities any of them ships — `lattice` writes
-  // bold and quiet — in three colourways.
+  // The chosen pattern in three colourways, at every intensity it ships —
+  // `lattice` writes bold and quiet — and the shortlist beside it in the first.
   const PT = require('../src/patterns');
-  const each = PT.NAMES.filter(PT.TILING)
-    .reduce((n, g) => n + Math.max(1, (PT.GENERATORS[g].variants || []).length), 0);
-  assert.strictEqual(made.length, each * 3,
-    `${made.length} generated tiles, where ${each} per colourway in three colourways is ${each * 3}`);
+  const SHORT = require('../src/patterns/shortlist');
+  const chose = JSON.parse(fs.readFileSync(path.join(dir, 'brand.json'), 'utf8')).system.patterns.chose;
+  const each = 3 * Math.max(1, (PT.GENERATORS[chose].variants || []).length) + (SHORT.MOST - 1);
+  assert.strictEqual(made.length, each,
+    `${made.length} generated tiles, where ${chose} in three colourways plus a shortlist of `
+    + `${SHORT.MOST} is ${each}`);
   for (const d of ['fine', 'medium', 'coarse']) {
     assert.ok(cut.some((f) => f.includes(`-${d}-`)), `nothing was cut at ${d}`);
   }

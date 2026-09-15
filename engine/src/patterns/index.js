@@ -1674,41 +1674,64 @@
   }
 
   // One tile, as SVG.
-  function tile(opts) {
+  /* Everything about a pattern except the picture.
+
+     A tile is two things stuck together: the numbers this identity's artwork
+     asks a generator for, and the several hundred kilobytes of SVG that comes
+     out when those numbers are drawn. The second costs 33 ms and the first
+     costs a seventh of a millisecond — measured across all thirty-eight, 1268
+     ms against 5 — and for most of a package only the first is wanted.
+
+     Which is what made the package five times bigger than it needed to be.
+     Every generator was drawn in every colourway and written, so a client
+     opening 07-pattern found a hundred and ninety-two files of which they
+     would use one, and the thirty seconds that went into the other hundred and
+     ninety-one went into a folder nobody reads to the end.
+
+     So the recipe is separable from the picture, and the build writes pictures
+     for the patterns this identity is actually being handed and recipes for
+     the rest. A recipe is not a lesser thing: brand.json carries it, the studio
+     draws from it, and a rebuild from it returns the same bytes the full sheet
+     would have. Nothing became unreachable; it stopped being pre-rendered. */
+  function recipe(opts) {
     const o = opts || {};
     const m = o.mark || late('mark').read(o.markSource, o.measured, o.rules);
     const generator = GENERATORS[o.generator] ? o.generator : suits(m);
     const g = GENERATORS[generator];
     const route = ROUTES.indexOf(o.route) > -1 ? o.route : ROUTE_DEFAULT;
-    // The motif travels with the parameters, because that is what it is: the
-    // shape this pattern is made of, recorded in brand.json beside the numbers
-    // so the studio and a rebuild a year later both draw the same thing.
     const carries = !!g.motif;
-    // A generator that is nothing but the motif cannot be built without one.
-    //
-    // `paint` fills the ground and returns, which is a blank sheet written into
-    // the package under a name saying it is made of the client's logo. The
-    // build catches this and turns it into a warning naming the generator,
-    // which is what a designer needs to see; a blank SVG is what they would
-    // otherwise find months later.
     if (g.needsMotif && !o.motif) {
       throw new Error(`${generator} draws nothing but the mark's own shape, and no shape `
         + 'could be read out of this drawing');
     }
-    // The logotype travels beside the mark, for the generators that set type.
-    //
-    // A typographic poster needs letters, and the engine cannot outline the
-    // faces it ships — they are woff2 and opentype.js needs a decompressor for
-    // those. It does not have to: every identity here already draws its own
-    // name, and `wordmark.svg` is that drawing. A poster that sets a brand's
-    // name should use the brand's own logotype rather than re-setting the name
-    // in a face and hoping it matches, which is the same argument that makes
-    // the mark the motif.
-    const setsType = !!g.word;
     const params = Object.assign(derive(generator, m, route, o.motif),
       o.motif && carries ? { motif: o.motif } : {},
-      o.word && setsType ? { word: o.word } : {}, o.params || {});
+      o.word && g.word ? { word: o.word } : {}, o.params || {});
     const pal = o.palette || palette.of(o.colours, o.colourway);
+    return {
+      generator, params, route, mark: m, kind: kindOf(generator),
+      tiles: tilesOf(generator),
+      motif: !!(o.motif && carries && (route === 'motif' || o.params && o.params.motif)),
+      why: whyWith(because(generator, m, params), params),
+      vector: !!g.vector, pal,
+      palette: { ground: pal.ground, inks: pal.inks.map((i) => i.hex) },
+      effects: layers.active(params),
+    };
+  }
+
+  function tile(opts) {
+    const o = opts || {};
+    // The recipe first, and then the picture.
+    //
+    // These were two functions that assembled the parameters the same way and
+    // could stop doing so. brand.json keeps recipes for the patterns a package
+    // does not draw and tells a client that drawing one returns the same bytes
+    // a drawn one would have — a claim that two independent copies of this
+    // arithmetic would quietly break rather than fail. So there is one copy,
+    // and a tile is a recipe that has been painted.
+    const r = recipe(o);
+    const { generator, params, pal } = r;
+    const g = GENERATORS[generator];
     // A tile is square; a poster is cut at its own proportion. `paint` has
     // always taken width and height separately, so this is the only line that
     // had to learn the difference.
@@ -1720,24 +1743,15 @@
     // what keeps every package in this repository unchanged until somebody asks
     // for an effect.
     layers.paint(s, W, H, params, pal, (surf, palette2) => g.paint(surf, W, H, params, palette2 || pal));
-    return {
-      generator, params, route, mark: m, kind: kindOf(generator),
-      width: W, height: H, tiles: tilesOf(generator),
-      // Whether this tile is actually made of the identity's shape, rather than
-      // whether it was asked to be.
-      motif: !!(o.motif && carries && (route === 'motif' || o.params && o.params.motif)),
-      why: whyWith(because(generator, m, params), params),
-    vector: !!g.vector, pal,
-      palette: { ground: pal.ground, inks: pal.inks.map((i) => i.hex) },
+    return Object.assign({}, r, {
+      width: W, height: H,
       tile: s.toSVG(),
       body: s.body(),
       // the same paint, for anything that wants to draw it rather than read it —
       // the seam check included, so a tile is checked with its effects on.
       paint: (surf, w, h) => layers.paint(surf, w, h, params, pal,
         (s2, p2) => g.paint(s2, w, h, params, p2 || pal)),
-      // What is switched on, for the manual and for brand.json.
-      effects: layers.active(params),
-    };
+    });
   }
 
   // There was a `sheet` here, and a raster generator for it to serve.
@@ -1760,7 +1774,7 @@
   // handed what this already worked out rather than working it out again.
   const read = (markSource, measured, rules) => late('mark').read(markSource, measured, rules);
 
-  return { GENERATORS, NAMES, ROUTES, ROUTE_DEFAULT, suits, derive, because, tile, joins, read,
+  return { GENERATORS, NAMES, ROUTES, ROUTE_DEFAULT, suits, derive, because, tile, recipe, joins, read,
     LAYERS: layers,
     latticeFrom, posterFrom, patternFrom, kindOf, GROUPS, CHOSEN, ratioOf, tilesOf, TILING, CATALOGUE,
     PATTERNS, TEXTURES, POSTERS,

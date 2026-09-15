@@ -1270,57 +1270,166 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     }
   }
 
+  /* Every generator, drawn once, in the first colourway.
+
+     This is the pass that decides. It used to be the first sixth of a pass that
+     drew all thirty-eight in all six colourways and wrote every one of them —
+     a hundred and ninety-two files in 07-pattern and sixty in 16-posters, of
+     which a client uses one and keeps two or three more in reserve. See
+     patterns/shortlist.js for why that is not generosity, and patterns/index.js
+     at `recipe` for what the other thirty-two get instead.
+
+     The tiles this pass draws are the tiles the shortlist writes, so deciding
+     and delivering are one pass rather than two. */
+  const SHORT = require('./patterns/shortlist');
+  const cw0 = rules.colourways[0];
+  const paramsFor = (name) => (setGenerator === name ? Object.assign({}, SET.params)
+    // The matched generator carries the parameters the match found. The others
+    // keep the ones the mark chose, so the shortlist is real patterns rather
+    // than one and five bent towards somebody else's.
+    : matched && matched.generator === name ? matched.params : undefined);
+  // Where the match or a hand chose the parameters, the reason has to say so.
+  // The mark's own sentence is still true of the numbers and false about how
+  // they were arrived at — "the mark is 12 of its own narrowest runs across, so
+  // a stripe is 5% of the tile" reads as the mark deciding, when a picture the
+  // client supplied decided. brand.json, the studio and the manual all print
+  // this one string, so it is corrected once.
+  const restate = (name, why) => (setGenerator === name
+    ? `this one was chosen by hand and written into project.json under `
+      + `system.patterns, so every rebuild returns it. ${why}`
+    : matched && matched.generator === name
+      ? `this one is generated to measure like ${project.assets.patternReference.file}, `
+        + `the pattern this brand already uses: ${matched.verdict.says}. `
+        + `The mark still sets what it can — ${why.charAt(0).toLowerCase()}${why.slice(1)}`
+      : why);
+  const drawTile = (name, cw, extra, id) => {
+    const t = PATTERNS.tile({ mark: patternMark, generator: name, route: ROUTE, motif, word,
+      params: extra ? Object.assign({}, paramsFor(name) || {}, extra) : paramsFor(name),
+      colours: project.tokens.colour, colourway: cw, size: sys.pattern.tile, id });
+    t.why = restate(name, t.why);
+    return t;
+  };
+
+  const first = [];
+  for (const name of PATTERNS.NAMES) {
+    try {
+      first.push({ name, tile: drawTile(name, cw0, null, `${name}-${naming.slug(cw0.name)}`) });
+    } catch (e) {
+      warnings.push(`the ${name} pattern was not built in ${cw0.name}. ${e.message}`);
+    }
+  }
+  /* And ranked against the mark itself.
+
+     Patterns and posters are ranked apart, because they are not answers to the
+     same question: one is a repeat a client lays down and the other is a
+     finished page. Ranking them together would let three posters take the
+     places of three patterns on the strength of a coverage reading. */
+  const ground = first.length ? first[0].tile.pal.ground : null;
+  let ranked = [];
+  let rankedPosters = [];
+  try {
+    const theirs = SHORT.logo(masterOf(project).source, ground);
+    const split = (want) => first.filter((f) => (PATTERNS.kindOf(f.name) === 'poster') === want);
+    ranked = SHORT.rank(theirs, split(false));
+    rankedPosters = SHORT.rank(theirs, split(true));
+  } catch (e) {
+    // A ranking that cannot be measured is not a build that fails. The chosen
+    // pattern is chosen by `suits`, not by this, and the shortlist falls back
+    // to registry order — which is a worse shortlist and still a package.
+    warnings.push(`the patterns could not be ranked against the mark, so the shortlist is `
+      + `the order they are declared in rather than the order they measure in. ${e.message}`);
+    ranked = first.filter((f) => PATTERNS.kindOf(f.name) !== 'poster')
+      .map((f) => ({ generator: f.name, score: 0, parts: null }));
+    rankedPosters = first.filter((f) => PATTERNS.kindOf(f.name) === 'poster')
+      .map((f) => ({ generator: f.name, score: 0, parts: null }));
+  }
+  // Which one the measurements point at, so the manual and brand.json can name
+  // one without the engine having to pick again somewhere else.
+  // What the mark asks for, unless the brand brought a pattern — in which case
+  // the one that measures like theirs is the one they should be given.
+  const patternChoice = setGenerator || (matched ? matched.generator : PATTERNS.suits(patternMark, ROUTE));
+  if (PATTERNS.kindOf(patternChoice) === 'poster') {
+    throw new Error(`${patternChoice} is a poster and was chosen as this identity's pattern`);
+  }
+  const shortlist = SHORT.of({ chose: patternChoice, ranked, most: SHORT.MOST });
+  const posterlist = SHORT.of({ ranked: rankedPosters, most: SHORT.POSTERS });
+
+  /* Drawn: the chosen pattern in every colourway, the shortlist beside it in
+     the first, and the posters that made their own cut.
+
+     The chosen one is in every colourway because it is the pattern this brand
+     uses, and a brand that has a dark scheme and a mono scheme needs its
+     pattern in both. The shortlist is in one because it is a menu: a client who
+     takes one of them gets it in every colourway by rebuilding with it set, or
+     by opening the studio, and giving them six menus of six is how the folder
+     got to a hundred and ninety-two files in the first place. */
   const generated = [];
+  const tileOf = (name) => (first.find((f) => f.name === name) || {}).tile;
+  for (const name of shortlist.concat(posterlist)) {
+    const t = tileOf(name);
+    if (!t) continue;
+    generated.push({ name, colourway: cw0.name, tile: t });
+    // The chosen pattern in every colourway; the shortlist in SHORT.WAYS of
+    // them. Three constants say the whole policy — how many patterns, how many
+    // pages, how many colourways — and they are in one file rather than spread
+    // through this loop as a `continue` and a `slice`.
+    const ways = name === patternChoice ? rules.colourways
+      : rules.colourways.slice(0, Math.max(1, SHORT.WAYS));
+    for (const cw of ways.slice(1)) {
+      try {
+        generated.push({ name, colourway: cw.name,
+          tile: drawTile(name, cw, null, `${name}-${naming.slug(cw.name)}`) });
+      } catch (e) {
+        warnings.push(`the ${name} pattern was not built in ${cw.name}. ${e.message}`);
+      }
+    }
+    // And the same pattern at its other intensities, where the generator
+    // declares any.
+    //
+    // `lattice` ships bold and quiet. A pattern has two jobs that want opposite
+    // things — it goes on a cover at full strength and behind a paragraph where
+    // it must not fight the type — and a client who is handed only the first has
+    // to make the second themselves, which means guessing at a tint of their own
+    // brand colour. Quiet is tone-on-tone rather than the bold one at low
+    // opacity: a mixed flat hex separates on press, an alpha channel is a phone
+    // call from the printer.
+    //
+    // Only for the chosen one. The intensity pair is for the pattern a client
+    // actually lays down; shipping both intensities of five they are looking at
+    // is the same volume argument again, one rung down.
+    if (name !== patternChoice) continue;
+    for (const v of (PATTERNS.GENERATORS[name].variants || []).slice(1)) {
+      for (const cw of rules.colourways) {
+        try {
+          generated.push({ name, variant: v, colourway: cw.name,
+            tile: drawTile(name, cw, { intensity: v }, `${name}-${v}-${naming.slug(cw.name)}`) });
+        } catch (e) {
+          warnings.push(`the ${v} ${name} pattern was not built in ${cw.name}. ${e.message}`);
+        }
+      }
+    }
+  }
+
+  /* And a recipe for every generator in every colourway, written or not.
+
+     This is what keeps the cut honest. A generator that is not drawn is still
+     in brand.json with its parameters, its palette and its reason, and still in
+     the studio — so it is one click from existing rather than gone. Deriving
+     all thirty-eight costs five milliseconds; drawing them costs 1268. That
+     ratio is the whole argument. */
+  const recipes = [];
   for (const cw of rules.colourways) {
     for (const name of PATTERNS.NAMES) {
       try {
-        const t = PATTERNS.tile({ mark: patternMark, generator: name, route: ROUTE, motif, word,
-          // The matched generator carries the parameters the match found, in
-          // every colourway. The others keep the ones the mark chose, so the
-          // studio still opens on five real patterns rather than on one and
-          // four that have been bent towards somebody else's.
-          params: setGenerator === name ? Object.assign({}, SET.params)
-            : matched && matched.generator === name ? matched.params : undefined,
-          colours: project.tokens.colour, colourway: cw, size: sys.pattern.tile,
-          id: `${name}-${naming.slug(cw.name)}` });
-        // Where the match chose the parameters, the reason has to say so. The
-        // mark's own sentence is still true of the numbers and false about how
-        // they were arrived at — "the mark is 12 of its own narrowest runs
-        // across, so a stripe is 5% of the tile" reads as the mark deciding,
-        // when a picture the client supplied decided. brand.json, the studio
-        // and the manual all print this one string, so it is corrected once.
-        if (setGenerator === name) {
-          t.why = `this one was chosen by hand and written into project.json under `
-            + `system.patterns, so every rebuild returns it. ${t.why}`;
-        } else if (matched && matched.generator === name) {
-          t.why = `this one is generated to measure like ${project.assets.patternReference.file}, `
-            + `the pattern this brand already uses: ${matched.verdict.says}. `
-            + `The mark still sets what it can — ${t.why.charAt(0).toLowerCase()}${t.why.slice(1)}`;
-        }
-        generated.push({ name, colourway: cw.name, tile: t });
-        // And the same pattern at its other intensities, where the generator
-        // declares any.
-        //
-        // `lattice` ships bold and quiet. A pattern has two jobs that want
-        // opposite things — it goes on a cover at full strength and behind a
-        // paragraph where it must not fight the type — and a client who is
-        // handed only the first has to make the second themselves, which means
-        // guessing at a tint of their own brand colour. Quiet is tone-on-tone
-        // rather than the bold one at low opacity: a mixed flat hex separates
-        // on press, an alpha channel is a phone call from the printer.
-        for (const v of (PATTERNS.GENERATORS[name].variants || []).slice(1)) {
-          try {
-            const alt = PATTERNS.tile({ mark: patternMark, generator: name, route: ROUTE, motif, word,
-              params: Object.assign({}, t.params, { intensity: v }),
-              colours: project.tokens.colour, colourway: cw, size: sys.pattern.tile,
-              id: `${name}-${v}-${naming.slug(cw.name)}` });
-            generated.push({ name, variant: v, colourway: cw.name, tile: alt });
-          } catch (e) {
-            warnings.push(`the ${v} ${name} pattern was not built in ${cw.name}. ${e.message}`);
-          }
-        }
+        const r = PATTERNS.recipe({ mark: patternMark, generator: name, route: ROUTE, motif, word,
+          params: paramsFor(name), colours: project.tokens.colour, colourway: cw });
+        r.why = restate(name, r.why);
+        recipes.push({ name, colourway: cw.name, recipe: r });
       } catch (e) {
-        warnings.push(`the ${name} pattern was not built in ${cw.name}. ${e.message}`);
+        // Silent where the tile already warned: a generator that needs a motif
+        // and has none warned once above, and warning again per colourway is
+        // six lines saying the same thing.
+        if (cw === cw0 && !first.some((f) => f.name === name)) continue;
       }
     }
   }
@@ -1342,19 +1451,12 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // not the same thing to open. A pattern is a tile a client repeats; a poster
   // is a finished page. Filing a poster under "pattern" would be the engine
   // telling somebody their pattern is a poster.
+  const fileFor = (name, variant, colourway) =>
+    `${PATTERNS.kindOf(name) === 'poster' ? '16-posters' : '07-pattern'}/`
+    + `${name}${variant ? `-${variant}` : ''}-${naming.slug(colourway)}.svg`;
   for (const g of generated) {
-    const where = PATTERNS.kindOf(g.name) === 'poster' ? '16-posters' : '07-pattern';
-    const stem = `${where}/${g.name}${g.variant ? `-${g.variant}` : ''}-${naming.slug(g.colourway)}`;
     if (!g.tile.vector) throw new Error(`${g.name} says it is not vector, and nothing here writes pixels`);
-    write(`${stem}.svg`, g.tile.tile);
-  }
-  // Which one the measurements point at, so the manual and brand.json can name
-  // one without the engine having to pick again somewhere else.
-  // What the mark asks for, unless the brand brought a pattern — in which case
-  // the one that measures like theirs is the one they should be given.
-  const patternChoice = setGenerator || (matched ? matched.generator : PATTERNS.suits(patternMark, ROUTE));
-  if (PATTERNS.kindOf(patternChoice) === 'poster') {
-    throw new Error(`${patternChoice} is a poster and was chosen as this identity's pattern`);
+    write(fileFor(g.name, g.variant, g.colourway), g.tile.tile);
   }
   const patternPick = generated.find((g) => g.name === patternChoice) || generated[0];
   // Which of the two families is *the* pattern.
@@ -1379,10 +1481,15 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // everything inlined, nothing fetched, opens from a USB stick. It draws the
   // same generators this build just drew, from the same source, starting from
   // what was chosen here.
-  if (generated.length) {
+  //
+  // Every generator in every colourway, not only the ones written as files.
+  // That is the other half of the cut: the studio is where the thirty-two that
+  // are recipes become pictures, so handing it only the six that were drawn
+  // would turn a shortlist into a shortening.
+  if (recipes.length) {
     write('pattern-studio.html', require('./patterns/emit').studioHtml(
-      project, measured, generated.filter((g) => !g.variant).map((g) => ({ generator: g.name,
-        colourway: g.colourway, params: g.tile.params })), patternChoice, sys.pattern.tile, ROUTE));
+      project, measured, recipes.map((r) => ({ generator: r.name,
+        colourway: r.colourway, params: r.recipe.params })), patternChoice, sys.pattern.tile, ROUTE));
   }
   if (gen.ok) {
     for (const t of gen.tiles) {
@@ -1630,22 +1737,51 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
           // reasoning for the spacing and the drop and not only their values.
           ink: motif.ink, symmetry: motif.symmetry, grain: motif.grain,
           ops: motif.ops } : null,
-        made: generated.map((g) => ({
-          generator: g.name, colourway: g.colourway,
-          // Which intensity this one is, where the generator ships more than
-          // one. Absent on a generator that ships a single pattern, so nothing
-          // in a package that has never heard of intensities changes.
-          intensity: g.variant || undefined,
-          kind: PATTERNS.kindOf(g.name),
-          file: `${PATTERNS.kindOf(g.name) === 'poster' ? '16-posters' : '07-pattern'}/`
-            + `${g.name}${g.variant ? `-${g.variant}` : ''}-${naming.slug(g.colourway)}.svg`,
-          // Every pattern is vector. This said `vector: !!g.tile.vector` and
-          // carried `printedAt` and `pixels` beside it, for the one generator
-          // that shipped a PNG at a stated size. It is gone, and so is the
-          // largest-size caveat that came with it.
-          vector: true,
-          params: g.tile.params, palette: g.tile.palette, why: g.tile.why,
-        })),
+        /* Which patterns were written as files and why those.
+
+           A package used to write every generator in every colourway and this
+           list was a list of files. It is a list of *patterns* now, drawn or
+           not, and `file` is what says which. See patterns/shortlist.js. */
+        shortlist: {
+          wrote: shortlist, posters: posterlist,
+          // Every generator's score against the mark, so a client can see the
+          // ordering and not only its first six — and so a second build with a
+          // different mark can be compared against this one row by row.
+          ranked: ranked.concat(rankedPosters)
+            .map((r) => ({ generator: r.generator, score: r.score == null ? null : +r.score.toFixed(4) })),
+          says: SHORT.says(shortlist, patternChoice, ranked, PATTERNS.NAMES.length),
+        },
+        made: recipes.map((r) => {
+          // Every intensity of the chosen pattern is a written file too, and it
+          // is not a recipe of its own — the recipe is the generator's, and the
+          // intensity is one parameter moved. So the file list is asked of what
+          // was drawn rather than assumed from the name.
+          const drawn = generated.filter((g) => g.name === r.name && g.colourway === r.colourway);
+          const base = drawn.find((g) => !g.variant);
+          return {
+            generator: r.name, colourway: r.colourway,
+            kind: r.recipe.kind,
+            // Null where the pattern is a recipe rather than a file. A reader
+            // that wants only the files filters on this; one that wants the
+            // whole system reads every row. Both used to be the same list,
+            // which is why the folder had a hundred and ninety-two files in it.
+            file: base ? fileFor(r.name, null, r.colourway) : null,
+            // Which intensities of it were written, where the generator ships
+            // more than one. Absent on a generator that ships a single pattern,
+            // so nothing in a package that has never heard of intensities
+            // changes.
+            intensities: drawn.filter((g) => g.variant).length
+              ? drawn.filter((g) => g.variant)
+                .map((g) => ({ intensity: g.variant, file: fileFor(g.name, g.variant, g.colourway) }))
+              : undefined,
+            // Every pattern is vector. This said `vector: !!g.tile.vector` and
+            // carried `printedAt` and `pixels` beside it, for the one generator
+            // that shipped a PNG at a stated size. It is gone, and so is the
+            // largest-size caveat that came with it.
+            vector: true,
+            params: r.recipe.params, palette: r.recipe.palette, why: r.recipe.why,
+          };
+        }),
       } : null,
       motion: sys.motion,
       photography: sys.photography,
@@ -1878,11 +2014,20 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
         '                  measurements. The generated ones below are the',
         '                  alternatives.'] : [])] : []),
     ...(patternPick ? [
-      `  ${primary === 'repeat' ? 'And generated ' : 'The pattern   '}  ${generated.filter((g) => PATTERNS.kindOf(g.name) !== 'poster').length} tiles in 07-pattern. `
-        + `${generated.filter((g) => PATTERNS.kindOf(g.name) !== 'poster' && g.tile.motif).length} of them are drawn`,
-      '                  out of a shape cut from your own artwork; the rest are built',
-      "                  from what it measures. This line used to say they were all",
-      '                  the second kind, and for a long time they were.',
+      `  ${primary === 'repeat' ? 'And generated ' : 'The pattern   '}  ${patternChoice}, in every colourway, in 07-pattern.`,
+      // What is beside it, and what is not there at all — said plainly, because
+      // "thirty-two of your patterns are not in this folder" is the sort of
+      // thing a client should read here rather than work out by counting.
+      ...wrapTo(`Beside it: ${shortlist.filter((g) => g !== patternChoice).join(', ')}`
+        + `${posterlist.length ? `, and ${posterlist.join(', ')} in 16-posters` : ''}`
+        + `. These are the ${shortlist.length + posterlist.length - 1} that measure closest to your `
+        + `own mark, out of ${PATTERNS.NAMES.length}.`, 58).map((l) => `                  ${l}`),
+      `                  The other ${PATTERNS.NAMES.length - shortlist.length - posterlist.length} are not files and are not missing: every`,
+      '                  one is in brand.json with its parameters and in',
+      '                  pattern-studio.html, where drawing one gives you the',
+      '                  same bytes a file here would have. A folder of two',
+      '                  hundred tiles is not a richer handover than this; it',
+      '                  is this with the decision left out.',
       // the reasoning is a sentence and the read me is a fixed column, so it
       // is folded here rather than running off the side of somebody's terminal
       ...wrapTo(patternPick.tile.why, 58).map((l) => `                  ${l}`),
@@ -1983,7 +2128,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     // for any identity whose own reference chose them — the same fault the
     // manual page had, one file along.
     const genForCanvas = { chose: patternChoice,
-      made: generated.map((g) => ({ generator: g.name, colourway: g.colourway, params: g.tile.params })) };
+      made: recipes.map((r) => ({ generator: r.name, colourway: r.colourway, params: r.recipe.params })) };
     const bu = mkBundle(project, measured, wholePackage(), genForCanvas);
     const document = starterDoc(bu);
     write('editor.html', editorHtml(project, measured, wholePackage(), genForCanvas));
