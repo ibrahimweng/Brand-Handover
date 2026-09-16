@@ -322,8 +322,9 @@
     function bend(group) {
       const mid = middle(group);
       let t = at(mid[0], mid[1]);
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      const most = Math.min(W, H) * 0.125;
       {
-        let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
         for (const sub of group) {
           const b2 = boxOf(sub);
           if (b2[0] < x0) x0 = b2[0]; if (b2[2] > x1) x1 = b2[2];
@@ -344,7 +345,6 @@
              stopped carrock's `mist` aliasing; a stripe that crosses the whole
              sheet is read near its own middle instead, which varies from
              stripe to stripe because their middles do. */
-          const most = Math.min(W, H) * 0.125;
           const qx = Math.min((x1 - x0) / 4, most), qy = Math.min((y1 - y0) / 4, most);
           t = (t + at(mid[0] - qx, mid[1] - qy) + at(mid[0] + qx, mid[1] - qy)
             + at(mid[0] - qx, mid[1] + qy) + at(mid[0] + qx, mid[1] + qy)) / 5;
@@ -356,6 +356,36 @@
       const grow = 1 + k * ch.size;
       const turn = k * ch.turn * Math.PI;
       const c = Math.cos(turn), s = Math.sin(turn);
+      /* A shape longer than the window is standing in several places at once.
+
+         Everything above reads the field at one place and moves the shape as a
+         unit, and for a shape that is somewhere that is the right model. It is
+         the wrong model for a shape that is everywhere: `zigzag` fills one path
+         per stripe and a stripe spans the whole tile, so against `rise` — a
+         ramp along v — every stripe has its centroid at v = 0.5 and reads
+         exactly 0.5, which drives size by nothing. That is not a near miss to
+         be tuned away. *Any* window symmetric about the middle of a stripe
+         reads 0.5 on a ramp: 5 px, 12.5, 25, 50, all of them 0.5000. One
+         number cannot describe a shape the field runs the length of, and this
+         pair was marked unreachable on those grounds.
+
+         The information is there — sampled down the stripe the ramp reads
+         0.95, 0.17, 0.39, 0.61, 0.83, 0.05 — it just is not at the middle. So
+         a long shape is bent by the field at each of its own points rather
+         than by the field at its centre: the same similarity transform, with
+         `k` read where the point is. On a flat field every point reads the
+         same and this is the transform above, unchanged.
+
+         Long means longer than twice the sampling window, so a motif in a
+         lattice is untouched and keeps every reading the four fixes above it
+         were for. `displace` is deliberately left whole: moving a shape from
+         here to there is a fact about the shape, not about each of its points,
+         and varying it along the length would stretch the shape rather than
+         move it — which is what `size` is already for. */
+      const along = (ch.size || ch.turn)
+        && isFinite(x0) && ((x1 - x0) > most * 2 || (y1 - y0) > most * 2);
+      const longX = along && (x1 - x0) > most * 2;
+      const longY = along && (y1 - y0) > most * 2;
       let dx = 0, dy = 0;
       if (ch.displace) {
         /* How far, from the field's value; which way, from its slope.
@@ -379,16 +409,44 @@
         dx = ux * reach; dy = uy * reach;
       }
       const place = (x, y) => {
-        const px = (x - mid[0]) * grow, py = (y - mid[1]) * grow;
-        return [mid[0] + px * c - py * s + dx, mid[1] + px * s + py * c + dy];
+        let g = grow, cc = c, ss = s;
+        if (along) {
+          // the field where this point is, on whichever axes the shape is long
+          const kk = (0.5 - at(longX ? x : mid[0], longY ? y : mid[1])) * 2;
+          g = 1 + kk * ch.size;
+          const a2 = kk * ch.turn * Math.PI;
+          cc = Math.cos(a2); ss = Math.sin(a2);
+        }
+        const px = (x - mid[0]) * g, py = (y - mid[1]) * g;
+        return [mid[0] + px * cc - py * ss + dx, mid[1] + px * ss + py * cc + dy];
       };
+      /* And cut up, because a warp can only bend a shape where the shape has
+         points. A stripe drawn as four corners answers the field at four
+         corners and comes out sheared rather than bent, so a straight run
+         longer than half the window is walked in pieces that short. Curves
+         keep their own control points: they are already dense where they
+         curve, and splitting a Bézier correctly is a different job from
+         walking a line. Only long shapes are cut, so nothing else in the
+         repository grows a single point. */
+      const step = most / 2;
       const out = [];
       for (const sub of group) {
         const ops = [];
+        let ax = 0, ay = 0;                     // the pen, before bending
         for (const o of sub.ops) {
-          const n = [o[0]];
-          for (let i = 1; i < o.length; i += 2) { const q = place(o[i], o[i + 1]); n.push(q[0], q[1]); }
-          ops.push(n);
+          if (along && o[0] === 'L' && ops.length) {
+            const n = Math.min(64, Math.max(1, Math.ceil(Math.hypot(o[1] - ax, o[2] - ay) / step)));
+            for (let j = 1; j <= n; j++) {
+              const q = place(ax + (o[1] - ax) * (j / n), ay + (o[2] - ay) * (j / n));
+              ops.push(['L', q[0], q[1]]);
+            }
+            ax = o[1]; ay = o[2];
+            continue;
+          }
+          const n2 = [o[0]];
+          for (let i = 1; i < o.length; i += 2) { const q = place(o[i], o[i + 1]); n2.push(q[0], q[1]); }
+          ops.push(n2);
+          ax = o[o.length - 2]; ay = o[o.length - 1];
         }
         out.push({ ops, closed: sub.closed });
       }

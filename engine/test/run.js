@@ -1832,16 +1832,26 @@ test('every channel of every layer changes the picture, and every layer at rest 
    The second pins what is left, by name and with its reason, so a new dead pair
    fails here rather than being found by a sweep somebody happens to run. */
 test('every effect layer reaches at least one pattern, and the ones it cannot are named', () => {
-  /* The one pair that does nothing, and why it is geometry rather than a fault.
+  /* Every pair does something. There are no exceptions left, and there was one.
 
-     `rise` runs its ramp along v — `runOf(0)` is [0, 1] — and every zigzag
-     stripe spans the full height of the tile, so all of them have their
-     centroid at the same v. The field cannot tell them apart, and a channel
-     that transforms each shape as a unit has nothing to vary. Reaching it would
-     mean subdividing a shape so a field can vary *along* it, which is a
-     different operation from moving it, and inventing a reading here would be
-     worse than saying so. */
-  const allowed = { 'northline/zigzag/rise': 'the ramp runs along v and every stripe shares a v centroid' };
+     `northline/zigzag/rise` used to be here, allowed and explained: `rise` runs
+     its ramp along v, every zigzag stripe spans the full height of the tile, so
+     all of them have their centroid at v = 0.5 and read exactly 0.5 — and 0.5
+     drives size by nothing. The note said reaching it would mean subdividing a
+     shape so a field can vary *along* it, which is a different operation from
+     moving it. That was the right diagnosis and it was worth writing down
+     rather than tuning around; it was not a reason to stop.
+
+     `modulate.bend` now does that subdividing, for shapes longer than twice its
+     sampling window only, and the pair moves 68% of its page. The allowance is
+     gone rather than updated, because this list is for geometry that cannot be
+     reached and there is none.
+
+     The second assertion below is the one that made this change honest: it
+     failed the moment the pair started working, and said so. A list of
+     excuses that nobody checks is how a list of excuses stops meaning
+     anything. */
+  const allowed = {};
   const combos = [['carrock', 'lattice'], ['northline', 'zigzag'], ['pagrin', 'weave']];
   const jobs = [];
   for (const [identity, generator] of combos) {
