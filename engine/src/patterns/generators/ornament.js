@@ -172,6 +172,6 @@
     { group: 'pattern', key: 'seed', label: 'Seed', type: 'seed' },
   ];
 
-  return { key: 'ornament', kind: 'pattern', vector: true, motif: true, ratio: 1,
+  return { key: 'ornament', kind: 'pattern', vector: true, motif: true, needsMotif: true, ratio: 1,
     controls, paint, lattice, settingOf, unit, SETTINGS, SETS };
 }));

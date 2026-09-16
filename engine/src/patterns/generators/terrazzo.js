@@ -198,6 +198,6 @@
     { group: 'pattern', key: 'seed', label: 'Seed', type: 'seed' },
   ];
 
-  return { key: 'terrazzo', kind: 'pattern', vector: true, motif: true, ratio: 1,
+  return { key: 'terrazzo', kind: 'pattern', vector: true, motif: true, needsMotif: true, ratio: 1,
     controls, paint, places, chip, CUTS, GRADES };
 }));

@@ -192,6 +192,6 @@
     { group: 'mark', key: 'seed', label: 'Seed', type: 'seed' },
   ];
 
-  return { key: 'monogram', kind: 'pattern', vector: true, motif: true, ratio: 1,
+  return { key: 'monogram', kind: 'pattern', vector: true, motif: true, needsMotif: true, ratio: 1,
     controls, paint, lattice, form, dealt, LAYOUTS, FORMS };
 }));

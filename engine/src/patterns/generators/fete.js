@@ -130,6 +130,6 @@
     { group: 'poster', key: 'seed', label: 'Seed', type: 'seed' },
   ];
 
-  return { key: 'fete', kind: 'poster', vector: true, motif: true, tiles: false, ratio: 1,
+  return { key: 'fete', kind: 'poster', vector: true, motif: true, needsMotif: true, tiles: false, ratio: 1,
     controls, paint, distance };
 }));
