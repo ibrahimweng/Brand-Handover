@@ -1891,9 +1891,24 @@ test('a project can say a colour is a gradient, and everything that reads colour
   const all = PROJ.gradientsOf(proj);
   const mine = all.filter((g) => g.declared);
   assert.strictEqual(mine.length, 1, 'the declared gradient did not reach the one list');
+  assert.ok(all.length > mine.length, 'the list lost everything that was not declared');
   assert.deepStrictEqual(mine[0].slots, ['ink'], 'a declared gradient fills the slot it is named after');
-  assert.ok(!all.some((g) => !g.declared && (g.slots || []).indexOf('ink') > -1),
-    'the artwork\'s gradient for that slot survived alongside the one that replaced it');
+  /* The drawing's gradient for that slot is still in the list, on purpose.
+
+     This assertion used to say the opposite, and the opposite was a hole. Only
+     one gradient can fill a slot, and the declared one does — but that is a
+     question about painting, answered in the palette, where the declared one
+     is applied second and written over the other. It is not a question about
+     what the identity contains. The artwork still paints the mark with its own
+     ramp whatever a token says, and dropping it from this list took it away
+     from the two readers that paint nothing: the colour-blindness check and
+     the manual. On pagrin that hid a real finding — #FF5715 to #FFBADC is 82.7
+     apart to most people and 13.8 to a tritanope — behind a token on the same
+     slot. Painted and unseen is what this list exists to prevent. */
+  assert.ok(all.some((g) => !g.declared && (g.slots || []).indexOf('ink') > -1),
+    'a declared gradient hid the one the artwork paints the same slot with');
+  assert.ok(all.some((g) => g.stops.some((st) => st.hex.toUpperCase() === '#FFBADC')),
+    'the stop the colour-blindness check objects to is no longer in the list it reads');
 
   // the colourway decides, exactly as it does for a gradient read off the artwork
   const keep = proj.rules.colourways.find((c) => (c.slots || {}).ink === 'keep');
@@ -2350,9 +2365,31 @@ test('the quiet pattern is quiet, and both intensities are flat colour', () => {
         `${r.name}: the ${what} pattern carries an opacity, which does not separate`);
     }
     // Quiet is nearer the ground than bold is, measured rather than asserted.
+    /* The paint the shape actually uses, which is not always a hex.
+
+       This read the first `fill="#..."` that was not the ground, and a shape
+       filled with a gradient has `fill="url(#…)"` — no hex at all. So on an
+       identity whose ink is a gradient it found nothing, fell back to the
+       ground, and reported the bold pattern as sitting exactly on its own
+       paper. The pattern was fine; the instrument could not see it. A gradient
+       is summarised by the average of its stops, which is the fair answer to
+       the only question being asked here: how far from the ground is this. */
     const inkOf = (svg) => {
-      const hexes = [...svg.matchAll(/(?:fill|stroke)="(#[0-9a-fA-F]{6})"/g)].map((m) => m[1]);
-      return hexes.filter((h) => h.toLowerCase() !== r.pal.ground.toLowerCase())[0] || r.pal.ground;
+      const defs = {};
+      for (const m of svg.matchAll(
+        /<(?:linear|radial)Gradient id="([^"]+)"[^>]*>([\s\S]*?)<\/(?:linear|radial)Gradient>/g)) {
+        defs[m[1]] = [...m[2].matchAll(/stop-color="(#[0-9a-fA-F]{6})"/g)].map((x) => x[1]);
+      }
+      const mean = (list) => '#' + [16, 8, 0]
+        .map((sh) => Math.round(list.reduce((sum, h) => sum + ((parseInt(h.slice(1), 16) >> sh) & 255), 0)
+          / list.length).toString(16).padStart(2, '0')).join('');
+      for (const m of svg.matchAll(/(?:fill|stroke)="([^"]+)"/g)) {
+        const v = m[1];
+        const url = /^url\(#(.+)\)$/.exec(v);
+        if (url) { const st = defs[url[1]]; if (st && st.length) return mean(st); continue; }
+        if (/^#[0-9a-fA-F]{6}$/.test(v) && v.toLowerCase() !== r.pal.ground.toLowerCase()) return v;
+      }
+      return r.pal.ground;
     };
     const dist = (a, b) => {
       const A = parseInt(a.slice(1), 16), B = parseInt(b.slice(1), 16);

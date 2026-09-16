@@ -714,18 +714,30 @@ function gradientsOf(project) {
     if (!a || !a.source) continue;
     try { for (const g of svgu.gradients(svgu.parse(a.source)) || []) out.push(g); } catch (e) { /* not readable */ }
   }
-  const said = new Set();
   for (const [name, c] of Object.entries((project.tokens || {}).colour || {})) {
     if (!c || !c.gradient) continue;
     const g = c.gradient;
-    said.add(name);
     out.push({ id: name, kind: g.kind || 'linear', turn: g.turn == null ? null : g.turn,
       stops: (g.stops || []).map((st) => ({ offset: st.offset == null ? null : st.offset, hex: st.hex })),
       slots: [name], declared: true });
   }
-  // A colour that says what it is outranks a colour read off a drawing, so the
-  // drawing's version of the same slot is dropped rather than doubled.
-  return said.size ? out.filter((g) => g.declared || !(g.slots || []).some((sl) => said.has(sl))) : out;
+  /* Everything, including a gradient a declared one outranks.
+
+     This used to drop the artwork's gradient for any slot a colour token also
+     declared, on the grounds that only one of them can fill that slot. Only
+     one of them does — but that is a question about *painting*, and it is
+     answered in `patterns/palette.js`, where the declared one is written over
+     the drawing's because it is applied second.
+
+     It is not a question about what the identity contains. The artwork still
+     paints the mark with its gradient whatever a colour token says, and
+     dropping it here took it away from the two readers that are not painting
+     anything: the colour-blindness check and the manual's colour chapter. On
+     pagrin that hid a real finding — the mark's own ramp runs #FF5715 to
+     #FFBADC, which is 82.7 apart to most people and 13.8 apart to a
+     tritanope — behind a token declared on the same slot. A gradient that is
+     painted and unseen is the thing this list exists to prevent. */
+  return out;
 }
 
 module.exports = { masterOf, masterNameOf, load, DEFAULTS, gradientsOf };

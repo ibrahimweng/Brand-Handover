@@ -47,9 +47,17 @@
         "maxCoverage": 0.05
       },
       "ink": {
-        "hex": "#0E0E0E",
-        "role": "neutral"
-      },
+      "hex": "#0E0E0E",
+      "role": "neutral",
+      "gradient": {
+        "kind": "linear",
+        "turn": 0.3795,
+        "stops": [
+          { "offset": 0, "hex": "#0E0E0E" },
+          { "offset": 1, "hex": "#6F45F3" }
+        ]
+      }
+    },
       "page": {
         "hex": "#FFFFFF",
         "role": "ground"
