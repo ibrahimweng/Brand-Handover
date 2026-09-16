@@ -60,41 +60,67 @@ const sat = (h) => { const c = rgb(h); return Math.max(...c) - Math.min(...c); }
 // they say "the brand colour".
 function palette(sources) {
   const tally = new Map();
+  const flat = new Set();                 // painted straight onto a shape
+  const note = (hex, n) => { if (hex) tally.set(hex, (tally.get(hex) || 0) + n); };
   for (const src of sources.filter(Boolean)) {
     const doc = svgu.parse(src);
     svgu.eachPainted(doc, (el) => {
       if (!el.getAttribute) return;
       for (const attr of ['fill', 'stroke']) {
         const h = hexOf(el.getAttribute(attr));
-        if (h) tally.set(h, (tally.get(h) || 0) + 1);
+        note(h, 1);
+        if (h) flat.add(h);
       }
     });
+    // A gradient is a colour this drawing is painted in, written somewhere
+    // else. Reading only the fill attribute met `url(#a)`, which is not a hex,
+    // and counted nothing: pagrin's mark is painted #FF5715 to #FFBADC to
+    // #2409FF and the door offered it black on white — not one of its own
+    // colours — while vesper was offered one of its three. Counted the way a
+    // flat fill is counted, once per shape the gradient paints, because a
+    // colour used twice is commoner than a colour used once whether it is
+    // written in the shape or in a stop.
+    for (const st of svgu.paintedStops(doc)) note(hexOf(st.hex), st.uses);
   }
-  return [...tally.entries()].sort((a, b) => b[1] - a[1]).map(([hex]) => hex);
+  return { list: [...tally.entries()].sort((a, b) => b[1] - a[1]).map(([hex]) => hex), flat };
 }
 
 // A role for each colour, proposed rather than asked. The darkest is what the
 // mark is drawn in, the lightest is what it stands on, and the one furthest
 // from grey is the one that is doing something.
-function roles(hexes) {
+function roles(hexes, flat) {
   const list = hexes.slice(0, 6);
   // Artwork that names no colour at all is still artwork. A fill of
   // currentColor is black wherever nothing says otherwise, and a shape filled
-  // with a pattern or a gradient carries a slot a colourway can paint over —
-  // both are drawings, and both handed back an empty palette. The front door
-  // then asked a person to confirm nothing, showed them a preview and a whole
-  // manual, and refused at the last screen with "No colours were chosen. Pick
-  // at least one ink and one ground" — a sentence written for a caller that
-  // forgot to send any, on a screen with nothing to pick. Ink on paper is what
-  // a renderer would draw and what the person can change.
+  // with a pattern carries a slot a colourway can paint over — both are
+  // drawings, and both handed back an empty palette. The front door then asked
+  // a person to confirm nothing, showed them a preview and a whole manual, and
+  // refused at the last screen with "No colours were chosen. Pick at least one
+  // ink and one ground" — a sentence written for a caller that forgot to send
+  // any, on a screen with nothing to pick. Ink on paper is what a renderer
+  // would draw and what the person can change.
+  //
+  // A gradient used to land here too, and it is not the same case: its stops
+  // are colours, written somewhere else. palette() reads them now.
   if (!list.length) {
     return [{ hex: '#000000', role: 'primary', name: 'ink' },
       { hex: '#FFFFFF', role: 'ground', name: 'paper' }];
   }
   const byDark = list.slice().sort((a, b) => lum(a) - lum(b));
   const primary = byDark[0];
-  const lightest = byDark[byDark.length - 1];
-  const ground = lum(lightest) > 0.6 && lightest !== primary ? lightest : '#FFFFFF';
+  // An ink can come from anywhere in the drawing; a ground cannot. A stop is
+  // part of the mark, and what the mark stands on is not in the mark — so the
+  // pink halfway along pagrin's ramp, which is the lightest colour in the file
+  // and passes the test below, was offered as its paper. Only a colour painted
+  // straight onto a shape can be one. Where every colour is flat, which is 31
+  // of the 33 identities here, this is the line it replaces.
+  //
+  // No default for `flat`. A caller that forgot it would get the old answer
+  // back with nothing said — which is the shape of fault this whole change
+  // exists to take out, and an empty set is not what "I was not told" means.
+  const stood = byDark.filter((h) => flat.has(h));
+  const lightest = stood[stood.length - 1];
+  const ground = lightest && lum(lightest) > 0.6 && lightest !== primary ? lightest : '#FFFFFF';
   const rest = list.filter((h) => h !== primary && h !== ground);
   const accent = rest.slice().sort((a, b) => sat(b) - sat(a))[0] || null;
   const named = [];
@@ -157,8 +183,8 @@ function read({ mark, wordmark }) {
     // app handlers, this file, and the front door twice — and four copies of
     // one rule is three chances to offer a lockup that cannot be composed.
     lockups: mark && wordmark ? ['horizontal', 'stacked', 'mark', 'wordmark'] : [mark ? 'mark' : 'wordmark'],
-    colours: roles(cols),
-    foundColours: cols.length,
+    colours: roles(cols.list, cols.flat),
+    foundColours: cols.list.length,
     parts,
     slots: slots.length ? slots : ['all'],
     kept,
@@ -277,8 +303,8 @@ function questions(seen) {
           + 'the darkest is what the mark is drawn in, the lightest is what it stands on, and the one furthest '
           + 'from grey is the one doing the work. Change any of them.'
         : 'Nothing in this file names a colour — the artwork is drawn in whatever it is placed on, or filled '
-          + 'with a pattern or a gradient rather than a flat colour. So these are ink on paper, which is what '
-          + 'a browser would draw it as. Change them to the ones this identity actually uses.',
+          + 'with a pattern rather than a colour. So these are ink on paper, which is what a browser would '
+          + 'draw it as. Change them to the ones this identity actually uses.',
       suggested: seen.colours },
 
     // The eighth, and the only one about the pattern.

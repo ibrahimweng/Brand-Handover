@@ -9741,9 +9741,11 @@ test('a logo drawn in plain black can be handed over', () => {
 
 test('artwork that names no colour is offered ink on paper, not an empty palette', () => {
   // A fill of currentColor is black wherever nothing says otherwise, and a
-  // shape filled with a pattern or a gradient carries a slot a colourway paints
-  // over. Both are drawings; both handed back an empty palette, and the same
-  // last-screen refusal written for a caller that forgot to send any colours.
+  // shape filled with a pattern carries a slot a colourway paints over. Both
+  // are drawings; both handed back an empty palette, and the same last-screen
+  // refusal written for a caller that forgot to send any colours. A gradient
+  // used to land here and no longer does — its stops are colours, and the test
+  // below holds the door to reading them.
   const seen = APP.ask({ mark: DOOR.named }).seen;
   assert.strictEqual(seen.foundColours, 0, 'the fixture names a colour after all');
   assert.deepStrictEqual(seen.colours.map((c) => c.role), ['primary', 'ground']);
@@ -9751,6 +9753,101 @@ test('artwork that names no colour is offered ink on paper, not an empty palette
   // and the screen says why these two, rather than presenting them as read off
   const q = require('../src/intake').questions(seen).find((x) => x.key === 'colours');
   assert.ok(/Nothing in this file names a colour/.test(q.why), q.why);
+});
+
+test('the colours a gradient is painted in are colours the door offers', () => {
+  // The door read the fill attribute, met `url(#a)`, and counted nothing. So
+  // the two identities here drawn in a ramp were handed a palette that was not
+  // theirs to confirm: pagrin black on white, holding none of #FF5715, #FFBADC
+  // or #2409FF, and vesper one of its three. Everything downstream of that
+  // screen is built from what is confirmed on it — the colourways, the
+  // documents, every cut file — so the whole package came out in colours the
+  // artwork does not contain.
+  //
+  // Asked of every identity rather than of those two, because the fault was in
+  // the reading and not in the file.
+  const names = fs.readdirSync(path.join(__dirname, '..', 'projects'))
+    .filter((n) => fs.existsSync(path.join(__dirname, '..', 'projects', n, 'project.json')));
+  let ramped = 0;
+  for (const name of names) {
+    const pr = projectLoader.load(path.join(__dirname, '..', 'projects', name, 'project.json'));
+    const art = [pr.assets.mark, pr.assets.wordmark].filter(Boolean);
+    const docs = art.map((a) => svgu.parse(a.source));
+    const stops = [...new Set(docs.flatMap((d) => svgu.paintedStops(d))
+      .map((st) => String(st.hex).toUpperCase()))];
+    if (!stops.length) continue;
+    ramped++;
+    const seen = APP.ask({ mark: pr.assets.mark && pr.assets.mark.source,
+      wordmark: pr.assets.wordmark && pr.assets.wordmark.source }).seen;
+    const offered = seen.colours.map((c) => c.hex.toUpperCase());
+    for (const hex of stops) {
+      assert.ok(offered.includes(hex),
+        `${name} is painted ${hex} and the door does not offer it: ${offered.join(' ')}`);
+    }
+
+    // And a stop is an ink, never the paper. A ground is what the mark stands
+    // on, which is by definition not in the mark — read as a candidate, the
+    // pink halfway along pagrin's ramp is the lightest colour in the file and
+    // was offered as its paper.
+    const flat = new Set();
+    for (const d of docs) {
+      svgu.eachPainted(d, (el) => {
+        if (!el.getAttribute) return;
+        for (const a of ['fill', 'stroke']) {
+          const h = contrast.toHex(String(el.getAttribute(a) || '').trim());
+          if (h) flat.add(h.toUpperCase());
+        }
+      });
+    }
+    const ground = (seen.colours.find((c) => c.role === 'ground') || {}).hex;
+    assert.ok(ground, `${name} was offered no ground`);
+    assert.ok(!stops.includes(ground.toUpperCase()) || flat.has(ground.toUpperCase()),
+      `${name} was offered ${ground} as its paper, and that colour exists only inside its own mark`);
+  }
+  assert.strictEqual(ramped, 2,
+    `${ramped} identities here are painted in a gradient, and this test was written for 2`);
+});
+
+test('a colour the palette does not name is reported whether it is a fill or a stop', () => {
+  // colourPass skips a `url(...)` paint and is right to — a reference is not a
+  // colour and cannot be snapped to one — but that loop also reports a colour
+  // no token names, and skipping the first skipped the second. Pagrin's mark is
+  // painted #FF5715 to #FFBADC to #2409FF, two of which are in no token, and
+  // the audit said nothing about either.
+  const { normalise } = require('../src/normalise');
+  const pr = projectLoader.load(path.join(__dirname, '..', 'projects', 'pagrin', 'project.json'));
+  const n = normalise(pr.assets.mark.source, { tokens: pr.tokens });
+  assert.ok(n.ok);
+  const off = n.findings.find((f) => f.code === 'off-palette');
+  assert.ok(off, 'the mark is painted two colours the palette does not name and nothing said so');
+  for (const hex of ['#FFBADC', '#2409FF']) {
+    assert.ok(off.what.includes(hex), `${hex} is in no token and was not reported: ${off.what}`);
+  }
+  // #FF5715 is ember exactly, so it is not a finding
+  assert.ok(!off.what.includes('#FF5715'), `a stop that is a token was reported: ${off.what}`);
+  // and it says where the colour is, because what a colourway does to a stop is
+  // not what it does to a fill: it replaces the ramp rather than repainting it
+  assert.ok(/stops in a gradient/.test(off.why), off.why);
+
+  // Read, never rewritten. Snapping a fill moves one shape; snapping a stop
+  // moves a ramp, and the offsets around it were placed against the colour that
+  // is there.
+  for (const hex of ['#FF5715', '#FFBADC', '#2409FF']) {
+    assert.ok(n.svg.toUpperCase().includes(hex), `${hex} was changed in the artwork`);
+  }
+  assert.ok(!n.findings.some((f) => f.code === 'colour-snapped'), 'a stop was snapped');
+
+  // and a stop that is a near miss is neither snapped nor cried about: the
+  // whole point of the band is that it is a slip, and a slip in a ramp is a
+  // thing for a person to look at
+  const near = normalise('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">'
+    + '<defs><linearGradient id="a"><stop stop-color="#6F45F3"/>'
+    + '<stop offset="1" stop-color="#FF5719"/></linearGradient></defs>'
+    + '<rect width="10" height="10" fill="url(#a)"/></svg>', { tokens: pr.tokens });
+  assert.ok(near.ok);
+  assert.ok(!near.findings.some((f) => f.code === 'off-palette'),
+    'a stop 4 steps from ember was called off-palette');
+  assert.ok(near.svg.includes('#FF5719'), 'a near-miss stop was rewritten');
 });
 
 test('a <use> of a <symbol> is placed, not reported as an empty file', () => {
@@ -10400,16 +10497,6 @@ test('the door refuses what the build would refuse, before anybody answers a que
   assert.ok(codes.includes('gradient'), `the door did not pass on what it found: ${codes.join(', ')}`);
   const g = good.findings.mark.find((f) => f.code === 'gradient');
   assert.ok(/colourway/.test(g.why) && /keep/.test(g.how), 'the gradient warning arrived without its why or its how');
-});
-
-test('the palette starts from the colours already in the artwork', () => {
-  const found = APP.paletteFrom('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">'
-    + '<rect width="4" height="4" fill="#0A2A33"/><rect width="4" height="4" fill="#0A2A33"/>'
-    + '<circle r="2" style="fill:rgb(30,122,140)"/><path d="M0 0h1" stroke="#F2A007" fill="none"/>'
-    + '<rect width="1" height="1" fill="none"/></svg>');
-  // commonest first, written however the tool wrote it, and "none" is not a colour
-  assert.deepStrictEqual(found, ['#0A2A33', '#1E7A8C', '#F2A007']);
-  assert.deepStrictEqual(APP.paletteFrom('not svg at all'), []);
 });
 
 test('four numbers from a printer reach the package, and anything else does not', () => {

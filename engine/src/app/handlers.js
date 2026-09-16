@@ -23,31 +23,6 @@ const { measure } = require('../variants');
 
 const MAX_SVG = 4 * 1024 * 1024;         // an SVG larger than this is not artwork
 
-// ---- what a designer's file is painted with -------------------------------
-// A palette has to start somewhere, and the least surprising place is the
-// colours already in the artwork, commonest first. Asking somebody to type
-// hex values they have just handed us would be rude.
-function paletteFrom(source) {
-  let doc;
-  try { doc = svgu.parse(source); } catch (e) { return []; }
-  const seen = new Map();
-  const note = (v) => {
-    if (!v) return;
-    const s = String(v).trim();
-    if (!s || s === 'none' || /^url\(/i.test(s) || s === 'currentColor') return;
-    const hex = contrast.toHex(s);
-    if (hex) seen.set(hex, (seen.get(hex) || 0) + 1);
-  };
-  svgu.eachPainted(doc, (el) => {
-    if (!el.getAttribute) return;
-    note(el.getAttribute('fill'));
-    note(el.getAttribute('stroke'));
-    // a colour written into a style attribute is still a colour
-    for (const m of String(el.getAttribute('style') || '').matchAll(/(?:fill|stroke)\s*:\s*([^;]+)/gi)) note(m[1]);
-  });
-  return [...seen.entries()].sort((a, b) => b[1] - a[1]).map(([hex]) => hex);
-}
-
 // ---- a project file, from what the app was told ---------------------------
 // Everything the loader insists on, and nothing it does not. The defaults are
 // the ones a designer would pick if asked, so the form can be short.
@@ -435,7 +410,10 @@ function ask(input) {
   // sitting in a stylesheet is a colour the palette cannot see. Nine of the
   // thirty-two identities named a different motif read the two ways, and three
   // counted their colours differently — one of them, drawn in a gradient,
-  // counted none at all and was handed an empty palette to confirm.
+  // counted none at all and was handed an empty palette to confirm. The colour
+  // half of that is closed: the door reads a gradient's stops now, so all 33
+  // count the same either way, and only the motif still depends on which
+  // drawing is read.
   const read = readArtwork(mark, wordmark);
   if (!read.ok) {
     return { ok: false, asset: read.asset,
@@ -701,4 +679,4 @@ function editable() {
   return { ok: true, values: O.ALLOWED, keyed: O.PATTERNS.map((p) => ({ what: p.what, kind: p.kind })) };
 }
 
-module.exports = { ask, preview, render, pattern, shortlist, editable, make, paletteFrom, projectJson, asReference, MAX_SVG };
+module.exports = { ask, preview, render, pattern, shortlist, editable, make, projectJson, asReference, MAX_SVG };

@@ -232,7 +232,34 @@ function colourPass(doc, tokens) {
       used.set(final, (used.get(final) || 0) + 1);
     }
   });
-  return { snapped, offPalette: [...offPalette], used, implied };
+  // A stop is a colour this drawing is painted in, and nothing was checking it.
+  //
+  // The loop above skips a `url(...)` paint and is right to: a reference is not
+  // a colour and cannot be snapped to one. But that loop does two jobs — it
+  // snaps a near miss, and it reports a colour the palette does not name — and
+  // skipping the first skipped the second with it. Pagrin's mark is painted
+  // #FF5715 to #FFBADC to #2409FF, two of which no token names, and the audit
+  // had nothing to say about either. Same shape as the fault in gradientsOf:
+  // one branch answering a question about painting and a question about
+  // auditing at once.
+  //
+  // Read, never rewritten. Snapping a fill moves one shape; snapping a stop
+  // moves a ramp, and the offsets around it were placed against the colour that
+  // is there. Nothing in this repository is in the band where that would show —
+  // every stop in the 33 identities is either exactly a token or 77 and further
+  // from all of them — so a near miss in a stop is left for a person to see.
+  const offStops = new Set();
+  if (palette.length) {
+    for (const st of svgu.paintedStops(doc)) {
+      const h = hex(st.hex);
+      if (!h || offPalette.has(h) || palette.some((p) => p.hex === h)) continue;
+      const near = palette.map((p) => ({ p, d: distance(h, p.hex) })).sort((a, b) => a.d - b.d)[0];
+      if (near && near.d <= SNAP_DISTANCE) continue;
+      offPalette.add(h);
+      offStops.add(h);
+    }
+  }
+  return { snapped, offPalette: [...offPalette], offStops: [...offStops], used, implied };
 }
 
 // Give every distinct colour a slot, so colourways have something to target.
@@ -584,10 +611,17 @@ function normalise(source, { tokens } = {}) {
     `${s.from} was ${s.distance} step${s.distance === 1 ? '' : 's'} from ${s.token} ${s.to}. Snapped it.`,
     'Almost certainly a slip rather than a decision. Two nearly identical colours in one identity is the thing nobody spots until print.', null));
 
-  if (colour.offPalette.length) findings.push(finding('warning', 'off-palette',
-    `${colour.offPalette.length} colour${colour.offPalette.length > 1 ? 's are' : ' is'} not in the palette: ${colour.offPalette.join(', ')}.`,
-    'These are too far from any brand colour to be a mistake, so they were left alone. Colourways will not change them.',
-    'Add them to the palette, or repaint that artwork in a brand colour.'));
+  if (colour.offPalette.length) {
+    const st = colour.offStops || [];
+    findings.push(finding('warning', 'off-palette',
+      `${colour.offPalette.length} colour${colour.offPalette.length > 1 ? 's are' : ' is'} not in the palette: ${colour.offPalette.join(', ')}.`,
+      'These are too far from any brand colour to be a mistake, so they were left alone.'
+      + (st.length < colour.offPalette.length ? ' Colourways will not change them.' : '')
+      + (st.length ? ` ${st.join(' and ')} ${st.length > 1 ? 'are stops in a gradient' : 'is a stop in a gradient'} rather than `
+        + `${st.length > 1 ? 'fills on shapes' : 'a fill on a shape'}: a colourway that repaints that slot replaces the whole `
+        + `ramp, so ${st.length > 1 ? 'they reach' : 'it reaches'} the page only where the colourway keeps the artwork's own paint.` : ''),
+      'Add them to the palette, or repaint that artwork in a brand colour.'));
+  }
 
   if (assigned.tagged) findings.push(finding('fixed', 'slots',
     `Tagged ${assigned.tagged} shape${assigned.tagged > 1 ? 's' : ''} with ${assigned.slots.length} colour slot${assigned.slots.length > 1 ? 's' : ''}: ${assigned.slots.join(', ')}.`,

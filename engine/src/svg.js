@@ -213,6 +213,60 @@ function gradients(doc) {
   return [...byId.values()].filter((g) => g.slots.length);
 }
 
+// The colours a gradient is painted in, for the readers that want the colours
+// and not the slots.
+//
+// gradients() above answers "which gradient fills which slot", which is what
+// the manual, the build and the colour-blindness check ask, and it returns
+// nothing until data-slot has been assigned. Two other readers want something
+// simpler — what is this drawing painted in — and both of them read the fill
+// attribute, met `url(#a)`, and counted nothing: the front door's palette, and
+// the audit that reports a colour the palette does not name. Pagrin's mark is
+// painted #FF5715 to #FFBADC to #2409FF, and the door offered black on white
+// while the audit reported one off-palette colour, the #000000 on a shape
+// beside it.
+//
+// Keyed by the reference rather than by the definition, because a gradient
+// nothing points at paints nothing — dropUnusedPaint below deletes those, and
+// nine shipped files carried one. `uses` is how many fills and strokes point at
+// it, so a stop can be counted the way a flat fill is counted.
+function paintedStops(doc) {
+  const REF = /^url\(#([^)]+)\)$/;
+  const stops = new Map();
+  walk(doc.documentElement, (el) => {
+    const tag = el.nodeName && el.nodeName.toLowerCase();
+    if (tag !== 'lineargradient' && tag !== 'radialgradient') return;
+    const id = el.getAttribute && el.getAttribute('id');
+    if (!id) return;
+    const list = [];
+    for (const n of Array.from(el.childNodes || [])) {
+      if (n.nodeType !== 1 || String(n.nodeName).toLowerCase() !== 'stop') continue;
+      const inline = /stop-color\s*:\s*([^;]+)/.exec(n.getAttribute('style') || '');
+      const hex = (n.getAttribute('stop-color') || (inline && inline[1]) || '').trim();
+      if (hex && hex !== 'none') list.push(hex);
+    }
+    if (list.length) stops.set(id, list);
+  });
+  if (!stops.size) return [];
+  const uses = new Map();
+  walk(doc.documentElement, (el) => {
+    if (!el.getAttribute) return;
+    const at = (id) => { if (stops.has(id)) uses.set(id, (uses.get(id) || 0) + 1); };
+    for (const a of ['fill', 'stroke']) {
+      const m = REF.exec(String(el.getAttribute(a) || '').trim());
+      if (m) at(m[1]);
+    }
+    // A paint still sitting in a style attribute is still a paint. The cleaner
+    // writes styles out as attributes, so normalised artwork never needs this —
+    // but intake reads whatever it is handed, and it is handed the upload.
+    for (const m of String(el.getAttribute('style') || '')
+      .matchAll(/(?:fill|stroke)\s*:\s*url\(#([^)]+)\)/gi)) at(m[1]);
+  });
+  const out = [];
+  for (const [id, n] of uses) for (const hex of stops.get(id)) out.push({ id, hex, uses: n });
+  return out;
+}
+
 // Every colour the artwork paints a slot with. A flat slot has one; a slot
 // filled with a gradient has one per stop. This is what "keep" means, so the
 // build, the manual and the deck all resolve it here rather than each keeping
@@ -440,5 +494,5 @@ function compose(parts, width, height) {
 
 const round = (n, dp = 3) => Number(n.toFixed(dp));
 
-module.exports = { KEEP, dropUnusedPaint, gradientSlots, gradients, paintBySlot, inkOf, parse, serialize, viewBox, applyColourway, slotsUsed, thinnestStroke,
+module.exports = { KEEP, dropUnusedPaint, gradientSlots, gradients, paintedStops, paintBySlot, inkOf, parse, serialize, viewBox, applyColourway, slotsUsed, thinnestStroke,
   strokeWidths, strokeInk, inkParts, partsUsed, partIsStroked, innerXML, compose, round, NS, eachPainted, NEVER_DRAWN };
