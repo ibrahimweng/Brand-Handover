@@ -94,7 +94,42 @@
   // generator asking for its fifth thread on a three-colour identity should draw
   // something rather than nothing, and a pattern that repeats its palette is a
   // pattern, not a fault.
-  function of(colours, colourway) {
+  /* An ink the master paints with a gradient, in a colourway that keeps it.
+
+     A colourway slot set to `keep` means "do not recolour this one" — it is the
+     way a project says the artwork's own paint stands. Where that paint is a
+     gradient, keeping it has to mean keeping the gradient, and until now it
+     meant keeping the one flat hex the colour table lists beside it. On pagrin
+     that is the whole point of the identity: the mark runs #FF5715 to #FFBADC
+     to #2409FF at 137 degrees, and every pattern in the colourway named after
+     it came out flat #0E0E0E.
+
+     Never the ground. A gradient is written per shape so the tile still
+     repeats; the sheet is one fill across the whole tile and a gradient on it
+     would be a hard edge down every join. */
+  function gradientInks(colours, colourway, ground, gradients) {
+    const slots = (colourway && colourway.slots) || {};
+    const out = {};
+    for (const g of gradients || []) {
+      const stops = (g && g.stops || []).filter((st) => st && st.hex);
+      if (stops.length < 2) continue;
+      for (const slot of g.slots || []) {
+        if (slots[slot] !== 'keep') continue;
+        const hex = hexOf((colours || {})[slot]);
+        if (!hex) continue;
+        const up = String(hex).toUpperCase();
+        if (up === String(ground).toUpperCase()) continue;
+        out[up] = { kind: g.kind || 'linear',
+          // the direction the master runs it, where the master said
+          angle: g.turn == null ? 0.125 : g.turn,
+          stops: stops.map((st, i) => [st.offset == null
+            ? (stops.length < 2 ? 0 : i / (stops.length - 1)) : st.offset, st.hex]) };
+      }
+    }
+    return Object.keys(out).length ? out : null;
+  }
+
+  function of(colours, colourway, gradients) {
     const ground = groundOf(colours || {}, colourway);
     const read = inksOn(colours || {}, ground);
     const inks = read.inks;
@@ -102,6 +137,8 @@
     return {
       ground,
       inks: list,
+      // hex -> the gradient the master paints that ink with, or null
+      gradients: gradientInks(colours || {}, colourway, ground, gradients),
       // What this ground cost, so the build can say it rather than a client
       // finding a brand colour quietly missing from one colourway's patterns.
       dropped: read.dropped,
@@ -133,5 +170,5 @@
     };
   }
 
-  return { of, groundOf, inksOn, FAINTEST };
+  return { of, groundOf, inksOn, gradientInks, FAINTEST };
 }));

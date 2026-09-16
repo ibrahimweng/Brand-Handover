@@ -1732,7 +1732,7 @@
     const params = Object.assign(derive(generator, m, route, given),
       given && carries ? { motif: given } : {},
       o.word && g.word ? { word: o.word } : {}, o.params || {});
-    const pal = o.palette || palette.of(o.colours, o.colourway);
+    const pal = o.palette || palette.of(o.colours, o.colourway, o.gradients);
     return {
       generator, params, route, mark: m, kind: kindOf(generator),
       tiles: tilesOf(generator),
@@ -1767,7 +1767,7 @@
     // had to learn the difference.
     const W = o.size || 100;
     const H = Math.round((W / ratioOf(generator)) * 1000) / 1000;
-    const s = surface.svg({ width: W, height: H, id: o.id || generator });
+    const s = surface.svg({ width: W, height: H, id: o.id || generator, gradients: pal.gradients });
     // The generator, inside whatever effects are switched on. With none on this
     // is one call and the tile is byte for byte what it always was — which is
     // what keeps every package in this repository unchanged until somebody asks

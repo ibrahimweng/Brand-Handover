@@ -36,6 +36,18 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
 // inside a palette, three files away from the missing script tag. Both bundles
 // happened to load it first; the app's pattern screen did not, and that is
 // exactly the bug this list exists to make impossible.
+// What the master paints a slot with, where that is a gradient. Read here so
+// the studio and the build are looking at the same thing.
+function gradientsOf(project) {
+  const a = (project.assets || {}).mark || (project.assets || {}).wordmark;
+  if (!a || !a.source) return null;
+  try {
+    const svgu = require('../svg');
+    const out = svgu.gradients(svgu.parse(a.source)) || null;
+    return out && out.length ? out : null;
+  } catch (e) { return null; }
+}
+
 const SOURCES = ['../contrast.js', 'rand.js', 'noise.js', 'surface.js', 'palette.js', 'tone.js',
   'grid.js', 'motif.js', 'icons.js', 'modulate.js', 'layers.js']
   .concat(Object.keys(PE.GENERATORS).sort().map((g) => `generators/${g}.js`))
@@ -144,7 +156,14 @@ function bundle(project, measured, made, chose, tile, route) {
     minStrokePx: project.rules.minStrokePx,
     minStrokeMm: project.rules.minStrokeMm,
     colours: project.tokens.colour || {},
-    colourways: (project.rules.colourways || []).map((c) => ({ name: c.name, on: c.on })),
+    /* `slots` as well as the name and the ground, and the master's gradients
+       beside them, so the studio works out the same palette the build did
+       rather than a flatter one. A colourway that keeps a slot the artwork
+       paints with a gradient draws that gradient, and a studio that did not
+       know which slots were kept drew flat where the package did not. */
+    colourways: (project.rules.colourways || []).map((c) => ({ name: c.name, on: c.on,
+      slots: c.slots || undefined })),
+    gradients: gradientsOf(project),
     /* The shape, once, and rows that point at it.
 
        Every generator drawn out of the identity carries the same shape, and
@@ -216,4 +235,4 @@ ${SOURCES.map((f) => `<script>${read(f)}</script>`).join('\n')}
 </body></html>`;
 }
 
-module.exports = { studioHtml, bundle, CSS, SOURCES, sourcesJs };
+module.exports = { studioHtml, bundle, CSS, SOURCES, sourcesJs, gradientsOf };

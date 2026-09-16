@@ -1247,6 +1247,16 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     if (got.ok) word = got;
   }
 
+  /* What the master paints its slots with, where that is a gradient rather than
+     a colour. The patterns draw the mark's *shape*, so they never inherited the
+     mark's *paint*: a colourway that says `keep` kept the one hex the colour
+     table lists and the gradient stopped at the mark. */
+  const masterGradients = (() => {
+    const src = masterOf(project);
+    if (!src || !src.source) return null;
+    try { return svgu.gradients(svgu.parse(src.source)) || null; } catch (e) { return null; }
+  })();
+
   const SET = ((project.system || {}).patterns) || null;
   const setGenerator = SET && PATTERNS.GENERATORS[SET.generator] ? SET.generator : null;
   if (SET && SET.generator && !setGenerator) {
@@ -1265,7 +1275,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     const cw0 = rules.colourways[0];
     const make = (g, params) => PATTERNS.tile({ mark: patternMark, generator: g, route: ROUTE, motif,
       params: params || undefined, colours: project.tokens.colour, colourway: cw0,
-      size: sys.pattern.tile, id: `fit-${g}` });
+      gradients: masterGradients, size: sys.pattern.tile, id: `fit-${g}` });
     try {
       const r = MATCH.fit(ref, make, { px: 256, rounds: 2 });
       matched = r && r.generator ? r : null;
@@ -1313,7 +1323,8 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   const drawTile = (name, cw, extra, id) => {
     const t = PATTERNS.tile({ mark: patternMark, generator: name, route: ROUTE, motif, word,
       params: extra ? Object.assign({}, paramsFor(name) || {}, extra) : paramsFor(name),
-      colours: project.tokens.colour, colourway: cw, size: sys.pattern.tile, id });
+      colours: project.tokens.colour, colourway: cw, gradients: masterGradients,
+      size: sys.pattern.tile, id });
     t.why = restate(name, t.why);
     return t;
   };

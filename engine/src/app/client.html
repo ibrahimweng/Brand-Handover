@@ -1861,7 +1861,7 @@ button{font:inherit;color:inherit}
     for (var i = 0; i < P.colourways.length; i++) {
       if (P.colourways[i].name === PS.colourway) way = P.colourways[i];
     }
-    return window.PatternPalette.of(P.colours, way || P.colourways[0]);
+    return window.PatternPalette.of(P.colours, way || P.colourways[0], P.gradients);
   }
   // A tile is square; a poster is cut at its own proportion and does not
   // repeat. Drawn square and tiled, a 4:5 fly-poster is squashed wallpaper.

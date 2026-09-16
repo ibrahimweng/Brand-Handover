@@ -66,7 +66,22 @@ function identity(name) {
   const src = pr.assets.mark ? pr.assets.mark.source : (pr.assets.wordmark || {}).source;
   const motif = PMOTIFREAD.read(src, pr.rules, undefined, undefined,
     { lettering: projectLoader.masterNameOf(pr) === 'wordmark' });
-  cache[name] = { src, motif: motif.ok ? motif : null, pal: PPAL.of(pr.tokens.colour) };
+  /* And the same identity with its own gradients on, for the jobs that ask.
+
+     A gradient is written per shape in objectBoundingBox units precisely so a
+     tile can carry one and still repeat; that is a claim, and this is where it
+     is measured rather than asserted. The colourway is the one that keeps the
+     master's own paint — any other recolours the slot and there is no gradient
+     to keep. */
+  let grad = null;
+  try {
+    const svgu = require('../src/svg');
+    const gs = svgu.gradients(svgu.parse(src)) || [];
+    const keep = (pr.rules.colourways || []).find((c) => c.slots
+      && Object.keys(c.slots).some((k) => c.slots[k] === 'keep'));
+    if (gs.length && keep) grad = PPAL.of(pr.tokens.colour, keep, gs);
+  } catch (e) { grad = null; }
+  cache[name] = { src, motif: motif.ok ? motif : null, pal: PPAL.of(pr.tokens.colour), grad };
   return cache[name];
 }
 
@@ -74,8 +89,10 @@ const jobs = JSON.parse(process.argv[2] || '[]');
 const out = [];
 for (const job of jobs) {
   const r = identity(job.identity);
+  if (job.gradients && !r.grad) { out.push({ key: job.key || job.generator, off: null, noGradient: true }); continue; }
   const opts = { markSource: r.src, generator: job.generator, route: 'motif',
-    motif: r.motif, palette: r.pal, size: 100, id: `tc-${job.generator}-${job.identity}` };
+    motif: r.motif, palette: job.gradients ? r.grad : r.pal, size: 100,
+    id: `tc-${job.generator}-${job.identity}` };
   if (job.effects) {
     opts.params = Object.assign(PENG.tile(opts).params, { effects: job.effects });
   }

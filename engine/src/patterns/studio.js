@@ -53,7 +53,7 @@
   // which is an enabled button that refuses.
   const isVector = () => gen().vector !== false;
   const way = () => B.colourways.find((c) => c.name === state.colourway) || B.colourways[0];
-  const pal = () => PAL.of(B.colours, way());
+  const pal = () => PAL.of(B.colours, way(), B.gradients);
 
 
   // What the engine would choose, so "back to what it chose" is always one
@@ -420,7 +420,7 @@
     list.forEach((k, i) => {
       const b = el('button', 'keptone');
       const s = SURF.svg({ width: B.tile, height: B.tile, id: `k${i}` });
-      const p = PAL.of(B.colours, B.colourways.find((c) => c.name === k.colourway) || B.colourways[0]);
+      const p = PAL.of(B.colours, B.colourways.find((c) => c.name === k.colourway) || B.colourways[0], B.gradients);
       painted(s, B.tile, B.tile, k.params, p, PE.GENERATORS[k.generator]);
       b.innerHTML = s.toSVG('style="width:100%;height:100%;display:block"');
       b.title = `${k.generator} · ${k.colourway}`;

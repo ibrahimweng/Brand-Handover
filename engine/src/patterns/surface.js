@@ -112,6 +112,65 @@
     const push = (markup) => out.push(markup);
     const alpha = (attr) => (S.globalAlpha >= 1 ? '' : ` ${attr}="${R(S.globalAlpha)}"`);
 
+    /* A paint is a colour, or a gradient.
+
+       Written in objectBoundingBox units, which is the whole reason a gradient
+       can be in a tile at all: the gradient belongs to the shape rather than to
+       the sheet, so a chip in the top left and the same chip wrapped round to
+       the bottom right are painted the same way and the repeat still matches.
+       A gradient across the tile would be a hard edge down every join.
+
+       One <linearGradient> per distinct gradient however many shapes use it,
+       and the id counts up in the order they are first asked for, so the same
+       tile written twice is the same bytes — which the battery checks. */
+    const grads = new Map();
+    /* An ink the identity draws as a gradient is drawn as one here too.
+
+       Swapped at the last moment, by colour, rather than by changing what
+       thirty-eight generators ask their palette for. A generator says "the
+       first ink" and gets a hex; if that hex is the one the master's own
+       artwork paints with a gradient, this is where it becomes the gradient.
+       A tint of that ink is a different hex and stays a flat tint, which is
+       the right answer — mixing a gradient toward the paper is a separate
+       thing from having one. */
+    let swap = o.gradients || null;
+    /* Settable, because the surface is not always made by whoever knows the
+       palette. `tile()` builds its own and can pass them in; a seam sheet, a
+       poster, the studio and the front door all hand a surface they made to
+       `layers.paint`, and that is where the palette is. Set there, once, and
+       every one of them draws the same tile the package writes — which is the
+       whole contract this engine has with itself. */
+    S.useGradients = (m) => { swap = m || null; };
+    const paintOf = (raw) => {
+      let v = raw;
+      if (swap && typeof v === 'string') {
+        const hit = swap[v.toUpperCase()] || swap[v];
+        if (hit) v = hit;
+      }
+      if (!v || typeof v === 'string') return esc(v == null ? 'none' : v);
+      const stops = (v.stops || []).filter((st) => st && st[1]);
+      if (!stops.length) return esc('none');
+      const turn = ((v.angle || 0) % 1 + 1) % 1;
+      const key = `${v.kind || 'linear'}|${R(turn)}|${stops.map((st) => `${st[0]}:${st[1]}`).join(',')}`;
+      let id = grads.get(key);
+      if (!id) {
+        id = `${prefix}g${grads.size + 1}`;
+        const marks = stops.map((st, i) => `<stop offset="${R(st[0] == null
+          ? (stops.length < 2 ? 0 : i / (stops.length - 1)) : st[0])}" stop-color="${esc(st[1])}"/>`).join('');
+        // the run, as a unit vector across the shape's own box
+        const a = turn * Math.PI * 2;
+        const dx = Math.cos(a), dy = Math.sin(a);
+        const box = (v.kind === 'radial')
+          ? `<radialGradient id="${id}" cx="0.5" cy="0.5" r="0.5">${marks}</radialGradient>`
+          : `<linearGradient id="${id}" x1="${R(0.5 - dx / 2)}" y1="${R(0.5 - dy / 2)}"`
+            + ` x2="${R(0.5 + dx / 2)}" y2="${R(0.5 + dy / 2)}">${marks}</linearGradient>`;
+        grads.set(key, id);
+        defs.push(box);
+      }
+      return `url(#${id})`;
+    };
+    const defs = [];
+
     S.save = () => {
       stack.push({ ctm: ctm.slice(), open: open.length,
         fillStyle: S.fillStyle, strokeStyle: S.strokeStyle, lineWidth: S.lineWidth,
@@ -173,14 +232,14 @@
     S.fill = (rule) => {
       if (!path.length) return;
       const fr = rule === 'evenodd' ? ' fill-rule="evenodd"' : '';
-      push(`<path d="${d()}" fill="${esc(S.fillStyle)}"${fr}${alpha('fill-opacity')}/>`);
+      push(`<path d="${d()}" fill="${paintOf(S.fillStyle)}"${fr}${alpha('fill-opacity')}/>`);
     };
     S.stroke = () => {
       if (!path.length) return;
       const w = S.lineWidth * lengthScale(ctm);
       const cap = S.lineCap === 'butt' ? '' : ` stroke-linecap="${esc(S.lineCap)}"`;
       const join = S.lineJoin === 'miter' ? '' : ` stroke-linejoin="${esc(S.lineJoin)}"`;
-      push(`<path d="${d()}" fill="none" stroke="${esc(S.strokeStyle)}" stroke-width="${R(w)}"${cap}${join}${alpha('stroke-opacity')}/>`);
+      push(`<path d="${d()}" fill="none" stroke="${paintOf(S.strokeStyle)}" stroke-width="${R(w)}"${cap}${join}${alpha('stroke-opacity')}/>`);
     };
     S.clip = () => {
       if (!path.length) return;
@@ -198,11 +257,11 @@
       if (axisAligned(ctm)) {
         const p = apply(ctm, x, y), q = apply(ctm, x + w, y + h);
         const x0 = Math.min(p[0], q[0]), y0 = Math.min(p[1], q[1]);
-        push(`<rect x="${R(x0)}" y="${R(y0)}" width="${R(Math.abs(q[0] - p[0]))}" height="${R(Math.abs(q[1] - p[1]))}" fill="${esc(S.fillStyle)}"${alpha('fill-opacity')}/>`);
+        push(`<rect x="${R(x0)}" y="${R(y0)}" width="${R(Math.abs(q[0] - p[0]))}" height="${R(Math.abs(q[1] - p[1]))}" fill="${paintOf(S.fillStyle)}"${alpha('fill-opacity')}/>`);
         return;
       }
       const c = [apply(ctm, x, y), apply(ctm, x + w, y), apply(ctm, x + w, y + h), apply(ctm, x, y + h)];
-      push(`<path d="M${R(c[0][0])} ${R(c[0][1])}L${R(c[1][0])} ${R(c[1][1])}L${R(c[2][0])} ${R(c[2][1])}L${R(c[3][0])} ${R(c[3][1])}Z" fill="${esc(S.fillStyle)}"${alpha('fill-opacity')}/>`);
+      push(`<path d="M${R(c[0][0])} ${R(c[0][1])}L${R(c[1][0])} ${R(c[1][1])}L${R(c[2][0])} ${R(c[2][1])}L${R(c[3][0])} ${R(c[3][1])}Z" fill="${paintOf(S.fillStyle)}"${alpha('fill-opacity')}/>`);
     };
 
     // The finished tile. Anything a generator opened and forgot to close is
@@ -210,7 +269,9 @@
     S.body = () => {
       const tail = [];
       for (let i = open.length - 1; i >= 0; i--) tail.push('</g>');
-      return out.join('') + tail.join('');
+      // the gradients first, because a <defs> after the shape that uses it is
+      // legal and a renderer that streams is entitled to have drawn it already
+      return (defs.length ? `<defs>${defs.join('')}</defs>` : '') + out.join('') + tail.join('');
     };
     S.toSVG = (attrs) => {
       const extra = attrs ? ' ' + attrs : '';

@@ -182,7 +182,23 @@ function gradients(doc) {
         hex: (n.getAttribute('stop-color') || (inline && inline[1]) || '').trim() || null,
       });
     }
-    byId.set(id, { id, kind: tag === 'lineargradient' ? 'linear' : 'radial', stops, slots: [] });
+    /* And which way it runs.
+
+       The stops say what the colours are and nothing about the direction, and
+       for the three places that only print the ramp — the manual, the print
+       sheet, the colour-blindness check — that was enough. A pattern has to
+       actually draw it, and a gradient drawn in a direction nobody chose is a
+       gradient this engine invented. Read as a turn so it survives being put
+       on a shape of a different size and shape from the one in the artwork. */
+    const num = (a, dflt) => { const v = Number(el.getAttribute(a)); return isFinite(v) ? v : dflt; };
+    let turn = null;
+    if (tag === 'lineargradient') {
+      const dx = num('x2', 1) - num('x1', 0);
+      const dy = num('y2', 0) - num('y1', 0);
+      if (dx || dy) turn = Math.round((Math.atan2(dy, dx) / (Math.PI * 2)) * 10000) / 10000;
+    }
+    byId.set(id, { id, kind: tag === 'lineargradient' ? 'linear' : 'radial', stops, slots: [],
+      turn: turn == null ? null : (turn % 1 + 1) % 1 });
   });
   if (!byId.size) return [];
   walk(doc.documentElement, (el) => {

@@ -418,6 +418,13 @@
      `drawBase(surface, palette)` is the generator. It is handed the wrapped
      surface and the palette it would have had. */
   function paint(surface, W, H, params, pal, drawBase) {
+    // The identity's own gradients, told to the surface that will write them.
+    // Here rather than at each of the five places that make a surface, so a
+    // seam sheet, a poster, the studio and the front door cannot disagree with
+    // the tile the package wrote.
+    if (pal && pal.gradients && typeof surface.useGradients === 'function') {
+      surface.useGradients(pal.gradients);
+    }
     surface.save();
     surface.beginPath();
     surface.rect(0, 0, W, H);

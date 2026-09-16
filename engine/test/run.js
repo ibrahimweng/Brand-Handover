@@ -1831,6 +1831,126 @@ test('every channel of every layer changes the picture, and every layer at rest 
 
    The second pins what is left, by name and with its reason, so a new dead pair
    fails here rather than being found by a sweep somebody happens to run. */
+test('a pattern drawn in the identity\'s own gradient carries it, and still repeats', () => {
+  /* The colourway that keeps the master's paint now keeps the gradient too.
+
+     pagrin's mark runs #FF5715 to #FFBADC to #2409FF at 137 degrees, and
+     `spectrum` is the colourway that says "do not recolour this one". Every
+     pattern it wrote came out flat #0E0E0E: the patterns redraw the mark's
+     shape, so they never inherited the mark's paint, and `keep` kept the one
+     hex the colour table lists beside it.
+
+     Two things have to be true at once and neither is worth much alone. The
+     gradient has to reach the file — or the second assertion is measuring a
+     flat tile and passing. And the tile has to still repeat, which is why a
+     gradient here is written per shape in objectBoundingBox units rather than
+     across the sheet: a shape and its wrapped twin are painted the same way, so
+     the join matches. A gradient over the tile would be a hard edge down every
+     one of them. */
+  const svgu = require('../src/svg');
+  const PROJ = require('../src/project');
+  const PPAL = require('../src/patterns/palette');
+  const proj = PROJ.load(path.join(__dirname, '..', 'projects', 'pagrin', 'project.json'));
+  const gs = svgu.gradients(svgu.parse(proj.assets.mark.source)) || [];
+  assert.ok(gs.length, 'pagrin no longer carries a gradient, so this tests nothing');
+  assert.ok(gs[0].turn != null, 'the gradient was read without a direction, so a pattern would invent one');
+
+  const keep = (proj.rules.colourways || []).find((c) => c.slots
+    && Object.keys(c.slots).some((k) => c.slots[k] === 'keep'));
+  assert.ok(keep, 'no colourway keeps a slot, so there is nothing to keep a gradient in');
+  const kept = PPAL.of(proj.tokens.colour, keep, gs);
+  const flat = PPAL.of(proj.tokens.colour, (proj.rules.colourways || [])
+    .find((c) => c.slots && c.slots.ink && c.slots.ink !== 'keep'), gs);
+  assert.ok(kept.gradients, 'the kept colourway did not pick the gradient up');
+  assert.ok(!flat.gradients, 'a colourway that recolours the slot kept a gradient it was told to replace');
+
+  // it reaches the file
+  const MR = require('../src/patterns/motif-read');
+  const motif = MR.read(proj.assets.mark.source, proj.rules, null, 'whole', {});
+  const some = ['lattice', 'weave', 'oddgrid', 'plate'];
+  for (const g of some) {
+    const t = PENG.tile({ markSource: proj.assets.mark.source, generator: g, motif,
+      palette: kept, size: 100, id: `grad-${g}` });
+    assert.ok(/<linearGradient/.test(t.tile), `${g} in ${keep.name} was written without the gradient`);
+    assert.ok(/fill="url\(#/.test(t.tile), `${g} declared a gradient and painted nothing with it`);
+  }
+
+  // and it still repeats — measured the way every other tile here is
+  const said = completeness(some.map((g) => ({ identity: 'pagrin', generator: g,
+    gradients: true, key: g })), 4);
+  const broke = said.filter((r) => r.noGradient || r.off !== 0);
+  assert.deepStrictEqual(broke, [],
+    `a gradient broke the repeat: ${broke.map((r) => `${r.key} ${r.off}%`).join(', ')}`);
+});
+
+test('a generator that needs the mark\'s shape says so, instead of drawing an empty bed', () => {
+  /* Four of them drew the ground and stopped.
+
+     `terrazzo` on pagrin came out 262 bytes: the cement, and none of the 71
+     chips its own parameters asked for. Handed the shape it draws 206 KB and
+     147 paths, so the generator was never the problem — it bails on the first
+     line of paint and says nothing, and `monogram`, `ornament` and `fete` all
+     bail the same way. `lattice` has always refused out loud, and the engine
+     already knows what to do with a refusal: the build catches it per
+     generator, warns, and leaves that one out of the shortlist; the front door
+     drops it from the six it offers. So the four were not offering a choice,
+     they were offering an empty tile.
+
+     The rule is measured rather than declared, because declaring it would be
+     wrong: thirty-four generators *use* the shape when there is one and only
+     five *need* one, so `motif: true` cannot be the test. What can be tested
+     is the outcome — a tile either carries a colour that is not its own
+     ground, or the generator refused. There is no threshold in that, and
+     nothing to keep up to date. */
+  const MR = require('../src/patterns/motif-read');
+  const PROJ = require('../src/project');
+  const proj = PROJ.load(path.join(__dirname, '..', 'projects', 'pagrin', 'project.json'));
+  const base = { markSource: proj.assets.mark.source, brand: proj.brand,
+    colours: proj.tokens.colour, size: 140 };
+  /* Two colours, not "a colour that is not the ground".
+
+     That was the first version of this and it had no teeth: `terrazzo` tints
+     its cement toward the first ink — a terrazzo ground is the paper with
+     stone dust in it — so an empty bed paints #E4E4E4 on a #FFFFFF ground and
+     reads as ink. One tinted rectangle is still one rectangle. Counted
+     instead: an empty bed uses exactly one colour, every generator that draws
+     anything uses at least two, and the gap between 1 and 2 is not a
+     threshold anybody has to keep up to date. */
+  const inked = (t) => {
+    const used = new Set();
+    for (const m of String(t.tile).matchAll(/(?:fill|stroke)="([^"]+)"/g)) {
+      const v = m[1].toUpperCase();
+      if (v !== 'NONE') used.add(v);
+    }
+    return used.size > 1;
+  };
+  const quiet = [];
+  const refused = [];
+  for (const g of PENG.NAMES) {
+    let t = null;
+    try { t = PENG.tile(Object.assign({}, base, { generator: g })); }
+    catch (e) {
+      assert.ok(/no shape\s+could be read out of this drawing/.test(e.message),
+        `${g} refused for a reason nobody will understand: ${e.message}`);
+      refused.push(g);
+      continue;
+    }
+    if (!inked(t)) quiet.push(g);
+  }
+  assert.deepStrictEqual(quiet, [],
+    `${quiet.join(', ')} drew a ground and nothing else, and said nothing about it`);
+  assert.ok(refused.length >= 1, 'no generator refused, so this proves nothing');
+
+  // And refusing is not a place to hide a generator that cannot draw. Every one
+  // that turns the job down has to do it when it is given what it asked for.
+  const got = MR.read(proj.assets.mark.source, proj.rules, null, 'whole', {});
+  assert.ok(got.ok && got.ops.length, 'no shape could be read out of pagrin, so the rest is untested');
+  for (const g of refused) {
+    const t = PENG.tile(Object.assign({}, base, { generator: g, motif: got }));
+    assert.ok(inked(t), `${g} refuses without the shape and draws nothing with it either`);
+  }
+});
+
 test('every effect layer reaches at least one pattern, and the ones it cannot are named', () => {
   /* Every pair does something. There are no exceptions left, and there was one.
 

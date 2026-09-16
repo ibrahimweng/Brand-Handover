@@ -606,7 +606,11 @@ function pattern(input) {
       why: motif && !motif.ok ? motif.why : null,
       params: made,
       colours: project.tokens.colour,
-      colourways: (project.rules.colourways || []).map((c) => ({ name: c.name, on: c.on })),
+      // `slots` too, and the master's gradients, so the screen draws the ink
+      // the package writes rather than a flat stand-in for it
+      colourways: (project.rules.colourways || []).map((c) => ({ name: c.name, on: c.on,
+        slots: c.slots || undefined })),
+      gradients: require('../patterns/emit').gradientsOf(project),
       tile: require('../system').patternRules((project.system || {}).pattern).tile,
       minStrokePx: project.rules.minStrokePx, minStrokeMm: project.rules.minStrokeMm };
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
