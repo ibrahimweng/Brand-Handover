@@ -1804,6 +1804,79 @@ test('every channel of every layer changes the picture, and every layer at rest 
   }
 });
 
+/* The same sweep, across geometries, because one of each proves nothing.
+
+   The test above wakes every layer on *one* identity and *one* generator, and
+   that is how a dead `mist` hid for as long as it did: carrock's lattice was
+   the combination it happened to work on, and when a spacing fix moved carrock
+   into an aliasing gap the test caught it by luck rather than by design. A
+   sweep across five identities and four generators found nineteen more pairs
+   doing nothing at all, none of which any test had ever looked at.
+
+   Three combinations, chosen for the three geometries that turned out to
+   matter, not for coverage of names:
+
+     carrock / lattice   many small shapes on a regular grid — where a field
+                         sampled once per shape aliases against the layout
+     northline / zigzag  a handful of shapes each spanning the whole tile —
+                         where averaging over a shape averages over everything
+     pagrin / weave      a filled generator — where a channel that only varies
+                         stroke width reaches nothing
+
+   Two claims. The first is the one that matters: **every layer reaches
+   something.** A layer that moves no pattern anywhere is broken, and that is
+   exactly what `sear` was — it drives weight, weight varied a stroke width, and
+   most generators fill, so switching it on did nothing on eight of the pairs
+   measured and nobody could have told from the controls.
+
+   The second pins what is left, by name and with its reason, so a new dead pair
+   fails here rather than being found by a sweep somebody happens to run. */
+test('every effect layer reaches at least one pattern, and the ones it cannot are named', () => {
+  /* The one pair that does nothing, and why it is geometry rather than a fault.
+
+     `rise` runs its ramp along v — `runOf(0)` is [0, 1] — and every zigzag
+     stripe spans the full height of the tile, so all of them have their
+     centroid at the same v. The field cannot tell them apart, and a channel
+     that transforms each shape as a unit has nothing to vary. Reaching it would
+     mean subdividing a shape so a field can vary *along* it, which is a
+     different operation from moving it, and inventing a reading here would be
+     worse than saying so. */
+  const allowed = { 'northline/zigzag/rise': 'the ramp runs along v and every stripe shares a v centroid' };
+  const combos = [['carrock', 'lattice'], ['northline', 'zigzag'], ['pagrin', 'weave']];
+  const jobs = [];
+  for (const [identity, generator] of combos) {
+    for (const key of PENG.LAYERS.NAMES) {
+      jobs.push({ identity, generator, effects: { [key]: PENG.LAYERS.wakeOf(key) },
+        against: true, key: `${identity}/${generator}/${key}` });
+    }
+  }
+  const said = completeness(jobs, 6);
+  assert.strictEqual(said.length, jobs.length, 'the sweep did not run');
+
+  const dead = said.filter((r) => r.moved <= 1).map((r) => r.key);
+  const unexpected = dead.filter((k) => !allowed[k]);
+  assert.deepStrictEqual(unexpected, [],
+    `${unexpected.length} layer-and-pattern pairs do nothing when switched on, and nothing says why: `
+    + unexpected.join(', '));
+  // and the allowance is not carrying a pair that has since started working —
+  // a stale excuse is how a list like this stops meaning anything
+  const fixed = Object.keys(allowed).filter((k) => dead.indexOf(k) < 0);
+  assert.deepStrictEqual(fixed, [],
+    `${fixed.join(', ')} is named as unreachable and now works, so the note is out of date`);
+
+  // Every layer moves something somewhere. This is the claim `sear` failed.
+  const reaches = {};
+  for (const r of said) {
+    const layer = r.key.split('/')[2];
+    reaches[layer] = (reaches[layer] || 0) + (r.moved > 1 ? 1 : 0);
+  }
+  const never = Object.keys(reaches).filter((k) => reaches[k] === 0);
+  assert.deepStrictEqual(never, [],
+    `${never.join(', ')} moves no pattern at all, on any geometry — the control is a lie`);
+  assert.strictEqual(Object.keys(reaches).length, PENG.LAYERS.NAMES.length,
+    'the sweep did not cover every layer');
+});
+
 test('each of the seven channels does its own thing, on its own', () => {
   /* One field, seven channels, one at a time.
 
