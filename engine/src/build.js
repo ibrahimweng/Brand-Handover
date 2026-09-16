@@ -28,7 +28,15 @@ const KEYS_READ = {
     'naming', 'lockups', 'formats', 'pngWidths', 'stock', 'colourways', 'iconInk', 'iconBg',
     'iconSizes', 'faviconSizes', 'social', 'partners', 'documents', 'ladder', 'fabrication', 'family',
     'accessibility'],
-  system: ['icons', 'icon', 'pattern', 'motion', 'photography', 'nameSetting', 'grid'],
+  // `patterns` and `patternRoute` were missing, and both are read a few hundred
+  // lines down: build() reads system.patternRoute at the route, and
+  // system.patterns to honour a generator chosen by hand. So the audit that
+  // exists to catch a setting nothing reads was telling everybody who answered
+  // the pattern question at the front door that their answer was being
+  // ignored, while the build honoured it. A stale list is worse than no list,
+  // because it is believed.
+  system: ['icons', 'icon', 'pattern', 'patterns', 'patternRoute', 'motion', 'photography',
+    'nameSetting', 'grid'],
   // tokens was outside this audit entirely, so a whole branch of a project file
   // could be written, saved and shipped without anything reading it. The
   // twenty-fourth round added tokens.sets and the engine accepted it in

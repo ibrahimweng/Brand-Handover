@@ -3570,6 +3570,71 @@ test('a generator the engine does not have is refused at the door and in the fil
     'the door invented a pattern nobody chose');
 });
 
+test('nothing the door writes into a project is a setting the engine says it ignores', () => {
+  // Both halves of this are the engine's own: the door decides what a project
+  // may say, and unreadKeys() decides what the build reads. They disagreed. The
+  // door wrote system.patternRoute and system.patterns — the eighth question's
+  // answer and the pattern somebody picked on screen — and the audit told them,
+  // on the last page of the product, that both were being ignored. The build
+  // was honouring both. Neither list is restated here; the test asks one what
+  // it writes and the other what it reads.
+  const INT = require('../src/intake');
+  const BUILD = require('../src/build');
+  const seen = { master: 'mark', hasBoth: false, lockups: ['mark'], slots: [], colours: [
+    { name: 'ink', hex: '#111111', role: 'primary' }, { name: 'paper', hex: '#FFFFFF', role: 'ground' }] };
+  // every answer the door can carry into a project, not just the ones a default
+  // walkthrough happens to set
+  const project = INT.toProject({
+    brand: 'Door', places: ['screen', 'print'], patternRoute: 'inspired',
+    pattern: { generator: 'zigzag', params: { style: 'scales' } },
+  }, seen);
+  const cried = BUILD.unreadKeys(project);
+  assert.deepStrictEqual(cried, [],
+    `the door writes settings the build says it ignores:\n  ${cried.join('\n  ')}`);
+  // and the audit still has teeth, or the line above proves nothing
+  const bogus = JSON.parse(JSON.stringify(project));
+  bogus.system = Object.assign({}, bogus.system, { patternRout: 'inspired' });
+  const caught = BUILD.unreadKeys(bogus);
+  assert.strictEqual(caught.length, 1, 'the audit no longer notices a setting nothing reads');
+  assert.ok(/Did you mean system\.patternRoute\?/.test(caught[0]),
+    `a near miss was not named: ${caught[0]}`);
+});
+
+test('the two pattern settings the door writes each change what the build writes', () => {
+  // Not "the audit allows them" — that is the thing that was wrong. This builds
+  // the same identity three ways and reads the answer back out of brand.json.
+  const BUILD = require('../src/build');
+  const PROJ = require('../src/project');
+  const file = path.join(__dirname, '..', 'projects', 'pagrin', 'project.json');
+  const brandJsonOf = (dir) => {
+    const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) =>
+      e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]);
+    return JSON.parse(fs.readFileSync(walk(dir).find((x) => /brand\.json$/.test(x)), 'utf8'));
+  };
+  const ran = async (tweak) => {
+    const p = tweak(PROJ.load(file));
+    const out = fs.mkdtempSync(path.join(os.tmpdir(), 'reads-'));
+    try {
+      await BUILD.build(p, out);
+      const set = brandJsonOf(out).system.patterns;
+      return { route: set.route, chose: set.shortlist.wrote[0] };
+    } finally { fs.rmSync(out, { recursive: true, force: true }); }
+  };
+  return (async () => {
+    const plain = await ran((p) => p);
+    const route = await ran((p) => {
+      p.system = Object.assign({}, p.system, { patternRoute: 'inspired' }); return p; });
+    const hand = await ran((p) => {
+      p.system = Object.assign({}, p.system, { patterns: { generator: 'weave', params: {} } }); return p; });
+    assert.notStrictEqual(route.route, plain.route,
+      `system.patternRoute changed nothing: both builds went down ${plain.route}`);
+    assert.strictEqual(route.route, 'inspired');
+    assert.notStrictEqual(hand.chose, plain.chose,
+      `system.patterns changed nothing: both builds chose ${plain.chose}`);
+    assert.strictEqual(hand.chose, 'weave');
+  })();
+});
+
 test('the pattern strings use the words the rest of the dictionary already uses', () => {
   // I wrote the Hebrew and Japanese for these pages and I cannot read either to
   // a native standard. What I *can* check is that they do not introduce a second
@@ -13398,7 +13463,12 @@ test('no hover state on the front door changes the size or position of anything'
     .replace(/\/\*[\s\S]*?\*\//g, '');
   assert.ok(css.length > 4000, 'no stylesheet was found to check');
   // Properties that change how much room a thing takes, or where it sits.
-  const moves = /(^|[;{\s])(width|height|min-width|min-height|max-width|max-height|padding[a-z-]*|margin[a-z-]*|font-size|font-weight|line-height|letter-spacing|white-space|overflow[a-z-]*|display|position|top|left|right|bottom|gap|row-gap|column-gap|flex[a-z-]*|grid-[a-z-]+|-webkit-line-clamp)\s*:/;
+  // `transform` is here because this test says position and means it: a card
+  // that lifted 2 px and a slider thumb that grew 14% both moved the target out
+  // from under the aim that found it, and both passed a version of this check
+  // that only knew about layout. Nothing is laid out differently by a
+  // transform, and the pointer does not care.
+  const moves = /(^|[;{\s])(width|height|min-width|min-height|max-width|max-height|padding[a-z-]*|margin[a-z-]*|font-size|font-weight|line-height|letter-spacing|white-space|overflow[a-z-]*|display|position|top|left|right|bottom|gap|row-gap|column-gap|flex[a-z-]*|grid-[a-z-]+|-webkit-line-clamp|transform|translate|scale|rotate)\s*:/;
   const bad = [];
   // every rule whose selector mentions :hover
   const rules = css.split('}');
