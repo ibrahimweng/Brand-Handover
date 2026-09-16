@@ -13454,6 +13454,56 @@ console.log('\nthe front door, and the type it sets');
    the failure is a property, not a picture, and a static check cannot flake.
    `transform` is allowed: it moves paint, not layout, so a card that lifts 2 px
    on hover shifts nothing around it. */
+// What "moves" means, in one place, because three surfaces ship a stylesheet and
+// the rule is the same for all of them: a thing you are pointing at must not
+// change how much room it takes or where it sits, because then it is no longer
+// under the pointer that found it. `transform` counts — a card that lifted 2 px
+// and a slider thumb that grew 14% both moved, and both passed a version of
+// this check that only knew about layout.
+const MOVES = /(^|[;{\s])(width|height|min-width|min-height|max-width|max-height|padding[a-z-]*|margin[a-z-]*|font-size|font-weight|line-height|letter-spacing|white-space|overflow[a-z-]*|display|position|top|left|right|bottom|gap|row-gap|column-gap|flex[a-z-]*|grid-[a-z-]+|-webkit-line-clamp|transform|translate|scale|rotate)\s*:/;
+
+// Every rule whose selector mentions :hover, and what it sets. Comments first,
+// or the check reads prose: a note saying ":hover" and "display" in one
+// paragraph is what a splitter looking for braces mistakes for a rule.
+function hoversThatMove(css) {
+  const clean = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  const bad = [];
+  let seen = 0;
+  for (const chunk of clean.split('}')) {
+    const at = chunk.lastIndexOf('{');
+    if (at < 0) continue;
+    const sel = chunk.slice(0, at);
+    if (!/:hover/.test(sel)) continue;
+    seen++;
+    const m = MOVES.exec(chunk.slice(at + 1));
+    if (m) bad.push(`${sel.trim().replace(/\s+/g, ' ').slice(0, 70)} sets ${m[2]}`);
+  }
+  return { bad, seen };
+}
+
+test('nothing the product ships moves under the pointer that found it', () => {
+  // The front door was checked and the three pages the package ships were not,
+  // and they carry their own stylesheets: the studio somebody tunes a pattern
+  // in, the canvas they lay a page out in, and the page that canvas publishes.
+  // A rule this product holds itself to on one screen is not a rule if the
+  // other three are exempt.
+  const sheets = {
+    'the studio': require('../src/patterns/emit').CSS,
+    'the canvas': require('../src/editor/emit').CSS,
+  };
+  const out = [];
+  let hovers = 0;
+  for (const [where, css] of Object.entries(sheets)) {
+    assert.ok(typeof css === 'string' && css.length > 400, `${where} has no stylesheet to check`);
+    const { bad, seen } = hoversThatMove(css);
+    hovers += seen;
+    bad.forEach((b) => out.push(`${where}: ${b}`));
+  }
+  assert.deepStrictEqual(out, [],
+    `a hover state changes layout, so the page moves under the pointer:\n  ${out.join('\n  ')}`);
+  assert.ok(hovers >= 8, `only ${hovers} hover rules across the shipped pages, so this proves little`);
+});
+
 test('no hover state on the front door changes the size or position of anything', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'client.html'), 'utf8');
   // Comments first, or the check reads its own prose. The note above this test

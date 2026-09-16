@@ -1,2 +1,5 @@
 node_modules/
 site/out/
+# `handover build` with no -o writes here, and running it in the repo root
+# once put 221 files and a 6 MB zip into a commit.
+out/

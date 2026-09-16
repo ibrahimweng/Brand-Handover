@@ -55,7 +55,12 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--ui);font-s
 button,input,select{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--sel);outline-offset:2px}
 .sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
-.app{display:grid;grid-template-columns:264px 1fr 300px;grid-template-rows:44px 1fr 132px;height:100%}
+/* The kept strip is as tall as what is kept. It was a flat 132 px whether or
+   not anything was in it, so a studio nobody had kept a pattern in yet gave
+   18% of the window to one line of grey text — and paid for it out of the three
+   panes above, which were all cut off mid-control. */
+.app{display:grid;grid-template-columns:264px 1fr 300px;
+  grid-template-rows:44px minmax(0,1fr) auto;height:100%}
 .bar{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:0 14px;background:var(--pane);border-bottom:1px solid var(--line)}
 .bar h1{font-size:13px;margin:0;font-weight:600}
 .ver{color:var(--dim);font-size:11px}
@@ -103,7 +108,8 @@ h2+*{margin-bottom:6px}
 border-radius:3px;padding:8px;overflow:auto;max-height:160px;color:var(--dim);margin:0}
 .row{display:flex;gap:6px;margin-top:8px}
 .sw{display:inline-block;width:20px;height:20px;border-radius:3px;border:1px solid var(--line);margin-right:4px}
-.bottom{grid-column:1/-1;background:var(--pane);border-top:1px solid var(--line);padding:10px 14px;overflow-x:auto;white-space:nowrap}
+.bottom{grid-column:1/-1;background:var(--pane);border-top:1px solid var(--line);padding:10px 14px;
+overflow-x:auto;white-space:nowrap;max-height:132px}
 .keptcell{position:relative;display:inline-block;width:86px;height:86px;margin-right:8px;vertical-align:top}
 .keptone{width:86px;height:86px;padding:0;border:1px solid var(--line);border-radius:3px;overflow:hidden;cursor:pointer;background:none}
 .keptone:hover{border-color:var(--sel)}

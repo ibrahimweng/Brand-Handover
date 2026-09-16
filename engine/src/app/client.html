@@ -439,8 +439,14 @@ button{font:inherit;color:inherit}
 #p-pattern .pbd{display:grid;grid-template-rows:minmax(0,1fr);overflow:hidden}
 #p-pattern .sub{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
   overflow:hidden;max-width:78ch}
+/* Before anything is dropped, the target is the page. It used to be a 148 px
+   band with 219 px of nothing under it, on the one screen whose only job is
+   taking a file — and a drop target you have to aim at is a worse drop target.
+   Rows, not `align-content:start`, so the slack goes into the thing you are
+   meant to drop on rather than under it. */
 #p-art .pbd{display:grid;grid-template-columns:minmax(0,1fr);gap:clamp(10px,1.8vh,20px);
-  align-content:start}
+  grid-template-rows:minmax(0,1fr) auto;align-content:stretch}
+#p-art .pbd:not(.read) #drop{height:100%;min-height:0}
 #p-art .pbd.read{grid-template-columns:minmax(300px,.85fr) minmax(0,1.15fr);
   grid-template-rows:auto auto minmax(0,1fr);align-content:stretch}
 #p-art .pbd.read #drop{grid-column:1}
@@ -451,12 +457,19 @@ button{font:inherit;color:inherit}
   #p-art .pbd.read #seen{grid-column:1;grid-row:auto}}
 .drop.small h3{font-size:15px;font-weight:500;color:var(--ink-2)}
 .drop.small p,.drop.small .mono{display:none}
-/* The reference slot is small from the start rather than small once it is
-   filled, so it never competes with the artwork above it — but it still has to
-   say what it is for, so it keeps the two lines the shrunk artwork slot drops.
-   After that rule, not before it: `display:none` above this would win. */
-#dropref p,#dropref .mono{display:block}
+/* The reference slot says what it is for, on one line, at the size of the thing
+   it is: optional. It used to keep the two lines the shrunk artwork slot drops
+   and set them at 15 px across the full column, which made the optional input
+   139 px tall beside a 48 px required one — the largest block on a screen about
+   the file you just dropped. After the rule above, not before it: a
+   `display:none` there would win. */
+#dropref p{display:block;margin-top:4px;font-size:12.5px;line-height:1.45;color:var(--ink-3)}
+#dropref .mono{display:none}
+#dropref{padding:clamp(11px,1.6vh,15px) 16px;text-align:left}
+#dropref h3{display:flex;align-items:center;gap:8px;font-size:13.5px}
+#dropref .tagged{margin-left:auto}
 #dropref.has h3{color:var(--accent)}
+#dropref.has .mono{display:block;margin-top:5px}
 /* `tagged`, not `opt` — this page already has an `.opt`, it is a display:flex
    card, it is defined further down, and a chip given that name came out as a
    full-width bar across the slot. */
@@ -469,9 +482,13 @@ button{font:inherit;color:inherit}
 .drop .mono{font-family:var(--mono);font-size:12px;color:var(--ink-3);margin-top:18px}
 .seen{display:grid;grid-template-columns:150px minmax(0,1fr);gap:clamp(12px,2vw,24px);align-items:start}
 @media (max-width:760px){.seen{grid-template-columns:1fr}}
-.art{background:var(--sunk);border:1px solid var(--line);border-radius:14px;padding:16px;
-  display:flex;align-items:center;justify-content:center;min-height:120px}
-.art svg{max-width:100%;max-height:150px;height:auto;display:block}
+.arts{display:grid;gap:10px;align-content:start;min-width:0}
+.art{display:grid;gap:6px;min-width:0}
+.art .pic{background:var(--sunk);border:1px solid var(--line);border-radius:14px;padding:16px;
+  display:flex;align-items:center;justify-content:center;min-height:106px}
+.art b{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:400;text-align:center}
+.art svg{max-width:100%;max-height:132px;height:auto;display:block}
 .facts{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
 .fact{display:flex;justify-content:space-between;gap:18px;padding:12px 16px;background:var(--raised);font-size:14.5px}
 .fact b{font-weight:500;color:var(--ink-2)}
@@ -645,13 +662,23 @@ button{font:inherit;color:inherit}
 /* Four specimens across, filling the height they are given rather than a
    height typed in pixels: the frame was 340 px tall, which with its caption and
    the headline above it did not fit a 900-tall laptop. */
+/* The four, and one line about whichever is chosen. The line used to be four
+   lines, one clamped into each card, and all four were cut: the shortest note
+   lost 55 px of itself and the longest 91, with nothing to press to see the
+   rest. Four descriptions you cannot read is worse than one you can, and it is
+   also more on the screen. */
+.styling{display:grid;grid-template-rows:minmax(0,1fr) auto;gap:clamp(9px,1.4vh,15px);
+  height:100%;min-height:0}
+.pickwhy{color:var(--ink-2);font-size:13.5px;line-height:1.5;max-width:104ch;
+  /* two lines, always, so choosing a longer one does not move the row above it */
+  min-height:calc(2 * 1.5em)}
 .picks{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(8px,1vw,16px);
   align-content:start;min-height:0}
 @media (max-width:1080px){.picks{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:600px){.picks{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-  .pick .frame{min-height:110px}.pick .m span{display:none}}
+  .pick .frame{min-height:110px}}
 .pick{border:1.5px solid var(--line);border-radius:14px;overflow:hidden;background:var(--raised);
-  cursor:pointer;transition:border-color .16s,transform .16s var(--step)}
+  cursor:pointer;transition:border-color .16s}
 .pick:hover{border-color:var(--ink-3)}
 .pick.on{border-color:var(--accent)}
 /* the frame has to reach the specimen in all four, and the four do not put it
@@ -665,9 +692,7 @@ button{font:inherit;color:inherit}
 .pick .m b{font-size:14.5px;font-weight:600;display:flex;align-items:center;gap:8px}
 .pick .m b i{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--line-2);font-style:normal;flex:none}
 .pick.on .m b i{background:var(--accent);border-color:var(--accent)}
-.pick .m span{display:block;margin-top:5px;color:var(--ink-2);font-size:12.5px;line-height:1.45;
-  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-@media (min-height:900px){.pick .m span{-webkit-line-clamp:4}}
+
 
 /* ------------------------------------------------------------------ edit */
 /* The sheet fills the room it is in. It was 74vh with a 520 px floor, which on
@@ -845,7 +870,10 @@ button{font:inherit;color:inherit}
       the measure, how much air a specimen stands in, and how a chapter opens.</p>
     </div>
     <div class="pbd">
-    <div class="picks" id="picks"></div>
+    <div class="styling">
+      <div class="picks" id="picks" role="radiogroup" aria-labelledby="h-style"></div>
+      <p class="pickwhy" id="pickwhy"></p>
+    </div>
     <div class="errbox"></div>
     </div>
   </section>
@@ -1218,11 +1246,24 @@ button{font:inherit;color:inherit}
     var box = $('seen'); box.hidden = false; box.textContent = ''; box.className = 'seen';
     // the slots move to one side and the measurements take the other
     document.querySelector('#p-art .pbd').classList.add('read');
-    var art = el('div', 'art');
-    // the artwork as the engine has it, not as it arrived. Every number beside
-    // it was measured off this, and this is what goes in the package.
-    var shown = (S.clean && (S.clean.mark || S.clean.wordmark)) || S.mark || S.wordmark;
-    art.innerHTML = shown.replace(/<\?xml[^>]*\?>/g, '').replace(/<!--[\s\S]*?-->/g, '');
+    // Every piece the engine has, not the first one it can find. The page said
+    // "a mark and a logotype" over a single picture, so the one drawing it did
+    // not show was the one nobody could check — on the screen whose whole job
+    // is reading your own file back to you.
+    var C = S.clean || {};
+    var art = el('div', 'arts');
+    [['the mark', C.mark || S.mark], ['the logotype', C.wordmark || S.wordmark]]
+      .filter(function (r) { return !!r[1]; })
+      .forEach(function (r) {
+        var one = el('div', 'art');
+        var pic = el('div', 'pic');
+        // the artwork as the engine has it, not as it arrived. Every number
+        // beside it was measured off this, and this is what goes in the package.
+        pic.innerHTML = r[1].replace(/<\?xml[^>]*\?>/g, '').replace(/<!--[\s\S]*?-->/g, '');
+        one.appendChild(pic);
+        if (S.seen.hasBoth) one.appendChild(el('b', null, r[0]));
+        art.appendChild(one);
+      });
     var f = el('div', 'facts');
     var rows = [
       ['What it is', S.seen.hasBoth ? 'a mark and a logotype' : (S.seen.master === 'mark' ? 'a symbol' : 'a logotype')],
@@ -1591,17 +1632,19 @@ button{font:inherit;color:inherit}
         fr.appendChild(f); card.appendChild(fr);
         var m = el('div', 'm');
         var b = el('b'); b.appendChild(el('i')); b.appendChild(document.createTextNode(p.name));
-        m.appendChild(b); m.appendChild(el('span', null, p.note));
+        m.appendChild(b);
         card.appendChild(m);
         function choose() {
           S.answers.style = p.key;
           [].forEach.call(box.children, function (c) {
             c.classList.toggle('on', c === card); c.setAttribute('aria-checked', String(c === card)); });
+          $('pickwhy').textContent = p.note;
           gate(); sayOn(2, p.name + ' — ' + p.note.split('.')[0] + '.');
         }
         card.addEventListener('click', choose);
         card.addEventListener('keydown', function (e) {
           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(); } });
+        if (S.answers.style === p.key) $('pickwhy').textContent = p.note;
         box.appendChild(card);
       });
       busy(false); gate();
