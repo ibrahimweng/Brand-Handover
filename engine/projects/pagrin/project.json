@@ -25,9 +25,17 @@
   "tokens": {
     "colour": {
       "signal": {
-        "hex": "#6F45F3",
-        "role": "primary"
-      },
+      "hex": "#6F45F3",
+      "role": "primary",
+      "gradient": {
+        "kind": "linear",
+        "turn": 0.3795,
+        "stops": [
+          { "offset": 0, "hex": "#6F45F3" },
+          { "offset": 1, "hex": "#FF5715" }
+        ]
+      }
+    },
       "haze": {
         "hex": "#A78DE8",
         "role": "secondary"

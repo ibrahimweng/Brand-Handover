@@ -1852,10 +1852,21 @@ test('a project can say a colour is a gradient, and everything that reads colour
   const base = JSON.parse(fs.readFileSync(
     path.join(__dirname, '..', 'projects', 'pagrin', 'project.json'), 'utf8'));
 
+  /* Stripped first, then given the one under test.
+
+     pagrin declares a gradient of its own now, and a test that read whatever
+     the fixture happens to carry is a test of the fixture. What is being
+     checked here is the capability, so the copy starts with no declared
+     gradient whatever the identity does. */
+  const bare = () => {
+    const j = JSON.parse(JSON.stringify(base));
+    for (const c of Object.values(j.tokens.colour)) delete c.gradient;
+    return j;
+  };
   const withToken = (grad, colour) => {
     const dir = fs.mkdtempSync(path.join(os2.tmpdir(), 'tok-'));
     fs.cpSync(path.join(__dirname, '..', 'projects', 'pagrin'), dir, { recursive: true });
-    const j = JSON.parse(JSON.stringify(base));
+    const j = bare();
     if (grad) j.tokens.colour[colour || 'ink'].gradient = grad;
     fs.writeFileSync(path.join(dir, 'project.json'), JSON.stringify(j));
     try { return PROJ.load(path.join(dir, 'project.json')); }
@@ -1909,7 +1920,7 @@ test('a project can say a colour is a gradient, and everything that reads colour
   assert.ok(alone.gradients, 'the palette needs a list handed to it to see a gradient the colour declares');
   assert.deepStrictEqual(alone.gradients[proj.tokens.colour.ink.hex.toUpperCase()].stops,
     [[0, '#C81E1E'], [1, '#1E9E3C']], 'the colour table carried the wrong gradient');
-  assert.ok(!PPAL.of(base.tokens.colour, keep).gradients,
+  assert.ok(!PPAL.of(bare().tokens.colour, keep).gradients,
     'a colour table with no gradient in it produced one anyway');
 
   // and the audit that reads gradients reads this one: these two are 117.8
@@ -1956,8 +1967,19 @@ test('a pattern drawn in the identity\'s own gradient carries it, and still repe
   const kept = PPAL.of(proj.tokens.colour, keep, gs);
   const flat = PPAL.of(proj.tokens.colour, (proj.rules.colourways || [])
     .find((c) => c.slots && c.slots.ink && c.slots.ink !== 'keep'), gs);
-  assert.ok(kept.gradients, 'the kept colourway did not pick the gradient up');
-  assert.ok(!flat.gradients, 'a colourway that recolours the slot kept a gradient it was told to replace');
+  /* Asked about the ink, not about the map.
+
+     This used to ask whether the palette had any gradient at all, which was
+     the same question while pagrin had exactly one. It declares a second now,
+     on a slot no colourway replaces, so "no gradients" stopped meaning "this
+     slot's gradient was replaced" — and the assertion failed on a change that
+     was correct. A test that reads the whole map to make a claim about one
+     ink is a test that any second gradient breaks. */
+  const inkHex = proj.tokens.colour.ink.hex.toUpperCase();
+  assert.ok(kept.gradients && kept.gradients[inkHex],
+    'the kept colourway did not pick the gradient up');
+  assert.ok(!(flat.gradients || {})[inkHex],
+    'a colourway that recolours the slot kept a gradient it was told to replace');
 
   // it reaches the file
   const MR = require('../src/patterns/motif-read');
