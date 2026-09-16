@@ -313,6 +313,57 @@ function load(file) {
   };
   for (const [name, c] of Object.entries(raw.tokens && raw.tokens.colour ? raw.tokens.colour : {})) {
     c.hex = canon(c.hex, `the colour "${name}"`);
+    /* A colour may also be a gradient.
+
+       Until now the only gradient an identity could have was one drawn into
+       the master artwork, which is the right place for the one the mark is
+       painted with and the wrong place for any other: an identity whose
+       patterns run a ramp the mark does not had nowhere to say so.
+
+       `hex` stays required and stays the flat stand-in. A gradient cannot be a
+       spot ink, cannot be four CMYK numbers, and cannot be one end of a
+       contrast ratio, so every one of those reads `hex` exactly as before and
+       this is additive rather than a second kind of colour. */
+    if (c.gradient == null) continue;
+    const at = `the colour "${name}" gradient`;
+    const g = c.gradient;
+    if (typeof g !== 'object' || Array.isArray(g)) {
+      throw new Error(`${at} is not an object. Write it as `
+        + '{ "kind": "linear", "turn": 0.125, "stops": [{ "hex": "#FF5715" }, { "hex": "#2409FF" }] }.');
+    }
+    if (!Array.isArray(g.stops) || g.stops.length < 2) {
+      const n = Array.isArray(g.stops) ? g.stops.length : 0;
+      throw new Error(`${at} has ${n === 0 ? 'no stops' : n === 1 ? '1 stop' : `${n} stops`}. `
+        + 'A gradient is two colours or more; one colour is the colour it already is.');
+    }
+    g.kind = String(g.kind || 'linear').trim().toLowerCase();
+    if (g.kind !== 'linear' && g.kind !== 'radial') {
+      throw new Error(`${at} is a "${g.kind}". This engine draws "linear" and "radial".`);
+    }
+    if (g.turn != null) {
+      const t = Number(g.turn);
+      if (!isFinite(t)) {
+        throw new Error(`${at} turns by "${g.turn}", which is not a number. A turn is a `
+          + 'fraction of a full circle: 0 runs left to right, 0.25 runs top to bottom.');
+      }
+      g.turn = ((t % 1) + 1) % 1;
+    }
+    let last = -Infinity;
+    g.stops.forEach((st, i) => {
+      if (!st || typeof st !== 'object') throw new Error(`${at} stop ${i + 1} is not an object.`);
+      st.hex = canon(st.hex, `${at} stop ${i + 1}`);
+      if (st.offset == null) return;
+      const o = Number(st.offset);
+      if (!isFinite(o) || o < 0 || o > 1) {
+        throw new Error(`${at} stop ${i + 1} sits at "${st.offset}". An offset is `
+          + 'where along the run the colour lands, from 0 to 1.');
+      }
+      if (o < last) {
+        throw new Error(`${at} stop ${i + 1} sits at ${o}, behind the stop before it at ${last}. `
+          + 'Stops run in the order they are written.');
+      }
+      last = o; st.offset = o;
+    });
   }
   for (const cw of (raw.rules && raw.rules.colourways) || []) {
     for (const slot of Object.keys(cw.slots || {})) {
@@ -644,4 +695,37 @@ function load(file) {
 const masterNameOf = (project) => project.master || (project.assets.mark ? 'mark' : 'wordmark');
 const masterOf = (project) => project.assets[masterNameOf(project)];
 
-module.exports = { masterOf, masterNameOf, load, DEFAULTS };
+/* Every gradient an identity has, from wherever it has it.
+
+   Two sources and one list. The master artwork may paint a slot with one, and
+   the project may declare one on the colour itself; before this there were
+   three places that read the first source and none that read the second, so a
+   declared gradient would have been drawn by the patterns and missed by the
+   colour-blindness check and by the manual that documents it. A gradient the
+   accessibility audit cannot see is worse than no gradient.
+
+   Shaped exactly like `svg.gradients` returns, because three callers already
+   read that shape. A declared one is named after the colour it belongs to,
+   which is also the slot it fills. */
+function gradientsOf(project) {
+  const out = [];
+  const svgu = require('./svg');
+  for (const a of [(project.assets || {}).mark, (project.assets || {}).wordmark]) {
+    if (!a || !a.source) continue;
+    try { for (const g of svgu.gradients(svgu.parse(a.source)) || []) out.push(g); } catch (e) { /* not readable */ }
+  }
+  const said = new Set();
+  for (const [name, c] of Object.entries((project.tokens || {}).colour || {})) {
+    if (!c || !c.gradient) continue;
+    const g = c.gradient;
+    said.add(name);
+    out.push({ id: name, kind: g.kind || 'linear', turn: g.turn == null ? null : g.turn,
+      stops: (g.stops || []).map((st) => ({ offset: st.offset == null ? null : st.offset, hex: st.hex })),
+      slots: [name], declared: true });
+  }
+  // A colour that says what it is outranks a colour read off a drawing, so the
+  // drawing's version of the same slot is dropped rather than doubled.
+  return said.size ? out.filter((g) => g.declared || !(g.slots || []).some((sl) => said.has(sl))) : out;
+}
+
+module.exports = { masterOf, masterNameOf, load, DEFAULTS, gradientsOf };

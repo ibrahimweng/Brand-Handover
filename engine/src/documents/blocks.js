@@ -887,8 +887,11 @@ function palette(ctx) {
 // the one-colour version looked like a mistake rather than a decision.
 function gradientSpec(ctx) {
   const L = lang(ctx);
-  const gs = [ctx.project.assets.mark, ctx.project.assets.wordmark].filter(Boolean)
-    .flatMap((a) => svgu.gradients(svgu.parse(a.source)));
+  // Every gradient the identity has, declared or drawn — one list, in the
+  // loader, because this page and the colour-blindness check and the patterns
+  // were each building their own and only one of the three knew about the
+  // gradients a project declares on a colour.
+  const gs = require('../project').gradientsOf(ctx.project);
   if (!gs.length) return '';
   const ways = ctx.project.rules.colourways;
   return gs.map((g) => {

@@ -110,21 +110,31 @@
   function gradientInks(colours, colourway, ground, gradients) {
     const slots = (colourway && colourway.slots) || {};
     const out = {};
-    for (const g of gradients || []) {
+    /* A colourway that replaces the slot replaces it. One that says `keep`, or
+       does not mention the slot at all, leaves it as it was — and if what it
+       was is a gradient, that is what stands. */
+    const stands = (slot) => slots[slot] == null || slots[slot] === 'keep';
+    const put = (slot, g) => {
       const stops = (g && g.stops || []).filter((st) => st && st.hex);
-      if (stops.length < 2) continue;
-      for (const slot of g.slots || []) {
-        if (slots[slot] !== 'keep') continue;
-        const hex = hexOf((colours || {})[slot]);
-        if (!hex) continue;
-        const up = String(hex).toUpperCase();
-        if (up === String(ground).toUpperCase()) continue;
-        out[up] = { kind: g.kind || 'linear',
-          // the direction the master runs it, where the master said
-          angle: g.turn == null ? 0.125 : g.turn,
-          stops: stops.map((st, i) => [st.offset == null
-            ? (stops.length < 2 ? 0 : i / (stops.length - 1)) : st.offset, st.hex]) };
-      }
+      if (stops.length < 2 || !stands(slot)) return;
+      const hex = hexOf((colours || {})[slot]);
+      if (!hex) return;
+      const up = String(hex).toUpperCase();
+      // never the sheet: the ground is one fill across the whole tile, and a
+      // gradient on it would be a hard edge down every join
+      if (up === String(ground).toUpperCase()) return;
+      out[up] = { kind: g.kind === 'radial' ? 'radial' : 'linear',
+        // the direction it was told to run, where it was told
+        angle: g.turn == null ? 0.125 : g.turn,
+        stops: stops.map((st, i) => [st.offset == null
+          ? i / (stops.length - 1) : st.offset, st.hex]) };
+    };
+    // what the master paints the slot with
+    for (const g of gradients || []) for (const slot of (g && g.slots) || []) put(slot, g);
+    // and what the project says the colour *is*, which beats it: one is read
+    // off a drawing and the other is a decision somebody wrote down
+    for (const [slot, c] of Object.entries(colours || {})) {
+      if (c && c.gradient) put(slot, c.gradient);
     }
     return Object.keys(out).length ? out : null;
   }

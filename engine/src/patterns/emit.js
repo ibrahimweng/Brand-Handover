@@ -39,11 +39,8 @@ const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
 // What the master paints a slot with, where that is a gradient. Read here so
 // the studio and the build are looking at the same thing.
 function gradientsOf(project) {
-  const a = (project.assets || {}).mark || (project.assets || {}).wordmark;
-  if (!a || !a.source) return null;
   try {
-    const svgu = require('../svg');
-    const out = svgu.gradients(svgu.parse(a.source)) || null;
+    const out = require('../project').gradientsOf(project);
     return out && out.length ? out : null;
   } catch (e) { return null; }
 }

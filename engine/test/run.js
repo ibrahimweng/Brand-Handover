@@ -1831,6 +1831,101 @@ test('every channel of every layer changes the picture, and every layer at rest 
 
    The second pins what is left, by name and with its reason, so a new dead pair
    fails here rather than being found by a sweep somebody happens to run. */
+test('a project can say a colour is a gradient, and everything that reads colours sees it', () => {
+  /* The other half of the gradient work, and the one the artwork could not do.
+
+     A gradient drawn into the master is the right place for the one the mark is
+     painted with, and the wrong place for any other: an identity whose patterns
+     run a ramp the mark does not had nowhere to say so. A colour token can now
+     carry one. `hex` stays required and stays the flat stand-in — a gradient
+     cannot be a spot ink, cannot be four CMYK numbers, and cannot be one end of
+     a contrast ratio — so this is additive rather than a second kind of colour.
+
+     The part worth guarding is not that it draws. It is that the three things
+     which already read gradients all read this one: they were each building
+     their own list off the artwork, and a declared gradient the patterns drew
+     but the colour-blindness check could not see would be worse than no
+     gradient at all. */
+  const PROJ = require('../src/project');
+  const PPAL = require('../src/patterns/palette');
+  const os2 = require('os');
+  const base = JSON.parse(fs.readFileSync(
+    path.join(__dirname, '..', 'projects', 'pagrin', 'project.json'), 'utf8'));
+
+  const withToken = (grad, colour) => {
+    const dir = fs.mkdtempSync(path.join(os2.tmpdir(), 'tok-'));
+    fs.cpSync(path.join(__dirname, '..', 'projects', 'pagrin'), dir, { recursive: true });
+    const j = JSON.parse(JSON.stringify(base));
+    if (grad) j.tokens.colour[colour || 'ink'].gradient = grad;
+    fs.writeFileSync(path.join(dir, 'project.json'), JSON.stringify(j));
+    try { return PROJ.load(path.join(dir, 'project.json')); }
+    finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  };
+  const refuses = (grad, why) => {
+    assert.throws(() => withToken(grad), (e) => /gradient/.test(e.message),
+      `a gradient that ${why} was accepted`);
+  };
+
+  // said badly, refused, and said so
+  refuses({ stops: [{ hex: '#FF5715' }] }, 'has one stop');
+  refuses({ stops: [{ hex: '#FF5715' }, { hex: 'not a colour' }] }, 'names a colour nobody can read');
+  refuses({ stops: [{ offset: 0.8, hex: '#FF5715' }, { offset: 0.2, hex: '#2409FF' }] }, 'runs backwards');
+  refuses({ kind: 'conic', stops: [{ hex: '#FF5715' }, { hex: '#2409FF' }] }, 'is a kind this cannot draw');
+  refuses({ turn: 'sideways', stops: [{ hex: '#FF5715' }, { hex: '#2409FF' }] }, 'turns by a word');
+
+  // said well, and carried
+  const ramp = { kind: 'linear', turn: 0.25,
+    stops: [{ offset: 0, hex: '#C81E1E' }, { offset: 1, hex: '#1E9E3C' }] };
+  const proj = withToken(ramp);
+  const all = PROJ.gradientsOf(proj);
+  const mine = all.filter((g) => g.declared);
+  assert.strictEqual(mine.length, 1, 'the declared gradient did not reach the one list');
+  assert.deepStrictEqual(mine[0].slots, ['ink'], 'a declared gradient fills the slot it is named after');
+  assert.ok(!all.some((g) => !g.declared && (g.slots || []).indexOf('ink') > -1),
+    'the artwork\'s gradient for that slot survived alongside the one that replaced it');
+
+  // the colourway decides, exactly as it does for a gradient read off the artwork
+  const keep = proj.rules.colourways.find((c) => (c.slots || {}).ink === 'keep');
+  const swapped = proj.rules.colourways.find((c) => (c.slots || {}).ink && c.slots.ink !== 'keep');
+  assert.ok(keep && swapped, 'pagrin no longer has one colourway of each kind, so this tests nothing');
+  const kept = PPAL.of(proj.tokens.colour, keep, all);
+  assert.ok(kept.gradients, 'a colourway that keeps the slot did not keep the gradient');
+  assert.deepStrictEqual(kept.gradients[proj.tokens.colour.ink.hex.toUpperCase()].stops,
+    [[0, '#C81E1E'], [1, '#1E9E3C']], 'the ink was painted with a gradient nobody declared');
+  assert.ok(!PPAL.of(proj.tokens.colour, swapped, all).gradients,
+    'a colourway that replaces the slot kept a gradient it was told to replace');
+
+  /* And the colour table carries it on its own.
+
+     There are two ways a declared gradient can reach a palette: in the list a
+     caller passes, or off the colour itself. The first is what the manual and
+     the colour-blindness check read. The second is what makes it safe — the
+     palette is always handed the colours and is not always handed the list, so
+     the studio, the front door and every internal caller get the same answer
+     without having to remember. This passes no list at all, which is the only
+     way to tell the two apart: the first version of this test did not, and
+     went on passing with the second path switched off. */
+  const alone = PPAL.of(proj.tokens.colour, keep);
+  assert.ok(alone.gradients, 'the palette needs a list handed to it to see a gradient the colour declares');
+  assert.deepStrictEqual(alone.gradients[proj.tokens.colour.ink.hex.toUpperCase()].stops,
+    [[0, '#C81E1E'], [1, '#1E9E3C']], 'the colour table carried the wrong gradient');
+  assert.ok(!PPAL.of(base.tokens.colour, keep).gradients,
+    'a colour table with no gradient in it produced one anyway');
+
+  // and the audit that reads gradients reads this one: these two are 117.8
+  // apart to most people and 17.2 apart to a deuteranope, which is the finding
+  // that check exists to make
+  const V = require('../src/vision');
+  const got = V.apart('#C81E1E', '#1E9E3C');
+  assert.ok(got.normal > got.worst.distance * 3,
+    'the pair chosen for this test is no longer one the vision check should object to');
+  // The check itself runs inside build() over exactly this list, so the two
+  // assertions together are the claim: the pair is one it objects to, and the
+  // list it reads contains the pair.
+  assert.ok(PROJ.gradientsOf(proj).some((g) => g.stops.some((st) => st.hex === '#1E9E3C')),
+    'the list the colour-blindness check reads does not contain the declared gradient');
+});
+
 test('a pattern drawn in the identity\'s own gradient carries it, and still repeats', () => {
   /* The colourway that keeps the master's paint now keeps the gradient too.
 

@@ -156,9 +156,8 @@ function visionFindings(project, rules, warnings, notes, carry) {
   // A gradient between two colours that somebody cannot separate is a flat fill
   // to that reader. Vesper's runs ember to flare to dusk, and to a protanope the
   // second half of it does not move.
-  for (const asset of [project.assets.mark, project.assets.wordmark]) {
-    if (!asset || !asset.source) continue;
-    for (const g of svgu.gradients(svgu.parse(asset.source)) || []) {
+  {
+    for (const g of require('./project').gradientsOf(project)) {
       const id = g.id || g.kind;
       const stops = (g.stops || []).map((st) => st.hex).filter(Boolean);
       for (let i = 0; i + 1 < stops.length; i++) {
@@ -1252,9 +1251,8 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
      mark's *paint*: a colourway that says `keep` kept the one hex the colour
      table lists and the gradient stopped at the mark. */
   const masterGradients = (() => {
-    const src = masterOf(project);
-    if (!src || !src.source) return null;
-    try { return svgu.gradients(svgu.parse(src.source)) || null; } catch (e) { return null; }
+    try { const g = require('./project').gradientsOf(project); return g.length ? g : null; }
+    catch (e) { return null; }
   })();
 
   const SET = ((project.system || {}).patterns) || null;
