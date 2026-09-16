@@ -1030,7 +1030,9 @@ function generatedSpec(ctx) {
   let art = '';
   try {
     const t = PT.tile({ markSource: master.source, measured: ctx.measured, rules: ctx.project.rules,
-      generator: chosen.generator, params: chosen.params,
+      // The shape is written once in brand.json and the rows point at it, so
+      // the row is asked for its parameters rather than read for them.
+      generator: chosen.generator, params: PT.recipeParams(chosen, pats),
       colours: ctx.project.tokens.colour, colourway: on.colourway
         ? ctx.project.rules.colourways.find((c) => c.name === on.colourway) || ctx.project.rules.colourways[0]
         : ctx.project.rules.colourways[0], id: 'gen-man' });

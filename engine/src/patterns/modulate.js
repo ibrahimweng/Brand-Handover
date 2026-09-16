@@ -294,10 +294,62 @@
       return [gx, gy];
     }
 
-    // One shape — one or more subpaths — moved by the field.
+    /* The field, over the shape rather than at a dot in the middle of it.
+
+       This read `at(mid)` — one sample, at the shape's centre — and that is
+       zero information whenever the shapes and the field share a period. A
+       lattice deals its cells on a regular grid and most fields are regular
+       too, so the samples land on the same phase every time and the field comes
+       back a *constant*: carrock's lattice at a 40% gap sampled `mist` fifty
+       times and got 0.025 fifty times. A constant is not a field. The effect
+       then does the same nothing to every shape, and `mist` moved 0.00% of the
+       page while every slider in it still worked.
+
+       It is the same lesson as the one directly below, one step along. The
+       slope was taken as the whole answer and read zero on a terraced field;
+       the value was taken from a point and reads constant on a regular one.
+       Both times the fix is to ask the field about more than one place.
+
+       So the shape's own box is sampled — its middle and its four quarters —
+       and averaged. A shape sitting across a band boundary now reads between
+       the two bands instead of reporting whichever side its centre fell on,
+       which is also just a better answer: a field drives a shape by how much of
+       it the shape is standing in.
+
+       Costs four more evaluations per shape of a function that is arithmetic,
+       and no package in this repository changes, because no package switches an
+       effect on — they are the client's to reach for in the studio. */
     function bend(group) {
       const mid = middle(group);
-      const t = at(mid[0], mid[1]);
+      let t = at(mid[0], mid[1]);
+      {
+        let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+        for (const sub of group) {
+          const b2 = boxOf(sub);
+          if (b2[0] < x0) x0 = b2[0]; if (b2[2] > x1) x1 = b2[2];
+          if (b2[1] < y0) y0 = b2[1]; if (b2[3] > y1) y1 = b2[3];
+        }
+        if (isFinite(x0) && x1 > x0 && y1 > y0) {
+          /* The window is the shape's own size, up to a point.
+
+             Averaging over the *whole* of a shape is right while a shape is
+             small and wrong the moment it is not: `zigzag` fills one path per
+             stripe and a stripe spans the entire tile, so its box is the tile,
+             and the average over the tile is the field's mean — the same number
+             for every stripe. Ten groups came back reading 0.5000 exactly, and
+             `rise` drives size, which at 0.5 is no change at all.
+
+             So the window is capped at an eighth of the tile. A motif in a
+             lattice is smaller than that and keeps the footprint reading that
+             stopped carrock's `mist` aliasing; a stripe that crosses the whole
+             sheet is read near its own middle instead, which varies from
+             stripe to stripe because their middles do. */
+          const most = Math.min(W, H) * 0.125;
+          const qx = Math.min((x1 - x0) / 4, most), qy = Math.min((y1 - y0) / 4, most);
+          t = (t + at(mid[0] - qx, mid[1] - qy) + at(mid[0] + qx, mid[1] - qy)
+            + at(mid[0] - qx, mid[1] + qy) + at(mid[0] + qx, mid[1] + qy)) / 5;
+        }
+      }
       // Centred on a half, so a field at its middle leaves the shape alone and
       // the two ends of the slider pull opposite ways.
       const k = (0.5 - t) * 2;
@@ -368,14 +420,55 @@
         // Thinned out where the field is quiet. Hashed off where the shape is,
         // so the same shape is dropped at every size and the tile still
         // repeats.
+        /* Thinned out where the field is quiet, and hashed on where the shape
+           sits *in the tile* rather than where it sits on the canvas.
+
+           It hashed on the raw midpoint, and the note beside it claimed that
+           kept the tile repeating. It did the opposite. Most of these
+           generators draw a row and a column past each edge so a shape
+           straddling the join appears on both sides of it; those copies have
+           midpoints outside the tile, so they hashed differently from the
+           shape they are copies of, and the two disagreed about whether to
+           exist. On pagrin's lattice that removed eleven of thirty-two shapes
+           from the file — 40,514 bytes down to 25,359 — and changed exactly
+           nothing on the page, because every one it dropped was an off-tile
+           copy that the clip was going to discard anyway. A control that
+           rewrites the file and leaves the picture alone is the fault this
+           module already has a paragraph about, arriving from the other side.
+
+           Folded into the tile, a shape and its wrapped twin hash the same,
+           so they are dropped together and the join still matches. */
         if (ch.thin > 0) {
-          const h = RAND.hash01(Math.round(sub.mid[0] * 37), Math.round(sub.mid[1] * 37), (seed || 1) * 173);
+          const fold = (v, span) => (span > 0 ? ((v % span) + span) % span : v);
+          const h = RAND.hash01(Math.round(fold(sub.mid[0], W) * 37),
+            Math.round(fold(sub.mid[1], H) * 37), (seed || 1) * 173);
           if (h > 1 - ch.thin * (1 - sub.t)) continue;
         }
         const colour = toned(how === 'fill' ? S.fillStyle : S.strokeStyle, sub.t, pal, ch.tone);
-        // Weight: the stroke thickens toward one end of the field. A fill has
-        // no width, so the channel simply does not reach it.
+        // Weight: the stroke thickens toward one end of the field.
         const w = width * (1 + (0.5 - sub.t) * 2 * ch.weight);
+        /* And a fill has no width, which used to be the end of the sentence.
+
+           It made `sear` do nothing at all on any generator that fills — eight
+           of the seventeen dead layer-and-pattern pairs measured across this
+           repository, and every one of them silent: the slider moved, the
+           number reached brand.json, and the page did not change. `sear` exists
+           to drive weight; a channel that reaches only strokes reaches almost
+           nothing, because most of these generators fill.
+
+           A filled shape gets heavier by being drawn bigger, and stroking a
+           path in its own fill colour spreads it by half the stroke. So the
+           field adds weight to a fill as spread rather than as width.
+
+           One-sided, and worth being plain about: a stroke can thin as well as
+           thicken, and a fill cannot be eroded this way — an inset is not a
+           thing a stroke can do, and stroking in the ground colour instead
+           would draw a visible outline wherever two shapes overlap. So the sign
+           of the control picks which end of the field carries the weight, and
+           the other end leaves the shape at its own size. */
+        const fillWeight = ch.weight
+          ? Math.abs(ch.weight) * (ch.weight >= 0 ? sub.t : 1 - sub.t) * Math.min(W, H) * 0.04
+          : 0;
         // Blur: the same shape a few times at small offsets, the spread set by
         // the field. Not a gaussian, and it does not pretend to be — it is what
         // a soft edge can be when the answer has to stay a set of shapes.
@@ -387,8 +480,12 @@
           const oy = copies > 1 ? Math.sin(a) * spread : 0;
           emit(sub, ox, oy);
           inner.globalAlpha = S.globalAlpha * (copies > 1 ? 1 / copies : 1);
-          if (how === 'fill') { inner.fillStyle = colour; inner.fill(rule); }
-          else { inner.strokeStyle = colour; inner.lineWidth = Math.max(0.01, w); inner.stroke(); }
+          if (how === 'fill') {
+            inner.fillStyle = colour; inner.fill(rule);
+            if (fillWeight > 0.08) {
+              inner.strokeStyle = colour; inner.lineWidth = fillWeight; inner.stroke();
+            }
+          } else { inner.strokeStyle = colour; inner.lineWidth = Math.max(0.01, w); inner.stroke(); }
           inner.globalAlpha = S.globalAlpha;
           drawn++;
         }

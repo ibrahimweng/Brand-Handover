@@ -612,6 +612,84 @@ function pattern(input) {
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 }
 
+/* Which six the package will write, and in what order.
+
+   Split from `pattern` rather than folded into it, because it costs a draw of
+   every generator — 3.5 s on pagrin, measured — and the pattern step has to
+   appear at once. Drawing them smaller was tried and abandoned: at half the
+   tile the order shuffles and at a quarter the membership changes, for a
+   saving of a fifth. A cheap wrong answer is worse than a slow right one, and
+   the screen does not have to wait for either.
+
+   So the rail opens on registry order and re-ranks when this lands. That is
+   also the honest shape of the thing: the six are a measurement, and a
+   measurement takes as long as it takes.
+
+   Everything else here is `pattern`'s: the same staging, the same reading, the
+   same match, so the two screens cannot disagree about what was measured. */
+function shortlist(input) {
+  const mark = input.mark ? asSvg(input.mark, 'the mark') : null;
+  const wordmark = input.wordmark ? asSvg(input.wordmark, 'the wordmark') : null;
+  if (!mark && !wordmark) throw bad('No artwork was given.', 'Drop an SVG first.');
+  const answers = input.answers || {};
+  const colours = (input.colours && input.colours.length ? input.colours : answers.colours) || [];
+  if (!colours.length) throw bad('No colours were chosen.', 'Pick at least one ink and one ground.');
+  const { dir, file } = stage({
+    brand: input.brand || answers.brand || 'Untitled',
+    latinName: input.latinName || answers.latinName || undefined,
+    language: input.language || answers.language || undefined,
+    mark, wordmark, colours, answers: input.answers || null,
+    lockups: input.lockups && input.lockups.length ? input.lockups : undefined,
+    slots: input.slots,
+    patternReference: input.patternReference ? asReference(input.patternReference) : null,
+  });
+  try {
+    const project = projectLoader.load(file);
+    const measured = measure(project);
+    const master = projectLoader.masterNameOf(project);
+    const src = (project.assets[master] || {}).source;
+    const PENG = require('../patterns');
+    const SHORT = require('../patterns/shortlist');
+    const read = PENG.read(src, measured, project.rules);
+    const motif = require('../patterns/motif-read').read(src, project.rules, measured,
+      undefined, { lettering: master === 'wordmark' });
+    const route = input.route || answers.patternRoute || PENG.ROUTE_DEFAULT;
+    const cw0 = (project.rules.colourways || [])[0];
+    const size = require('../system').patternRules((project.system || {}).pattern).tile;
+    const drawn = [];
+    for (const name of PENG.NAMES) {
+      if (PENG.kindOf(name) === 'poster') continue;
+      if (PENG.GENERATORS[name].needsMotif && !(motif && motif.ok)) continue;
+      try {
+        drawn.push({ name, tile: PENG.tile({ mark: read, generator: name, route,
+          motif: motif && motif.ok ? motif : null,
+          colours: project.tokens.colour, colourway: cw0, size, id: name }) });
+      } catch (e) { /* a generator that will not draw is not on any list */ }
+    }
+    const ground = require('../patterns/palette').of(project.tokens.colour, cw0).ground;
+    const ranked = SHORT.rank(SHORT.logo(src, ground), drawn);
+    // Whatever the screen is opening on. `chose` is worked out the same way
+    // `pattern` works it out, minus the reference — a reference that changed the
+    // choice has already been applied to the chip the screen is showing.
+    const chose = input.chose && PENG.GENERATORS[input.chose] ? input.chose
+      : PENG.suits(read, route);
+    return { ok: true,
+      chose,
+      wrote: SHORT.of({ chose, ranked, most: SHORT.MOST }),
+      posters: SHORT.of({ ranked: SHORT.rank(SHORT.logo(src, ground),
+        PENG.NAMES.filter((n) => PENG.kindOf(n) === 'poster').map((n) => {
+          try {
+            return { name: n, tile: PENG.tile({ mark: read, generator: n, route,
+              motif: motif && motif.ok ? motif : null, word: undefined,
+              colours: project.tokens.colour, colourway: cw0, size, id: n }) };
+          } catch (e) { return null; }
+        }).filter(Boolean)), most: SHORT.POSTERS }),
+      ranked: ranked.map((r) => ({ generator: r.generator,
+        score: r.score == null ? null : +r.score.toFixed(4) })),
+    };
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+}
+
 // Everything a person may replace, so the screen can list what it is offering
 // rather than discovering it from the markup.
 function editable() {
@@ -619,4 +697,4 @@ function editable() {
   return { ok: true, values: O.ALLOWED, keyed: O.PATTERNS.map((p) => ({ what: p.what, kind: p.kind })) };
 }
 
-module.exports = { ask, preview, render, pattern, editable, make, paletteFrom, projectJson, asReference, MAX_SVG };
+module.exports = { ask, preview, render, pattern, shortlist, editable, make, paletteFrom, projectJson, asReference, MAX_SVG };

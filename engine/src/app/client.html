@@ -167,6 +167,14 @@ button{font:inherit;color:inherit}
    over the preview alone, because thirty-two chips in a 560 px column is four
    rows and a strip that shows two and a half of them is worse than a rail. */
 .pgens{align-content:flex-start;row-gap:4px}
+/* The rail opens on a reasonable six and settles onto the measured six when
+   the ranking lands — see `pfetchShortlist`. The chips fade up rather than
+   appearing, because the person is already looking at this strip and a silent
+   swap under a moving hand reads as a glitch. One beat, once, never on a press.
+   Anybody who would rather it did not move gets it instantly. */
+.pgens.settling .pchip{animation:psettle .4s var(--step) both}
+@keyframes psettle{from{opacity:.35;transform:translateY(-2px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.pgens.settling .pchip{animation:none}}
 /* ---------------------------------------------------------------- feedback
 
    Every control on this screen changes a picture two hundred pixels away, and
@@ -377,6 +385,21 @@ button{font:inherit;color:inherit}
   font-size:clamp(13.5px,.5vw + .7vh,17px)}
 .eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
   color:var(--ink-3);margin-bottom:clamp(6px,1.3vh,18px)}
+/* On a short screen the headline gives up room before the work does.
+
+   `.lede` already scales with height, and on every laptop the width term wins
+   and pins it at 42 px anyway: 1366×768 and 1440×900 both compute past the
+   ceiling. So the ceiling itself comes down when the screen is short. Thirty
+   pixels of headline and six of eyebrow is about thirty-three pixels back,
+   measured, which is what a 768-tall laptop was short by on the questions step.
+
+   Here rather than in that step's own rules, because every step carries this
+   header and every step after this one has the same screen to fit. */
+@media (max-height:820px){
+  .lede{font-size:clamp(20px,2.2vw + .8vh,30px)}
+  .eyebrow{margin-bottom:6px}
+  .sub{margin-top:5px;font-size:13.5px}
+}
 /* On a phone the headline is a banner taking a third of the screen before any
    work is visible. It keeps its place in the flow and stops shouting. */
 @media (max-width:700px){
@@ -444,95 +467,168 @@ button{font:inherit;color:inherit}
 .fact span{font-family:var(--mono);font-size:13px;color:var(--ink);text-align:right}
 
 /* ------------------------------------------------------------- questions */
-/* Seven questions as seven cards on a grid, not seven sections down a page.
+/* Seven questions, and not one of them moves when you point at it.
 
-   They were 34 px of padding and a 21 px heading each, stacked, which came to
-   2,724 px — three screens of a 900-tall laptop to answer seven things, most of
-   which the engine has already answered for you. As cards they are a couple of
-   rows, and the answer to every one of them is visible at once, which is what
-   makes "change any of them" a real offer rather than a scroll. */
-/* Four narrow columns rather than three, and a wide question takes two of them
-   rather than the whole row. At three columns with full-width wides, "how close
-   should the pattern be" sat alone on a row with two-thirds of it empty and the
-   screen still ran 219 px over. `dense` lets a short question backfill a gap a
-   wide one left behind. */
-#qs{display:grid;grid-template-columns:repeat(auto-fit,minmax(clamp(196px,19vw,262px),1fr));
-  gap:clamp(7px,1.2vh,13px);align-content:start;align-items:start;grid-auto-flow:row dense}
-.q{padding:clamp(8px,1.2vh,13px) 14px;border:1px solid var(--line);border-radius:12px;
-  background:var(--raised);min-width:0;container-type:inline-size}
-.q.wide{grid-column:span 2}
-.q.wider{grid-column:span 3}
-@media (max-width:1180px){.q.wider{grid-column:span 2}}
-/* Below two columns a span of two is a column that is not there. */
-@media (max-width:760px){.q.wide,.q.wider{grid-column:auto}}
-.q:first-of-type{border-top:none;padding-top:8px}
-.q h3{font-size:14.5px;letter-spacing:-.015em;line-height:1.3}
-/* Seven cards carry seven headings and seven notes, which came to about 490 px
-   of the 968 the screen needed — more than half of it was the asking rather
-   than the answering. The note is one line until the card is touched. */
-.q .why{margin-top:3px;max-width:62ch;color:var(--ink-3);font-size:12.5px;line-height:1.4;
-  display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
-.q:hover .why,.q:focus-within .why{-webkit-line-clamp:9;color:var(--ink-2)}
-.q .body{margin-top:8px}
-input[type=text]{width:100%;max-width:620px;padding:13px 15px;border:1px solid var(--line-2);
-  border-radius:10px;background:var(--raised);color:var(--ink);font:inherit;font-size:16px}
-input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:transparent}
-/* one of a list, where the answer is a word rather than a picture */
-.q .body>select{max-width:none;width:100%;padding:8px 11px;font:inherit;font-size:14px;
-  border:1px solid var(--line-2);border-radius:10px;background:var(--raised);color:var(--ink)}
-.q .body>select:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:transparent}
-.q .body>.why{margin-top:10px}
-/* the roman spelling, asked for only when the typed name cannot carry a file */
-.latin{margin-top:9px;padding:10px 12px;max-width:none;border-radius:10px;
-  border:1px solid var(--line-2);background:var(--sunk)}
-.latin b{display:block;font-weight:600;margin-bottom:6px;font-size:15px}
-.latin span{display:block;color:var(--ink-2);font-size:14.2px;line-height:1.55;margin-bottom:12px}
-/* An option is one row.
+   What was here: seven cards on a grid, each with its heading clipped to one
+   line and opened to nine on `:hover`, and inside two of them a list of options
+   whose notes were clipped to one line and unclipped on `:hover` too. Both
+   grew the element under the cursor, both reflowed the grid around it, and
+   because an option sits inside a card, pointing at an option grew the option
+   *and* the card. The thing you were reaching for moved as you reached — Fitts's
+   law run backwards — and what appeared in its place was a different question's
+   text. It was unusable with a mouse and it did not exist at all on a phone.
 
-   It was a card: a checkbox, a bold label and a two-line note, 55 px each. Four
-   of them made a question 350 px tall and "what must never be done to it" has
-   more than four — so two questions alone were taller than the screen they were
-   asked on. The note is the part that costs the height and the part nobody
-   reads twice, so it sits on the same line, clipped, and opens on hover or
-   keyboard focus. Nothing is hidden that was not already read. */
-/* Two things had to be true and the first two attempts each got one.
+   The rules were not a disclosure design. They were a compression: the note on
+   this file said seven headings and seven notes came to 490 px of the 968 the
+   screen had, "more than half of it was the asking rather than the answering",
+   so the notes were clipped to fit and hover was the cheapest way to get them
+   back. A layout problem was paid for with an unstable layout.
 
-   A track floor wider than its share overflows rather than shrinking, which ran
-   "On buildings and vehicles" out past the edge of its card. Dropping the floor
-   to zero fixed that and lost the labels instead: with the label and its note
-   both able to shrink, the note won and nine options rendered as nine
-   checkboxes and no words.
+   So the height is solved where it was created, and nothing on this screen
+   changes size when a pointer crosses it.
 
-   So the floor is set where two options fit a card rather than four, the note
-   gives up its width first — `flex:1 1 0`, basis zero — and the label keeps a
-   readable minimum before it clips. */
-.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,186px),1fr));gap:5px}
-.opt{display:flex;align-items:center;gap:8px;padding:6px 9px;border:1px solid var(--line-2);
-  border-radius:9px;min-width:0;overflow:hidden;cursor:pointer;background:var(--raised);
-  transition:border-color .14s,background .14s}
-.opt>div{display:flex;align-items:baseline;gap:7px;min-width:0;flex:1}
-.opt:hover{border-color:var(--ink-3)}
-.opt.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--raised))}
-.opt input{margin:3px 0 0}
-.opt b{font-weight:600;font-size:13.5px;white-space:nowrap;flex:0 1 auto;
-  min-width:4.5em;overflow:hidden;text-overflow:ellipsis}
-.opt span{color:var(--ink-3);font-size:12px;line-height:1.4;flex:1 1 0;min-width:0;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.opt:hover,.opt:focus-within{background:var(--sunk)}
-.opt:hover span,.opt:focus-within span{white-space:normal;overflow:visible}
-.opt input{margin:0;flex:none}
-.opt.off{opacity:.42;cursor:not-allowed}
-/* auto-fill with a ceiling, not auto-fit: with two colours in the drawing
-   auto-fit stretched each card to 490 px and the question was taller than the
-   three above it put together. */
-.cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(122px,168px));gap:8px}
-.col{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--raised)}
-.col .sw{height:clamp(26px,3.4vh,42px)}
-.col .m{padding:7px 9px;display:grid;gap:5px}
-.col input[type=text]{padding:5px 7px;font-size:13px;border-radius:6px}
-.col select{width:100%;padding:5px 7px;font:inherit;font-size:13px;border-radius:6px;
-  border:1px solid var(--line-2);background:var(--raised);color:var(--ink)}
-.col .hex{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+   ---------------------------------------------------------------- the shape
+
+   **Review, then the gaps.** Four of the seven are the engine showing its own
+   reading of the file; three are things only the person can answer. They are no
+   longer peers on a grid. The four sit at the top as a settled list — label,
+   the answer, and the control to change it, one row each — and the three that
+   need an answer are below, given room. The page opens as something to confirm
+   rather than a form to fill, which is what "four are already answered" was
+   always trying to say. This is the shape GOV.UK's Design System calls a check
+   answers page, and it is there for the same reason: a list of decisions with a
+   way to change each one reads faster than the same content as questions.
+
+   **One pane for the reasoning.** Every question has a paragraph explaining why
+   it is asked, and every option has a note. None of it is clipped now and none
+   of it moves: selecting anything fills one pane in a fixed position. Nielsen
+   Norman's argument for progressive disclosure is that the second layer has to
+   be somewhere predictable; a layer that opens *where you are pointing* is the
+   version that fails. The pane also gives the writing room to be a paragraph,
+   so the notes got better rather than shorter.
+
+   **Chips, not rows of cards.** The two pick-many questions were ten labelled
+   rows with clipped notes — five rows deep and the direct cause of the second
+   hover rule. As chips they are two wrapped rows, the note has moved to the
+   pane, and the target is the whole chip.
+
+   Hover is left doing the one thing it is good for: saying what is under the
+   cursor. It changes a border and a background and it changes nothing's size. */
+/* A form does not get wider than a form should be.
+
+   Left to fill a 1440 px page the questions column ran past 1000 px and the
+   brand-name field with it — an input the width of a paragraph, which reads as
+   a mistake however correct the grid is. The measure is capped and the pane
+   sits beside it; the space to the right of both is margin, which is what it
+   was always going to be on a wide screen. */
+/* The pane's width is capped low on purpose. At 24vw it grew faster than the
+   wrap's own ceiling, so the questions column came out *narrower* on a wider
+   screen — 720 px at 1366 against 754 px at 1180 — and the chips wrapped to an
+   extra row on the bigger display. A reasoning pane does not need more than
+   about 40 characters; the column that holds the work does. */
+.askwrap{display:grid;gap:clamp(14px,1.8vw,26px);min-height:0;align-content:start;
+  max-width:1060px;grid-template-columns:minmax(0,1fr) clamp(236px,20vw,286px)}
+/* Below the width where a side pane leaves the questions too narrow, the pane
+   goes under them and stays a fixed block rather than becoming a popover: one
+   place for the reasoning at every size. */
+@media (max-width:900px){.askwrap{grid-template-columns:minmax(0,1fr)}}
+.asks{min-width:0;display:flex;flex-direction:column;gap:clamp(8px,1.3vh,16px)}
+.qgrp{min-width:0}
+.qgrp>h2{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 6px}
+.qgrp>h2 em{font-style:normal;color:var(--ink-3);opacity:.7}
+.qbox{border:1px solid var(--line);border-radius:12px;background:var(--raised);overflow:hidden}
+
+/* A settled answer: what it is, and the control that changes it, on one line.
+   The label never wraps and the control never grows — a row is 44 px whatever
+   is in it, so four of them are a block of a known height. */
+.srow{display:grid;grid-template-columns:clamp(78px,8vw,104px) minmax(0,1fr);gap:12px;
+  align-items:center;padding:6px 12px;border-top:1px solid var(--line);min-width:0}
+.srow:first-child{border-top:none}
+.srow>label{font-size:12.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+.srow .ctl{min-width:0;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.srow input[type=text],.srow select{width:100%;max-width:none;padding:6px 9px;font:inherit;
+  font-size:13.5px;border:1px solid var(--line-2);border-radius:8px;background:var(--raised);
+  color:var(--ink);min-width:0;transition:border-color .14s var(--step)}
+.srow input[type=text]:hover,.srow select:hover{border-color:var(--ink-3)}
+.srow input[type=text]:focus,.srow select:focus{outline:2px solid var(--accent);
+  outline-offset:1px;border-color:transparent}
+.srow.sel{background:var(--sunk)}
+
+/* A question that still wants an answer. */
+.qask{padding:clamp(8px,1.15vh,13px) 13px;border-top:1px solid var(--line);min-width:0}
+.qask:first-child{border-top:none}
+.qask.sel{background:var(--sunk)}
+.qask h3{font-size:14px;letter-spacing:-.012em;line-height:1.3;margin:0 0 7px;font-weight:600}
+.qask input[type=text]{width:100%;max-width:none;padding:10px 12px;font-size:15px}
+
+/* An option is a chip. The note it used to carry is in the pane. */
+.chips2{display:flex;flex-wrap:wrap;gap:5px}
+.chip2{display:inline-flex;align-items:center;gap:0;min-height:32px;padding:6px 13px;
+  border:1px solid var(--line-2);border-radius:999px;background:var(--raised);color:var(--ink-2);
+  font:inherit;font-size:13px;cursor:pointer;white-space:nowrap;
+  transition:background .15s var(--step),border-color .15s var(--step),color .15s var(--step)}
+.chip2:hover{border-color:var(--ink-3);background:var(--sunk)}
+.chip2:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* Pressing a chip changes its colour and nothing else. It used to go semibold
+   as well, which is two or three pixels of extra label — enough to shove the
+   chips after it along the row. A selection that nudges its neighbours is the
+   same fault as a hover that grows, one state along. */
+.chip2[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#fff}
+@media (prefers-color-scheme:dark){.chip2[aria-pressed=true]{color:#0D0E0F}}
+.chip2[disabled]{opacity:.38;cursor:not-allowed}
+
+/* A laptop 800 px tall is 68 px short of this page, measured. Nothing is
+   removed and nothing is hidden behind an interaction — the same seven
+   questions, drawn tighter, which is what a short screen actually needs. Keyed
+   on height because the shortfall is vertical: a wide 800-tall window has the
+   same problem a narrow one does. */
+@media (max-height:880px){
+  .asks{gap:8px}
+  .qgrp>h2{margin-bottom:4px}
+  .srow{padding:4px 12px}
+  .qask{padding:8px 13px}
+  .qask h3{margin-bottom:6px}
+  .qask input[type=text]{padding:8px 12px;font-size:14px}
+  .chip2{min-height:30px;padding:5px 12px}
+  .crow{gap:5px}
+  .qwhy{padding:12px 14px}
+}
+/* And a 720-tall screen, which is a real laptop and 53 px short even tightened
+   once. Nothing is hidden here either — the rows lose their remaining air and
+   the chips come down two pixels. */
+@media (max-height:750px){
+  .asks{gap:6px}
+  .srow{padding:3px 12px}
+  .qask{padding:7px 12px}
+  .qask h3{margin-bottom:5px;font-size:13.5px}
+  .qask input[type=text]{padding:7px 11px}
+  .chip2{min-height:28px;padding:4px 11px;font-size:12.5px}
+  .qgrp>h2{margin-bottom:3px}
+  .qwhy{padding:10px 13px}
+  .qwhy p{font-size:12.5px;line-height:1.5}
+}
+/* the colours, as one row per colour and never more than two controls wide */
+.crow{display:flex;align-items:center;gap:6px;min-width:0;flex-wrap:wrap}
+.csw{width:22px;height:22px;border-radius:6px;border:1px solid var(--line-2);flex:none}
+.crow input[type=text]{flex:1 1 7em;min-width:5em}
+.crow select{flex:0 1 8.5em;min-width:6em}
+
+/* The reasoning. One place, fixed, never over the top of anything. */
+.qwhy{position:sticky;top:0;align-self:start;border:1px solid var(--line);border-radius:12px;
+  background:var(--sunk);padding:clamp(12px,1.8vh,18px) 15px;min-width:0}
+.qwhy h2{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 9px}
+.qwhy h3{font-size:14px;line-height:1.35;margin:0 0 7px;letter-spacing:-.012em}
+.qwhy p{margin:0 0 8px;font-size:13px;line-height:1.55;color:var(--ink-2)}
+.qwhy p:last-child{margin-bottom:0}
+.qwhy .quiet{color:var(--ink-3)}
+/* The one thing that moves: the text, when it is replaced. A cross-fade says
+   the pane answered rather than that the page jumped. */
+.qwhy.turn h3,.qwhy.turn p{animation:qfade .22s var(--step) both}
+@keyframes qfade{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.qwhy.turn h3,.qwhy.turn p{animation:none}}
 
 /* --------------------------------------------------------------- picking */
 /* Four specimens across, filling the height they are given rather than a
@@ -1175,94 +1271,204 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     return wrap;
   }
 
+  /* Which of the seven the engine answered, and which are the person's.
+
+     A rule rather than a list, so a question added to intake.js lands on the
+     right side of the page without anybody remembering to say where it goes. A
+     `pick-many` is a preference — where the identity lives, what must never be
+     done to it — and nothing in an SVG answers either. A `line` is the sentence
+     under the title of the manual, which only its owner has. Everything else the
+     engine has already read off the file or defaulted, and those are the four
+     the page opens by showing rather than asking. */
+  function qSettled(q) { return q.kind !== 'pick-many' && q.kind !== 'line'; }
+
+  // What the reasoning pane is showing, so redrawing a question does not lose it
+  var QW = { key: null, title: '', body: '' };
+
+  function qwhy(title, body, quiet) {
+    var pane = $('qwhy-body');
+    if (!pane) return;
+    QW.title = title; QW.body = body;
+    pane.textContent = '';
+    if (title) pane.appendChild(el('h3', null, title));
+    (Array.isArray(body) ? body : [body]).forEach(function (t) {
+      if (t) pane.appendChild(el('p', quiet ? 'quiet' : null, t));
+    });
+    var box = $('qwhy');
+    box.classList.remove('turn');
+    // reflow, so the animation restarts when the text is replaced
+    void box.offsetWidth;
+    box.classList.add('turn');
+  }
+
+  // The pane's resting state: what this step is, not what any one question is.
+  function qwhyRest() {
+    QW.key = null;
+    qwhy('', ['Seven questions, and the engine has answered four of them off your artwork. '
+      + 'Change any of those, then answer the three below them.',
+    'Pick a question to see why it is asked and what each answer does.'], true);
+    document.querySelectorAll('.srow.sel,.qask.sel').forEach(function (n) { n.classList.remove('sel'); });
+  }
+
+  // Selecting a question is a click or a focus, never a hover: the pane is in
+  // one place and the page does not move under the pointer.
+  function qselect(node, key, title, body) {
+    if (QW.key === key && node.classList.contains('sel')) return;
+    QW.key = key;
+    document.querySelectorAll('.srow.sel,.qask.sel').forEach(function (n) { n.classList.remove('sel'); });
+    if (node) node.classList.add('sel');
+    qwhy(title, body);
+  }
+
   function drawQs() {
     var box = $('qs'); box.textContent = '';
-    S.qs.forEach(function (q) {
-      if (q.key === 'style') return;                 // asked by picture, on its own screen
-      // The colour confirmation is a row of swatches and a long pick-many is a
-      // column of cards; both are wider than they are tall and wrapping them
-      // into a third of the grid makes them taller than the six beside them.
-      // A row of swatches and a list of options are both wider than they are
-      // tall. Wrapped into a third of the grid the colours question ran to two
-      // rows of cards and was taller than the three questions beside it.
-      var many = (q.options || []).length;
-      var wide = q.kind === 'confirm-colours' || (q.kind === 'pick-many' && many > 3);
-      // Nine options in two columns is five rows; in four it is three, and the
-      // room it needs is sitting empty beside it either way.
-      var span = q.kind === 'pick-many' && many > 6 ? ' wider' : (wide ? ' wide' : '');
-      var d = el('div', 'q' + span);
-      d.appendChild(el('h3', null, q.ask));
-      d.appendChild(el('p', 'why', q.why));
-      var b = el('div', 'body');
-      if (q.kind === 'text' || q.kind === 'line') {
-        var i = el('input'); i.type = 'text'; i.placeholder = q.placeholder || '';
-        i.value = S.answers[q.key] || '';
-        i.setAttribute('aria-label', q.ask);
-        i.addEventListener('input', function () { S.answers[q.key] = i.value; gate(); });
-        b.appendChild(i);
-        if (q.key === 'brand') b.appendChild(latinField(i));
-      } else if (q.kind === 'pick-one') {
-        // One of a list, where the engine has already answered and the answer
-        // is a word rather than a picture. The layout question is pick-one too
-        // and is skipped above: it is asked by showing four, drawn with your
-        // own logo, which is a better question than a menu of four names.
-        var sel = el('select'); sel.setAttribute('aria-label', q.ask);
-        var note = el('p', 'why');
-        (q.options || []).forEach(function (o) {
-          var op = document.createElement('option');
-          op.value = o.value; op.textContent = o.label;
-          op.disabled = o.available === false;
-          if (o.available === false) op.textContent = o.label + ' — not available';
-          sel.appendChild(op);
+    var wrap = el('div', 'askwrap');
+    var left = el('div', 'asks');
+    wrap.appendChild(left);
+
+    var asked = S.qs.filter(function (q) { return q.key !== 'style'; });
+    var settled = asked.filter(qSettled);
+    var wanted = asked.filter(function (q) { return !qSettled(q); });
+
+    // ---- what the engine already answered
+    if (settled.length) {
+      var g1 = el('div', 'qgrp');
+      var h1 = el('h2', null, 'The engine’s answers ');
+      h1.appendChild(el('em', null, '· ' + settled.length));
+      g1.appendChild(h1);
+      var b1 = el('div', 'qbox');
+      settled.forEach(function (q) { b1.appendChild(settledRow(q)); });
+      g1.appendChild(b1); left.appendChild(g1);
+    }
+
+    // ---- and what is still yours
+    if (wanted.length) {
+      var g2 = el('div', 'qgrp');
+      var h2 = el('h2', null, 'Yours to answer ');
+      h2.appendChild(el('em', null, '· ' + wanted.length));
+      g2.appendChild(h2);
+      var b2 = el('div', 'qbox');
+      wanted.forEach(function (q) { b2.appendChild(wantedBlock(q)); });
+      g2.appendChild(b2); left.appendChild(g2);
+    }
+
+    // ---- the one pane
+    var pane = el('aside', 'qwhy'); pane.id = 'qwhy';
+    pane.appendChild(el('h2', null, 'Why this is asked'));
+    var pb = el('div'); pb.id = 'qwhy-body';
+    pane.appendChild(pb);
+    wrap.appendChild(pane);
+    box.appendChild(wrap);
+    qwhyRest();
+  }
+
+  // A settled answer: label, control, done. Focusing the control selects the
+  // question, so keyboard and pointer reach the reasoning the same way.
+  function settledRow(q) {
+    var row = el('div', 'srow');
+    var lab = el('label', null, shortLabel(q));
+    var ctl = el('div', 'ctl');
+    row.appendChild(lab); row.appendChild(ctl);
+    var pick = function (extra) { qselect(row, q.key, q.ask, [q.why].concat(extra || [])); };
+    row.addEventListener('click', function () { pick(); });
+
+    if (q.kind === 'text') {
+      var i = el('input'); i.type = 'text'; i.placeholder = q.placeholder || '';
+      i.value = S.answers[q.key] || '';
+      i.id = 'q-' + q.key;
+      lab.setAttribute('for', i.id);
+      i.addEventListener('input', function () { S.answers[q.key] = i.value; gate(); });
+      i.addEventListener('focus', function () { pick(); });
+      ctl.appendChild(i);
+      if (q.key === 'brand') row.appendChild(latinField(i));
+    } else if (q.kind === 'pick-one') {
+      var sel = el('select'); sel.id = 'q-' + q.key;
+      lab.setAttribute('for', sel.id);
+      (q.options || []).forEach(function (o) {
+        var op = document.createElement('option');
+        op.value = o.value; op.textContent = o.available === false ? o.label + ' — not available' : o.label;
+        op.disabled = o.available === false;
+        sel.appendChild(op);
+      });
+      sel.value = S.answers[q.key] || q.suggested || (q.options[0] || {}).value;
+      // The note that used to sit under the select now goes to the pane with
+      // the question's own reasoning, so choosing an option explains itself.
+      var noteOf = function () {
+        var o = (q.options || []).filter(function (x) { return x.value === sel.value; })[0];
+        return o && o.note ? [o.note] : [];
+      };
+      sel.addEventListener('change', function () {
+        S.answers[q.key] = sel.value; pick(noteOf()); gate();
+      });
+      sel.addEventListener('focus', function () { pick(noteOf()); });
+      ctl.appendChild(sel);
+    } else if (q.kind === 'confirm-colours') {
+      (S.answers.colours || []).forEach(function (c, n) {
+        var line = el('div', 'crow');
+        var sw = el('div', 'csw'); sw.style.background = c.hex;
+        sw.setAttribute('title', c.hex);
+        var nm = el('input'); nm.type = 'text'; nm.value = c.name;
+        nm.setAttribute('aria-label', 'Name for ' + c.hex);
+        nm.addEventListener('input', function () { S.answers.colours[n].name = nm.value; });
+        nm.addEventListener('focus', function () { pick(['This one is ' + c.hex + '.']); });
+        var rs = el('select'); rs.setAttribute('aria-label', 'Role for ' + c.hex);
+        ['primary', 'ground', 'accent', 'secondary', 'neutral'].forEach(function (r) {
+          var o = el('option', null, r); o.value = r; if (r === c.role) o.selected = true; rs.appendChild(o);
         });
-        sel.value = S.answers[q.key] || q.suggested || (q.options[0] || {}).value;
-        var tell = function () {
-          var o = (q.options || []).filter(function (x) { return x.value === sel.value; })[0];
-          note.textContent = o ? o.note || '' : '';
-        };
-        sel.addEventListener('change', function () { S.answers[q.key] = sel.value; tell(); gate(); });
-        tell();
-        b.appendChild(sel); b.appendChild(note);
-      } else if (q.kind === 'pick-many') {
-        var g = el('div', 'opts');
-        (q.options || []).forEach(function (o) {
-          var on = (S.answers[q.key] || []).indexOf(o.value) > -1;
-          var lab = el('label', 'opt' + (on ? ' on' : '') + (o.available === false ? ' off' : ''));
-          var c = el('input'); c.type = 'checkbox'; c.checked = on; c.disabled = o.available === false;
-          var t = el('div');
-          t.appendChild(el('b', null, o.label));
-          t.appendChild(el('span', null, o.note || ''));
-          lab.appendChild(c); lab.appendChild(t);
-          c.addEventListener('change', function () {
-            var cur = (S.answers[q.key] || []).slice();
-            var k = cur.indexOf(o.value);
-            if (c.checked && k < 0) cur.push(o.value); else if (!c.checked && k > -1) cur.splice(k, 1);
-            S.answers[q.key] = cur; lab.classList.toggle('on', c.checked);
-          });
-          g.appendChild(lab);
+        rs.addEventListener('change', function () { S.answers.colours[n].role = rs.value; });
+        rs.addEventListener('focus', function () { pick(['This one is ' + c.hex + '.']); });
+        line.appendChild(sw); line.appendChild(nm); line.appendChild(rs);
+        ctl.appendChild(line);
+      });
+    }
+    return row;
+  }
+
+  // The label on a settled row is not the question. "What is it called?" is how
+  // you ask for a name; "Called" is how you show one you already have.
+  var SHORT = { brand: 'Called', language: 'Language', patternRoute: 'Pattern',
+    colours: 'Colours', positioning: 'One line', places: 'Lives on', never: 'Never' };
+  function shortLabel(q) { return SHORT[q.key] || q.ask.replace(/\?$/, ''); }
+
+  function wantedBlock(q) {
+    var d = el('div', 'qask');
+    d.appendChild(el('h3', null, q.ask));
+    var pick = function (extra) { qselect(d, q.key, q.ask, [q.why].concat(extra || [])); };
+    d.addEventListener('click', function (e) { if (e.target === d || e.target.tagName === 'H3') pick(); });
+
+    if (q.kind === 'line' || q.kind === 'text') {
+      var i = el('input'); i.type = 'text'; i.placeholder = q.placeholder || '';
+      i.value = S.answers[q.key] || '';
+      i.setAttribute('aria-label', q.ask);
+      i.addEventListener('input', function () { S.answers[q.key] = i.value; gate(); });
+      i.addEventListener('focus', function () { pick(); });
+      d.appendChild(i);
+    } else if (q.kind === 'pick-many') {
+      var g = el('div', 'chips2');
+      (q.options || []).forEach(function (o) {
+        var on = (S.answers[q.key] || []).indexOf(o.value) > -1;
+        var b = el('button', 'chip2', o.label);
+        b.type = 'button';
+        b.setAttribute('aria-pressed', String(on));
+        if (o.available === false) b.disabled = true;
+        // The note that was clipped into the row and opened on hover. It is the
+        // same words; they are in the pane and they are not cut off.
+        var mine = function () { return o.note ? [o.note] : []; };
+        b.addEventListener('focus', function () { pick(mine()); });
+        b.addEventListener('click', function () {
+          var cur = (S.answers[q.key] || []).slice();
+          var k = cur.indexOf(o.value);
+          if (k > -1) cur.splice(k, 1); else cur.push(o.value);
+          S.answers[q.key] = cur;
+          b.setAttribute('aria-pressed', String(k < 0));
+          pick(mine());
+          gate();
         });
-        b.appendChild(g);
-      } else if (q.kind === 'confirm-colours') {
-        var cg = el('div', 'cols');
-        (S.answers.colours || []).forEach(function (c, n) {
-          var card = el('div', 'col');
-          var sw = el('div', 'sw'); sw.style.background = c.hex; card.appendChild(sw);
-          var m = el('div', 'm');
-          var nm = el('input'); nm.type = 'text'; nm.value = c.name;
-          nm.setAttribute('aria-label', 'Name for ' + c.hex);
-          nm.addEventListener('input', function () { S.answers.colours[n].name = nm.value; });
-          var sel = el('select'); sel.setAttribute('aria-label', 'Role for ' + c.hex);
-          ['primary', 'ground', 'accent', 'secondary', 'neutral'].forEach(function (r) {
-            var o = el('option', null, r); o.value = r; if (r === c.role) o.selected = true; sel.appendChild(o);
-          });
-          sel.addEventListener('change', function () { S.answers.colours[n].role = sel.value; });
-          m.appendChild(nm); m.appendChild(sel); m.appendChild(el('span', 'hex', c.hex));
-          card.appendChild(m); cg.appendChild(card);
-        });
-        b.appendChild(cg);
-      }
-      d.appendChild(b); box.appendChild(d);
-    });
+        g.appendChild(b);
+      });
+      d.appendChild(g);
+    }
+    return d;
   }
 
   // ---------------------------------------------------------------- layout
@@ -1834,8 +2040,27 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     });
   }
 
+  /* The six in the rail.
+
+     These are the six the package writes, so the chips a person picks from are
+     the patterns they are actually being handed. The build ranks every
+     generator against the mark itself — see patterns/shortlist.js — and the
+     rail used to show registry order instead. On pagrin that was lattice,
+     monogram, tartan, stripe, weave, zigzag on screen against lattice, plate,
+     mosh, oddgrid, strata, weave in the folder: four of six chips were patterns
+     the client would never receive.
+
+     The ranking costs a draw of every generator, so it arrives after the screen
+     rather than before it — `/api/shortlist`, fetched once the panel is up. Until
+     it lands this is the old answer, which is a reasonable six and not the six.
+     PS.ranked is set when the real one arrives. */
   function psuggested() {
     var all = poffered();
+    if (PS.ranked && PS.ranked.length) {
+      var got = PS.ranked.filter(function (n) { return all.indexOf(n) > -1; }).slice(0, 6);
+      if (got.indexOf(PS.generator) < 0 && got.length) got[got.length - 1] = PS.generator;
+      if (got.length) return got;
+    }
     var out = [P.chose];
     // `kindOf`, not `.kind`: the three generators the engine will actually
     // choose declare no kind of their own, so reading the property put lattice,
@@ -1851,6 +2076,29 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     // and whatever is on now, so the rail never hides the pattern it is showing
     if (out.indexOf(PS.generator) < 0) out[out.length - 1] = PS.generator;
     return out;
+  }
+
+  /* Ask for the real six, once per set of artwork.
+
+     Quietly: no spinner, no blocked control, nothing moves under a hand that is
+     already reaching for a chip. The rail is usable the moment the screen is,
+     and when the answer lands the chips that change fade rather than jump. A
+     failure leaves the fallback in place and says nothing — a person choosing a
+     pattern does not need to be told which of two orderings they are looking
+     at. */
+  function pfetchShortlist() {
+    if (PS.ranking || (PS.ranked && PS.ranked.length)) return;
+    PS.ranking = true;
+    post('/api/shortlist', Object.assign(pbody(), { chose: P.chose })).then(function (r) {
+      PS.ranking = false;
+      if (!r || !r.ok || !r.wrote || !r.wrote.length) return;
+      PS.ranked = r.wrote;
+      PS.rankedAll = r.ranked || null;
+      var rail = $('pgens');
+      if (rail) rail.classList.add('settling');
+      prails();
+      if (rail) window.setTimeout(function () { rail.classList.remove('settling'); }, 420);
+    }).catch(function () { PS.ranking = false; });
   }
 
   function pchip(name) {
@@ -1928,16 +2176,23 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
     prails(); pcontrols(); pdraw();
   }
 
-  function drawPattern() {
-    if (P) { pdraw(); return; }               // already loaded: keep what was pushed
-    busy(true, 'Reading the shape');
-    post('/api/pattern', {
+  // What both pattern calls are about: one artwork, one set of answers. Written
+  // once because `/api/shortlist` stages the same project from the same fields,
+  // and two spellings of that would be two projects.
+  function pbody() {
+    return {
       patternReference: S.patternReference || undefined,
       mark: S.mark, wordmark: S.wordmark, brand: S.answers.brand,
       latinName: S.answers.latinName, language: S.answers.language,
       colours: S.answers.colours, answers: S.answers,
       lockups: S.seen && S.seen.lockups, slots: S.seen && S.seen.slots,
-    }).then(function (out) {
+    };
+  }
+
+  function drawPattern() {
+    if (P) { pdraw(); return; }               // already loaded: keep what was pushed
+    busy(true, 'Reading the shape');
+    post('/api/pattern', pbody()).then(function (out) {
       busy(false);
       P = out;
       PS = { generator: out.chose, colourway: out.colourways[0].name, open: {},
@@ -1950,6 +2205,8 @@ input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px;border
           + 'built from what the mark measures rather than from its shape.';
       prails(); pcontrols(); pdraw();
       say('This is your logo. Every slider changes the package.');
+      // and the real six, behind the screen rather than in front of it
+      pfetchShortlist();
     }).catch(function (e) { busy(false); fail(e); });
   }
 

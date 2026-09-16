@@ -159,6 +159,13 @@ function handler(req, res) {
     return readBody(req).then((body) => json(res, 200, H.pattern(body))).catch((e) => fail(res, e));
   }
 
+  // Which six of them the package will write, ranked against the mark. Its own
+  // route because it costs a draw of every generator and the pattern screen has
+  // to appear at once — see `shortlist` in handlers.js.
+  if (req.method === 'POST' && p === '/api/shortlist') {
+    return readBody(req).then((body) => json(res, 200, H.shortlist(body))).catch((e) => fail(res, e));
+  }
+
   // The manual with the edits applied, for the screen where they are made.
   if (req.method === 'POST' && p === '/api/render') {
     return readBody(req).then((body) => json(res, 200, H.render(body))).catch((e) => fail(res, e));

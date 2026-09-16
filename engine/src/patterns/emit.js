@@ -139,7 +139,27 @@ function bundle(project, measured, made, chose, tile, route) {
     minStrokeMm: project.rules.minStrokeMm,
     colours: project.tokens.colour || {},
     colourways: (project.rules.colourways || []).map((c) => ({ name: c.name, on: c.on })),
-    made: (made || []).map((m) => ({ generator: m.generator, colourway: m.colourway, params: m.params })),
+    /* The shape, once, and rows that point at it.
+
+       Every generator drawn out of the identity carries the same shape, and
+       this bundle carried a full copy in each of two hundred and twenty-eight
+       rows: 1.57 MB of pattern-studio.html with no fonts, no images and no
+       artwork in it — a megabyte of one shape, written out again and again, in
+       a file that opens from a USB stick.
+
+       The studio already knew they were all the same. It scanned the rows for
+       the first that had one and used that for every generator, with a note
+       saying so. So the scan becomes the field, and `usesMotif` says which rows
+       want it back. brand.json does the same thing for the same reason — see
+       `motif` in its patterns block. */
+    motif: (made || []).reduce((found, m) => found || (m.params && m.params.motif) || null, null),
+    made: (made || []).map((m) => {
+      const params = Object.assign({}, m.params);
+      const has = !!params.motif;
+      delete params.motif;
+      return { generator: m.generator, colourway: m.colourway,
+        usesMotif: has || undefined, params };
+    }),
   };
 }
 

@@ -603,7 +603,9 @@
       const now = patternNow();
       const gen = PE.GENERATORS[now.generator] || PE.GENERATORS[G.chose];
       const built = (G.made || []).find((m) => m.generator === now.generator) || {};
-      const p = Object.assign({}, built.params, now.params);
+      // The shape is beside the rows, not in each of them. See patterns/emit.js.
+      const p = Object.assign({}, built.usesMotif && G.motif ? { motif: G.motif } : null,
+        built.params, now.params);
       // Its own controls, declared by the generator, so a control this panel
       // has never heard of still appears — the studio and the canvas offer the
       // same rig because they read the same declaration.

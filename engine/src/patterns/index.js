@@ -373,7 +373,19 @@
   // where a client can point it at a different shape.
   function latticeFrom(mo) {
     const o = mo || {};
-    const ink = typeof o.ink === 'number' ? o.ink : 0.3;
+    // What the shape inks *as this generator will draw it*, not as its designer
+    // drew it. See `drawnInkOf` in motif-read.js: `ink` reads the artwork at its
+    // own stroke weight and `drawnInk` reads it at the tiler's, and for a heavy
+    // open shape the two are five times apart. Spacing is a decision about the
+    // picture being made, so it takes the second; `ink` is still the honest
+    // description of the client's drawing and is still what brand.json prints.
+    //
+    // This was `ink`, and carrock paid for it: a heavy C inking 78% of its box
+    // in the artwork, 16% once the tiler redrew it, spaced 113% apart as though
+    // it were still the first — a sheet 4% covered where the median is 15%, and
+    // the only pattern in this repository that read as a mistake.
+    const ink = typeof o.drawnInk === 'number' ? o.drawnInk
+      : typeof o.ink === 'number' ? o.ink : 0.3;
     const simple = typeof o.simple === 'number' ? o.simple : 0.4;
     const symmetry = typeof o.symmetry === 'number' ? o.symmetry : 0.5;
     const grain = typeof o.grain === 'number' ? o.grain : 0.3;
@@ -1700,18 +1712,36 @@
     const g = GENERATORS[generator];
     const route = ROUTES.indexOf(o.route) > -1 ? o.route : ROUTE_DEFAULT;
     const carries = !!g.motif;
-    if (g.needsMotif && !o.motif) {
+    /* The shape, from wherever the caller has it.
+
+       It used to be read from `o.motif` alone, which made a recipe not quite a
+       recipe: `tile({ params })` drew `weave` and threw on `lattice`, because
+       the guard looked in one place and the parameters it was about to use
+       looked in another. A client rebuilding from brand.json hits exactly that
+       — the row carries the shape in its parameters — and the two generators
+       behaving differently is a distinction nobody could have predicted.
+
+       A parameter set that has the shape in it is a parameter set that can be
+       drawn. `o.params` wins either way; this only decides whether there is
+       anything to win with. */
+    const given = o.motif || (o.params && o.params.motif) || null;
+    if (g.needsMotif && !given) {
       throw new Error(`${generator} draws nothing but the mark's own shape, and no shape `
         + 'could be read out of this drawing');
     }
-    const params = Object.assign(derive(generator, m, route, o.motif),
-      o.motif && carries ? { motif: o.motif } : {},
+    const params = Object.assign(derive(generator, m, route, given),
+      given && carries ? { motif: given } : {},
       o.word && g.word ? { word: o.word } : {}, o.params || {});
     const pal = o.palette || palette.of(o.colours, o.colourway);
     return {
       generator, params, route, mark: m, kind: kindOf(generator),
       tiles: tilesOf(generator),
-      motif: !!(o.motif && carries && (route === 'motif' || o.params && o.params.motif)),
+      // Whether this tile is actually made of the identity's shape, rather than
+      // whether it was asked to be. `given`, not `o.motif`: a recipe that
+      // carries the shape in its parameters makes the same picture as one
+      // handed it separately, and saying otherwise would have the manual
+      // describe a client's own rebuild as not made of their logo.
+      motif: !!(given && carries && (route === 'motif' || (o.params && o.params.motif))),
       why: whyWith(because(generator, m, params), params),
       vector: !!g.vector, pal,
       palette: { ground: pal.ground, inks: pal.inks.map((i) => i.hex) },
@@ -1754,6 +1784,29 @@
     });
   }
 
+  /* A recipe row from brand.json, with the shape put back.
+
+     `system.patterns.made` holds one row per generator per colourway, and the
+     ones drawn out of the identity's own shape all carry the same shape. Two
+     hundred and four copies of one motif was three quarters of the largest
+     block in the file, so the motif is written once at `system.patterns.motif`
+     and a row that wants it says `usesMotif`.
+
+     This is the only place that knows that. A reader — the manual, the studio,
+     a client's own script — asks for the parameters and gets the parameters;
+     whether they arrived in one piece is not a thing anybody should have to
+     hold in their head to draw a tile. */
+  function recipeParams(row, patterns) {
+    const p = row && row.params ? row.params : {};
+    if (!row || !row.usesMotif) return p;
+    const shape = patterns && patterns.motif;
+    // A row that says it wants a shape and a file that does not carry one is a
+    // broken file, and drawing the generator's fallback silently would hide it.
+    if (!shape) throw new Error(`${row.generator} is drawn out of the identity's shape and `
+      + 'brand.json carries no shape to draw it from');
+    return Object.assign({}, p, { motif: shape });
+  }
+
   // There was a `sheet` here, and a raster generator for it to serve.
   //
   // `terrace` decided per pixel and shipped a PNG at a size the package stated,
@@ -1774,7 +1827,7 @@
   // handed what this already worked out rather than working it out again.
   const read = (markSource, measured, rules) => late('mark').read(markSource, measured, rules);
 
-  return { GENERATORS, NAMES, ROUTES, ROUTE_DEFAULT, suits, derive, because, tile, recipe, joins, read,
+  return { GENERATORS, NAMES, ROUTES, ROUTE_DEFAULT, suits, derive, because, tile, recipe, recipeParams, joins, read,
     LAYERS: layers,
     latticeFrom, posterFrom, patternFrom, kindOf, GROUPS, CHOSEN, ratioOf, tilesOf, TILING, CATALOGUE,
     PATTERNS, TEXTURES, POSTERS,

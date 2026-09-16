@@ -1347,6 +1347,260 @@ test('a generator that is nothing but the motif refuses to build without one', (
   'the lattice built a tile with no shape to tile');
 });
 
+/* The six chips on the screen are the six patterns in the folder.
+
+   The rail showed the registry's order and the build writes the order the
+   patterns measure in. Both were defensible on their own and together they were
+   a lie: on pagrin the screen offered lattice, monogram, tartan, stripe, weave,
+   zigzag and the package held lattice, plate, mosh, oddgrid, strata, weave.
+   Four of the six chips a person chose from were patterns they would never be
+   handed.
+
+   The ranking costs a draw of every generator — 6 s, measured — so it arrives
+   after the screen rather than before it, and the rail settles when it lands.
+   What is checked here is the agreement, not the timing: one artwork, one set
+   of answers, the door and the build, the same six in the same order. */
+test('the six the pattern screen offers are the six the package writes', async () => {
+  const H = require('../src/app/handlers');
+  const mark = fs.readFileSync(path.join(__dirname, '..', 'projects', 'carrock', 'mark.svg'), 'utf8');
+  const colours = [{ name: 'ink', hex: '#241C1A', role: 'primary' },
+    { name: 'clay', hex: '#B4553C', role: 'accent' },
+    { name: 'paper', hex: '#F4F1EA', role: 'ground' }];
+  const input = { mark, brand: 'Carrock', colours };
+  const screen = H.shortlist(Object.assign({}, input, { chose: H.pattern(input).chose }));
+  assert.ok(screen.ok && screen.wrote.length, 'the door ranked nothing');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'door-short-'));
+  try {
+    await H.make(Object.assign({}, input, { answers: { brand: 'Carrock', colours } }), dir);
+    const S = JSON.parse(fs.readFileSync(path.join(dir, 'brand.json'), 'utf8')).system.patterns;
+    assert.deepStrictEqual(screen.wrote, S.shortlist.wrote,
+      `the screen offers ${screen.wrote.join(', ')} and the package holds ${S.shortlist.wrote.join(', ')}`);
+    assert.deepStrictEqual(screen.posters, S.shortlist.posters,
+      `the screen offers ${screen.posters.join(', ')} as pages and the package holds `
+      + `${S.shortlist.posters.join(', ')}`);
+    assert.strictEqual(screen.chose, S.chose, 'the screen and the package chose differently');
+    // and every chip on the rail is a file somebody can open
+    for (const g of screen.wrote) {
+      assert.ok(S.made.some((m) => m.generator === g && m.file),
+        `${g} is offered on the screen and written nowhere`);
+    }
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+/* And the same shape, once, in the two files that draw it in a browser.
+
+   pattern-studio.html was 1.57 MB with no fonts, no images and no artwork in
+   it, and editor.html 2.59 MB. Both carried the identity's shape inside every
+   one of two hundred and twenty-eight recipe rows. The studio already knew the
+   rows all held the same one — it scanned for the first that had it and used
+   that for every generator — so the scan became a field.
+
+   The count is the claim. A file that mentions the shape twice has not been
+   fixed, it has been half-fixed, and the size would still look better. */
+test('the studio and the canvas carry the identity\'s shape once, not once per row', () => {
+  const PEMIT = require('../src/patterns/emit');
+  const made = PENG.NAMES.map((g) => ({ generator: g, colourway: 'ink',
+    params: { scale: 0.2, motif: { ops: [['M', 0, 0], ['L', 1, 1]], ink: 0.4, stroked: true } } }));
+  const bu = PEMIT.bundle(project, result.measured, made, 'lattice', 120, 'motif');
+  assert.ok(bu.motif && bu.motif.ops, 'the bundle carries no shape for its rows to point at');
+  assert.strictEqual(bu.made.length, made.length, 'the bundle lost a row');
+  for (const row of bu.made) {
+    assert.ok(!(row.params && row.params.motif),
+      `${row.generator} still carries its own copy of the shape into the browser`);
+    assert.strictEqual(row.usesMotif, true, `${row.generator} lost the shape without saying so`);
+  }
+  // A row whose parameters never had one does not claim to want one.
+  const plain = PEMIT.bundle(project, result.measured,
+    [{ generator: 'tartan', colourway: 'ink', params: { bands: 4 } }], 'tartan', 120, 'inspired');
+  assert.strictEqual(plain.made[0].usesMotif, undefined,
+    'a row with no shape says it points at one');
+  assert.strictEqual(plain.motif, null, 'a bundle with no shape anywhere invented one');
+
+  // And in the written file: the shape's own moves appear once, not per row.
+  const studio = fs.readFileSync(path.join(out, 'pattern-studio.html'), 'utf8');
+  const S = patternsOf(out);
+  if (S.motif && S.motif.ops && S.motif.ops.length > 3) {
+    // a run of the shape long enough that nothing else in the file spells it
+    const finger = JSON.stringify(S.motif.ops.slice(0, 4)).slice(1, -1);
+    let seen = 0;
+    let at = studio.indexOf(finger);
+    while (at > -1) { seen += 1; at = studio.indexOf(finger, at + 1); }
+    assert.strictEqual(seen, 1,
+      `the studio spells the identity's shape ${seen} times, where once is the point`);
+  }
+});
+
+/* The shape is written once, and a row that wants it says so.
+
+   `system.patterns.made` carried a full copy of the identity's motif in every
+   row that draws one — two hundred and four identical copies for pagrin, 0.80
+   MB of a 1.08 MB block, three quarters of the largest thing in brand.json. It
+   is written once now and rows point at it.
+
+   The saving is not the claim worth testing; a file being smaller is easy to
+   check and easy to get right by deleting something that mattered. What is
+   worth testing is that nothing was lost: that a row plus the one shape is the
+   same set of parameters the row used to hold on its own, for every row, and
+   that a reader asking the wrong way is told rather than handed a tile drawn
+   without the shape. */
+test('the identity\'s shape is in brand.json once, and every row that needs it can still get it', () => {
+  const PT = require('../src/patterns');
+  const S = patternsOf(out);
+  const carriers = S.made.filter((m) => m.usesMotif);
+  assert.ok(carriers.length > 20,
+    `${carriers.length} rows point at the shared shape, which is too few for this to be the saving it claims`);
+  assert.ok(S.motif && S.motif.ops && S.motif.ops.length,
+    'no shape is written for the rows that point at one');
+  // No row carries its own copy any more.
+  for (const m of S.made) {
+    assert.ok(!(m.params && m.params.motif),
+      `${m.generator} in ${m.colourway} still carries its own copy of the shape`);
+  }
+  // And a row plus the one shape is a complete set of parameters: it draws, and
+  // it draws the same thing the generator derives from the mark.
+  const mk = PT.read(projectLoader.masterOf(project).source, result.measured, project.rules);
+  const size = require('../src/system').patternRules((project.system || {}).pattern).tile;
+  const cw0 = project.rules.colourways[0];
+  let drew = 0;
+  for (const m of carriers.filter((x) => x.colourway === cw0.name)) {
+    const params = PT.recipeParams(m, S);
+    assert.ok(params.motif && params.motif.ops && params.motif.ops.length,
+      `${m.generator} asked for its parameters and got none of the shape`);
+    const t = PT.tile({ mark: mk, generator: m.generator, route: S.route, params,
+      colours: project.tokens.colour, colourway: cw0, size, id: 'r' });
+    assert.ok(t.tile.length > 200, `${m.generator} drew an empty tile from the shared shape`);
+    // the generator says it is made of the mark, which is the thing the shape
+    // is for — a row that quietly drew the fallback would pass everything above
+    assert.ok(t.motif, `${m.generator} drew without the identity's shape in it`);
+    drew += 1;
+  }
+  assert.ok(drew > 5, `only ${drew} rows were drawn back from the shared shape`);
+  // A file with rows pointing at a shape that is not there is a broken file and
+  // says so, rather than drawing a generator's fallback and looking fine.
+  assert.throws(() => PT.recipeParams(carriers[0], { motif: null }),
+    /carries no shape/, 'a row pointing at a missing shape drew something anyway');
+});
+
+/* A pattern is never drawn in a colour nobody can see against its own ground.
+
+   The engine has refused to place a *mark* at low contrast for a long time and
+   has never once asked the question of a *pattern*. Measured across every
+   identity, colourway and generator here, 684 of 4,104 tiles carried an ink
+   under 1.8:1 against the ground they were printed on, and six were under 1.5.
+   oriel's chalk colourway drew at 1.02:1 — the same luminance twice, a flat
+   rectangle written into the package under the name of a pattern.
+
+   It was one fault in one place wearing thirty-eight coats: every generator
+   showed identical numbers because every generator takes the same palette. So
+   the floor is in `inksOn` and this checks it there and through a build.
+
+   Not a readability bar. See FAINTEST in patterns/palette.js for why 1.5 and
+   not the 3:1 contrast.js puts under "shapes": tone-on-tone is a look this
+   engine ships on purpose, and the claim here is only that a pattern has a
+   shape somebody can make out. */
+test('no pattern is handed an ink at its own ground\'s tone, and the build says what it dropped', () => {
+  const PAL = require('../src/patterns/palette');
+  const CON = require('../src/contrast');
+  const names = fs.readdirSync(path.join(__dirname, '..', 'projects'))
+    .filter((d) => fs.existsSync(path.join(__dirname, '..', 'projects', d, 'project.json'))).sort();
+  const bad = [];
+  let ways = 0;
+  let dropped = 0;
+  for (const name of names) {
+    const pr = projectLoader.load(path.join(__dirname, '..', 'projects', name, 'project.json'));
+    for (const cw of pr.rules.colourways) {
+      const pal = PAL.of(pr.tokens.colour, cw);
+      ways += 1;
+      dropped += (pal.dropped || []).length;
+      assert.ok(pal.inks.length >= 1,
+        `${name}/${cw.name} was left with no ink at all, so its patterns are blank sheets`);
+      for (const ink of pal.inks) {
+        const r = CON.ratio(ink.hex, pal.ground);
+        if (r < PAL.FAINTEST) bad.push(`${name}/${cw.name} ${ink.hex} on ${pal.ground} ${r.toFixed(2)}:1`);
+      }
+      // and what was dropped really was fainter than what was kept
+      for (const d of pal.dropped || []) {
+        assert.ok(d.against < PAL.FAINTEST,
+          `${name}/${cw.name} dropped ${d.hex} at ${d.against.toFixed(2)}:1, which is above the floor`);
+      }
+    }
+  }
+  assert.deepStrictEqual(bad, [],
+    `${bad.length} of ${ways} colourways hand a pattern an ink at the ground's own tone: `
+    + `${bad.slice(0, 4).join(', ')}`);
+  // The floor has to actually bind somewhere, or this test is checking that a
+  // rule nothing reaches is obeyed. Six tiles were under 1.5 when it was
+  // measured; if that ever becomes none, the fixtures changed and this should
+  // be looked at rather than quietly passing.
+  assert.ok(dropped > 0,
+    'no colourway in the repository drops an ink, so the floor is not reached by anything');
+});
+
+/* A motif is spaced by what it will draw, not by what its designer drew.
+
+   `ink` reads the source artwork at its own stroke weight. `motif.draw` states
+   the weight as a share of the tile, with a floor, so the picture a generator
+   makes is a different picture — and for a heavy open shape the two readings
+   are five times apart.
+
+   carrock is that shape: a C whose stroke is a quarter of its diameter inks 78%
+   of its box in the artwork and 16% once the tiler redraws it. `gap` read the
+   first, called it dense, and opened a 113% gap around a shape that was no
+   longer dense. The sheet came out 4% covered where the median of these
+   thirty-three is 15% — the sparsest by a factor of two, and the one lattice in
+   this repository that looked like a mistake rather than a decision.
+
+   Two claims, because the fix has two halves that can each fail alone: the
+   second reading exists and differs where it should, and the sheet it produces
+   is inside the band the other thirty-two are in. */
+test('a stroked mark is read twice, and the lattice spaces it by the reading it draws', () => {
+  const marks = ['carrock', 'northline', 'pagrin', 'hallward'];
+  const read = {};
+  for (const name of marks) {
+    const pr = projectLoader.load(path.join(__dirname, '..', 'projects', name, 'project.json'));
+    const mo = PMOTIFREAD.read(projectLoader.masterOf(pr).source, pr.rules, measure(pr));
+    assert.ok(mo && mo.ok, `${name} has no motif to read`);
+    assert.strictEqual(typeof mo.drawnInk, 'number',
+      `${name} was not read a second time, so the lattice is spacing by the artwork's stroke`);
+    assert.ok(mo.drawnInk > 0 && mo.drawnInk <= 1, `${name} drew ${mo.drawnInk} of its own box`);
+    read[name] = mo;
+  }
+  // A filled shape is the same picture either way: nothing is being restated
+  // for the twelve identities whose marks are solid.
+  for (const name of ['pagrin', 'hallward']) {
+    assert.ok(Math.abs(read[name].ink - read[name].drawnInk) < 0.12,
+      `${name} is a filled mark and the two readings differ by `
+      + `${Math.abs(read[name].ink - read[name].drawnInk).toFixed(2)}`);
+  }
+  // A heavy stroked one is not, and that gap is the whole reason for the
+  // second reading. Reverting `gap` to `ink` leaves this passing and the next
+  // block failing, which is the split the two claims are for.
+  assert.ok(read.carrock.ink - read.carrock.drawnInk > 0.4,
+    `carrock's two readings are ${read.carrock.ink.toFixed(2)} and `
+    + `${read.carrock.drawnInk.toFixed(2)}, which is not the divergence this is about`);
+
+  // And the sheet. Every lattice inks enough of its tile to be a pattern.
+  const SYS = require('../src/system');
+  const MEAS = require('../src/patterns/measure');
+  const MATCH = require('../src/patterns/match');
+  const thin = [];
+  for (const name of marks) {
+    const pr = projectLoader.load(path.join(__dirname, '..', 'projects', name, 'project.json'));
+    const mm = measure(pr);
+    const mk = PENG.read(projectLoader.masterOf(pr).source, mm, pr.rules);
+    const t = PENG.tile({ mark: mk, generator: 'lattice', route: 'motif', motif: read[name],
+      colours: pr.tokens.colour, colourway: pr.rules.colourways[0],
+      size: SYS.patternRules((pr.system || {}).pattern).tile, id: 'l' });
+    const cov = MEAS.all(MATCH.asField(t, 160)).coverage;
+    // 7% is under the 9% the sparsest of the thirty-three now reads and well
+    // over the 4% carrock read when this was wrong. A band, not a target: these
+    // marks are meant to differ from each other.
+    if (cov < 0.07) thin.push(`${name} ${(cov * 100).toFixed(1)}%`);
+  }
+  assert.deepStrictEqual(thin, [],
+    `a lattice inks too little of its own tile to read as a pattern: ${thin.join(', ')}`);
+});
+
 test('every lattice tiles without a seam', () => {
   // A lattice only closes if the tile is a whole number of steps across, and
   // the row count is even where the rows drop — a half-drop over an odd number
@@ -1673,15 +1927,32 @@ test('the lattice takes every number off the shape, not off a constant', () => {
         `no identity in the repository gets ${key} = ${w}, so the branch that sets it is unreachable`);
     }
   }
-  // And each number comes off the measurement it claims to: spacing tracks ink.
-  // Rank correlation rather than a fit, because the claim is the order and not
-  // the line.
-  const by = repo.slice().sort((a, b) => a.motif.ink - b.motif.ink);
+  /* And each number comes off the measurement it claims to: spacing tracks ink.
+     Rank correlation rather than a fit, because the claim is the order and not
+     the line.
+
+     Against `drawnInk`, which is what the spacing is actually derived from —
+     the shape as this generator draws it, not as its designer drew it. This
+     sorted on `ink` and passed while the two readings were the same number,
+     which for a filled mark they nearly are. They are not for a stroked one:
+     carrock's C inks 78% of its box in the artwork and 16% once the tiler
+     redraws it, and spacing it by the first is what made its sheet the sparsest
+     of the thirty-three. See `drawnInkOf` in patterns/motif-read.js.
+
+     Sorting on `ink` here would now fail, and it should: it would be asserting
+     that the gap comes off a reading the gap does not come off. */
+  const by = repo.slice().sort((a, b) => a.motif.drawnInk - b.motif.drawnInk);
   for (let i = 1; i < by.length; i++) {
     assert.ok(by[i].params.gap >= by[i - 1].params.gap - 1e-9,
-      `${by[i].name} inks more of its box than ${by[i - 1].name} and is spaced tighter, `
-      + 'so the gap is not coming off the ink');
+      `${by[i].name} draws more of its box than ${by[i - 1].name} and is spaced tighter, `
+      + 'so the gap is not coming off what the shape draws');
   }
+  // and the two readings really are different readings, or this is the old
+  // claim in new words
+  const apart = repo.filter((r) => Math.abs(r.motif.ink - r.motif.drawnInk) > 0.25);
+  assert.ok(apart.length >= 1,
+    'no mark in the repository draws differently from how it was drawn, so `drawnInk` '
+    + 'is `ink` under another name');
 });
 
 test("the lattice's two thresholds sit in gaps in the measurements", () => {
@@ -2377,12 +2648,34 @@ test('a stripe keeps its width where it should, and swells where it should', () 
 });
 
 test('the palette hands over the ground and orders the inks by what reads on it', () => {
+  // Three that read on this paper, worst to best: mid is quieter than loud is
+  // quieter than ink. `quiet` is a fourth that does not read at all and is
+  // handled below rather than ordered.
   const cols = { paper: { hex: '#EFE9DD', role: 'ground' }, ink: { hex: '#1A1A1A' },
-    quiet: { hex: '#C9C4BA' }, loud: { hex: '#B4632A' } };
+    mid: { hex: '#7A736A' }, loud: { hex: '#B4632A' } };
   const p = PPAL.of(cols, null);
   assert.strictEqual(p.ground, '#EFE9DD');
   assert.strictEqual(p.ink(0), '#1A1A1A', 'the ink that reads best on the paper is not first');
-  assert.strictEqual(p.inks[p.inks.length - 1].hex, '#C9C4BA', 'the quietest ink is not last');
+  assert.strictEqual(p.inks[p.inks.length - 1].hex, '#B4632A', 'the quietest ink is not last');
+  /* And an ink at the paper's own tone is not ordered, it is put aside.
+
+     `#C9C4BA` on `#EFE9DD` is 1.3:1 — two colours of the same tone. A pattern
+     drawn in one on the other has a shape nobody can see, so `inksOn` keeps it
+     out and says so in `dropped`. This test used to name it as the quietest ink
+     and assert it came last, which was true and was the fault: last in the list
+     means "a generator's fourth thread", and a generator drew its fourth thread
+     in a colour that was not there. See FAINTEST in patterns/palette.js. */
+  const faint = PPAL.of(Object.assign({ quiet: { hex: '#C9C4BA' } }, cols), null);
+  assert.ok(!faint.inks.some((i) => i.hex === '#C9C4BA'),
+    'an ink at the ground\'s own tone is still handed to a generator to draw with');
+  assert.deepStrictEqual(faint.dropped.map((d) => d.hex), ['#C9C4BA'],
+    'the palette does not say which ink it put aside');
+  assert.strictEqual(faint.count, p.count, 'dropping the faint ink cost a real one too');
+  // and a palette with nothing but faint inks still draws: the best it has,
+  // rather than a blank sheet
+  const allFaint = PPAL.of({ paper: { hex: '#EFE9DD', role: 'ground' },
+    a: { hex: '#EDE7DB' }, b: { hex: '#F1EBDF' } }, null);
+  assert.strictEqual(allFaint.inks.length, 1, 'a palette of near-tones was left with no ink at all');
   // and it never runs out, because a generator asking for a fifth thread on a
   // three-colour identity should draw something
   assert.strictEqual(p.ink(3), p.ink(0));
@@ -4343,14 +4636,16 @@ test('a pattern that was not drawn is the same pattern as one that was, to the b
         `${m.generator} in ${m.colourway} is a recipe in one build and absent from the other`);
       // The parameters first. A recipe that kept different numbers would draw a
       // different picture for a reason worth naming separately.
-      assert.deepStrictEqual(m.params, wrote.params,
+      assert.deepStrictEqual(PT.recipeParams(m, S), PT.recipeParams(wrote, W),
         `${m.generator} in ${m.colourway} kept different parameters than the build drew with`);
+      assert.strictEqual(!!m.usesMotif, !!wrote.usesMotif,
+        `${m.generator} in ${m.colourway} points at the shared shape in one build and not the other`);
       assert.strictEqual(m.why, wrote.why, `${m.generator} in ${m.colourway} kept a different reason`);
       assert.deepStrictEqual(m.palette, wrote.palette, `${m.generator} in ${m.colourway} kept a different palette`);
       // and then the picture those numbers make
       const drawn = PT.tile({ mark: PT.read(projectLoader.masterOf(project).source,
         result.measured, project.rules),
-      generator: m.generator, route: S.route, params: m.params,
+      generator: m.generator, route: S.route, params: PT.recipeParams(m, S),
       colours: project.tokens.colour,
       colourway: project.rules.colourways.find((c) => c.name === m.colourway),
       size: require('../src/system').patternRules((project.system || {}).pattern).tile,
@@ -4365,7 +4660,8 @@ test('a pattern that was not drawn is the same pattern as one that was, to the b
     let files = 0;
     for (const m of S.made.filter((x) => x.file)) {
       const wrote = W.made.find((x) => x.generator === m.generator && x.colourway === m.colourway);
-      assert.deepStrictEqual(m.params, wrote.params, `${m.file} was drawn with different numbers`);
+      assert.deepStrictEqual(PT.recipeParams(m, S), PT.recipeParams(wrote, W),
+        `${m.file} was drawn with different numbers`);
       assert.strictEqual(fs.readFileSync(path.join(out, m.file), 'utf8'),
         fs.readFileSync(path.join(wide, wrote.file), 'utf8'),
         `${m.file} is a different picture in a package that writes everything`);
@@ -13000,6 +13296,55 @@ test('six answers and a drawing make a package', () => {
 
 // ---------------------------------------------------------------------------
 console.log('\nthe front door, and the type it sets');
+/* No hover on this app changes the size or position of anything.
+
+   The questions step had two rules that did, and they nested: a card's note
+   went from one line to nine on `:hover`, and inside it an option's note went
+   from clipped to wrapping on `:hover` too. Pointing at an option grew the
+   option *and* the card around it, the grid reflowed, and the thing being
+   reached for moved out from under the pointer — while what appeared in its
+   place was a different question's text.
+
+   Neither rule was a disclosure design. The note on that file said seven
+   headings and seven notes came to 490 px of the 968 the screen had, so the
+   text was clipped to fit and hover was the cheapest way to get it back: a
+   layout problem paid for with an unstable layout. It is a check answers page
+   now, with one pane for the reasoning, and the hover states do the one thing a
+   hover is good for — saying what is under the cursor.
+
+   Checked as a rule about the stylesheet rather than as a screenshot, because
+   the failure is a property, not a picture, and a static check cannot flake.
+   `transform` is allowed: it moves paint, not layout, so a card that lifts 2 px
+   on hover shifts nothing around it. */
+test('no hover state on the front door changes the size or position of anything', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'client.html'), 'utf8');
+  // Comments first, or the check reads its own prose. The note above this test
+  // says the words ":hover" and "display" in the same paragraph, which is
+  // exactly what a splitter looking for `{` and `}` mistakes for a rule.
+  const css = (html.match(/<style>([\s\S]*?)<\/style>/g) || []).join('\n')
+    .replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.ok(css.length > 4000, 'no stylesheet was found to check');
+  // Properties that change how much room a thing takes, or where it sits.
+  const moves = /(^|[;{\s])(width|height|min-width|min-height|max-width|max-height|padding[a-z-]*|margin[a-z-]*|font-size|font-weight|line-height|letter-spacing|white-space|overflow[a-z-]*|display|position|top|left|right|bottom|gap|row-gap|column-gap|flex[a-z-]*|grid-[a-z-]+|-webkit-line-clamp)\s*:/;
+  const bad = [];
+  // every rule whose selector mentions :hover
+  const rules = css.split('}');
+  for (const chunk of rules) {
+    const at = chunk.lastIndexOf('{');
+    if (at < 0) continue;
+    const sel = chunk.slice(0, at);
+    const body = chunk.slice(at + 1);
+    if (!/:hover/.test(sel)) continue;
+    const m = moves.exec(body);
+    if (m) bad.push(`${sel.trim().replace(/\s+/g, ' ').slice(0, 70)} sets ${m[2]}`);
+  }
+  assert.deepStrictEqual(bad, [],
+    `a hover state changes layout, so the page moves under the pointer:\n  ${bad.join('\n  ')}`);
+  // and the check has something to check: the app does use :hover, for colour
+  const hovers = rules.filter((c) => /:hover/.test(c.slice(0, Math.max(0, c.lastIndexOf('{'))))).length;
+  assert.ok(hovers >= 6, `only ${hovers} hover rules found, so this proves little`);
+});
+
 
 // A URL in an xmlns is a name, not a request — nothing is fetched from
 // www.w3.org/2000/svg — so it is not what "reaches outside the product" means.
@@ -13107,7 +13452,12 @@ test('a pattern dropped at the door reaches the match, in both formats it takes'
       const made = bj.system.patterns.made.filter((x) => x.generator === m.generator);
       assert.ok(made.length, `${what}: the matched generator wrote no tile`);
       for (const one of made) {
-        assert.deepStrictEqual(one.params, m.params,
+        // Asked of the row *with the shape put back*. The identity's motif is
+        // written once at system.patterns.motif and the rows point at it — see
+        // `recipeParams` in patterns/index.js — so a row on its own is missing
+        // the one parameter the match also carries, and comparing the two raw
+        // would be comparing a recipe against a tile.
+        assert.deepStrictEqual(PENG.recipeParams(one, bj.system.patterns), m.params,
           `${what}: the tile was written with parameters the match did not choose`);
       }
     } finally {

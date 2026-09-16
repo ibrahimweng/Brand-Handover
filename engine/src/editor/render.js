@@ -473,7 +473,12 @@
       // in 07-pattern rather than on a fresh derivation of it.
       const built = (g.made || []).find((m) => m.generator === name
         && (!cw || m.colourway === cw.name)) || (g.made || []).find((m) => m.generator === name);
-      const params = Object.assign({}, built && built.params, want.params);
+      // The identity's shape travels once beside the rows rather than inside
+      // every one of them — see `motif` in patterns/emit.js — so a row that
+      // wants it asks for it here.
+      const params = Object.assign({},
+        built && built.usesMotif && g.motif ? { motif: g.motif } : null,
+        built && built.params, want.params);
       let tile;
       try {
         tile = PE.tile({ mark: g.measured, generator: name, params,

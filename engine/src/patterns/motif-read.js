@@ -109,6 +109,51 @@ function maskOf(ops) {
   return made;
 }
 
+/* What the motif inks when it is drawn the way a generator draws it.
+
+   `ink` is a reading of the *source artwork*: the shape rendered at the stroke
+   weight its designer gave it, as a share of its own box. It is correct and it
+   is not the number a generator wants, because a generator does not redraw the
+   designer's stroke — `motif.draw` states the weight as a share of the tile, so
+   the same hand is kept at any size, with a floor under it.
+
+   Those are two different pictures and they can be five times apart. carrock's
+   mark is a heavy C: a ring whose stroke is a quarter of its diameter inks
+   about 78% of its box, which is what `ink` says and what the artwork does. Set
+   into a lattice at the tiler's weight it is a thin C and inks 15%. `gap` read
+   78%, called it dense, opened a 113% gap around it, and produced a sheet 4%
+   covered — the sparsest of the thirty-three by a factor of two, and the one
+   identity in this repository whose pattern looked like a mistake.
+
+   So the shape is drawn a second time, the way it will actually be drawn, and
+   that reading is carried beside the first. Measured rather than derived: a
+   formula would have to know the perimeter of an arbitrary path, and the
+   rasteriser already knows it. */
+function drawnInkOf(ops, stroked, weight, ratio) {
+  const surface = require('./surface');
+  const seam = require('./seam');
+  const N = 160;
+  const s = surface.svg({ width: N, height: N, id: 'drawn' });
+  s.fillStyle = '#000000';
+  s.fillRect(0, 0, N, N);
+  s.fillStyle = '#ffffff';
+  try {
+    require('./motif').draw(s, { ops, stroked: !!stroked, weight }, N / 2, N / 2, N / 2);
+  } catch (e) { return null; }
+  let im;
+  try { im = seam.pixels(s.toSVG(''), N); } catch (e) { return null; }
+  let on = 0;
+  const n = im.w * im.h;
+  for (let i = 0; i < n; i += 1) if (im.px[i * 4] > 127) on += 1;
+  // As a share of the shape's own box rather than of the square it was drawn
+  // in, so it is the same quantity `ink` is and the two can be compared. The
+  // moves are already normalised into a unit box — see `normalise` — so the box
+  // is the square's area times the narrower side, which is what `ratio` is.
+  const r = ratio > 0 && isFinite(ratio) ? ratio : 1;
+  const boxPixels = n * Math.min(r, 1 / r);
+  return boxPixels > 0 ? Math.min(1, +(on / boxPixels).toFixed(3)) : null;
+}
+
 function maskFrom(ops) {
   const surface = require('./surface');
   const seam = require('./seam');
@@ -317,6 +362,13 @@ function read(markSource, rules, measured, which, opts) {
     silhouette: chosen.stroked ? (fillOps ? 1 : 0) : 1,
     fillOps: fillOps || undefined,
     ink: typeof chosen.ink === 'number' ? chosen.ink : 0.3,
+    // And the same shape read again as a generator will draw it. See
+    // `drawnInkOf`: `ink` is the artwork's own stroke, this is the tiler's, and
+    // for a heavy open shape they are five times apart. Anything spacing or
+    // sizing a motif it is about to draw wants this one; anything describing
+    // the client's drawing wants the other.
+    drawnInk: drawnInkOf(ops, !!chosen.stroked,
+      sp && sp.strokeRatio ? sp.strokeRatio : 0.06, ratio),
     simple: typeof chosen.simple === 'number' ? chosen.simple : 0.4,
     // Filled or stroked, and at what weight — the drawing's answer, carried so
     // the generator never has to ask.

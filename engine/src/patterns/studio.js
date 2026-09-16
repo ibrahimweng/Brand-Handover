@@ -24,12 +24,25 @@
   const el = (t, c, h) => { const n = document.createElement(t); if (c) n.className = c; if (h != null) n.innerHTML = h; return n; };
   const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+  // The shape this identity's pattern is made of.
+  //
+  // It travels beside the parameters now rather than inside each of them. Every
+  // generator that carries one carries the same one, and this used to find that
+  // out by scanning the rows for the first that had it — which worked, and
+  // meant the file shipped two hundred and twenty-eight copies of one shape.
+  // Without it, switching to `lattice` derives its numbers from no shape and
+  // draws an empty ground: the generator is nothing but the motif.
+  const motif = B.motif || null;
+  // and a row's parameters, with the shape put back where the row wants it
+  const paramsOf = (m) => (m && m.usesMotif && motif
+    ? Object.assign({}, m.params, { motif }) : Object.assign({}, (m || {}).params));
+
   const KEY = `pattern-studio:${B.brand}`;
   let state = null;
   try { const saved = localStorage.getItem(KEY); if (saved) state = JSON.parse(saved); } catch (_) {}
   if (!state || !state.generator) {
     state = { generator: B.chose, colourway: B.colourways[0].name,
-      params: Object.assign({}, (B.made.find((m) => m.generator === B.chose) || B.made[0]).params) };
+      params: paramsOf(B.made.find((m) => m.generator === B.chose) || B.made[0]) };
   }
   const keep = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (_) {} };
 
@@ -42,15 +55,6 @@
   const way = () => B.colourways.find((c) => c.name === state.colourway) || B.colourways[0];
   const pal = () => PAL.of(B.colours, way());
 
-  // The shape this identity's pattern is made of.
-  //
-  // It travels in the built parameters rather than beside them, and every
-  // generator that carries one carries the same one, so the first that has it
-  // answers for all of them. Without this, switching to `lattice` in the studio
-  // derives its numbers from no shape and draws an empty ground — the generator
-  // is nothing but the motif.
-  const carrier = B.made.find((m) => m.params && m.params.motif);
-  const motif = carrier ? carrier.params.motif : null;
 
   // What the engine would choose, so "back to what it chose" is always one
   // click away and the client can wander without losing the argument.

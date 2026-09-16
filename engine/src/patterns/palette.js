@@ -48,7 +48,27 @@
   // Two colours that read the same against the ground are still two colours, so
   // nothing is dropped for being close to another ink — only for being the
   // ground itself, which would draw the pattern in the paper.
-  function inksOn(colours, ground) {
+  /* The faintest an ink may be against the ground it is printed on.
+
+     Not a readability standard. contrast.js puts 3:1 under "shapes" and that is
+     the right bar for a thing somebody has to make out — an icon, a rule, a
+     line of large type. A pattern is not that, and this engine ships tone-on-
+     tone on purpose: the quiet lattice is a flat near-tone of the brand colour
+     precisely so it can sit under a paragraph without fighting it.
+
+     1.5:1 is a different claim. Below it two colours are the same *tone*, and a
+     pattern drawn in one on the other has a shape that nobody can see in any
+     light — not a soft pattern, an absent one. oriel's chalk colourway drew its
+     weave at 1.02:1, which is the same luminance twice, and the tile was a flat
+     rectangle written into the package under the name of a pattern.
+
+     Measured before it was chosen: of the 108 identity-and-colourway pairs
+     here, 18 carried an ink under 1.8:1 and 6 were under 1.5. Every generator
+     inherited all of them — 684 of 4,104 tiles — because they all take this one
+     palette, which is why the floor is here and not in thirty-eight places. */
+  const FAINTEST = 1.5;
+
+  function inksOn(colours, ground, faintest) {
     const seen = new Set([String(ground).toUpperCase()]);
     const out = [];
     for (const [name, c] of Object.entries(colours)) {
@@ -60,7 +80,14 @@
       out.push({ name, hex, role: c && c.role, against: contrast.ratio(hex, ground) });
     }
     out.sort((a, b) => b.against - a.against);
-    return out;
+    const floor = typeof faintest === 'number' ? faintest : FAINTEST;
+    const keep = out.filter((i) => !(i.against < floor));
+    // Never all of them. A palette whose every colour sits at the ground's own
+    // tone is a real thing — a mono colourway of a two-tone identity — and the
+    // answer there is the best one it has, not a blank sheet. The generator
+    // still draws; the build still says what it dropped.
+    return { inks: keep.length ? keep : out.slice(0, 1),
+      dropped: keep.length ? out.filter((i) => i.against < floor) : out.slice(1) };
   }
 
   // What a generator is handed. `ink(i)` never runs out — it wraps — because a
@@ -69,11 +96,15 @@
   // pattern, not a fault.
   function of(colours, colourway) {
     const ground = groundOf(colours || {}, colourway);
-    const inks = inksOn(colours || {}, ground);
+    const read = inksOn(colours || {}, ground);
+    const inks = read.inks;
     const list = inks.length ? inks : [{ name: 'ink', hex: contrast.luminance(ground) > 0.5 ? '#111111' : '#EFEFEF', against: 1 }];
     return {
       ground,
       inks: list,
+      // What this ground cost, so the build can say it rather than a client
+      // finding a brand colour quietly missing from one colourway's patterns.
+      dropped: read.dropped,
       count: list.length,
       ink: (i) => list[((i % list.length) + list.length) % list.length].hex,
       named: (i) => list[((i % list.length) + list.length) % list.length],
@@ -102,5 +133,5 @@
     };
   }
 
-  return { of, groundOf, inksOn };
+  return { of, groundOf, inksOn, FAINTEST };
 }));

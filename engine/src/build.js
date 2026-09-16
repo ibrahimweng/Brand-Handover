@@ -1351,6 +1351,23 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   if (PATTERNS.kindOf(patternChoice) === 'poster') {
     throw new Error(`${patternChoice} is a poster and was chosen as this identity's pattern`);
   }
+  /* And what each ground cost, said out loud.
+
+     A colourway whose ground sits at the same tone as one of the brand's inks
+     cannot carry that ink in a pattern — see FAINTEST in patterns/palette.js.
+     The palette drops it so the tile has a shape somebody can see. A client
+     finding their third colour missing from one colourway's patterns and
+     nothing anywhere saying why is the kind of silence this engine does not
+     keep, so it is a warning naming the colour, the ground and the number. */
+  for (const cw of rules.colourways) {
+    const pal = require('./patterns/palette').of(project.tokens.colour, cw);
+    for (const d of pal.dropped || []) {
+      warnings.push(`${d.name} measures ${d.against.toFixed(2)}:1 against the ground of the `
+        + `${cw.name} colourway, which is the same tone, so it is not used in that colourway's `
+        + `patterns. A pattern drawn in it would have a shape nobody can see. The other `
+        + `${pal.count} ${pal.count === 1 ? 'colour draws' : 'colours draw'} it instead.`);
+    }
+  }
   const shortlist = SHORT.of({ chose: patternChoice, ranked, most: SHORT.MOST });
   const posterlist = SHORT.of({ ranked: rankedPosters, most: SHORT.POSTERS });
 
@@ -1451,6 +1468,13 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // not the same thing to open. A pattern is a tile a client repeats; a poster
   // is a finished page. Filing a poster under "pattern" would be the engine
   // telling somebody their pattern is a poster.
+  // A recipe row without the shape it shares with every other row.
+  const withoutMotif = (params) => {
+    if (!params || !params.motif) return params;
+    const out = Object.assign({}, params);
+    delete out.motif;
+    return out;
+  };
   const fileFor = (name, variant, colourway) =>
     `${PATTERNS.kindOf(name) === 'poster' ? '16-posters' : '07-pattern'}/`
     + `${name}${variant ? `-${variant}` : ''}-${naming.slug(colourway)}.svg`;
@@ -1731,12 +1755,31 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
         // shape came out as. A client reopening this a year later can see both
         // without the original artwork being anywhere near them.
         route: ROUTE,
-        motif: motif ? { moves: motif.ops.length, from: motif.name, stroked: motif.stroked,
-          weight: motif.weight,
-          // What the lattice measured off the shape, so brand.json carries the
-          // reasoning for the spacing and the drop and not only their values.
-          ink: motif.ink, symmetry: motif.symmetry, grain: motif.grain,
-          ops: motif.ops } : null,
+        /* The shape, once.
+
+           This was a summary — eight fields off a motif whose full self was
+           then copied into all two hundred and four recipe rows that carry it,
+           identical every time. 0.80 MB of a 1.08 MB `made`: three quarters of
+           the largest thing in brand.json was one shape written out again and
+           again, and the summary beside it was a ninth copy of part of it.
+
+           So the whole motif is here and the rows point at it. `usesMotif` on a
+           row says to put it back; `PATTERNS.recipeParams(row, patterns)` is
+           the one place that does, so no reader has to know the convention.
+           Every field the summary had is still a field of this, spelled the
+           same, so anything reading `motif.ink` or `motif.ops` is untouched. */
+        /* The motif exactly as the generators receive it — not a copy with
+           extra keys on it.
+
+           It was `Object.assign({}, motif, { moves, from })`, carrying the two
+           names the old summary had. That made the shape stored here subtly
+           *not* the shape a tile was drawn with, and `recipeParams` then
+           handed a generator two parameters it had never been given: a
+           reference match and the row it wrote came out differing by `moves`
+           and `from` alone. Neither is lost — `ops.length` is the move count
+           and `name` is where the shape came from — and nothing in the engine
+           or the tests read either spelling. */
+        motif: motif || null,
         /* Which patterns were written as files and why those.
 
            A package used to write every generator in every colourway and this
@@ -1779,7 +1822,11 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
             // that shipped a PNG at a stated size. It is gone, and so is the
             // largest-size caveat that came with it.
             vector: true,
-            params: r.recipe.params, palette: r.recipe.palette, why: r.recipe.why,
+            // Without the motif, which is above. See `motif` in this block for
+            // what that saved and `PATTERNS.recipeParams` for putting it back.
+            usesMotif: r.recipe.params.motif ? true : undefined,
+            params: withoutMotif(r.recipe.params),
+            palette: r.recipe.palette, why: r.recipe.why,
           };
         }),
       } : null,
