@@ -1731,6 +1731,18 @@
     }
     const params = Object.assign(derive(generator, m, route, given),
       given && carries ? { motif: given } : {},
+      // The icon rule, for the generator that draws the icon set. It reaches
+      // the parameters the same way the shape does, so a recipe rebuilt from
+      // brand.json draws the same set the build drew rather than one this
+      // generator derives a second way. See patterns/icons.js hand().
+      // `iconRule`, not `rule`. A generator's own controls live in this same
+      // namespace, and `totem` has had a control called `rule` — its keyline —
+      // since it was written. Injecting one called `rule` overwrote it, and
+      // stripping it out of the stored recipe left `Math.round(undefined)`, so
+      // totem redrawn from brand.json came back with its inner blocks missing
+      // and no error anywhere. Anything the engine puts into a generator's
+      // parameters has to be named so it cannot be a control.
+      o.iconRule && g.usesIcons ? { iconRule: o.iconRule } : {},
       o.word && g.word ? { word: o.word } : {}, o.params || {});
     const pal = o.palette || palette.of(o.colours, o.colourway, o.gradients);
     return {
@@ -1797,7 +1809,17 @@
      whether they arrived in one piece is not a thing anybody should have to
      hold in their head to draw a tile. */
   function recipeParams(row, patterns) {
-    const p = row && row.params ? row.params : {};
+    let p = row && row.params ? row.params : {};
+    if (row && row.usesIcons) {
+      const rule = patterns && patterns.iconRule;
+      // Same contract as the shape below: a row that says it wants the rule and
+      // a file that does not carry one is a broken file, and letting the
+      // generator derive its own hand would draw the set at a weight this
+      // package never used while looking like it had worked.
+      if (!rule) throw new Error(`${row.generator} is drawn in the identity's icon hand and `
+        + 'brand.json carries no icon rule to draw it from');
+      p = Object.assign({}, p, { iconRule: rule });
+    }
     if (!row || !row.usesMotif) return p;
     const shape = patterns && patterns.motif;
     // A row that says it wants a shape and a file that does not carry one is a

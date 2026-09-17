@@ -14,7 +14,12 @@
 //   rule     one decision, applied forever. Placed, never redrawn.
 
 const PLAIN = ['text', 'rule', 'fill', 'slot', 'surface'];
-const DERIVED = ['mark', 'lockup', 'construction', 'clearSpace', 'minimumSize', 'palette', 'contrast', 'typeSpecimen', 'assetIndex'];
+const DERIVED = ['mark', 'lockup', 'construction', 'clearSpace', 'minimumSize', 'palette', 'contrast', 'typeSpecimen', 'assetIndex', 'icons'];
+// The icon set is the one drawing here that is neither: the identity decides
+// the pen, and a page decides which glyphs to show and how heavy to show them.
+// A rule block would make it unanswerable on the page; a derived block would
+// pretend the numbers are not the identity's. It carries the rule and lets an
+// instance move off it, and says on the page when it has.
 // Rule blocks are the third kind. One decision, made once, generating every
 // instance after that. You place one and choose which instance to show; you
 // never redraw it and you never restate the rule.
@@ -149,6 +154,11 @@ const DEFAULTS = {
   // one generated block changes every one of them. See render.js.
   generated: { colourway: 'primary', on: 'ground', caption: false },
   iconGrid: { colourway: 'primary', on: 'ground', line: 'neutral', caption: true },
+  // 0 on weight or corner, and '' on the rest, mean "whatever the rule says" —
+  // an icon drawn at a pen of zero is not an icon, so zero is free to be the
+  // sentinel and a slider whose floor is 0.02 can never produce one by hand.
+  icons: { way: 'pen', weight: 0, corner: 0, cap: '', join: '', trade: '', glyph: '',
+    count: 24, colourway: 'primary', on: 'ground', caption: true },
   motion: { colourway: 'ground', on: 'primary', caption: true },
   photography: { on: 'ground', caption: true },
 };
@@ -159,6 +169,7 @@ const SIZES = {
   palette: { w: 900, h: 260 }, contrast: { w: 820, h: 300 }, typeSpecimen: { w: 820, h: 300 },
   assetIndex: { w: 560, h: 320 },
   pattern: { w: 620, h: 280 }, generated: { w: 620, h: 280 }, iconGrid: { w: 560, h: 420 }, motion: { w: 360, h: 360 },
+  icons: { w: 620, h: 210 },
   photography: { w: 560, h: 300 },
 };
 

@@ -50,19 +50,73 @@
      a set drawn from that is not measured off anything. The caller passes what
      it has; this floors it where a pen stops being visible at 16 px and caps it
      where an icon closes up. */
-  function hand(mark, motif) {
+  const DEFAULT_WEIGHT = 0.108;       // of the box, where the artwork lends no pen
+  const CAPS = ['butt', 'round', 'square'];
+  const JOINS = ['miter', 'round', 'bevel'];
+
+  /* What the mark lends, and what the identity has already decided.
+
+     This used to derive all four numbers itself: the motif's weight times
+     1.35, clamped, and a corner and cap read off how much of the mark turns.
+     system.js/iconRules derives the same numbers a second way — the widest
+     declared stroke over the viewBox width, no scale and no clamp — and the two
+     never agreed. Measured over the thirty-three identities in this
+     repository: not one matched. carrock's manual states a 1.2 stroke and its
+     set drew 1.62; ravelston states 2.6 and drew 1.32; seven marks that declare
+     no stroke at all fell back to a flat 0.08 here and to a measured *gap* in
+     the artwork there, so hallward stated 0.09 and drew 2.59.
+
+     The rule is the contract. It is in brand.json, the manual quotes it, and
+     checkIcon refuses a supplied icon that does not meet it — so the rule is
+     what the set draws at, and the second derivation below is only what is left
+     when a caller has no rule to give.
+
+     `over` is one instance asking for something else. The icon screen in the
+     flow and the icon block in the editor both move these, and neither is
+     changing the identity's rule by doing it — so they are held apart, and a
+     value of null or undefined means "whatever the rule says" rather than zero.
+     Weight and corner are shares of the box, not sizes on it, so a set that
+     changes box keeps its hand. */
+  function hand(mark, motif, rule, over) {
+    const R = rule && rule.box ? rule : null;
     const m = motif || {};
+    const o = over || {};
     const curvy = mark && mark.turned ? mark.curviness : 0.5;
-    const w = Math.max(0.055, Math.min(0.145, (m.weight || 0.06) * 1.35));
+    const unit = R ? R.box : U;
+    const num = (v) => (v == null || v === '' || !isFinite(Number(v)) ? null : Number(v));
+    const one = (v, list) => (list.indexOf(v) > -1 ? v : null);
+    // The pen, as a share of the box. A rule states a size on its own box;
+    // without one, the mark's own weight, scaled and held inside a range an
+    // icon can actually be drawn at.
+    // The size, not the share, where the rule states one: `stroke / box * box`
+    // is not `stroke` in binary, and farne's 1.8 came back as
+    // 1.7999999999999998 — a set that misses the rule it is checked against by
+    // a rounding error is still a set that misses it.
+    const weight = num(o.weight) != null ? num(o.weight)
+      : (R ? R.stroke / R.box
+        : Math.max(0.055, Math.min(0.145, (m.weight || 0.06) * 1.35)));
+    const w = num(o.weight) != null ? num(o.weight) * unit : (R ? R.stroke : weight * unit);
+    // The corner is the stamp's tile corner, and no rule carries one:
+    // `curveRadius` in the icon rules is the radius of the arcs the grid
+    // diagram draws, which is 1.25 of the box and is not a corner at all.
+    // A rule may carry the corner too, where the project stated one. It is not
+    // `curveRadius`: that is the radius of the arcs the grid diagram draws, at
+    // 1.25 of the box, and is not a corner at all.
+    const corner = num(o.corner) != null ? num(o.corner)
+      : (R && num(R.cornerRatio) != null ? num(R.cornerRatio)
+        : Math.max(0, Math.min(0.24, curvy * 0.22)));
     return {
-      w: w * U,
-      r: Math.max(0, Math.min(U * 0.24, curvy * U * 0.22)),
-      cap: curvy > 0.55 ? 'round' : 'butt',
-      join: curvy > 0.55 ? 'round' : 'miter',
+      w,
+      r: corner * unit,
+      cap: one(o.cap, CAPS) || (R && one(R.cap, CAPS)) || (curvy > 0.55 ? 'round' : 'butt'),
+      join: one(o.join, JOINS) || (R && one(R.join, JOINS)) || (curvy > 0.55 ? 'round' : 'miter'),
       ink: typeof m.ink === 'number' ? m.ink : 0.4,
-      unit: U,
+      weight,
+      corner,
+      unit,
     };
   }
+
 
   /* The twenty-four.
 
@@ -270,12 +324,17 @@
     const g = glyphOf(key);
     if (!g) return false;
     const k = size / U;
+    // The glyphs are laid out on a 24 grid whatever box the rule states, and
+    // lineWidth is set inside that scale — so a pen stated on a 32 box came out
+    // 32/24 heavier than the rule it was read from, and the set drawn to a
+    // custom box did not meet its own specification. Said on the glyph's grid.
+    const pen = h.w * (U / (h.unit || U));
     const how = WAYS.indexOf(way) > -1 ? way : WAYS[0];
     s.save();
     s.translate(cx - size / 2, cy - size / 2);
     s.scale(k, k);
     if (how === 'stamp') {
-      const r = Math.max(0.8, h.r);
+      const r = Math.max(0.8, h.r * (U / (h.unit || U)));
       s.beginPath();
       s.moveTo(r, 0); s.lineTo(U - r, 0); s.arc(U - r, r, r, -Math.PI / 2, 0);
       s.lineTo(U, U - r); s.arc(U - r, U - r, r, 0, Math.PI / 2);
@@ -288,13 +347,13 @@
       s.save();
       s.translate(U / 2, U / 2); s.scale(0.66, 0.66); s.translate(-U / 2, -U / 2);
       s.strokeStyle = ground;
-      s.lineWidth = h.w * 1.3; s.lineCap = h.cap; s.lineJoin = h.join;
+      s.lineWidth = pen * 1.3; s.lineCap = h.cap; s.lineJoin = h.join;
       s.beginPath(); g(s); s.stroke();
       s.restore();
       s.restore();
       return true;
     }
-    s.lineWidth = how === 'solid' ? h.w * 1.85 : h.w;
+    s.lineWidth = how === 'solid' ? pen * 1.85 : pen;
     s.lineCap = how === 'solid' ? 'round' : h.cap;
     s.lineJoin = how === 'solid' ? 'round' : h.join;
     s.beginPath(); g(s); s.stroke();
@@ -302,5 +361,60 @@
     return true;
   }
 
-  return { U, WAYS, CORE, SECTORS, SECTOR_NAMES, CORE_ORDER, hand, setOf, glyphOf, draw };
+  const round4 = (n) => Math.round(n * 10000) / 10000;
+
+  /* Every knob the set has, declared once.
+
+     Three surfaces move these — the icon screen in the front door, the icon
+     block in the editor, and whatever a package's own studio grows into — and
+     the pattern generators already proved what happens when each keeps its own
+     list: a control added in one place is a control the other two silently do
+     not have. The shape is the generators' own, so a surface that can already
+     draw pattern controls can draw these without learning a second format. */
+  const CONTROLS = [
+    { key: 'way', label: 'Drawn as', type: 'chips', options: WAYS, primary: true },
+    { key: 'weight', label: 'Pen', type: 'range', min: 0.02, max: 0.18, step: 0.004, primary: true },
+    { key: 'corner', label: 'Corner', type: 'range', min: 0, max: 0.4, step: 0.01 },
+    { key: 'cap', label: 'Ends', type: 'chips', options: CAPS },
+    { key: 'join', label: 'Joins', type: 'chips', options: JOINS },
+    { key: 'trade', label: 'Trade', type: 'chips', options: [''].concat(SECTOR_NAMES),
+      labels: ['general'].concat(SECTOR_NAMES) },
+    { key: 'count', label: 'Icons in the set', type: 'range', min: 4, max: 30, step: 1 },
+  ];
+
+  /* Where this identity's own answer sits on those controls, so a screen opens
+     on the set the engine drew rather than on a row of middles. */
+  function settingsOf(mark, motif, rule) {
+    const h = hand(mark, motif, rule, null);
+    return { way: WAYS[0], weight: round4(h.weight), corner: round4(h.corner),
+      cap: h.cap, join: h.join, trade: '', count: 24 };
+  }
+
+  /* One glyph on its own box, and the whole set on one sheet.
+
+     The caller supplies the surface, because this file draws and never owns a
+     renderer — the same contract the generators keep. Three places wanted the
+     set drawn: the build that cuts the files, the icon screen in the front
+     door, and the icon block in the editor. Written once. */
+  function one(surface, key, way, h, ground) {
+    const box = h.unit || U;
+    return draw(surface, key, way, h, box / 2, box / 2, box, ground);
+  }
+
+  function sheet(surface, keys, way, h, opts) {
+    const o = opts || {};
+    const box = h.unit || U;
+    const cols = Math.max(1, Math.round(o.cols || 8));
+    const cell = o.cell || box * 1.6;
+    const size = cell * (o.fill == null ? 0.66 : o.fill);
+    const rows = Math.ceil(keys.length / cols);
+    keys.forEach((k, i) => {
+      draw(surface, k, way, h, (i % cols + 0.5) * cell,
+        (Math.floor(i / cols) + 0.5) * cell, size, o.ground);
+    });
+    return { cols, rows, cell, w: cols * cell, h: rows * cell };
+  }
+
+  return { U, WAYS, CAPS, JOINS, CONTROLS, DEFAULT_WEIGHT, CORE, SECTORS, SECTOR_NAMES, CORE_ORDER,
+    hand, settingsOf, setOf, glyphOf, draw, one, sheet };
 }));

@@ -39,6 +39,7 @@ const geo = require('./geometry');
 const D = require('./directions');
 const MIS = require('./misuse');
 const PAT = require('./pattern');
+const ICONS = require('./patterns/icons');
 
 const hexOf = (h) => {
   const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(h || '').trim());
@@ -185,6 +186,11 @@ function read({ mark, wordmark }) {
     lockups: mark && wordmark ? ['horizontal', 'stacked', 'mark', 'wordmark'] : [mark ? 'mark' : 'wordmark'],
     colours: roles(cols.list, cols.flat),
     foundColours: cols.list.length,
+    // What the icon screen opens on. The rule itself is resolved from the
+    // staged project by the handler, because that is the rule the build uses;
+    // this is only the shape of the question.
+    iconControls: ICONS.CONTROLS,
+    iconSettings: ICONS.settingsOf(null, null, null),
     parts,
     slots: slots.length ? slots : ['all'],
     kept,
@@ -307,6 +313,36 @@ function questions(seen) {
           + 'draw it as. Change them to the ones this identity actually uses.',
       suggested: seen.colours },
 
+    /* The ninth, and the only one about the icons.
+
+       Eight was held for a long time and the rule that held it was never "eight"
+       — it was that nothing is asked which can be measured. The icons had
+       measurement on their side and were never asked about anyway, which is a
+       different failure: the engine reads the pen off the mark's own stroke, the
+       corners off its corners, and then draws one set of twenty-four in one way
+       and calls it the answer. Three of those choices are not readings.
+
+       Which way the set is drawn is a judgement about where it will be used — a
+       stamped set survives a photograph and a pen set sits beside text, and no
+       measurement of a logo says which of those this identity needs. Which six
+       trade glyphs belong to it is not in the drawing at all: a distillery wants
+       a cask where a general set has a link, and the artwork cannot say so. And
+       how heavy the set runs is the one place a client may reasonably want to
+       leave the mark's own weight, because icons are read at sizes the logo
+       never appears at.
+
+       So the ninth is the same kind as the other eight and has to argue for
+       itself the same way. The engine still answers it first: this screen opens
+       on the set the rule already draws. */
+    { key: 'icons', kind: 'icons', ask: 'Your icons. Drawn in your own hand \u2014 change the hand.',
+      why: `Twenty-four icons, every measurement in them read off your logo: the pen is ${seen.icons
+        ? seen.icons.stroke : 'the mark\'s own stroke'} on a ${seen.icons ? seen.icons.box : 24} box, and the `
+        + 'corners and the ends are the mark\'s. What cannot be read off a drawing is which way the set is '
+        + 'drawn, how heavy it runs, and which six of them belong to your trade. Redraw the logo later and '
+        + 'the whole set redraws with it.',
+      suggested: seen.iconSettings || null,
+      controls: seen.iconControls || [] },
+
     // The eighth, and the only one about the pattern.
     //
     // There were seven, and the pattern was decided entirely by measurement:
@@ -419,6 +455,21 @@ function toProject(answers, seen) {
     base.system = Object.assign({}, base.system, {
       patterns: { generator: a.pattern.generator, params: a.pattern.params || {} },
     });
+  }
+  // The icon answers are the icon rule. Only what was actually moved: a screen
+  // that writes every control back would freeze the derived numbers into the
+  // project, and then redrawing the logo would stop redrawing the set — which
+  // is the one promise the whole icon chapter makes.
+  if (a.icons) {
+    const ic = {};
+    if (a.icons.way) ic.way = a.icons.way;
+    if (Number(a.icons.weight) > 0) ic.strokeRatio = Number(a.icons.weight);
+    if (Number(a.icons.corner) > 0) ic.cornerRatio = Number(a.icons.corner);
+    if (a.icons.cap) ic.cap = a.icons.cap;
+    if (a.icons.join) ic.join = a.icons.join;
+    if (a.icons.trade) ic.trade = a.icons.trade;
+    if (Number(a.icons.count) > 0 && Number(a.icons.count) !== 24) ic.count = Number(a.icons.count);
+    if (Object.keys(ic).length) base.system = Object.assign({}, base.system, { icons: ic });
   }
   base.rules.formats = formats;
   base.rules.pngWidths = pngWidths;

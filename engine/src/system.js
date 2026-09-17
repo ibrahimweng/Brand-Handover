@@ -42,14 +42,44 @@ function iconRules(measured, override) {
   // which is 3.75% and disappears at 16 px. Icons are the mark's voice at small
   // size, so they take the weight that carries it, and the build says so.
   const weights = (measured.strokeWidths || []).filter((w) => w > 0);
-  const stroke = weights.length ? weights[weights.length - 1] : measured.minimumSize.thinnestStroke;
+  // A mark that declares no stroke lends no pen, and the fallback took
+  // `thinnestStroke` — which for a drawing made of fills is the narrowest stem
+  // of ink, a gap measured between two edges. It is a real number about the
+  // wrong thing, and it read as measured. Seven of the thirty-three identities
+  // here are drawn that way: hallward came out at 0.09 on a 24 box and pagrin
+  // at 0.14, which is a hairline that disappears at any size an icon is used
+  // at, while halyard and spire landed on 2.4 and 3.2 and looked deliberate.
+  // Where there is no pen to inherit, say so and use the set's own default,
+  // which system.icons.stroke overrides like any other.
+  const ICONS = require('./patterns/icons');
+  const stroke = weights.length ? weights[weights.length - 1] : null;
   const margin = Math.max(0, (vb.w - ink.w) / 2);
+  // How much air the logo happens to have inside its own viewBox is a fact
+  // about how it was exported, not about icons — and where a mark bleeds to its
+  // box, it made the live area a lie: thornbury declared 24 of 24 and pagrin
+  // 23.98 of 24, so the dashed keyline in every icon-grid diagram sat on the
+  // box edge and marked out nothing. Floored at one unit of twenty-four, which
+  // is the least an icon grid can call a margin. Not capped: a generous margin
+  // is cautious, and cautious is not wrong.
+  const MARGIN_FLOOR = round(1 / 24, 4);
+  const ownMargin = round(margin / vb.w, 4);
   const proposed = {
     box: 24,
-    marginFraction: round(margin / vb.w, 4),      // the mark's own margin, as a fraction
-    strokeRatio: stroke ? round(stroke / vb.w, 4) : 0.075,
+    marginFraction: Math.max(MARGIN_FLOOR, ownMargin),
+    strokeRatio: stroke ? round(stroke / vb.w, 4) : ICONS.DEFAULT_WEIGHT,
     curveRatio: 1.25,                             // overridden per project; see below
     cap: 'round', join: 'round', filled: false,
+    // Which glyphs, and how many. The twenty-four every identity needs before
+    // it needs anything particular, and a trade swaps its six in at the end.
+    // Part of the rule rather than an argument to whatever draws the set,
+    // because the manual, the cut files and the editor must agree on which
+    // icons this identity has.
+    trade: '', count: 24,
+    // Which way the package leads with. All three are cut whatever this says —
+    // they are three jobs, not three settings — but the manual's specimen, the
+    // editor's new block and the front door all have to open on one of them,
+    // and picking a different one each would be three answers to one question.
+    way: 'pen',
   };
   const r = merge(proposed, override || {});
   // Three of these are ratios and three are the sizes those ratios come out at.
@@ -66,6 +96,11 @@ function iconRules(measured, override) {
   r.stroke = round(r.box * r.strokeRatio, 2);
   r.curveRadius = round(r.box * r.curveRatio, 2);
   r.derivedFrom = { viewBox: vb.w, ink: ink.w, markStroke: stroke, markMargin: round(margin, 2) };
+  // Both of these are the build's to report: a number nobody chose, arrived at
+  // because the drawing could not answer, is exactly the kind of decision this
+  // engine says out loud rather than shipping quietly.
+  if (!weights.length) r.derivedFrom.noStroke = true;
+  if (ownMargin < MARGIN_FLOOR) r.derivedFrom.marginFloored = ownMargin;
   // the build reads this to tell the designer a choice was made on their behalf
   if (weights.length > 1) {
     r.derivedFrom.markWeights = weights;

@@ -506,6 +506,12 @@
   const sel = (k, list, cur) => `<select data-prop="${k}">${opts(list, cur)}</select>`;
   const chk = (k, on) => `<input type="checkbox" data-prop="${k}"${on ? ' checked' : ''}>`;
   const rng = (k, v) => `<input type="range" min="0" max="100" step="1" data-prop="${k}" data-num-prop="1" value="${Number(v) || 0}">`;
+  // The same control with a range of its own. `rng` is 0 to 100 by ones, which
+  // is a percentage and nothing else — an icon pen runs 0.02 to 0.18 of its box
+  // and a corner 0 to 0.4, and neither survives being rounded to whole numbers.
+  const span = (k, v, min, max, step, name) => `<input type="range" min="${min}" max="${max}" `
+    + `step="${step}" data-prop="${k}" data-num-prop="1" value="${Number(v) || 0}" `
+    + `aria-label="${esc(name || k)}">`;
 
   // What a block is called to a designer. The type name is the code's business.
   const NAME = {
@@ -515,6 +521,7 @@
     minimumSize: 'cvBlockMinimumSize', palette: 'cvBlockPalette',
     contrast: 'cvBlockContrast', typeSpecimen: 'cvBlockTypeSpecimen',
     assetIndex: 'cvBlockAssetIndex', pattern: 'cvBlockPattern', generated: 'cvBlockGenerated', iconGrid: 'cvBlockIconGrid',
+    icons: 'cvBlockIcons',
     motion: 'cvBlockMotion', photography: 'cvBlockPhotography',
   };
   const nameOf = (t) => (NAME[t] ? T(NAME[t]) : t);
@@ -631,6 +638,24 @@
     pattern: (b) => field(T('cvDensity'), sel('density', Object.keys((BUNDLE.system.pattern || {}).densities || { medium: 1 }), b.props.density))
       + field(T('cvInk'), sel('colourway', PATTERN_INKS(), b.props.colourway)) + field(T('cvOn'), sel('on', COLOURS(), b.props.on))
       + field(T('cvStateRule'), chk('caption', b.props.caption)),
+    // Every knob patterns/icons.js declares, and nothing this file invented.
+    // The empty option on each chip list is the rule's own answer, so moving a
+    // control is always a decision and never a side effect of opening a panel.
+    icons: (b) => {
+      const I = window.PatternIcons || { WAYS: ['pen'], CAPS: [], JOINS: [], SECTOR_NAMES: [], CORE_ORDER: [] };
+      const asRule = ['', T('cvAsRule')];
+      return field(T('cvWay'), sel('way', I.WAYS, b.props.way))
+        + field(T('cvPen'), span('weight', b.props.weight, 0, 0.18, 0.004, T('cvPen')))
+        + field(T('cvCorner'), span('corner', b.props.corner, 0, 0.4, 0.01, T('cvCorner')))
+        + field(T('cvEnds'), sel('cap', [asRule].concat(I.CAPS), b.props.cap))
+        + field(T('cvJoins'), sel('join', [asRule].concat(I.JOINS), b.props.join))
+        + field(T('cvTrade'), sel('trade', [asRule].concat(I.SECTOR_NAMES), b.props.trade))
+        + field(T('cvGlyph'), sel('glyph', [['', T('cvAll')]].concat(I.CORE_ORDER || []), b.props.glyph))
+        + field(T('cvHowMany'), span('count', b.props.count, 4, 30, 1, T('cvHowMany')))
+        + field(T('cvInk'), sel('colourway', COLOURS(), b.props.colourway))
+        + field(T('cvOn'), sel('on', COLOURS(), b.props.on))
+        + field(T('cvStateRule'), chk('caption', b.props.caption !== false));
+    },
     iconGrid: (b) => field(T('cvInk'), sel('colourway', COLOURS(), b.props.colourway))
       + field(T('cvOn'), sel('on', COLOURS(), b.props.on)) + field(T('cvLines'), sel('line', COLOURS(), b.props.line))
       + field(T('cvStateRule'), chk('caption', b.props.caption !== false)),
@@ -653,13 +678,18 @@
     const kind = M.kindOf(b.type);
     // the same three words the manual sets on the same three kinds of block
     const LABEL = { derived: T('badgeSystem'), rule: T('badgeOnce'), plain: T('badgeYours') };
+    // The icon set is derived and then argued with, so neither of the two
+    // standing notes is true of it: "you set where it sits and what it is
+    // painted in, and nothing else" is a promise this block's own panel breaks
+    // eleven controls later.
     const NOTE = { derived: T('cvNoteDerived'), rule: T('cvNoteRule'), plain: '' };
+    const note = b.type === 'icons' ? T('cvNoteIcons') : NOTE[kind];
     const ov = overlayFor(b.id), tw = bleedFor(b.id);
     box.innerHTML =
       `<div class="ph"><h3>${esc(nameOf(b.type))}</h3><span class="kind ${kind[0]}">${LABEL[kind]}</span></div>`
       + (ov ? `<p class="hint bad">${esc(ov.verdict.finding.what)} ${esc(ov.verdict.finding.how)}</p>` : '')
       + (tw ? `<p class="hint bad">${esc(tw.what)} ${esc(tw.how)}</p>` : '')
-      + (NOTE[kind] ? `<p class="hint">${esc(NOTE[kind])}</p>` : '')
+      + (note ? `<p class="hint">${esc(note)}</p>` : '')
       + `<div class="grid4">${num('x', b.x)}${num('y', b.y)}${num('w', b.w)}${num('h', b.h)}</div>`
       + `<div class="labels" aria-hidden="true"><span>X</span><span>Y</span><span>W</span><span>H</span></div>`
       + ((PROPS[b.type] && PROPS[b.type](b)) || '')
@@ -924,7 +954,7 @@
   // ------------------------------------------------------------- chrome
   const INSERT = [
     [T('cvPlain'), ['text', 'rule', 'fill', 'slot', 'surface']],
-    [T('badgeSystem'), ['mark', 'lockup', 'construction', 'clearSpace', 'minimumSize', 'palette', 'contrast', 'typeSpecimen', 'assetIndex']],
+    [T('badgeSystem'), ['mark', 'lockup', 'construction', 'clearSpace', 'minimumSize', 'palette', 'contrast', 'typeSpecimen', 'assetIndex', 'icons']],
     [T('badgeOnce'), ['pattern', 'generated', 'iconGrid', 'motion', 'photography']],
   ];
   function drawInsert() {

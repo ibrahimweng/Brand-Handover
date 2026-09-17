@@ -1105,6 +1105,51 @@ const willWriteIcons = (ctx) => {
   return ((r.iconSizes || []).length + (r.faviconSizes || []).length) > 0;
 };
 
+// The set, on the page.
+//
+// A package specified an icon grid, stated a stroke and a live area, drew a
+// diagram of the construction — and contained no icons, so the chapter was a
+// rule about something the reader could not see. The glyphs have existed since
+// the signage generator was written and never left it. Drawn from the same
+// files the build cut, in the same hand, so the manual cannot show a set the
+// package does not hold.
+function iconSet(ctx) {
+  const L = lang(ctx);
+  const r = ctx.system.icons;
+  if (!r) return '';
+  const ICONS = require('../patterns/icons');
+  const PSURF = require('../patterns/surface');
+  const hand = ICONS.hand(null, null, r);
+  const keys = ICONS.setOf(r.trade, r.count);
+  const ink = ctx.ground.hex;
+  const rows = ICONS.WAYS.map((way) => {
+    const cols = Math.min(12, keys.length);
+    const cell = r.box * 1.5;
+    const down = Math.ceil(keys.length / cols);
+    const s = PSURF.svg({ width: cols * cell, height: down * cell, id: `is-${way}` });
+    s.fillStyle = 'currentColor'; s.strokeStyle = 'currentColor';
+    ICONS.sheet(s, keys, way, hand, { cols, cell, ground: ink });
+    // What this way is actually drawn at, not what the pen is. `solid` strokes
+    // the same construction at nearly twice the weight and `stamp` knocks the
+    // glyph out of a tile, so quoting the pen under all three captioned two of
+    // them with a number they are not drawn at — the fault the misuse page was
+    // built to stop: a caption that cannot disagree with its own picture.
+    const said = way === 'pen' ? L.t('iconSetAtPen', { s: r.stroke, b: r.box })
+      : (way === 'solid' ? L.t('iconSetAtSolid', { s: svgu.round(r.stroke * 1.85, 2), b: r.box })
+        : L.t('iconSetAtStamp', { b: r.box }));
+    const cap = L.t('iconSetCap', { way, n: keys.length, at: said });
+    // No fixed stage: a sheet of twenty-four is wide and two rows deep, and a
+    // square one left most of the figure empty.
+    return `<figure><div style="padding:14px 0">
+      <svg viewBox="0 0 ${svgu.round(cols * cell)} ${svgu.round(down * cell)}" role="img"
+        aria-label="${esc(cap)}" style="width:100%;height:auto;display:block">${s.body()}</svg></div>
+      <figcaption>${esc(cap)}</figcaption></figure>`;
+  }).join('');
+  return `<p class="note">${esc(L.t('iconSetIntro', { noun: nounIn(ctx, L) }))}
+    <code dir="ltr">05-icons/set</code>. ${esc(L.t('iconSetWays', { pen: 'pen', solid: 'solid', stamp: 'stamp' }))}</p>
+    ${rows}`;
+}
+
 function iconSpec(ctx) {
   const L = lang(ctx);
   const r = ctx.system.icons;
@@ -1128,13 +1173,21 @@ function iconSpec(ctx) {
         <text x="${(200 + 60) / 2}" y="${200 + 20}" ${TXT} fill="currentColor" text-anchor="middle">${esc(L.t('capIconGrid',
           { box: r.box, live: r.live, stroke: r.stroke }))}</text>
       </svg></div><figcaption>${esc(L.t('iconFigure'))}</figcaption></figure>
-    <p class="note">${esc(L.t('iconA', { noun: nounIn(ctx, L), vb: r.derivedFrom.viewBox,
-      ink: r.derivedFrom.ink, margin: r.derivedFrom.markMargin }))} <b>${esc(L.t('namePerCent',
-      { n: svgu.round(r.marginFraction * 100, 1) }))}</b>${esc(L.t('iconB', { stroke: r.derivedFrom.markStroke }))}
-    <b>${esc(L.t('namePerCent', { n: svgu.round(r.strokeRatio * 100, 1) }))}</b> ${esc(L.t('iconC', {
-      s: r.stroke, b: r.box, cap: r.cap, join: r.join,
-      fill: L.t(r.filled ? 'iconFilled' : 'iconOutline'), noun: nounIn(ctx, L) }))}
-    <code dir="ltr">check &lt;icon.svg&gt; --icon</code> ${esc(L.t('iconD'))}</p>
+    ${r.derivedFrom.noStroke
+      ? `<p class="note">${esc(L.t('iconNoPen', { noun: nounIn(ctx, L), s: r.stroke, b: r.box }))}
+        ${r.derivedFrom.marginFloored != null
+          ? esc(L.t('iconHeldMargin', { noun: nounIn(ctx, L), own: svgu.round(r.derivedFrom.marginFloored * 100, 1) + '%',
+            b: r.box, live: r.live })) : ''}
+        ${esc(L.t('iconC', { s: r.stroke, b: r.box, cap: r.cap, join: r.join,
+          fill: L.t(r.filled ? 'iconFilled' : 'iconOutline'), noun: nounIn(ctx, L) }))}
+        <code dir="ltr">check &lt;icon.svg&gt; --icon</code> ${esc(L.t('iconD'))}</p>`
+      : `<p class="note">${esc(L.t('iconA', { noun: nounIn(ctx, L), vb: r.derivedFrom.viewBox,
+        ink: r.derivedFrom.ink, margin: r.derivedFrom.markMargin }))} <b>${esc(L.t('namePerCent',
+        { n: svgu.round(r.marginFraction * 100, 1) }))}</b>${esc(L.t('iconB', { stroke: r.derivedFrom.markStroke }))}
+      <b>${esc(L.t('namePerCent', { n: svgu.round(r.strokeRatio * 100, 1) }))}</b> ${esc(L.t('iconC', {
+        s: r.stroke, b: r.box, cap: r.cap, join: r.join,
+        fill: L.t(r.filled ? 'iconFilled' : 'iconOutline'), noun: nounIn(ctx, L) }))}
+      <code dir="ltr">check &lt;icon.svg&gt; --icon</code> ${esc(L.t('iconD'))}</p>`}
     ${simplified}`;
 }
 
@@ -1270,5 +1323,5 @@ function changes(ctx) {
     + `</p><div class="chgs">${breaking.map(row).join('')}${news.map(row).join('')}</div>`;
 }
 
-module.exports = { TXT, esc, own, changes, floorTable, partnerLockups, colourVision, ladderBlock, fabrication, familyBlock, motionBuild, inked, gradientSpec, inksOf, inkOn, patternSpec, generatedSpec, photographySpec, iconSpec, willWriteIcons, motionSpec, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, misuseCells, markSpecimen, lockupRow, construction, clearSpace,
+module.exports = { iconSet, TXT, esc, own, changes, floorTable, partnerLockups, colourVision, ladderBlock, fabrication, familyBlock, motionBuild, inked, gradientSpec, inksOf, inkOn, patternSpec, generatedSpec, photographySpec, iconSpec, willWriteIcons, motionSpec, asColourway, onGround, showOn, readsOn, worstOn, SEEN, scaled, misuseCells, markSpecimen, lockupRow, construction, clearSpace,
   minimumSize, lockups, misuse, palette, contrastTable, typeSpecimen, typeScale, assetIndex, brandJsonBlock };

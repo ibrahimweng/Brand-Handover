@@ -498,6 +498,86 @@ function render(input) {
 // What travels is the recipe: the shape read out of the drawing, the
 // measurements taken off the mark, and the parameters every generator derives
 // from them. No pictures — the page makes those.
+/* The icon set, drawn for the screen that decides it.
+
+   The ninth question, and the first thing this door has ever asked that is not
+   about the mark, the words or the pattern. It earns a screen for the same
+   reason the pattern does: the engine can measure everything about how the set
+   is *drawn* — the pen is the mark's own stroke, the corners are its corners —
+   and it cannot measure whether this identity wants a light set or a heavy one,
+   an outline set or a stamped one, or which six trade glyphs belong to it.
+
+   Staged and loaded like every other screen here, so the rule this draws from
+   is the rule the build resolves rather than a second reading of the artwork.
+   See `pattern` below for why that matters. */
+function icons(input) {
+  const mark = input.mark ? asSvg(input.mark, 'the mark') : null;
+  const wordmark = input.wordmark ? asSvg(input.wordmark, 'the wordmark') : null;
+  if (!mark && !wordmark) throw bad('No artwork was given.', 'Drop an SVG first.');
+  const answers = input.answers || {};
+  const colours = (input.colours && input.colours.length ? input.colours : answers.colours) || [];
+  if (!colours.length) throw bad('No colours were chosen.', 'Pick at least one ink and one ground.');
+  const { dir, file } = stage({
+    brand: input.brand || answers.brand || 'Untitled',
+    latinName: input.latinName || answers.latinName || undefined,
+    language: input.language || answers.language || undefined,
+    mark, wordmark, colours,
+    /* The answers, with the icon answers taken out.
+
+       This screen writes what it is holding into `answers.icons` on every move,
+       so that stepping away and back keeps it — and `toProject` turns those
+       answers into `system.icons`, which is the whole point of the screen. Left
+       in here, the rule this route resolves would be the rule the screen just
+       set, so `at` and `rule.stroke` would agree however far a slider had been
+       dragged and the screen would report every setting as the artwork's own
+       measured weight. The rule is what the drawing says; the settings are what
+       the person says; comparing them is the only way the screen can tell them
+       they have moved. */
+    answers: input.answers ? Object.assign({}, input.answers, { icons: undefined }) : null,
+    lockups: input.lockups && input.lockups.length ? input.lockups : undefined,
+    slots: input.slots,
+  });
+  try {
+    const project = projectLoader.load(file);
+    const measured = measure(project);
+    const rule = require('../system').resolve(project, measured).icons;
+    const ICONS = require('../patterns/icons');
+    const PSURF = require('../patterns/surface');
+    const over = input.settings || {};
+    const hand = ICONS.hand(null, null, rule, over);
+    const keys = ICONS.setOf(over.trade || rule.trade, over.count || rule.count);
+    const hexOf = (role, dflt) => (colours.find((c) => c.role === role) || {}).hex || dflt;
+    const ink = hexOf('primary', '#111111');
+    const on = hexOf('ground', '#FFFFFF');
+    // One sheet per way, because the choice between them is made by looking:
+    // a set of lines and a set of stamps are not two settings of one thing.
+    const drawWay = (way, cols) => {
+      const wide = Math.min(cols, keys.length);
+      const cell = hand.unit * 1.6;
+      const rows = Math.ceil(keys.length / wide);
+      const s = PSURF.svg({ width: wide * cell, height: rows * cell, id: `ai-${way}` });
+      s.fillStyle = ink; s.strokeStyle = ink;
+      ICONS.sheet(s, keys, way, hand, { cols: wide, cell, ground: on });
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgu.round(wide * cell)} `
+        + `${svgu.round(rows * cell)}" style="width:100%;height:auto;display:block">`
+        + `<rect width="100%" height="100%" fill="${contrast.toHex(on) || '#FFFFFF'}"/>${s.body()}</svg>`;
+    };
+    const way = ICONS.WAYS.indexOf(over.way) > -1 ? over.way : ICONS.WAYS[0];
+    return { ok: true,
+      rule,
+      controls: ICONS.CONTROLS,
+      settings: Object.assign(ICONS.settingsOf(null, null, rule), over, { way }),
+      // what this way is drawn at, so the screen can state it rather than
+      // quoting the pen under a set drawn at nearly twice it
+      at: way === 'solid' ? svgu.round(hand.w * 1.85, 2) : svgu.round(hand.w, 2),
+      glyphs: keys,
+      sheet: drawWay(way, 8),
+      ways: Object.fromEntries(ICONS.WAYS.map((w) => [w, drawWay(w, 12)])) };
+  } finally {
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) { /* a temp dir */ }
+  }
+}
+
 function pattern(input) {
   const mark = input.mark ? asSvg(input.mark, 'the mark') : null;
   const wordmark = input.wordmark ? asSvg(input.wordmark, 'the wordmark') : null;
@@ -679,4 +759,4 @@ function editable() {
   return { ok: true, values: O.ALLOWED, keyed: O.PATTERNS.map((p) => ({ what: p.what, kind: p.kind })) };
 }
 
-module.exports = { ask, preview, render, pattern, shortlist, editable, make, projectJson, asReference, MAX_SVG };
+module.exports = { ask, preview, render, pattern, icons, shortlist, editable, make, projectJson, asReference, MAX_SVG };

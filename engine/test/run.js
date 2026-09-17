@@ -417,12 +417,25 @@ function rasterTiles() {
 const patternTiles = () => repeatedTiles() + generatedTiles();
 test('the file count is exactly what the rules ask for', () => {
   const r = project.rules;
+  // The icon set is cut only where the project asked for icons at all, which is
+  // the same question the manual's icon chapter hangs on: a folder of glyphs
+  // the manual does not document is the same fault as a chapter for files that
+  // are not there, arriving from the other end.
+  const iconSetFiles = () => {
+    if (!((r.iconSizes || []).length + (r.faviconSizes || []).length)) return 0;
+    const ICONS = require('../src/patterns/icons');
+    const rule = require('../src/system').resolve(project, measure(project)).icons;
+    const ways = ICONS.WAYS.length;
+    return ICONS.setOf(rule.trade, rule.count).length * ways   // one file per glyph per way
+      + ways;                                                  // and one sheet each
+  };
   const perVariant = ['svg', 'pdf', 'ai'].filter((f) => r.formats.includes(f)).length
     + (r.formats.includes('png') ? r.pngWidths.length : 0);
   const expected =
       r.lockups.length * r.colourways.length * perVariant   // every lockup in every colourway
     + (r.iconSizes || []).length                            // app and touch icons
     + (r.faviconSizes || []).length + ((r.faviconSizes || []).length ? 1 : 0)  // favicons plus the .ico
+    + iconSetFiles()                                        // every glyph in every way, and a sheet each
     + Object.keys(r.social || {}).length                    // social crops
     + repeatedTiles()                                       // the mark, tiled at every density in every colourway
     + generatedTiles()                                      // the chosen pattern in every colourway, the shortlist beside it
@@ -731,6 +744,109 @@ test('the icon rules are measured off the mark, not typed in', () => {
   assert.strictEqual(R.stroke, 1.8);      // 24 x (9 / 120)
   assert.strictEqual(R.live, 21.8);       // 24 x (1 - 2 x 5.5/120)
 });
+test('nothing the engine injects into a generator shares a name with one of its controls', () => {
+  // A generator's parameters are one namespace, and two things write into it:
+  // the generator's own declared controls, and whatever `recipe()` injects
+  // beside them — the shape, the word, the icon rule.
+  //
+  // The icon rule went in as `rule`. `totem` has had a control called `rule`
+  // since it was written, its keyline width, so every totem tile was drawn with
+  // the icon rule object where a number belonged; `Math.round({...})` is NaN,
+  // the keyline vanished, and stripping the injected key out of the stored
+  // recipe left totem redrawing from brand.json with its inner blocks missing.
+  // Nothing threw. The picture was just quietly wrong, and only the byte-for-
+  // byte recipe check caught it.
+  const PE = require('../src/patterns');
+  // Read off the code rather than restated here. A list typed into this test is
+  // a second copy of the thing under test: rename the injected key back to
+  // `rule` and a hardcoded list still passes, which is exactly the shape of
+  // failure it was written to catch.
+  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'patterns', 'index.js'), 'utf8');
+  const at = src.indexOf('const params = Object.assign(');
+  const block = src.slice(at, src.indexOf('const pal = o.palette', at));
+  assert.ok(at > -1 && block.length > 40 && block.length < 2000,
+    'the parameter assembly has moved, and this test is reading the wrong lines');
+  const INJECTED = [...new Set([...block.matchAll(/\{\s*([a-zA-Z]+):/g)].map((m) => m[1]))];
+  assert.ok(INJECTED.length >= 2, `only ${INJECTED.length} injected keys found: ${INJECTED.join(', ')}`);
+  for (const name of PE.NAMES) {
+    const g = PE.GENERATORS[name];
+    for (const c of g.controls || []) {
+      assert.ok(INJECTED.indexOf(c.key) < 0,
+        `${name} declares a control called "${c.key}", and the engine injects a parameter of that name`);
+    }
+  }
+  // and the guard is load-bearing: `rule` is a control on at least one
+  // generator, so an injected key spelled that way would be caught here
+  assert.ok(PE.NAMES.some((n) => (PE.GENERATORS[n].controls || []).some((c) => c.key === 'rule')),
+    'no generator declares a control called "rule" any more, so this test has stopped '
+    + 'standing for the collision it was written about');
+});
+
+test('the set is drawn at the rule the manual states', () => {
+  // These were two derivations of one number. iconRules takes the widest
+  // declared stroke over the viewBox width; icons.hand took the median stroke
+  // over the long side, scaled by 1.35 and clamped. Neither knew about the
+  // other, and over the thirty-three identities here not one of them agreed:
+  // carrock's manual states a 1.2 stroke and its set drew 1.62, ravelston
+  // states 2.6 and drew 1.32. The rule is the contract — brand.json carries it,
+  // the manual quotes it, and checkIcon refuses a supplied icon that misses it —
+  // so the rule is what the set draws at.
+  const ICONS = require('../src/patterns/icons');
+  const READ = require('../src/patterns/motif-read');
+  const names = fs.readdirSync(path.join(__dirname, '..', 'projects'))
+    .filter((n) => fs.existsSync(path.join(__dirname, '..', 'projects', n, 'project.json')));
+  let apart = 0;
+  for (const name of names) {
+    const pr = projectLoader.load(path.join(__dirname, '..', 'projects', name, 'project.json'));
+    const mm = measure(pr);
+    const rule = sys.resolve(pr, mm).icons;
+    const src = pr.assets.mark ? pr.assets.mark.source : (pr.assets.wordmark || {}).source;
+    if (!src) continue;
+    const mo = READ.read(src, pr.rules, mm);
+    const h = ICONS.hand(mo, mo, rule);
+    assert.strictEqual(h.w, rule.stroke,
+      `${name}: the manual states a ${rule.stroke} stroke and the set draws ${h.w}`);
+    assert.strictEqual(h.unit, rule.box, `${name}: the set is drawn on a different box from the rule`);
+    // and the rule is doing the work rather than agreeing by luck: without it
+    // the old derivation answers something else on most of these
+    if (ICONS.hand(mo, mo).w !== rule.stroke) apart++;
+  }
+  assert.ok(apart >= names.length - 2,
+    `only ${apart} of ${names.length} differ without the rule, so this test would pass with the rule ignored`);
+});
+
+test('a mark that lends no pen is given one, rather than measured for a gap', () => {
+  // `thinnestStroke` is the narrowest stem of ink in a drawing. For a mark made
+  // of strokes that is the pen. For a mark made of fills it is the width of a
+  // gap between two edges, and the icon rules took it anyway: hallward came out
+  // at 0.09 on a 24 box and pagrin at 0.14, hairlines that vanish at every size
+  // an icon is used at, while halyard and spire landed on 2.4 and 3.2 and read
+  // as deliberate. Seven of the thirty-three are drawn this way.
+  const names = fs.readdirSync(path.join(__dirname, '..', 'projects'))
+    .filter((n) => fs.existsSync(path.join(__dirname, '..', 'projects', n, 'project.json')));
+  const ICONS = require('../src/patterns/icons');
+  let none = 0;
+  for (const name of names) {
+    const pr = projectLoader.load(path.join(__dirname, '..', 'projects', name, 'project.json'));
+    const mm = measure(pr);
+    const r = sys.resolve(pr, mm).icons;
+    const declares = (mm.strokeWidths || []).filter((w) => w > 0).length > 0;
+    assert.strictEqual(!!r.derivedFrom.noStroke, !declares,
+      `${name}: the rules ${r.derivedFrom.noStroke ? 'say' : 'do not say'} the mark lends no pen, and it `
+      + `${declares ? 'declares' : 'declares no'} strokes`);
+    if (declares) continue;
+    none++;
+    assert.strictEqual(r.strokeRatio, ICONS.DEFAULT_WEIGHT,
+      `${name} lends no pen and did not take the set's default`);
+    // specifically, not the gap
+    const gap = Math.round((mm.minimumSize.thinnestStroke / mm.markViewBox.w) * 10000) / 10000;
+    assert.notStrictEqual(r.strokeRatio, gap, `${name}'s icon pen is still the narrowest gap in the artwork`);
+    // and a keyline on the box edge is not a keyline
+    assert.ok(r.live <= r.box - 2, `${name}'s live area is ${r.live} of ${r.box}, so the keyline marks nothing`);
+  }
+  assert.strictEqual(none, 7, `${none} identities here draw no strokes, and this test was written for 7`);
+});
+
 test('a project override replaces the decision and the arithmetic follows it', () => {
   const r = sys.iconRules(m, { box: 32, strokeRatio: 0.05 });
   assert.strictEqual(r.box, 32);
@@ -5182,6 +5298,41 @@ test('two rule blocks on a page do not collide', () => {
   const idOf = (h) => (h.match(/@keyframes (\S+?)-rise/) || [])[1];
   assert.ok(idOf(a) && idOf(b) && idOf(a) !== idOf(b), 'both blocks named their keyframes the same thing');
 });
+test('the icon set can be put on a page, and moved off its rule out loud', () => {
+  // Until this round an identity's icons could not be placed anywhere. The
+  // twenty-four glyphs existed only inside the signage pattern generator, so
+  // the only way to see them was to pick one pattern out of thirty-eight and
+  // read them off a repeating field, and there was no way at all to put one on
+  // a page. The block draws them, and starts from the project's rule.
+  const ICONS = require('../src/patterns/icons');
+  const R = bu.system.icons;
+  const on = ER.block(EM.makeBlock('icons'), bu);
+  const pens = [...on.matchAll(/stroke-width="([0-9.]+)"/g)].map((m) => Number(m[1]));
+  assert.ok(pens.length >= 20, `the block drew ${pens.length} strokes, so it is not drawing the set`);
+  assert.ok(on.includes(`${R.stroke} on a ${R.box} box`), `the block does not start from the rule: ${R.stroke}`);
+  assert.ok(!/not the project rule/.test(on), 'a block on the rule claims it has left it');
+
+  // and a block that moves off the rule says so, rather than quietly
+  // disagreeing with the chapter that states it
+  const off = ER.block(EM.makeBlock('icons', { props: { weight: 0.16 } }), bu);
+  const heavier = [...off.matchAll(/stroke-width="([0-9.]+)"/g)].map((m) => Number(m[1]));
+  assert.ok(heavier[0] > pens[0], `the pen did not move: ${pens[0]} then ${heavier[0]}`);
+  assert.ok(/not the project rule/.test(off), 'the block left the rule and the page does not say so');
+
+  // every knob icons.js declares is a control here, so a control added there is
+  // not one this surface silently does not have
+  const app = fs.readFileSync(path.join(__dirname, '..', 'src', 'editor', 'app.js'), 'utf8');
+  const panel = app.slice(app.indexOf('icons: (b) => {'), app.indexOf('iconGrid: (b) =>'));
+  for (const c of ICONS.CONTROLS) {
+    assert.ok(panel.includes(`'${c.key}'`), `${c.key} is declared in icons.js and the editor has no control for it`);
+  }
+  // one glyph rather than the set, because a page often wants exactly one
+  const alone = ER.block(EM.makeBlock('icons', { props: { glyph: 'search' } }), bu);
+  assert.ok([...alone.matchAll(/stroke-width="/g)].length < pens.length,
+    'asking for one glyph still drew the whole set');
+  assert.ok(/1 icons?/.test(alone), 'the caption did not follow the drawing');
+});
+
 test('a rule block states its rule, and stops when told to', () => {
   const on = ER.block(EM.makeBlock('iconGrid'), bu);
   assert.ok(on.includes('24 box') && on.includes('1.8'), 'the icon grid did not state its rule');
@@ -10846,6 +10997,42 @@ test('a package writes icons without being asked to name the sizes', async () =>
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+test('a package contains the icon set its manual specifies', async () => {
+  // The chapter stated a box, a stroke, a live area and a cap, drew a diagram
+  // of the construction — and 05-icons held favicons. The twenty-four glyphs
+  // had existed since the signage generator was written and never left it: the
+  // only way to see an identity's icons was to pick one pattern out of
+  // thirty-eight and read them off a repeating field. A rule about something
+  // the reader cannot see is not a specification, it is a claim.
+  const ICONS = require('../src/patterns/icons');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'handover-iconset-'));
+  await build(RV, dir);
+  const r = JSON.parse(fs.readFileSync(path.join(dir, 'brand.json'), 'utf8')).system.icons;
+  const keys = ICONS.setOf(r.trade, r.count);
+  assert.ok(keys.length >= 4, 'the set is empty');
+  for (const way of ICONS.WAYS) {
+    for (const key of keys) {
+      const f = path.join(dir, '05-icons', 'set', way, `${key}.svg`);
+      assert.ok(fs.existsSync(f), `${way}/${key}.svg is specified and not in the package`);
+    }
+    assert.ok(fs.existsSync(path.join(dir, '05-icons', 'set', `${way}.svg`)),
+      `there is no sheet for ${way}, so the set cannot be looked at whole`);
+  }
+  // and they are cut to the rule the manual quotes, not to a second one
+  const pen = fs.readFileSync(path.join(dir, '05-icons', 'set', 'pen', 'search.svg'), 'utf8');
+  const w = Number((pen.match(/stroke-width="([0-9.]+)"/) || [])[1]);
+  assert.strictEqual(w, r.stroke,
+    `the manual states a ${r.stroke} stroke and the cut file is drawn at ${w}`);
+  const vb = (pen.match(/viewBox="0 0 ([0-9.]+) ([0-9.]+)"/) || []);
+  assert.strictEqual(Number(vb[1]), r.box, 'the cut file is not on the box the rule states');
+  // the manual shows it, rather than only specifying it
+  const html = fs.readFileSync(path.join(dir, 'guidelines.html'), 'utf8');
+  assert.ok(/The icon set/.test(html), 'the manual has no icon-set section');
+  assert.ok(new RegExp(`${keys.length} icons`).test(html),
+    'the manual does not say how many icons there are');
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
 test('a package does not document icons it does not contain', async () => {
   // The other half: turning the sizes off has to take the chapter with it, and
   // say so. A section describing what the reader has not been given is worse
@@ -13721,7 +13908,7 @@ test('a panel that paints its own ground is measured against that ground', () =>
   assert.ok(!rules.find((r) => r.selector === '.note').own, 'a plain rule was given a ground of its own');
 });
 
-test('the engine asks eight questions and measures the rest', () => {
+test('the engine asks nine questions and measures the rest', () => {
   const mark = fs.readFileSync(path.join(__dirname, '..', 'projects', 'carrock', 'mark.svg'), 'utf8');
   const wordmark = fs.readFileSync(path.join(__dirname, '..', 'projects', 'carrock', 'wordmark.svg'), 'utf8');
   const seen = INTAKE.read({ mark, wordmark });
@@ -13751,7 +13938,23 @@ test('the engine asks eight questions and measures the rest', () => {
   //
   // A wizard is still what this must not become, so the count is held and the
   // next one has to argue for itself the same way.
-  assert.ok(qs.length <= 8, `${qs.length} questions is a wizard, not an intake`);
+  // Nine now, and the cap was never the rule. The rule is that nothing is asked
+  // which can be measured, and the ninth passes it the way the eighth did.
+  //
+  // The icons had measurement on their side and were never asked about at all,
+  // which is a different failure from asking too much: the engine reads the pen
+  // off the mark's own stroke and the corners off its corners, then draws one
+  // set of twenty-four in one way and calls that the answer. Three of those are
+  // not readings. Which way the set is drawn is a judgement about where it will
+  // be used — a stamped set survives a photograph, a pen set sits beside text —
+  // and no measurement of a logo says which this identity needs. Which six
+  // trade glyphs belong to it is not in the drawing at all. And how heavy the
+  // set runs is the one place a client may want to leave the mark's own weight,
+  // because icons are read at sizes the logo never appears at.
+  //
+  // A wizard is still what this must not become, so the count is held here and
+  // the tenth has to argue for itself the same way.
+  assert.ok(qs.length <= 9, `${qs.length} questions is a wizard, not an intake`);
   // and every one of them is about something no drawing can answer
   assert.ok(!qs.some((q) => q.key === 'colours' && !q.suggested),
     'the colour question stopped proposing an answer, which makes it a form to fill in');
@@ -13765,6 +13968,60 @@ test('the engine asks eight questions and measures the rest', () => {
   // and the layout question offers every direction, by picture rather than name
   const style = qs.find((q) => q.key === 'style');
   assert.deepStrictEqual(style.options.map((o) => o.value), DIRS.NAMES);
+});
+
+test('the icon screen draws the set, and says when it has left the rule', () => {
+  // The icons were in the engine and nowhere in the flow. Walking the whole
+  // front door never once showed them, never asked anything about them, and the
+  // package came out with one set drawn one way that nobody had seen.
+  const mark = fs.readFileSync(path.join(__dirname, '..', 'projects', 'pagrin', 'mark.svg'), 'utf8');
+  const cols = [{ name: 'ink', hex: '#6F45F3', role: 'primary' }, { name: 'paper', hex: '#FFFFFF', role: 'ground' }];
+  const out = APP.icons({ mark, brand: 'Pagrin', colours: cols });
+  assert.strictEqual(out.ok, true);
+  assert.strictEqual(out.glyphs.length, 24, 'the screen is not offering a set');
+  assert.deepStrictEqual(Object.keys(out.ways), ['pen', 'solid', 'stamp'],
+    'the three ways are a choice made by looking, so all three have to be drawn');
+  for (const w of Object.keys(out.ways)) {
+    assert.ok(/<svg/.test(out.ways[w]) && out.ways[w].length > 1000, `${w} came back empty`);
+  }
+  // it opens on what the artwork says
+  assert.strictEqual(out.at, out.rule.stroke, 'the screen does not open on the measured weight');
+  // to four places: the slider carries a share of the box, and a share written
+  // out to sixteen places is a number nobody can read back off a control
+  assert.ok(Math.abs(out.settings.weight - out.rule.stroke / out.rule.box) < 0.0001,
+    `the screen opens on ${out.settings.weight}, and the rule is ${out.rule.stroke / out.rule.box}`);
+
+  // and a setting moves it, and the screen can tell it has moved — this is the
+  // comparison that the screen writing its own answers back into the project
+  // broke: with `answers.icons` staged, the rule became whatever the slider had
+  // just set, so every position reported itself as the artwork's own weight
+  const heavy = APP.icons({ mark, brand: 'Pagrin', colours: cols,
+    answers: { brand: 'Pagrin', colours: cols, icons: { way: 'pen', weight: 0.17 } },
+    settings: { way: 'pen', weight: 0.17 } });
+  assert.notStrictEqual(heavy.at, heavy.rule.stroke,
+    'the screen measured the setting against itself, so nothing can ever read as moved');
+  assert.strictEqual(heavy.rule.stroke, out.rule.stroke, 'the artwork\'s own rule moved under it');
+  assert.ok(heavy.sheet !== out.sheet, 'the drawing did not follow the setting');
+
+  // every knob icons.js declares reaches this screen
+  const ICONS = require('../src/patterns/icons');
+  assert.deepStrictEqual(out.controls.map((c) => c.key), ICONS.CONTROLS.map((c) => c.key));
+
+  // and the answers become the rule the build reads
+  const seen = INTAKE.read({ mark });
+  const proj = INTAKE.toProject({ brand: 'Pagrin', positioning: 'x', style: 'bold',
+    places: ['screen'], colours: seen.colours, never: ['stretch'],
+    icons: { way: 'stamp', weight: 0.14, trade: 'drink' } }, seen);
+  assert.strictEqual(proj.system.icons.strokeRatio, 0.14);
+  assert.strictEqual(proj.system.icons.trade, 'drink');
+  // but only what was moved: writing every control back would freeze the
+  // derived numbers into the project, and redrawing the logo would stop
+  // redrawing the set, which is the one promise the icon chapter makes
+  const light = INTAKE.toProject({ brand: 'Pagrin', positioning: 'x', style: 'bold',
+    places: ['screen'], colours: seen.colours, never: ['stretch'],
+    icons: { way: 'pen', weight: 0, corner: 0, cap: '', trade: '' } }, seen);
+  assert.ok(!(light.system && light.system.icons && light.system.icons.strokeRatio),
+    'a screen nobody touched still froze the pen into the project');
 });
 
 test('six answers and a drawing make a package', () => {
@@ -14088,7 +14345,9 @@ test('the artwork is measured before anything is asked', () => {
   assert.ok(got.seen.colours.length >= 2, 'no palette came back');
   assert.ok(got.seen.floor.screenPx > 0, 'no floor came back');
   assert.ok(got.seen.pattern, 'no pattern was worked out');
-  assert.ok(got.questions.length <= 8, `${got.questions.length} questions`);
+  // nine since the icons earned one; the reasoning is on the count in
+  // 'the engine asks nine questions and measures the rest'
+  assert.ok(got.questions.length <= 9, `${got.questions.length} questions`);
   // and the three the engine can answer come back answered
   const shown = got.questions.filter((q) => q.suggested !== undefined).map((q) => q.key);
   for (const k of ['style', 'colours', 'never']) assert.ok(shown.indexOf(k) > -1, `${k} was not proposed`);

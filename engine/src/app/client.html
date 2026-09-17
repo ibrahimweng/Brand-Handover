@@ -437,6 +437,29 @@ button{font:inherit;color:inherit}
    the rest of the choosing, and leaving the two-row template behind starved the
    columns to their content height and left a third of the screen empty. */
 #p-pattern .pbd{display:grid;grid-template-rows:minmax(0,1fr);overflow:hidden}
+/* The icon screen. Same two-column shape as the pattern screen and the same
+   rail, because it is the same kind of screen: a thing the engine drew, and the
+   handful of decisions about it that no drawing can answer. */
+#p-icons .pbd{display:grid;grid-template-rows:minmax(0,1fr);overflow:hidden}
+.icns{display:grid;grid-template-columns:clamp(210px,21vw,286px) minmax(0,1fr);
+  gap:clamp(12px,1.6vw,22px);height:100%;min-height:0}
+.imid{display:grid;grid-template-rows:minmax(0,1fr) auto;gap:10px;min-height:0;min-width:0}
+.istage{display:flex;align-items:center;justify-content:center;min-height:0;min-width:0;
+  border:1px solid var(--line);border-radius:10px;overflow:hidden;padding:clamp(10px,2vh,26px)}
+.istage svg{max-height:100%;width:100%;height:auto}
+#p-icons .pwhy{margin:0}
+/* The rail's flexible row is the controls, not the foot. `.prail` declares four
+   rows for the pattern screen's four children; this rail has three, so the
+   1fr landed on the revert button and the controls grew past the panel
+   instead of scrolling inside it. */
+#p-icons .prail{grid-template-rows:auto minmax(0,1fr) auto}
+.iway{display:block;width:100%;border:1px solid var(--line);border-radius:8px;background:none;
+  padding:6px;cursor:pointer;margin-bottom:6px}
+.iway[aria-pressed=true]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.iway svg{display:block;width:100%;height:auto}
+.iway b{display:block;font:600 11px/1.4 inherit;letter-spacing:.04em;text-transform:uppercase;
+  padding:4px 2px 0;text-align:left}
+@media (max-width:820px){.icns{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}}
 #p-pattern .sub{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
   overflow:hidden;max-width:78ch}
 /* Before anything is dropped, the target is the page. It used to be a 148 px
@@ -922,6 +945,33 @@ button{font:inherit;color:inherit}
   </section>
 
   <!-- 5 ------------------------------------------------------------------ -->
+  <section class="panel" id="p-icons" aria-labelledby="h-icons">
+    <div class="phd">
+    <p class="eyebrow">The icons</p>
+    <h1 class="lede" id="h-icons">Twenty-four, drawn in your own hand.</h1>
+    <p class="sub" id="i-sub">The pen is your logo's own stroke and the corners are its corners.
+      Redraw the logo later and the whole set redraws with it.</p>
+    </div>
+    <div class="pbd">
+    <div class="icns">
+      <aside class="prail" aria-label="Icon controls">
+        <h3 class="sr" id="iw-h">Drawn as</h3>
+        <div class="pchips" id="iways" aria-labelledby="iw-h"></div>
+        <div class="pscroll" id="ictls"></div>
+        <div class="pfoot">
+          <button type="button" class="prevert" id="irevert">Back to your logo's own hand</button>
+        </div>
+      </aside>
+      <div class="imid">
+        <div class="istage" id="isheet" aria-label="The icon set"></div>
+        <p class="pwhy" id="iwhy"></p>
+      </div>
+    </div>
+    <div class="errbox"></div>
+    </div>
+  </section>
+
+  <!-- 6 ------------------------------------------------------------------ -->
   <section class="panel" id="p-edit" aria-labelledby="h-edit">
     <div class="phd">
     <p class="eyebrow">Your words</p>
@@ -979,8 +1029,8 @@ button{font:inherit;color:inherit}
 (function () {
   'use strict';
   var S = { mark: null, wordmark: null, clean: null, findings: null, seen: null, qs: null, answers: {}, step: 0, built: null, overrides: [], fields: [] };
-  var STEPS = ['Artwork', 'Questions', 'Layout', 'Pattern', 'Your words', 'Package'];
-  var PANELS = ['p-art', 'p-ask', 'p-style', 'p-pattern', 'p-edit', 'p-done'];
+  var STEPS = ['Artwork', 'Questions', 'Layout', 'Pattern', 'Icons', 'Your words', 'Package'];
+  var PANELS = ['p-art', 'p-ask', 'p-style', 'p-pattern', 'p-icons', 'p-edit', 'p-done'];
   var LAST = STEPS.length - 1;
   var $ = function (id) { return document.getElementById(id); };
   var el = function (t, c, x) { var n = document.createElement(t); if (c) n.className = c;
@@ -1011,6 +1061,7 @@ button{font:inherit;color:inherit}
     'Seven questions. Four are already answered.',
     'Four layouts, drawn with your own logo. Pick the one that reads right.',
     'This is your logo. Every slider changes the package.',
+    'Twenty-four icons in your own hand. Change the hand.',
     'Pick a place on the right and type. The rest stays derived from the artwork.',
     'Everything below is yours to keep.',
   ];
@@ -1057,7 +1108,8 @@ button{font:inherit;color:inherit}
     // which is already a finished pattern; everything on it is a change to
     // something that is right to begin with.
     if (S.step === 3) return true;
-    if (S.step === 4) return true;
+    if (S.step === 4) return true;    // icons
+    if (S.step === 5) return true;
     return false;
   }
   function gate() { $('go').disabled = !ready(); $('go').textContent = nextLabel(); }
@@ -1829,7 +1881,7 @@ button{font:inherit;color:inherit}
       overrides: S.overrides }).then(function (j) {
       $('sheet').srcdoc = j.html.replace('</body>', EDIT_JS + '</body>');
       busy(false); gate();
-      sayOn(4, 'Pick a place on the right and type. The rest stays derived from the artwork.');
+      sayOn(5, 'Pick a place on the right and type. The rest stays derived from the artwork.');
     }).catch(function (e) { busy(false); fail(e); });
   }
 
@@ -2399,6 +2451,144 @@ button{font:inherit;color:inherit}
     };
   }
 
+  /* The icon screen.
+
+     The engine can measure everything about how the set is drawn and nothing
+     about which set this identity wants. The pen is the mark's own stroke, the
+     corners are its corners, the ends are its ends — all read, none asked. What
+     no drawing can answer is whether the set is a line set or a stamped one,
+     how heavy it runs at sizes the logo never appears at, and which six trade
+     glyphs belong to this business rather than to every business.
+
+     So the screen opens on the set the rule already draws, and the controls
+     move off it. Everything here is posted back and redrawn by the engine
+     rather than simulated in the browser, for the same reason the pattern
+     screen does it: a second implementation of the drawing is a second thing to
+     keep true, and the one that would drift is the one on screen.
+
+     `S.answers.icons` is what the build reads. It is written on every change,
+     so stepping forward and back never loses a decision. */
+  var I = null, IS = null, ibusy = false, iqueued = false;
+
+  function ibody(settings) {
+    var b = {
+      mark: S.mark, wordmark: S.wordmark, brand: S.answers.brand,
+      latinName: S.answers.latinName, language: S.answers.language,
+      colours: S.answers.colours, answers: S.answers,
+      lockups: S.seen && S.seen.lockups, slots: S.seen && S.seen.slots,
+    };
+    if (settings) b.settings = settings;
+    return b;
+  }
+
+  function drawIcons() {
+    if (I) { iways(); icontrols(); return; }
+    busy(true, 'Cutting the set');
+    post('/api/icons', ibody()).then(function (out) {
+      busy(false);
+      I = out;
+      IS = JSON.parse(JSON.stringify(out.settings));
+      S.answers.icons = IS;
+      $('i-sub').textContent = 'The pen is ' + out.rule.stroke + ' on a ' + out.rule.box
+        + ' box — your logo’s own stroke — and the corners and the ends are its own. '
+        + 'Redraw the logo later and the whole set redraws with it.';
+      iways(); icontrols(); ipaint(out);
+      sayOn(4, 'Twenty-four icons in your own hand. Change the hand.');
+    }).catch(function (e) { busy(false); fail(e); });
+  }
+
+  function ipaint(out) {
+    $('isheet').innerHTML = out.sheet;
+    $('iwhy').textContent = out.glyphs.length + ' icons · ' + IS.way + ' · '
+      + out.at + ' on a ' + out.rule.box + ' box'
+      + (out.at === out.rule.stroke ? ' \u2014 your logo\u2019s own weight'
+        : ' \u2014 yours, not the ' + out.rule.stroke + ' your logo measures');
+  }
+
+  /* One request in flight at a time, and the last move always wins.
+
+     A slider fires on every pixel of a drag. Firing a request per pixel is
+     thirty requests the server draws and the screen throws away, and they do
+     not come back in order — so the picture you end on is whichever one the
+     network happened to finish last, which may be from the middle of the drag. */
+  function iredraw() {
+    S.answers.icons = IS;
+    if (ibusy) { iqueued = true; return; }
+    ibusy = true; iqueued = false;
+    post('/api/icons', ibody(IS)).then(function (out) {
+      ibusy = false;
+      I = out;
+      ipaint(out);
+      if (iqueued) iredraw();
+    }).catch(function (e) { ibusy = false; fail(e); });
+  }
+
+  // The three ways, as pictures. Which one to use is a judgement about where
+  // the set is going, and a judgement made by looking is made better than one
+  // made by reading three labels.
+  function iways() {
+    var wrap = $('iways'); wrap.textContent = '';
+    (I.controls.filter(function (c) { return c.key === 'way'; })[0] || { options: [] })
+      .options.forEach(function (w) {
+        var b = el('button', 'iway');
+        b.type = 'button';
+        b.setAttribute('aria-pressed', String(w === IS.way));
+        b.innerHTML = (I.ways[w] || '') + '<b>' + w + '</b>';
+        b.addEventListener('click', function () { IS.way = w; iways(); iredraw(); });
+        wrap.appendChild(b);
+      });
+  }
+
+  function ishown(c, v) {
+    if (c.type === 'chips') return v === '' || v == null ? 'as your logo' : String(v);
+    if (c.key === 'count') return String(Math.round(v));
+    return (Number(v) * (I.rule.box || 24)).toFixed(2) + ' on ' + (I.rule.box || 24);
+  }
+
+  function icontrol(c) {
+    var row = el('div', 'pctl');
+    var k = el('label', 'pk');
+    k.appendChild(el('span', null, c.label));
+    var v = el('span', 'pv', ishown(c, IS[c.key]));
+    k.appendChild(v); row.appendChild(k);
+    if (c.type === 'range') {
+      var r = document.createElement('input');
+      r.type = 'range'; r.min = c.min; r.max = c.max; r.step = c.step;
+      r.value = IS[c.key]; r.setAttribute('aria-label', c.label);
+      var fill = function () {
+        var lo = Number(c.min), hi = Number(c.max);
+        var at = hi > lo ? (Number(r.value) - lo) / (hi - lo) : 0;
+        r.style.setProperty('--fill', (Math.max(0, Math.min(1, at)) * 100).toFixed(2) + '%');
+      };
+      fill();
+      r.addEventListener('input', function () {
+        IS[c.key] = Number(r.value); v.textContent = ishown(c, IS[c.key]); fill(); iredraw();
+      });
+      row.appendChild(r);
+    } else {
+      var chips = el('div', 'pchips');
+      (c.options || []).forEach(function (o, n) {
+        var b = el('button', 'pchip', (c.labels && c.labels[n]) || (o === '' ? 'as your logo' : o));
+        b.type = 'button';
+        b.setAttribute('aria-pressed', String(o === IS[c.key]));
+        b.addEventListener('click', function () {
+          IS[c.key] = o; v.textContent = ishown(c, o); icontrols(); iredraw();
+        });
+        chips.appendChild(b);
+      });
+      row.appendChild(chips);
+    }
+    return row;
+  }
+
+  function icontrols() {
+    var wrap = $('ictls'); wrap.textContent = '';
+    I.controls.forEach(function (c) {
+      if (c.key === 'way') return;                 // drawn as pictures, above
+      wrap.appendChild(icontrol(c));
+    });
+  }
+
   function drawPattern() {
     if (P) { pdraw(); return; }               // already loaded: keep what was pushed
     busy(true, 'Reading the shape');
@@ -2443,12 +2633,29 @@ button{font:inherit;color:inherit}
     say('Back to what the artwork asked for.');
   });
 
+  /* Back to what the logo says.
+
+     The same promise the pattern screen makes, and the same reason for making
+     it: a client is free to wander, and an engine that cannot get them back to
+     the measured answer has made wandering expensive. */
+  $('irevert').addEventListener('click', function () {
+    if (!I) return;
+    IS = JSON.parse(JSON.stringify(I.settings));
+    // the rule's own answers, not the last thing the sliders were left on
+    ['weight', 'corner', 'cap', 'join', 'trade', 'count'].forEach(function (k) {
+      IS[k] = I.settings[k];
+    });
+    iways(); icontrols(); iredraw();
+    say('Back to your logo\u2019s own hand.');
+  });
+
   $('go').addEventListener('click', function () {
     if (S.step === 0) show(1);
     else if (S.step === 1) { show(2); drawPicks(); }
     else if (S.step === 2) { show(3); drawPattern(); }
-    else if (S.step === 3) { show(4); drawEdit(); }
-    else if (S.step === 4) buildIt();
+    else if (S.step === 3) { show(4); drawIcons(); }
+    else if (S.step === 4) { show(5); drawEdit(); }
+    else if (S.step === 5) buildIt();
   });
   // `show` says where you are, so stepping back does not have to blank it
   $('back').addEventListener('click', function () { show(Math.max(0, S.step - 1)); });

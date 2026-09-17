@@ -897,6 +897,61 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     favPngs.push({ size, data: png });
   }
   if (favPngs.length) write('05-icons/favicon.ico', exp.ico(favPngs));
+
+  // ---- the icon set ----
+  // The twenty-four glyphs this identity's own hand draws, cut as files.
+  //
+  // They have existed since the signage generator was written and have never
+  // left it: the only way to see an identity's icons was to choose one pattern
+  // out of thirty-eight and read them off a repeating field. So a package
+  // documented an icon grid, stated a stroke and a live area, shipped a diagram
+  // of the construction — and contained no icons. 05-icons held favicons.
+  //
+  // One file each, because an icon is used one at a time, and one sheet each
+  // way, because a set is chosen by looking at it whole.
+  //
+  // Only where the project asked for icons at all. `documents/index.js` hangs
+  // the whole icon chapter on the same question, and a package that turns the
+  // sizes off and still gets a folder of glyphs is the fault the chapter check
+  // was written to catch, arriving from the other end: files the manual does
+  // not document rather than a chapter for files that are not there.
+  if (((rules.iconSizes || []).length + (rules.faviconSizes || []).length) > 0) {
+    const ICONS = require('./patterns/icons');
+    const PSURF = require('./patterns/surface');
+    const roleHex = (role, dflt) => {
+      const hit = Object.values(project.tokens.colour || {}).find((c) => c && c.role === role);
+      return (hit && hit.hex) || dflt;
+    };
+    const setInk = rules.iconSetInk || roleHex('primary', '#111111');
+    const setOn = rules.iconSetOn || roleHex('ground', '#FFFFFF');
+    const hand = ICONS.hand(null, null, sys.icons);
+    const keys = ICONS.setOf(sys.icons.trade, sys.icons.count);
+    const wrap = (s, w, h) => `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" `
+      + `viewBox="0 0 ${w} ${h}">${s.body()}</svg>`;
+    const box = sys.icons.box;
+    for (const way of ICONS.WAYS) {
+      for (const key of keys) {
+        const s = PSURF.svg({ width: box, height: box, id: `ic-${way}-${key}` });
+        s.fillStyle = setInk; s.strokeStyle = setInk;
+        ICONS.one(s, key, way, hand, setOn);
+        write(`05-icons/set/${way}/${key}.svg`, wrap(s, box, box));
+      }
+      const cols = Math.min(8, keys.length);
+      const cell = box * 1.6;
+      const rows = Math.ceil(keys.length / cols);
+      const sh = PSURF.svg({ width: cols * cell, height: rows * cell, id: `ic-sheet-${way}` });
+      sh.fillStyle = setOn; sh.strokeStyle = setOn;
+      sh.beginPath(); sh.rect(0, 0, cols * cell, rows * cell); sh.fill();
+      sh.fillStyle = setInk; sh.strokeStyle = setInk;
+      ICONS.sheet(sh, keys, way, hand, { cols, cell, ground: setOn });
+      write(`05-icons/set/${way}.svg`, wrap(sh, cols * cell, rows * cell));
+    }
+    notes.push(`the icon set is ${keys.length} glyphs${sys.icons.trade ? ` for ${sys.icons.trade}` : ''}, `
+      + `cut three ways — pen at ${sys.icons.stroke} on a ${sys.icons.box} box, solid at nearly twice that, `
+      + `and stamp knocked out of a tile — in 05-icons/set. Every measurement in them is the rule this `
+      + `package states, so redrawing the logo redraws the set. system.icons.trade swaps the last six for a `
+      + `trade's own, and system.icons.count sets how many.`);
+  }
   // What the package documents and what it contains have to be the same list.
   // brand.json carried a full icon specification — box, stroke, curve radius —
   // for a package with no icons in it, and the manual kept its chapter on the
@@ -961,6 +1016,22 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
         + `An icon set cut at ${mw[0]} would come out lighter than the mark it belongs to. `
         + `system.icons.stroke overrides it.`);
     }
+  }
+  // A pen nobody chose, and a keyline that was not a keyline. Both are numbers
+  // the drawing could not answer, so both are said out loud rather than shipped
+  // quietly — the same rule the weights note above follows.
+  const stated = ((project.system || {}).icons || (project.system || {}).icon || {});
+  if (sys.icons.derivedFrom.noStroke && !stated.stroke && !stated.strokeRatio) {
+    notes.push(`this mark is drawn in fills and declares no stroke, so there is no pen in it for the icons `
+      + `to inherit. They are cut at ${sys.icons.stroke} on a ${sys.icons.box} box, which is the set's own `
+      + `default rather than a measurement of this drawing — the only number here that is not read off the `
+      + `artwork. system.icons.stroke replaces it, and the grid, the specimen and every glyph follow.`);
+  }
+  if (sys.icons.derivedFrom.marginFloored != null && !stated.live && !stated.marginFraction) {
+    notes.push(`the mark fills its own viewBox — ${sys.icons.derivedFrom.marginFloored} of it is margin — and `
+      + `the icon keyline used to be that same figure, which put it on the box edge and marked out nothing. `
+      + `It is held at one unit of ${sys.icons.box} instead, so the live area is ${sys.icons.live}. How much `
+      + `air a logo was exported with is a fact about the export; system.icons.live sets this one.`);
   }
   const icons = exp.iconFloor(iconMeasured, rules) || { thinIcons: [], thinFavicons: [], clears: [] };
   if (icons.thinIcons.length) {
@@ -1273,7 +1344,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
     const cw0 = rules.colourways[0];
     const make = (g, params) => PATTERNS.tile({ mark: patternMark, generator: g, route: ROUTE, motif,
       params: params || undefined, colours: project.tokens.colour, colourway: cw0,
-      gradients: masterGradients, size: sys.pattern.tile, id: `fit-${g}` });
+      gradients: masterGradients, iconRule: sys.icons, size: sys.pattern.tile, id: `fit-${g}` });
     try {
       const r = MATCH.fit(ref, make, { px: 256, rounds: 2 });
       matched = r && r.generator ? r : null;
@@ -1321,7 +1392,7 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   const drawTile = (name, cw, extra, id) => {
     const t = PATTERNS.tile({ mark: patternMark, generator: name, route: ROUTE, motif, word,
       params: extra ? Object.assign({}, paramsFor(name) || {}, extra) : paramsFor(name),
-      colours: project.tokens.colour, colourway: cw, gradients: masterGradients,
+      colours: project.tokens.colour, colourway: cw, gradients: masterGradients, iconRule: sys.icons,
       size: sys.pattern.tile, id });
     t.why = restate(name, t.why);
     return t;
@@ -1455,7 +1526,11 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   for (const cw of rules.colourways) {
     for (const name of PATTERNS.NAMES) {
       try {
+        // `iconRule` here as well as on the two tile calls: this is the path the
+        // recipes in brand.json come from, and a recipe without it draws the
+        // set in a hand this package never used. Three call sites, one rule.
         const r = PATTERNS.recipe({ mark: patternMark, generator: name, route: ROUTE, motif, word,
+          iconRule: sys.icons,
           params: paramsFor(name), colours: project.tokens.colour, colourway: cw });
         r.why = restate(name, r.why);
         recipes.push({ name, colourway: cw.name, recipe: r });
@@ -1486,10 +1561,15 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
   // is a finished page. Filing a poster under "pattern" would be the engine
   // telling somebody their pattern is a poster.
   // A recipe row without the shape it shares with every other row.
-  const withoutMotif = (params) => {
-    if (!params || !params.motif) return params;
+  // The shape and the icon rule both travel beside the rows rather than inside
+  // them. The motif was three quarters of `made` before it moved; the icon rule
+  // is smaller but the reason is the same one, and a second convention for the
+  // second shared thing would be a second thing to remember.
+  const withoutShared = (params) => {
+    if (!params || (!params.motif && !params.iconRule)) return params;
     const out = Object.assign({}, params);
     delete out.motif;
+    delete out.iconRule;
     return out;
   };
   const fileFor = (name, variant, colourway) =>
@@ -1797,6 +1877,14 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
            and `name` is where the shape came from — and nothing in the engine
            or the tests read either spelling. */
         motif: motif || null,
+        /* And the icon rule, once, for the generator that draws the set.
+
+           Written here beside the shape for the same reason: it is one object
+           shared by every signage row, and a recipe that does not carry it
+           draws the set in a hand this package never used — which is exactly
+           what a recipe must not do. `usesIcons` on a row says to put it back;
+           `PATTERNS.recipeParams` is the one place that knows how. */
+        iconRule: sys.icons || null,
         /* Which patterns were written as files and why those.
 
            A package used to write every generator in every colourway and this
@@ -1842,7 +1930,9 @@ async function build(project, outDir, { log = () => {}, licence = null } = {}) {
             // Without the motif, which is above. See `motif` in this block for
             // what that saved and `PATTERNS.recipeParams` for putting it back.
             usesMotif: r.recipe.params.motif ? true : undefined,
-            params: withoutMotif(r.recipe.params),
+            // and the same for the icon rule: see `iconRule` beside `motif`
+            usesIcons: r.recipe.params.iconRule ? true : undefined,
+            params: withoutShared(r.recipe.params),
             palette: r.recipe.palette, why: r.recipe.why,
           };
         }),

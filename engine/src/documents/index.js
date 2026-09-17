@@ -284,6 +284,9 @@ function guidelines(ctx) {
       // a parameter a caller can forget to pass is how a document loses a
       // chapter silently, which is the thing being fixed.
       [T('secIconGrid'), b.willWriteIcons(ctx) && b.iconSpec(ctx)],
+      // The rule, and then the set the rule draws. A chapter that specifies a
+      // grid and shows no icons is a rule about something the reader cannot see.
+      [T('secIconSet'), b.willWriteIcons(ctx) && b.iconSet(ctx)],
       [T('secMotion'), b.motionSpec(ctx)],
       // The sequence, playing, on the page that specifies it.
       [T('secIdent'), b.motionBuild(ctx)],

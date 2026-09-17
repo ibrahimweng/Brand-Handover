@@ -3,9 +3,9 @@
    and no measuring at draw time. Everything expensive already happened in the
    engine; this only lays it out. */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('../photography'), require('../print'), require('../surface'), require('../contrast'), require('../patterns'));
-  else root.HandoverRender = factory(root.HandoverPhotography, root.HandoverPrint, root.HandoverSurface, root.HandoverContrast, root.PatternEngine);
-}(typeof self !== 'undefined' ? self : this, function (PH, PR, SU, CO, PATENG) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('../photography'), require('../print'), require('../surface'), require('../contrast'), require('../patterns'), require('../patterns/icons'), require('../patterns/surface'));
+  else root.HandoverRender = factory(root.HandoverPhotography, root.HandoverPrint, root.HandoverSurface, root.HandoverContrast, root.PatternEngine, root.PatternIcons, root.PatternSurface);
+}(typeof self !== 'undefined' ? self : this, function (PH, PR, SU, CO, PATENG, PICONS, PSURF) {
   'use strict';
 
   const esc = (s) => String(s == null ? '' : s)
@@ -495,6 +495,49 @@
         <div style="flex:1;min-height:0">${field}</div>${ruleCaption(
         t(bu, 'cvGeneratedRule', { generator: name, style: (tile.params || params).style || '' }),
         colour(bu, b.props.colourway))}</div>`;
+    },
+
+    /* The set, on a page, with its hand on the block.
+
+       The icon grid beside this one is a rule block: it states the identity's
+       construction and a page may not argue with it. The set is not the same
+       thing. The pen belongs to the identity, but which glyphs a page shows,
+       and whether it shows them heavier for a cover than for a footnote, is the
+       page's business — and until now neither question could be asked anywhere,
+       because the twenty-four glyphs had never left the signage generator.
+
+       So the rule is where it starts and an instance may move off it. A block
+       that has says so under itself, in the caption, rather than quietly
+       disagreeing with the chapter that states the rule. */
+    icons: (b, bu) => {
+      const R = (bu.system || {}).icons;
+      if (!R || !PICONS || !PSURF) return `<div class="hb-missing">${esc(t(bu, 'cvNoIcons'))}</div>`;
+      const p = b.props || {};
+      // 0 and '' mean "as the rule says"; see model.js.
+      const over = { weight: p.weight || null, corner: p.corner || null,
+        cap: p.cap || null, join: p.join || null };
+      const moved = Object.keys(over).filter((k) => over[k] != null);
+      const h = PICONS.hand(null, null, R, over);
+      const way = PICONS.WAYS.indexOf(p.way) > -1 ? p.way : PICONS.WAYS[0];
+      const keys = p.glyph && PICONS.glyphOf(p.glyph)
+        ? [p.glyph] : PICONS.setOf(p.trade || R.trade, p.count || R.count);
+      const ink = colour(bu, p.colourway || 'primary');
+      const on = colour(bu, p.on || 'ground');
+      const cols = Math.min(12, keys.length);
+      const cell = h.unit * 1.6;
+      const rows = Math.ceil(keys.length / cols);
+      const s = PSURF.svg({ width: cols * cell, height: rows * cell, id: `ei${b.id}` });
+      s.fillStyle = ink; s.strokeStyle = ink;
+      PICONS.sheet(s, keys, way, h, { cols, cell, ground: on });
+      const drawn = r3(way === 'solid' ? h.w * 1.85 : h.w);
+      const said = t(bu, moved.length ? 'cvIconsOff' : 'cvIconsRule',
+        { way, n: keys.length, s: drawn, b: h.unit });
+      const field = `<svg viewBox="0 0 ${r3(cols * cell)} ${r3(rows * cell)}" role="img"
+        aria-label="${esc(said)}" style="width:100%;height:auto;display:block">${s.body()}</svg>`;
+      return `<div style="width:100%;height:100%;background:${on};display:flex;flex-direction:column;
+        align-items:center;justify-content:center;gap:8px;padding:10px;box-sizing:border-box">
+        <div style="width:100%">${field}</div>
+        ${p.caption === false ? '' : ruleCaption(said, colour(bu, p.colourway || 'primary'))}</div>`;
     },
 
     iconGrid: (b, bu) => {

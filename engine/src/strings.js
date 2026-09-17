@@ -644,6 +644,20 @@ Object.assign(EN, {
   iconC: 'of the box, so an icon\'s stroke is {s} in a {b} box. Ends are {cap}, corners {join}, and the set is {fill}. Redraw the {noun} and these move with it. Run',
   iconFilled: 'filled', iconOutline: 'drawn in outline',
   iconD: 'to have one measured against them.',
+  // What the chapter says where the drawing could not answer. "Not decided:
+  // taken from the mark itself" is the promise the rest of this section makes,
+  // and for a mark drawn in fills it was not true — the pen was a default and
+  // the keyline was held, and the manual said neither.
+  iconNoPen: 'This {noun} is drawn in fills and declares no stroke, so there is no pen in it for the icons to inherit. Their stroke is {s} in a {b} box, which is this system\'s own default and the only number in this chapter not read off the drawing. Set system.icons.stroke to choose another, and everything here follows it.',
+  iconHeldMargin: 'The {noun} fills its own box — {own} of it is margin — so the keyline is held at one unit of {b} rather than taken from the drawing. The live area is {live}. How much air a file was exported with is a fact about the export.',
+  secIconSet: 'The icon set',
+  iconSetIntro: 'Twenty-four icons drawn in this identity\'s own hand: the pen is the stroke above, the corners and the ends are the ones stated there, and nothing in them was drawn by hand. Redraw the {noun} and the whole set redraws. They are in',
+  iconSetWays: 'Three ways ship, because they are three jobs. {pen} is the set for a screen and for anything set beside text. {solid} is heavier and holds where a hairline closes up. {stamp} is knocked out of a tile and survives a photograph.',
+  iconSetCap: '{way} \u00b7 {n} icons \u00b7 {at}',
+  iconSetAtPen: '{s} on a {b} box',
+  iconSetAtSolid: '{s} on a {b} box \u2014 nearly twice the pen',
+  iconSetAtStamp: 'knocked out of a {b} tile',
+  iconSetFigure: 'The set, cut three ways.',
   iconSimplifiedA: 'The icons are not the mark. A crest or any drawing with fine parts closes up at icon sizes, so this identity has a simplified drawing for them — fewer parts, heavier strokes, the same meaning. It is what everything in',
   iconSimplifiedB: 'is cut from.',
   // motion
@@ -910,7 +924,7 @@ Object.assign(EN, {
   cvBlockClearSpace: 'Clear space', cvBlockMinimumSize: 'Minimum size',
   cvBlockPalette: 'Palette', cvBlockContrast: 'Contrast table',
   cvBlockTypeSpecimen: 'Type specimen', cvBlockAssetIndex: 'Asset index',
-  cvBlockPattern: 'Pattern', cvBlockIconGrid: 'Icon grid',
+  cvBlockPattern: 'Pattern', cvBlockIconGrid: 'Icon grid', cvBlockIcons: 'Icon set',
   cvBlockMotion: 'Motion', cvBlockPhotography: 'Photography',
   cvPlain: 'Plain',
 // The canvas's own specimen. Shorter than the manual's, because the block it
@@ -947,6 +961,7 @@ cvArtLockup: 'lockup', cvArtMarkOpt: 'mark', cvArtPatternOpt: 'pattern',
   cvNothingSelected: 'Nothing selected. Click a block, or add one from the left.',
   cvManySelected: '{n} blocks selected. Move them together, or press Delete.',
   cvNoteDerived: 'This block reads the project and draws itself. Change the master and it redraws. You set where it sits and what it is painted in, and nothing else.',
+  cvNoteIcons: 'The glyphs are drawn from the project\u2019s icon rule, so redrawing the master redraws them. This block may move off that rule \u2014 a cover wants a heavier pen than a footnote \u2014 and when it does, its caption says so rather than quietly disagreeing with the chapter that states it.',
   cvNoteRule: 'One decision, made once in the project, generating every instance after it. You choose which instance to show. To change the rule itself, edit the project rather than this block.',
   // what a block that cannot draw says instead
   cvDropImage: 'Drop a file on the block, or choose one.',
@@ -964,6 +979,11 @@ cvArtLockup: 'lockup', cvArtMarkOpt: 'mark', cvArtPatternOpt: 'pattern',
   cvNoPatternHow: 'Mark a shape in the master with data-pattern="source".',
   cvPatternRefused: 'That density and colourway was refused, because it fails contrast on its ground.',
   cvNoIcons: 'no icon rules', cvNoMotion: 'no motion rules',
+  cvIconsRule: '{way} \u00b7 {n} icons \u00b7 {s} on a {b} box',
+  cvIconsOff: '{way} \u00b7 {n} icons \u00b7 {s} on a {b} box \u2014 this block, not the project rule',
+  cvWay: 'Drawn as', cvPen: 'Pen', cvCorner: 'Corner', cvEnds: 'Ends', cvJoins: 'Joins',
+  cvTrade: 'Trade', cvGlyph: 'Just one', cvHowMany: 'How many',
+  cvAsRule: 'as the rule says', cvAll: 'the whole set',
   cvNoPhotography: 'No photography treatment yet. Set system.photography in the project: a duotone, a scrim, or both.',
   cvNoRenderer: 'no renderer for "{type}"',
   cvDrawFailed: '{type} could not draw: {message}',
@@ -1250,6 +1270,30 @@ Object.assign(FR, {
 // answer to the same question. Hebrew has no capitals at all, so the specimen
 // is neither of those; it is the Hebrew alphabet, and it is here rather than
 // in the layout because only a language knows what its own letters are.
+// The icon set, in French. Its own assign because the French words for the
+// chapter and the block sit in the middle of a file that interleaves the
+// languages, and an icon string dropped into the English run beside them is
+// not a missing translation, it is an English document in French.
+Object.assign(FR, {
+  // ---- the icon set ----
+  iconNoPen: 'Ce {noun} est dessin\u00e9 en aplats et ne d\u00e9clare aucun contour : il n\u2019y a donc pas de plume \u00e0 h\u00e9riter pour les ic\u00f4nes. Leur trait est de {s} dans une bo\u00eete de {b}, la valeur par d\u00e9faut de ce syst\u00e8me et le seul nombre de ce chapitre qui ne soit pas relev\u00e9 sur le dessin. Fixez system.icons.stroke pour en choisir une autre, et tout ici la suit.',
+  iconHeldMargin: 'Le {noun} remplit sa propre bo\u00eete \u2014 {own} en est de la marge \u2014 la ligne de rep\u00e8re est donc tenue \u00e0 une unit\u00e9 sur {b} plut\u00f4t que relev\u00e9e sur le dessin. La zone utile est de {live}. La quantit\u00e9 d\u2019air laiss\u00e9e \u00e0 l\u2019export est un fait sur l\u2019export.',
+  secIconSet: 'Le jeu d\u2019ic\u00f4nes',
+  iconSetIntro: 'Vingt-quatre ic\u00f4nes dessin\u00e9es de la main de cette identit\u00e9 : la plume est le trait ci-dessus, les angles et les extr\u00e9mit\u00e9s sont ceux qui y sont \u00e9nonc\u00e9s, et rien n\u2019a \u00e9t\u00e9 dessin\u00e9 \u00e0 la main. Redessinez le {noun} et tout le jeu se redessine. Elles sont dans',
+  iconSetWays: 'Trois fa\u00e7ons sont livr\u00e9es, parce que ce sont trois usages. {pen} est le jeu pour un \u00e9cran et pour tout ce qui accompagne du texte. {solid} est plus gras et tient l\u00e0 o\u00f9 un filet se referme. {stamp} est d\u00e9tour\u00e9 dans une tuile et survit \u00e0 une photographie.',
+  iconSetCap: '{way} \u00b7 {n} ic\u00f4nes \u00b7 {at}',
+  iconSetAtPen: '{s} dans une bo\u00eete de {b}',
+  iconSetAtSolid: '{s} dans une bo\u00eete de {b} \u2014 pr\u00e8s du double de la plume',
+  iconSetAtStamp: 'd\u00e9tour\u00e9 dans une tuile de {b}',
+  iconSetFigure: 'le jeu, d\u00e9coup\u00e9 de trois fa\u00e7ons',
+  cvBlockIcons: 'Jeu d\u2019ic\u00f4nes',
+  cvNoteIcons: 'Les glyphes sont dessin\u00e9s d\u2019apr\u00e8s la r\u00e8gle d\u2019ic\u00f4nes du projet : redessiner le ma\u00eetre les redessine. Ce bloc peut s\u2019en \u00e9carter \u2014 une couverture veut une plume plus grasse qu\u2019une note de bas de page \u2014 et quand il le fait, sa l\u00e9gende le dit plut\u00f4t que de contredire en silence le chapitre qui \u00e9nonce la r\u00e8gle.',
+  cvIconsRule: '{way} \u00b7 {n} ic\u00f4nes \u00b7 {s} dans une bo\u00eete de {b}',
+  cvIconsOff: '{way} \u00b7 {n} ic\u00f4nes \u00b7 {s} dans une bo\u00eete de {b} \u2014 ce bloc, pas la r\u00e8gle du projet',
+  cvWay: 'Dessin\u00e9 en', cvPen: 'Plume', cvCorner: 'Arrondi', cvEnds: 'Extr\u00e9mit\u00e9s', cvJoins: 'Jonctions',
+  cvTrade: 'M\u00e9tier', cvGlyph: 'Une seule', cvHowMany: 'Combien', cvAsRule: 'selon la r\u00e8gle',
+});
+
 const HE = {
   // All three. The thirty-seventh round moved the canvas's own words in here
   // and handed them to the browser in the bundle, so the sentence that had
@@ -1853,6 +1897,23 @@ const HE = {
   cvArtMotion: 'הסמל, בנוי לפי כללי התנועה של המותג עצמו. קו המתאר מתייצב, ואז המילוי עולה אל הקו שלו.',
   cvPatternRule: 'אריח {w} · שורה {h} · {density} · חצי הסטה',
   cvIconRule: 'תיבה {box} · חי {live} · קו {stroke} · רדיוס r {curve}',
+  // ---- the icon set ----
+  iconNoPen: '\u05d4{noun} \u05d4\u05d6\u05d4 \u05de\u05e9\u05d5\u05e8\u05d8\u05d8 \u05d1\u05de\u05d9\u05dc\u05d5\u05d9\u05d9\u05dd \u05d5\u05d0\u05d9\u05e0\u05d5 \u05de\u05e6\u05d4\u05d9\u05e8 \u05e2\u05dc \u05e9\u05d5\u05dd \u05e7\u05d5, \u05d5\u05dc\u05db\u05df \u05d0\u05d9\u05df \u05d1\u05d5 \u05e2\u05d8 \u05e9\u05d4\u05d0\u05d9\u05d9\u05e7\u05d5\u05e0\u05d9\u05dd \u05d9\u05d9\u05e8\u05e9\u05d5. \u05d4\u05e7\u05d5 \u05e9\u05dc\u05d4\u05dd \u05d4\u05d5\u05d0 {s} \u05d1\u05ea\u05d9\u05d1\u05d4 \u05e9\u05dc {b} \u2014 \u05d1\u05e8\u05d9\u05e8\u05ea \u05d4\u05de\u05d7\u05d3\u05dc \u05e9\u05dc \u05d4\u05de\u05e2\u05e8\u05db\u05ea \u05e2\u05e6\u05de\u05d4, \u05d5\u05d4\u05de\u05e1\u05e4\u05e8 \u05d4\u05d9\u05d7\u05d9\u05d3 \u05d1\u05e4\u05e8\u05e7 \u05d4\u05d6\u05d4 \u05e9\u05dc\u05d0 \u05e0\u05dc\u05e7\u05d7 \u05de\u05d4\u05e9\u05e8\u05d8\u05d5\u05d8. \u05e7\u05d1\u05e2\u05d5 \u05d0\u05ea system.icons.stroke \u05db\u05d3\u05d9 \u05dc\u05d1\u05d7\u05d5\u05e8 \u05d0\u05d7\u05e8, \u05d5\u05d4\u05db\u05d5\u05dc \u05db\u05d0\u05df \u05d9\u05dc\u05da \u05d0\u05d7\u05e8\u05d9\u05d5.',
+  iconHeldMargin: '\u05d4{noun} \u05de\u05de\u05dc\u05d0 \u05d0\u05ea \u05d4\u05ea\u05d9\u05d1\u05d4 \u05e9\u05dc\u05d5 \u2014 {own} \u05de\u05de\u05e0\u05d4 \u05e9\u05d5\u05dc\u05d9\u05d9\u05dd \u2014 \u05d5\u05dc\u05db\u05df \u05e7\u05d5 \u05d4\u05de\u05ea\u05d0\u05e8 \u05de\u05d5\u05d7\u05d6\u05e7 \u05d1\u05d9\u05d7\u05d9\u05d3\u05d4 \u05d0\u05d7\u05ea \u05de\u05ea\u05d5\u05da {b} \u05d1\u05de\u05e7\u05d5\u05dd \u05dc\u05d4\u05d9\u05dc\u05e7\u05d7 \u05de\u05d4\u05e9\u05e8\u05d8\u05d5\u05d8. \u05d4\u05e9\u05d8\u05d7 \u05d4\u05d7\u05d9 \u05d4\u05d5\u05d0 {live}. \u05db\u05de\u05d4 \u05d0\u05d5\u05d5\u05d9\u05e8 \u05e0\u05e9\u05de\u05e8 \u05d1\u05d9\u05d9\u05e6\u05d5\u05d0 \u05d4\u05d5\u05d0 \u05e2\u05d5\u05d1\u05d3\u05d4 \u05e2\u05dc \u05d4\u05d9\u05d9\u05e6\u05d5\u05d0.',
+  secIconSet: '\u05e1\u05d3\u05e8\u05ea \u05d4\u05d0\u05d9\u05d9\u05e7\u05d5\u05e0\u05d9\u05dd',
+  iconSetIntro: '\u05e2\u05e9\u05e8\u05d9\u05dd \u05d5\u05d0\u05e8\u05d1\u05e2\u05d4 \u05d0\u05d9\u05d9\u05e7\u05d5\u05e0\u05d9\u05dd \u05d4\u05de\u05e9\u05d5\u05e8\u05d8\u05d8\u05d9\u05dd \u05d1\u05d9\u05d3\u05d4 \u05e9\u05dc \u05d4\u05d6\u05d4\u05d5\u05ea \u05d4\u05d6\u05d0\u05ea: \u05d4\u05e2\u05d8 \u05d4\u05d5\u05d0 \u05d4\u05e7\u05d5 \u05e9\u05dc\u05de\u05e2\u05dc\u05d4, \u05d4\u05e4\u05d9\u05e0\u05d5\u05ea \u05d5\u05d4\u05e7\u05e6\u05d5\u05d5\u05ea \u05d4\u05dd \u05d0\u05dc\u05d4 \u05e9\u05d4\u05d5\u05e6\u05d4\u05e8\u05d5 \u05e9\u05dd, \u05d5\u05d3\u05d1\u05e8 \u05d1\u05d4\u05dd \u05dc\u05d0 \u05e9\u05d5\u05e8\u05d8\u05d8 \u05d1\u05d9\u05d3. \u05e9\u05e8\u05d8\u05d8\u05d5 \u05de\u05d7\u05d3\u05e9 \u05d0\u05ea \u05d4{noun} \u05d5\u05db\u05dc \u05d4\u05e1\u05d3\u05e8\u05d4 \u05ea\u05e9\u05d5\u05e8\u05d8\u05d8 \u05de\u05d7\u05d3\u05e9. \u05d4\u05dd \u05e0\u05de\u05e6\u05d0\u05d9\u05dd \u05d1',
+  iconSetWays: '\u05e9\u05dc\u05d5\u05e9 \u05d3\u05e8\u05db\u05d9\u05dd \u05e0\u05e9\u05dc\u05d7\u05d5\u05ea, \u05db\u05d9 \u05d0\u05dc\u05d4 \u05e9\u05dc\u05d5\u05e9 \u05e2\u05d1\u05d5\u05d3\u05d5\u05ea. {pen} \u05d4\u05d9\u05d0 \u05d4\u05e1\u05d3\u05e8\u05d4 \u05dc\u05de\u05e1\u05da \u05d5\u05dc\u05db\u05dc \u05d3\u05d1\u05e8 \u05e9\u05de\u05d5\u05e0\u05d7 \u05dc\u05e6\u05d3 \u05d8\u05e7\u05e1\u05d8. {solid} \u05db\u05d1\u05d3\u05d4 \u05d9\u05d5\u05ea\u05e8 \u05d5\u05de\u05d7\u05d6\u05d9\u05e7\u05d4 \u05d4\u05d9\u05db\u05df \u05e9\u05e7\u05d5 \u05d3\u05e7 \u05e0\u05e1\u05d2\u05e8. {stamp} \u05de\u05e0\u05d5\u05e7\u05d1\u05ea \u05de\u05ea\u05d5\u05da \u05d0\u05e8\u05d9\u05d7 \u05d5\u05e9\u05d5\u05e8\u05d3\u05ea \u05e6\u05d9\u05dc\u05d5\u05dd.',
+  iconSetCap: '{way} \u00b7 {n} \u05d0\u05d9\u05d9\u05e7\u05d5\u05e0\u05d9\u05dd \u00b7 {at}',
+  iconSetAtPen: '{s} \u05d1\u05ea\u05d9\u05d1\u05d4 \u05e9\u05dc {b}',
+  iconSetAtSolid: '{s} \u05d1\u05ea\u05d9\u05d1\u05d4 \u05e9\u05dc {b} \u2014 \u05db\u05de\u05e2\u05d8 \u05db\u05e4\u05d5\u05dc \u05de\u05d4\u05e2\u05d8',
+  iconSetAtStamp: '\u05de\u05e0\u05d5\u05e7\u05d1 \u05de\u05ea\u05d5\u05da \u05d0\u05e8\u05d9\u05d7 \u05e9\u05dc {b}',
+  iconSetFigure: '\u05d4\u05e1\u05d3\u05e8\u05d4, \u05d7\u05ea\u05d5\u05db\u05d4 \u05d1\u05e9\u05dc\u05d5\u05e9 \u05d3\u05e8\u05db\u05d9\u05dd',
+  cvBlockIcons: '\u05e1\u05d3\u05e8\u05ea \u05d0\u05d9\u05d9\u05e7\u05d5\u05e0\u05d9\u05dd',
+  cvNoteIcons: '\u05d4\u05d2\u05dc\u05d9\u05e4\u05d9\u05dd \u05de\u05e9\u05d5\u05e8\u05d8\u05d8\u05d9\u05dd \u05dc\u05e4\u05d9 \u05db\u05dc\u05dc \u05d4\u05d0\u05d9\u05d9\u05e7\u05d5\u05e0\u05d9\u05dd \u05e9\u05dc \u05d4\u05e4\u05e8\u05d5\u05d9\u05e7\u05d8, \u05db\u05da \u05e9\u05e9\u05e8\u05d8\u05d5\u05d8 \u05de\u05d7\u05d3\u05e9 \u05e9\u05dc \u05d4\u05de\u05e7\u05d5\u05e8 \u05de\u05e9\u05e8\u05d8\u05d8 \u05d0\u05d5\u05ea\u05dd \u05de\u05d7\u05d3\u05e9. \u05d4\u05d1\u05dc\u05d5\u05e7 \u05d4\u05d6\u05d4 \u05e8\u05e9\u05d0\u05d9 \u05dc\u05e1\u05d8\u05d5\u05ea \u05de\u05d4\u05db\u05dc\u05dc \u2014 \u05e9\u05e2\u05e8 \u05e8\u05d5\u05e6\u05d4 \u05e2\u05d8 \u05db\u05d1\u05d3 \u05d9\u05d5\u05ea\u05e8 \u05de\u05d4\u05e2\u05e8\u05ea \u05e9\u05d5\u05dc\u05d9\u05d9\u05dd \u2014 \u05d5\u05db\u05e9\u05d4\u05d5\u05d0 \u05e1\u05d5\u05d8\u05d4, \u05d4\u05db\u05d9\u05ea\u05d5\u05d1 \u05e9\u05dc\u05d5 \u05d0\u05d5\u05de\u05e8 \u05d6\u05d0\u05ea \u05d1\u05de\u05e7\u05d5\u05dd \u05dc\u05d7\u05dc\u05d5\u05e7 \u05d1\u05e9\u05e7\u05d8 \u05e2\u05dc \u05d4\u05e4\u05e8\u05e7 \u05e9\u05de\u05e6\u05d4\u05d9\u05e8 \u05e2\u05dc\u05d9\u05d5.',
+  cvIconsRule: '{way} \u00b7 {n} \u05d0\u05d9\u05d9\u05e7\u05d5\u05e0\u05d9\u05dd \u00b7 {s} \u05d1\u05ea\u05d9\u05d1\u05d4 \u05e9\u05dc {b}',
+  cvIconsOff: '{way} \u00b7 {n} \u05d0\u05d9\u05d9\u05e7\u05d5\u05e0\u05d9\u05dd \u00b7 {s} \u05d1\u05ea\u05d9\u05d1\u05d4 \u05e9\u05dc {b} \u2014 \u05d4\u05d1\u05dc\u05d5\u05e7 \u05d4\u05d6\u05d4, \u05dc\u05d0 \u05db\u05dc\u05dc \u05d4\u05e4\u05e8\u05d5\u05d9\u05e7\u05d8',
+  cvWay: '\u05de\u05e9\u05d5\u05e8\u05d8\u05d8 \u05db', cvPen: '\u05e2\u05d8', cvCorner: '\u05e4\u05d9\u05e0\u05d4', cvEnds: '\u05e7\u05e6\u05d5\u05d5\u05ea', cvJoins: '\u05d7\u05d9\u05d1\u05d5\u05e8\u05d9\u05dd',
+  cvTrade: '\u05e2\u05e0\u05e3', cvGlyph: '\u05e8\u05e7 \u05d0\u05d7\u05d3', cvHowMany: '\u05db\u05de\u05d4', cvAsRule: '\u05dc\u05e4\u05d9 \u05d4\u05db\u05dc\u05dc',
   cvPhotoRamp: 'שחור ← לבן דרך העיבוד',
   cvMotionOnePiece: '{out} · יציאה · חלק אחד, אין קו מתאר לשרטט קודם',
   cvMotionOneStroke: '{out} · יציאה · חלק אחד, אין מילוי נפרד שיעלה',
@@ -2411,6 +2472,23 @@ const JA = {
   cvArtMotion: "ブランド自身の動きの決めごとで組み立てたマーク。輪郭が定まり、そのあと塗りがその線まで立ち上がります。",
   cvPatternRule: "タイル {w} · 行 {h} · {density} · 半マスずらし",
   cvIconRule: "枠 {box} · 可視 {live} · 線 {stroke} · 角丸 r {curve}",
+  // ---- the icon set ----
+  iconNoPen: '\u3053\u306e{noun}\u306f\u9762\u3067\u63cf\u304b\u308c\u3066\u3044\u3066\u7dda\u3092\u6301\u3063\u3066\u3044\u307e\u305b\u3093\u304b\u3089\u3001\u30a2\u30a4\u30b3\u30f3\u304c\u53d7\u3051\u7d99\u3050\u30da\u30f3\u304c\u3042\u308a\u307e\u305b\u3093\u3002\u7dda\u306f {b} \u306e\u67a0\u306e\u4e2d\u3067 {s}\u3001\u3053\u308c\u306f\u3053\u306e\u4ed5\u7d44\u307f\u81ea\u8eab\u306e\u65e2\u5b9a\u5024\u3067\u3001\u3053\u306e\u7ae0\u3067\u56f3\u304b\u3089\u8aad\u307f\u53d6\u3063\u3066\u3044\u306a\u3044\u552f\u4e00\u306e\u6570\u5024\u3067\u3059\u3002system.icons.stroke \u3067\u5225\u306e\u5024\u3092\u6c7a\u3081\u308c\u3070\u3001\u3053\u3053\u306e\u3059\u3079\u3066\u304c\u305d\u308c\u306b\u5f93\u3044\u307e\u3059\u3002',
+  iconHeldMargin: '{noun}\u306f\u67a0\u306e\u7aef\u307e\u3067\u63cf\u304b\u308c\u3066\u3044\u3066\u2014\u2014\u4f59\u767d\u306f {own} \u3067\u3059\u2014\u2014\u3067\u3059\u304b\u3089\u898b\u5207\u308a\u7dda\u306f\u56f3\u304b\u3089\u53d6\u3089\u305a\u3001{b} \u5206\u306e\u4e00\u5358\u4f4d\u306b\u7559\u3081\u3066\u3042\u308a\u307e\u3059\u3002\u53ef\u8996\u9818\u57df\u306f {live} \u3067\u3059\u3002\u66f8\u304d\u51fa\u3057\u306b\u3069\u308c\u3060\u3051\u4f59\u767d\u3092\u6b8b\u3057\u305f\u304b\u306f\u3001\u66f8\u304d\u51fa\u3057\u306b\u3064\u3044\u3066\u306e\u4e8b\u5b9f\u306b\u3059\u304e\u307e\u305b\u3093\u3002',
+  secIconSet: '\u30a2\u30a4\u30b3\u30f3\u30bb\u30c3\u30c8',
+  iconSetIntro: '\u3053\u306e\u30a2\u30a4\u30c7\u30f3\u30c6\u30a3\u30c6\u30a3\u81ea\u8eab\u306e\u624b\u3067\u63cf\u304b\u308c\u305f\u4e8c\u5341\u56db\u306e\u30a2\u30a4\u30b3\u30f3\u3067\u3059\u3002\u30da\u30f3\u306f\u4e0a\u306e\u7dda\u3001\u89d2\u3068\u7aef\u3082\u305d\u3053\u306b\u66f8\u304b\u308c\u305f\u3082\u306e\u3067\u3001\u624b\u3067\u63cf\u3044\u305f\u3082\u306e\u306f\u4e00\u3064\u3082\u3042\u308a\u307e\u305b\u3093\u3002{noun}\u3092\u63cf\u304d\u76f4\u305b\u3070\u30bb\u30c3\u30c8\u5168\u4f53\u304c\u63cf\u304d\u76f4\u3055\u308c\u307e\u3059\u3002\u53ce\u9332\u5148\u306f',
+  iconSetWays: '\u4e09\u3064\u306e\u63cf\u304d\u65b9\u304c\u5165\u3063\u3066\u3044\u307e\u3059\u3002\u4e09\u3064\u306e\u7528\u9014\u3060\u304b\u3089\u3067\u3059\u3002{pen} \u306f\u753b\u9762\u7528\u3001\u305d\u3057\u3066\u6587\u5b57\u306e\u6a2a\u306b\u7f6e\u304f\u3082\u306e\u7528\u306e\u30bb\u30c3\u30c8\u3067\u3059\u3002{solid} \u306f\u3088\u308a\u592a\u304f\u3001\u7d30\u7dda\u304c\u3064\u3076\u308c\u308b\u5927\u304d\u3055\u3067\u3082\u4fdd\u3061\u307e\u3059\u3002{stamp} \u306f\u30bf\u30a4\u30eb\u304b\u3089\u629c\u3044\u3066\u3042\u308a\u3001\u5199\u771f\u306e\u4e0a\u3067\u3082\u751f\u304d\u6b8b\u308a\u307e\u3059\u3002',
+  iconSetCap: '{way} \u00b7 {n} \u500b \u00b7 {at}',
+  iconSetAtPen: '{b} \u306e\u67a0\u306b {s}',
+  iconSetAtSolid: '{b} \u306e\u67a0\u306b {s}\u2014\u2014\u30da\u30f3\u306e\u7d04\u4e8c\u500d',
+  iconSetAtStamp: '{b} \u306e\u30bf\u30a4\u30eb\u304b\u3089\u629c\u304d',
+  iconSetFigure: '\u4e09\u3064\u306e\u63cf\u304d\u65b9\u3067\u5207\u308a\u51fa\u3057\u305f\u30bb\u30c3\u30c8',
+  cvBlockIcons: '\u30a2\u30a4\u30b3\u30f3\u30bb\u30c3\u30c8',
+  cvNoteIcons: '\u30b0\u30ea\u30d5\u306f\u30d7\u30ed\u30b8\u30a7\u30af\u30c8\u306e\u30a2\u30a4\u30b3\u30f3\u306e\u6c7a\u3081\u3054\u3068\u304b\u3089\u63cf\u304b\u308c\u307e\u3059\u304b\u3089\u3001\u539f\u672c\u3092\u63cf\u304d\u76f4\u305b\u3070\u4e00\u7dd2\u306b\u63cf\u304d\u76f4\u3055\u308c\u307e\u3059\u3002\u3053\u306e\u30d6\u30ed\u30c3\u30af\u306f\u305d\u306e\u6c7a\u3081\u3054\u3068\u304b\u3089\u5916\u308c\u308b\u3053\u3068\u304c\u3067\u304d\u307e\u3059\u2014\u2014\u8868\u7d19\u306f\u5c0f\u3055\u306a\u6ce8\u3088\u308a\u592a\u3044\u30da\u30f3\u3092\u6c42\u3081\u307e\u3059\u2014\u2014\u5916\u308c\u305f\u3068\u304d\u306f\u3001\u6c7a\u3081\u3054\u3068\u3092\u66f8\u3044\u305f\u7ae0\u3068\u9ed9\u3063\u3066\u98df\u3044\u9055\u3046\u306e\u3067\u306f\u306a\u304f\u3001\u30ad\u30e3\u30d7\u30b7\u30e7\u30f3\u304c\u305d\u3046\u8ff0\u3079\u307e\u3059\u3002',
+  cvIconsRule: '{way} \u00b7 {n} \u500b \u00b7 {b} \u306e\u67a0\u306b {s}',
+  cvIconsOff: '{way} \u00b7 {n} \u500b \u00b7 {b} \u306e\u67a0\u306b {s}\u2014\u2014\u3053\u306e\u30d6\u30ed\u30c3\u30af\u306e\u5024\u3067\u3001\u30d7\u30ed\u30b8\u30a7\u30af\u30c8\u306e\u6c7a\u3081\u3054\u3068\u3067\u306f\u3042\u308a\u307e\u305b\u3093',
+  cvWay: '\u63cf\u304d\u65b9', cvPen: '\u30da\u30f3', cvCorner: '\u89d2\u4e38', cvEnds: '\u7aef', cvJoins: '\u89d2',
+  cvTrade: '\u5206\u985e', cvGlyph: '\u4e00\u3064\u3060\u3051', cvHowMany: '\u500b\u6570', cvAsRule: '\u6c7a\u3081\u3054\u3068\u306e\u307e\u307e',
   cvPhotoRamp: "処理を通した黒から白へ",
   cvMotionOnePiece: "{out} · 出 · 一つの塊。先に描く輪郭がありません",
   cvMotionOneStroke: "{out} · 出 · 一つの塊。あとから上がる塗りがありません",

@@ -159,6 +159,13 @@ function handler(req, res) {
     return readBody(req).then((body) => json(res, 200, H.pattern(body))).catch((e) => fail(res, e));
   }
 
+  // The icon set, for the ninth screen. Cheap next to the pattern route: one
+  // rule resolved and twenty-four glyphs drawn, rather than every generator
+  // derived and measured.
+  if (req.method === 'POST' && p === '/api/icons') {
+    return readBody(req).then((body) => json(res, 200, H.icons(body))).catch((e) => fail(res, e));
+  }
+
   // Which six of them the package will write, ranked against the mark. Its own
   // route because it costs a draw of every generator and the pattern screen has
   // to appear at once — see `shortlist` in handlers.js.

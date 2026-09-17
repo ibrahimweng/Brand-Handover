@@ -78,7 +78,9 @@
     const way = ICONS.WAYS.indexOf(p.way) > -1 ? p.way : ICONS.WAYS[0];
     const ground = pal.ground;
     pal.paper(surface, W, H, ground);
-    const h = ICONS.hand(p.mark || null, p.motif || null);
+    // In the identity's own hand, not one this generator worked out for
+    // itself. `rule` is what system.js resolved and the manual quotes.
+    const h = ICONS.hand(p.mark || null, p.motif || null, p.iconRule || null);
     const set = ICONS.setOf(p.sector, p.icons);
     if (!set.length) return;
     const many = Math.max(1, Math.min(pal.inks.length, Math.round(p.colours)));
@@ -151,6 +153,6 @@
     { group: 'pattern', key: 'seed', label: 'Seed', type: 'seed' },
   ];
 
-  return { key: 'signage', kind: 'pattern', vector: true, motif: true, ratio: 1,
+  return { key: 'signage', kind: 'pattern', vector: true, motif: true, usesIcons: true, ratio: 1,
     controls, paint, lattice, places, LAYOUTS };
 }));
